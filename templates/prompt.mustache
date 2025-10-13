@@ -1,0 +1,8 @@
+<form method="post" action="{{actionurl}}">
+    <div class="form-group">
+        <label for="id_prompt">{{promptlabel}}</label>
+        <input type="text" name="prompt" id="id_prompt" class="form-control" value="{{promptvalue}}" required>
+    </div>
+    <input type="hidden" name="id" value="{{courseid}}">
+    <button type="submit" class="btn btn-primary">{{submitlabel}}</button>
+</form>

@@ -297,14 +297,28 @@ if ($approveform && ($adata = $approveform->get_data())) {
         rebuild_course_cache($courseid, true, true);
     }
 
-    echo $OUTPUT->header();
+    $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
+    $resultsdata = [
+        'notifications' => [],
+        'hasresults' => !empty($results),
+        'results' => array_map(static function(string $text): array {
+            return ['text' => $text];
+        }, $results),
+        'returnlink' => [
+            'url' => $courseurl->out(false),
+            'label' => get_string('returntocourse', 'aiplacement_modgen'),
+        ],
+    ];
+
     if (empty($results)) {
-        echo $OUTPUT->notification(get_string('nosectionscreated', 'aiplacement_modgen'), 'notifyproblem');
-    } else {
-        foreach ($results as $result) {
-            echo $OUTPUT->box($result);
-        }
+        $resultsdata['notifications'][] = [
+            'message' => get_string('nosectionscreated', 'aiplacement_modgen'),
+            'classes' => 'alert alert-warning',
+        ];
     }
+
+    echo $OUTPUT->header();
+    echo $OUTPUT->render_from_template('aiplacement_modgen/generation_results', $resultsdata);
     echo $OUTPUT->footer();
     exit;
 }
@@ -339,28 +353,38 @@ if ($pdata = $promptform->get_data()) {
         'includeaboutlearning' => $includeaboutlearning ? 1 : 0,
     ]);
 
-    echo $OUTPUT->header();
-    echo $OUTPUT->box_start();
-    echo html_writer::tag('h4', 'Prompt sent to AI subsystem');
-    echo html_writer::tag('pre', s($debugprompt));
-    echo html_writer::empty_tag('hr');
-    if (!empty($json['debugresponse'])) {
-        echo html_writer::tag('h4', get_string('aisubsystemresponsedata', 'aiplacement_modgen'));
-        echo html_writer::tag('pre', s(print_r($json['debugresponse'], true)));
-        echo html_writer::empty_tag('hr');
-    }
+    $notifications = [];
     if (!empty($json['template']) && strpos($json['template'], 'AI error:') === 0) {
-        echo $OUTPUT->notification($json['template'], 'notifyproblem');
+        $notifications[] = [
+            'message' => $json['template'],
+            'classes' => 'alert alert-danger',
+        ];
     }
-    if (!empty($json['raw'])) {
-        echo html_writer::tag('h4', get_string('rawoutput', 'aiplacement_modgen'));
-        echo html_writer::tag('pre', s($json['raw']));
-        echo html_writer::empty_tag('hr');
-    }
-    echo html_writer::tag('h4', get_string('jsonpreview', 'aiplacement_modgen'));
-    echo html_writer::tag('pre', $jsonstr);
-    echo $OUTPUT->box_end();
+
+    $formhtml = '';
+    ob_start();
     $approveform->display();
+    $formhtml = ob_get_clean();
+
+    $previewdata = [
+        'notifications' => $notifications,
+        'promptheading' => get_string('promptsentheading', 'aiplacement_modgen'),
+        'prompt' => $debugprompt,
+        'debugresponse' => !empty($json['debugresponse']) ? [
+            'heading' => get_string('aisubsystemresponsedata', 'aiplacement_modgen'),
+            'content' => print_r($json['debugresponse'], true),
+        ] : null,
+        'raw' => !empty($json['raw']) ? [
+            'heading' => get_string('rawoutput', 'aiplacement_modgen'),
+            'content' => $json['raw'],
+        ] : null,
+        'jsonheading' => get_string('jsonpreview', 'aiplacement_modgen'),
+        'json' => $jsonstr,
+        'form' => $formhtml,
+    ];
+
+    echo $OUTPUT->header();
+    echo $OUTPUT->render_from_template('aiplacement_modgen/prompt_preview', $previewdata);
     echo $OUTPUT->footer();
     exit;
 }

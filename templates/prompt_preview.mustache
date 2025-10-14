@@ -1,0 +1,26 @@
+<div class="aiplacement-modgen-preview">
+    {{#notifications}}
+    <div class="{{classes}}" role="alert">{{message}}</div>
+    {{/notifications}}
+
+    <h4>{{promptheading}}</h4>
+    <pre>{{prompt}}</pre>
+
+    {{#debugresponse}}
+    <hr>
+    <h4>{{heading}}</h4>
+    <pre>{{content}}</pre>
+    {{/debugresponse}}
+
+    {{#raw}}
+    <hr>
+    <h4>{{heading}}</h4>
+    <pre>{{content}}</pre>
+    {{/raw}}
+
+    <hr>
+    <h4>{{jsonheading}}</h4>
+    <pre>{{json}}</pre>
+
+    {{{form}}}
+</div>

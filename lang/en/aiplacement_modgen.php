@@ -63,4 +63,6 @@ $string['includeaboutassessments'] = 'Add "About Assessments" subsection to the 
 $string['includeaboutlearning'] = 'Add "About Learning Outcomes" subsection to the first section';
 $string['aboutassessments'] = 'About Assessments';
 $string['aboutlearningoutcomes'] = 'About Learning Outcomes';
+$string['returntocourse'] = 'Return to course home';
+$string['promptsentheading'] = 'Prompt sent to AI subsystem';
 

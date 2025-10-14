@@ -1,0 +1,19 @@
+<div class="aiplacement-modgen-results">
+    {{#notifications}}
+    <div class="{{classes}}" role="alert">{{message}}</div>
+    {{/notifications}}
+
+    {{#hasresults}}
+    <ul class="aiplacement-modgen-results__list">
+        {{#results}}
+        <li>{{text}}</li>
+        {{/results}}
+    </ul>
+    {{/hasresults}}
+
+    {{#returnlink}}
+    <p class="aiplacement-modgen-results__return">
+        <a href="{{url}}">{{label}}</a>
+    </p>
+    {{/returnlink}}
+</div>

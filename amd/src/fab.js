@@ -40,51 +40,298 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
         return button;
     };
 
-    /**
-     * Build the modal that hosts the prompt UI.
-     *
-     * @param {Object} params
-     * @param {HTMLElement} trigger
-     * @returns {Promise}
-     */
     let modalPromise = null;
     let modalInstance = null;
-    let messageListenerRegistered = false;
     let shouldRefresh = false;
     let reloadTriggered = false;
 
-    const MESSAGE_TYPES = {
-        READY: 'aiplacement_modgen_ready',
-        CLOSE: 'aiplacement_modgen_close',
-        REFRESH: 'aiplacement_modgen_refresh',
+    const getModalUrl = (baseUrl, params) => {
+        const url = new URL(baseUrl, window.location.origin);
+        url.searchParams.set('ajax', '1');
+        if (params.embedded) {
+            url.searchParams.set('embedded', '1');
+        }
+        if (typeof M !== 'undefined' && M.cfg && M.cfg.sesskey && !url.searchParams.has('sesskey')) {
+            url.searchParams.set('sesskey', M.cfg.sesskey);
+        }
+        return url;
     };
 
-    const handleMessage = (event) => {
-        if (!event || event.origin !== window.location.origin || !event.data) {
+    const executeInlineScripts = () => {
+        if (!modalInstance) {
             return;
         }
 
-        if (event.data.type === MESSAGE_TYPES.READY) {
-            shouldRefresh = true;
+        const body = modalInstance.getBody();
+        const bodyNode = body && body.length ? body.get(0) : null;
+        const footer = modalInstance.getFooter();
+        const footerNode = footer && footer.length ? footer.get(0) : null;
+
+        if (!bodyNode) {
             return;
         }
 
-        if (event.data.type === MESSAGE_TYPES.REFRESH) {
-            shouldRefresh = true;
-            if (modalInstance) {
-                modalInstance.hide();
+        const scripts = bodyNode.querySelectorAll('script');
+        scripts.forEach((script) => {
+            const replacement = document.createElement('script');
+            if (script.type) {
+                replacement.type = script.type;
             }
+            if (script.src) {
+                replacement.src = script.src;
+                replacement.async = false;
+            } else {
+                replacement.textContent = script.textContent;
+            }
+            script.replaceWith(replacement);
+        });
+
+        if (typeof M !== 'undefined' && M.form && typeof M.form.updateFormState === 'function') {
+            const forms = bodyNode.querySelectorAll('form.mform');
+            forms.forEach((form) => {
+                try {
+                    M.form.updateFormState(form.getAttribute('id'));
+                } catch (error) {
+                    // eslint-disable-next-line no-console
+                    console.warn('Failed to refresh form state', error);
+                }
+            });
+        }
+
+    };
+
+    const injectFooterButtons = () => {
+        if (!modalInstance) {
             return;
         }
 
-        if (event.data.type === MESSAGE_TYPES.CLOSE && modalInstance) {
-            if (shouldRefresh) {
-                // Ensure we reload once the modal is fully hidden.
+        const body = modalInstance.getBody();
+        const bodyNode = body && body.length ? body.get(0) : null;
+        const footer = modalInstance.getFooter();
+        const footerNode = footer && footer.length ? footer.get(0) : null;
+
+        if (!bodyNode || !footerNode) {
+            return;
+        }
+
+        const submitAreas = bodyNode.querySelectorAll('.form-submit');
+        submitAreas.forEach((area) => {
+            let createdButtons = false;
+            const buttons = area.querySelectorAll('button, input[type="submit"]');
+            const fragment = document.createDocumentFragment();
+            buttons.forEach((original) => {
+                const clone = document.createElement('button');
+                const classList = original.className ? original.className.split(' ').filter(Boolean) : [];
+                if (!classList.includes('btn')) {
+                    classList.push('btn');
+                }
+                if (!classList.some((cls) => cls.startsWith('btn-'))) {
+                    classList.push('btn-primary');
+                }
+                clone.className = classList.join(' ');
+                clone.type = 'button';
+                clone.textContent = original.tagName === 'INPUT' ? (original.value || original.getAttribute('value') || original.name || '') : original.textContent;
+                clone.addEventListener('click', () => {
+                    const form = original.form;
+                    if (!form) {
+                        return;
+                    }
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit(original);
+                    } else {
+                        original.click();
+                    }
+                });
+                fragment.appendChild(clone);
+                createdButtons = true;
+            });
+
+            if (createdButtons) {
+                area.classList.add('aiplacement-modgen__hidden-submit');
+                area.setAttribute('aria-hidden', 'true');
+                if (!footerNode.innerHTML.trim()) {
+                    footerNode.innerHTML = '';
+                }
+                footerNode.appendChild(fragment);
+            }
+        });
+
+        const footerActions = bodyNode.querySelectorAll('[data-region="aiplacement-modgen-footer"] > *');
+        footerActions.forEach((element) => {
+            footerNode.appendChild(element);
+        });
+    };
+
+    const bindCloseButtons = () => {
+        if (!modalInstance) {
+            return;
+        }
+
+        const body = modalInstance.getBody();
+        const bodyNode = body && body.length ? body.get(0) : null;
+        if (!bodyNode) {
+            return;
+        }
+
+        const buttons = bodyNode.querySelectorAll('[data-action="aiplacement-modgen-close"]');
+        buttons.forEach((button) => {
+            button.addEventListener('click', (event) => {
+                event.preventDefault();
+                shouldRefresh = true;
                 modalInstance.hide();
+            });
+        });
+    };
+
+    const setupKeepWeekLabelsToggle = (form) => {
+        if (form.dataset.modgenWeekToggle === '1') {
+            return;
+        }
+
+        const moduleselect = form.querySelector('select[name="moduletype"]');
+        const keepweekitem = form.querySelector('#fitem_id_keepweeklabels');
+        if (!moduleselect || !keepweekitem) {
+            return;
+        }
+
+        const checkbox = keepweekitem.querySelector('input[name="keepweeklabels"]');
+
+        const updateVisibility = () => {
+            const isWeekly = moduleselect.value === 'weekly';
+            keepweekitem.style.display = isWeekly ? '' : 'none';
+            keepweekitem.setAttribute('aria-hidden', isWeekly ? 'false' : 'true');
+            if (!isWeekly && checkbox) {
+                checkbox.checked = false;
+            }
+        };
+
+        moduleselect.addEventListener('change', updateVisibility);
+        updateVisibility();
+        form.dataset.modgenWeekToggle = '1';
+    };
+
+    const enhanceForms = (params) => {
+        if (!modalInstance) {
+            return;
+        }
+
+        const body = modalInstance.getBody();
+        const bodyNode = body && body.length ? body.get(0) : null;
+        if (!bodyNode) {
+            return;
+        }
+
+        const forms = bodyNode.querySelectorAll('form');
+        forms.forEach((form) => {
+            if (form.dataset.modgenEnhanced === '1') {
                 return;
             }
+            form.dataset.modgenEnhanced = '1';
+            form.addEventListener('submit', (event) => {
+                event.preventDefault();
+                const formData = new FormData(form);
+                formData.append('ajax', '1');
+                if (params.embedded) {
+                    formData.append('embedded', '1');
+                }
+                if (!formData.has('sesskey') && typeof M !== 'undefined' && M.cfg && M.cfg.sesskey) {
+                    formData.append('sesskey', M.cfg.sesskey);
+                }
+                loadContent(params, formData);
+            });
+
+            setupKeepWeekLabelsToggle(form);
+        });
+    };
+
+    const showError = (message) => {
+        if (!modalInstance) {
+            return;
+        }
+        const safeMessage = message || 'Unable to load content.';
+        modalInstance.setBody('<div class="alert alert-danger" role="alert">' + safeMessage + '</div>');
+        modalInstance.setFooter('');
+    };
+
+    const setLoadingState = () => {
+        if (!modalInstance) {
+            return;
+        }
+        modalInstance.setBody('<div class="aiplacement-modgen__loading"><span class="spinner-border" role="status" aria-hidden="true"></span></div>');
+        modalInstance.setFooter('');
+    };
+
+    const processPayload = (payload, params) => {
+        if (!modalInstance) {
+            return;
+        }
+
+        if (!payload || typeof payload !== 'object') {
+            showError('Unexpected response from server.');
+            return;
+        }
+
+        if (payload.error) {
+            showError(payload.error);
+            return;
+        }
+
+        if (payload.title) {
+            modalInstance.setTitle(payload.title);
+        }
+
+        const bodyHtml = payload.body || '';
+        const footerHtml = payload.footer || '';
+        modalInstance.setBody(bodyHtml);
+        modalInstance.setFooter(footerHtml);
+
+        shouldRefresh = shouldRefresh || Boolean(payload.refresh);
+
+    executeInlineScripts();
+        injectFooterButtons();
+        enhanceForms(params);
+        bindCloseButtons();
+
+        if (payload.close) {
             modalInstance.hide();
         }
+    };
+
+    const loadContent = (params, formData = null) => {
+        if (!modalInstance) {
+            return Promise.resolve();
+        }
+
+        setLoadingState();
+
+        const url = getModalUrl(params.url, params);
+        const options = {
+            method: formData ? 'POST' : 'GET',
+            credentials: 'same-origin',
+            headers: {
+                Accept: 'application/json',
+            },
+        };
+
+        if (formData) {
+            options.body = formData;
+        }
+
+        return fetch(url.toString(), options)
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Failed to load modal content.');
+                }
+                return response.json();
+            })
+            .then((payload) => {
+                processPayload(payload, params);
+            })
+            .catch((error) => {
+                // eslint-disable-next-line no-console
+                console.error(error);
+                showError(error.message);
+            });
     };
 
     const getModal = (params, trigger) => {
@@ -94,20 +341,11 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
                 body: '',
             }).then((modal) => {
                 modalInstance = modal;
-                const body = modal.getBody();
-                body.empty();
-
-                const iframe = document.createElement('iframe');
-                iframe.className = 'aiplacement-modgen__iframe';
-                iframe.setAttribute('title', params.dialogtitle);
-                iframe.setAttribute('allow', 'clipboard-write');
-                iframe.setAttribute('loading', 'lazy');
-                body.append(iframe);
 
                 modal.getRoot().on(ModalEvents.shown, () => {
                     trigger.setAttribute('aria-expanded', 'true');
-                    if (!iframe.src) {
-                        iframe.src = params.url;
+                    if (!modalInstance.getBody().html()) {
+                        loadContent(params);
                     }
                 });
 
@@ -150,21 +388,21 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
             return;
         }
 
+    params.embedded = params.embedded || params.url.indexOf('embedded=1') !== -1;
+
         if (document.querySelector('.aiplacement-modgen__fab')) {
             return;
         }
 
         const trigger = createButton(params);
 
-        if (!messageListenerRegistered) {
-            window.addEventListener('message', handleMessage);
-            messageListenerRegistered = true;
-        }
-
         trigger.addEventListener('click', (event) => {
             event.preventDefault();
             getModal(params, trigger).then((modal) => {
                 modal.show();
+                if (!modal.getBody().html()) {
+                    loadContent(params);
+                }
             }).catch((error) => {
                 // eslint-disable-next-line no-console
                 console.error('Failed to initialise Module Generator modal', error);

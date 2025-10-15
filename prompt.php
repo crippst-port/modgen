@@ -1,4 +1,7 @@
 <?php
+if (!defined('AJAX_SCRIPT') && !empty($_REQUEST['ajax'])) {
+    define('AJAX_SCRIPT', true);
+}
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -27,11 +30,40 @@ require_once($CFG->libdir . '/formslib.php');
 require_login();
 
 $embedded = optional_param('embedded', 0, PARAM_BOOL);
+$ajax = optional_param('ajax', 0, PARAM_BOOL);
 
-if ($embedded) {
+if ($ajax && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    require_sesskey();
+}
+
+if ($embedded && !$ajax) {
     $PAGE->requires->css('/ai/placement/modgen/styles.css');
     $PAGE->add_body_class('aiplacement-modgen-embedded');
     $PAGE->requires->js_call_amd('aiplacement_modgen/embedded_prompt', 'init');
+}
+
+/**
+ * Emit an AJAX response payload and terminate execution.
+ *
+ * @param string $body Body HTML for the modal content.
+ * @param string $footer Footer HTML for modal actions.
+ * @param bool $refresh Whether the parent page should refresh after close.
+ * @param array $extra Additional response data.
+ */
+function aiplacement_modgen_send_ajax_response(string $body, string $footer = '', bool $refresh = false, array $extra = []): void {
+    if (!defined('AJAX_SCRIPT') || !AJAX_SCRIPT) {
+        return;
+    }
+
+    $response = array_merge([
+        'body' => $body,
+        'footer' => $footer,
+        'refresh' => $refresh,
+    ], $extra);
+
+    @header('Content-Type: application/json; charset=utf-8');
+    echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
 }
 
 /**
@@ -104,9 +136,9 @@ $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', $pageparams));
 $PAGE->set_context($context);
 $PAGE->set_title(get_string('pluginname', 'aiplacement_modgen'));
 $PAGE->set_heading(get_string('pluginname', 'aiplacement_modgen'));
-    if ($embedded) {
-        $PAGE->set_pagelayout('embedded');
-    }
+if ($embedded || $ajax) {
+    $PAGE->set_pagelayout('embedded');
+}
 
 // Define first form: prompt input.
 class aiplacement_modgen_prompt_form extends moodleform {
@@ -358,7 +390,9 @@ if ($approveform && ($adata = $approveform->get_data())) {
             'label' => get_string('closemodgenmodal', 'aiplacement_modgen'),
             'dataaction' => 'aiplacement-modgen-close',
         ];
-        $PAGE->requires->js_call_amd('aiplacement_modgen/embedded_results', 'init');
+        if (!$ajax) {
+            $PAGE->requires->js_call_amd('aiplacement_modgen/embedded_results', 'init');
+        }
     } else {
         $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
         $resultsdata['returnlink'] = [
@@ -374,8 +408,18 @@ if ($approveform && ($adata = $approveform->get_data())) {
         ];
     }
 
+    $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/generation_results', $resultsdata);
+    $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
+
+    if ($ajax) {
+        aiplacement_modgen_send_ajax_response($bodyhtml, '', true, [
+            'close' => false,
+            'title' => get_string('pluginname', 'aiplacement_modgen'),
+        ]);
+    }
+
     echo $OUTPUT->header();
-    echo $OUTPUT->render_from_template('aiplacement_modgen/generation_results', $resultsdata);
+    echo $bodyhtml;
     echo $OUTPUT->footer();
     exit;
 }
@@ -386,6 +430,9 @@ $promptform = new aiplacement_modgen_prompt_form(null, [
     'embedded' => $embedded ? 1 : 0,
 ]);
 if ($promptform->is_cancelled()) {
+    if ($ajax) {
+        aiplacement_modgen_send_ajax_response('', '', false, ['close' => true]);
+    }
     redirect(new moodle_url('/course/view.php', ['id' => $courseid]));
 }
 if ($pdata = $promptform->get_data()) {
@@ -444,13 +491,33 @@ if ($pdata = $promptform->get_data()) {
         'form' => $formhtml,
     ];
 
+    $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/prompt_preview', $previewdata);
+    $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
+
+    if ($ajax) {
+        aiplacement_modgen_send_ajax_response($bodyhtml, '', false, [
+            'title' => get_string('pluginname', 'aiplacement_modgen'),
+        ]);
+    }
+
     echo $OUTPUT->header();
-    echo $OUTPUT->render_from_template('aiplacement_modgen/prompt_preview', $previewdata);
+    echo $bodyhtml;
     echo $OUTPUT->footer();
     exit;
 }
 
 // Default display: prompt form.
-echo $OUTPUT->header();
+ob_start();
 $promptform->display();
+$formhtml = ob_get_clean();
+$bodyhtml = html_writer::div($formhtml, 'aiplacement-modgen__content');
+
+if ($ajax) {
+    aiplacement_modgen_send_ajax_response($bodyhtml, '', false, [
+        'title' => get_string('pluginname', 'aiplacement_modgen'),
+    ]);
+}
+
+echo $OUTPUT->header();
+echo $bodyhtml;
 echo $OUTPUT->footer();

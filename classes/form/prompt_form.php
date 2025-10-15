@@ -48,7 +48,7 @@ class aiplacement_modgen_prompt_form extends moodleform {
         $mform->setDefault('moduletype', 'weekly');
         $mform->setType('moduletype', PARAM_ALPHA);
         $mform->addElement('advcheckbox', 'keepweeklabels', get_string('keepweeklabels', 'aiplacement_modgen'));
-        $mform->setDefault('keepweeklabels', 1);
+        $mform->setDefault('keepweeklabels', 0);
         $mform->setType('keepweeklabels', PARAM_BOOL);
         $mform->hideIf('keepweeklabels', 'moduletype', 'neq', 'weekly');
     $mform->addElement('advcheckbox', 'includeaboutsubsections', get_string('includeaboutsubsections', 'aiplacement_modgen'));

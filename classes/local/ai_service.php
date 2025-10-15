@@ -180,4 +180,59 @@ class ai_service {
             ];
         }
     }
+
+    /**
+     * Produce a concise human-readable summary of the generated module structure.
+     *
+     * @param array $moduledata The decoded JSON returned by the AI generator.
+     * @param string $structure Either 'weekly' or 'theme'.
+     * @return string Summary text or empty string if unavailable.
+     */
+    public static function summarise_module(array $moduledata, string $structure = 'weekly'): string {
+        global $USER, $COURSE;
+
+        try {
+            if (!class_exists('\\core_ai\\manager') || !class_exists('\\core_ai\\aiactions\\generate_text')) {
+                return '';
+            }
+
+            $contextid = !empty($COURSE->id)
+                ? \context_course::instance($COURSE->id)->id
+                : \context_system::instance()->id;
+
+            $aimanager = new \core_ai\manager();
+            if (!$aimanager->get_user_policy_status($USER->id)) {
+                return '';
+            }
+
+            $structure = ($structure === 'theme') ? 'theme' : 'weekly';
+            $jsonpayload = json_encode($moduledata, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+            if ($jsonpayload === false) {
+                return '';
+            }
+
+            $instruction = "You are an instructional designer generating a concise summary of a Moodle module plan.\n" .
+                "Summarise what will be created in no more than 80 words, focusing on learner experience and structure.\n" .
+                "Refer to the module as a '{$structure}' style offering.\n" .
+                "Do not use bullet points or markdown headings. Respond with plain sentences.";
+
+            $prompt = $instruction . "\n\nModule plan JSON:\n" . $jsonpayload;
+
+            $action = new \core_ai\aiactions\generate_text(
+                $contextid,
+                $USER->id,
+                $prompt
+            );
+
+            $response = $aimanager->process_action($action);
+            $data = $response->get_response_data();
+            $text = $data['generatedtext'] ?? ($data['generatedcontent'] ?? '');
+            if (is_string($text)) {
+                return trim($text);
+            }
+            return '';
+        } catch (\Throwable $e) {
+            return '';
+        }
+    }
 }

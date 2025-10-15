@@ -118,6 +118,59 @@ function local_aiplacement_modgen_create_subsection(stdClass $course, int $secti
     return $cmid ?: null;
 }
 
+/**
+ * Provide a readable fallback summary when the AI description is unavailable.
+ *
+ * @param array $moduledata Decoded module structure returned by the AI.
+ * @param string $structure Requested structure ('weekly' or 'theme').
+ * @return string Fallback summary text or empty string when details are missing.
+ */
+function aiplacement_modgen_generate_fallback_summary(array $moduledata, string $structure): string {
+    $structure = ($structure === 'theme') ? 'theme' : 'weekly';
+
+    if ($structure === 'theme' && !empty($moduledata['themes']) && is_array($moduledata['themes'])) {
+        $themes = array_filter($moduledata['themes'], 'is_array');
+        $themecount = count($themes);
+        $weekcount = 0;
+        foreach ($themes as $theme) {
+            if (!empty($theme['weeks']) && is_array($theme['weeks'])) {
+                $weekcount += count(array_filter($theme['weeks'], 'is_array'));
+            }
+        }
+
+        if ($themecount > 0) {
+            return get_string('generationresultsfallbacksummary_theme', 'aiplacement_modgen', [
+                'themes' => $themecount,
+                'weeks' => $weekcount,
+            ]);
+        }
+    }
+
+    if (!empty($moduledata['sections']) && is_array($moduledata['sections'])) {
+        $sections = array_filter($moduledata['sections'], 'is_array');
+        $sectioncount = count($sections);
+        $outlineitems = 0;
+        foreach ($sections as $section) {
+            if (!empty($section['outline']) && is_array($section['outline'])) {
+                foreach ($section['outline'] as $entry) {
+                    if (is_string($entry) && trim($entry) !== '') {
+                        $outlineitems++;
+                    }
+                }
+            }
+        }
+
+        if ($sectioncount > 0) {
+            return get_string('generationresultsfallbacksummary_weekly', 'aiplacement_modgen', [
+                'sections' => $sectioncount,
+                'outlineitems' => $outlineitems,
+            ]);
+        }
+    }
+
+    return '';
+}
+
 // Resolve course id from id or courseid.
 $courseid = optional_param('id', 0, PARAM_INT);
 if (!$courseid) {
@@ -202,6 +255,8 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->setType('includeaboutassessments', PARAM_BOOL);
         $mform->addElement('hidden', 'includeaboutlearning', $this->_customdata['includeaboutlearning']);
         $mform->setType('includeaboutlearning', PARAM_BOOL);
+        $mform->addElement('hidden', 'generatedsummary', $this->_customdata['generatedsummary']);
+        $mform->setType('generatedsummary', PARAM_RAW);
         $this->add_action_buttons(false, get_string('approveandcreate', 'aiplacement_modgen'));
     }
 }
@@ -217,6 +272,7 @@ $approvedtypeparam = optional_param('moduletype', 'weekly', PARAM_ALPHA);
 $keepweeklabelsparam = optional_param('keepweeklabels', 0, PARAM_BOOL);
 $includeaboutassessmentsparam = optional_param('includeaboutassessments', 0, PARAM_BOOL);
 $includeaboutlearningparam = optional_param('includeaboutlearning', 0, PARAM_BOOL);
+$generatedsummaryparam = optional_param('generatedsummary', '', PARAM_RAW);
 if ($approvedjsonparam !== null) {
     $approveform = new aiplacement_modgen_approve_form(null, [
         'courseid' => $courseid,
@@ -225,6 +281,7 @@ if ($approvedjsonparam !== null) {
         'keepweeklabels' => $keepweeklabelsparam,
         'includeaboutassessments' => $includeaboutassessmentsparam,
         'includeaboutlearning' => $includeaboutlearningparam,
+        'generatedsummary' => $generatedsummaryparam,
         'embedded' => $embedded ? 1 : 0,
     ]);
 }
@@ -449,7 +506,15 @@ if ($pdata = $promptform->get_data()) {
     $json = \local_aiplacement_modgen\ai_service::generate_module($compositeprompt, $orgparams, [], $moduletype);
     // Get the final prompt sent to AI for debugging (returned by ai_service).
     $debugprompt = isset($json['debugprompt']) ? $json['debugprompt'] : $prompt;
-    $jsonstr = json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE);
+    $jsonstr = json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    if ($jsonstr === false) {
+        $jsonstr = print_r($json, true);
+    }
+    $summarytext = \local_aiplacement_modgen\ai_service::summarise_module($json, $moduletype);
+    if ($summarytext === '') {
+        $summarytext = aiplacement_modgen_generate_fallback_summary($json, $moduletype);
+    }
+    $summaryformatted = $summarytext !== '' ? nl2br(s($summarytext)) : '';
 
     $approveform = new aiplacement_modgen_approve_form(null, [
         'courseid' => $courseid,
@@ -458,6 +523,7 @@ if ($pdata = $promptform->get_data()) {
         'keepweeklabels' => $keepweeklabels ? 1 : 0,
         'includeaboutassessments' => $includeaboutassessments ? 1 : 0,
         'includeaboutlearning' => $includeaboutlearning ? 1 : 0,
+        'generatedsummary' => $summarytext,
         'embedded' => $embedded ? 1 : 0,
     ]);
 
@@ -476,18 +542,14 @@ if ($pdata = $promptform->get_data()) {
 
     $previewdata = [
         'notifications' => $notifications,
-        'promptheading' => get_string('promptsentheading', 'aiplacement_modgen'),
-        'prompt' => $debugprompt,
-        'debugresponse' => !empty($json['debugresponse']) ? [
-            'heading' => get_string('aisubsystemresponsedata', 'aiplacement_modgen'),
-            'content' => print_r($json['debugresponse'], true),
-        ] : null,
-        'raw' => !empty($json['raw']) ? [
-            'heading' => get_string('rawoutput', 'aiplacement_modgen'),
-            'content' => $json['raw'],
-        ] : null,
-        'jsonheading' => get_string('jsonpreview', 'aiplacement_modgen'),
-        'json' => $jsonstr,
+        'hassummary' => $summarytext !== '',
+        'summaryheading' => get_string('generationresultssummaryheading', 'aiplacement_modgen'),
+        'summary' => $summaryformatted,
+        'hasjson' => !empty($jsonstr),
+        'jsonheading' => get_string('generationresultsjsonheading', 'aiplacement_modgen'),
+        'jsondescription' => get_string('generationresultsjsondescription', 'aiplacement_modgen'),
+        'json' => s($jsonstr),
+        'jsonnote' => get_string('generationresultsjsonnote', 'aiplacement_modgen'),
         'form' => $formhtml,
     ];
 

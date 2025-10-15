@@ -44,6 +44,7 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
     let modalInstance = null;
     let shouldRefresh = false;
     let reloadTriggered = false;
+    let footerButtonBindings = [];
 
     const getModalUrl = (baseUrl, params) => {
         const url = new URL(baseUrl, window.location.origin);
@@ -64,9 +65,6 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
 
         const body = modalInstance.getBody();
         const bodyNode = body && body.length ? body.get(0) : null;
-        const footer = modalInstance.getFooter();
-        const footerNode = footer && footer.length ? footer.get(0) : null;
-
         if (!bodyNode) {
             return;
         }
@@ -100,66 +98,98 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
 
     };
 
-    const injectFooterButtons = () => {
+    const moveFooterRegions = () => {
         if (!modalInstance) {
             return;
         }
 
         const body = modalInstance.getBody();
-        const bodyNode = body && body.length ? body.get(0) : null;
         const footer = modalInstance.getFooter();
+        const bodyNode = body && body.length ? body.get(0) : null;
         const footerNode = footer && footer.length ? footer.get(0) : null;
 
         if (!bodyNode || !footerNode) {
             return;
         }
 
-        const submitAreas = bodyNode.querySelectorAll('.form-submit');
+        const regions = bodyNode.querySelectorAll('[data-region="aiplacement-modgen-footer"]');
+        regions.forEach((region) => {
+            footerNode.appendChild(region);
+        });
+    };
+
+    const collectSubmitButtons = (form) => {
+        const bindings = [];
+        const submitAreas = form.querySelectorAll('.form-submit');
+
         submitAreas.forEach((area) => {
-            let createdButtons = false;
-            const buttons = area.querySelectorAll('button, input[type="submit"]');
-            const fragment = document.createDocumentFragment();
+            const buttons = area.querySelectorAll('button, input[type="submit"], input[type="button"]');
             buttons.forEach((original) => {
-                const clone = document.createElement('button');
-                const classList = original.className ? original.className.split(' ').filter(Boolean) : [];
-                if (!classList.includes('btn')) {
-                    classList.push('btn');
+                const originalClasses = (original.className || '').split(/\s+/).filter(Boolean);
+                const classes = new Set(originalClasses);
+                classes.add('btn');
+                const hasVariant = Array.from(classes).some((cls) => cls.indexOf('btn-') === 0);
+                if (!hasVariant) {
+                    classes.add('btn-secondary');
                 }
-                if (!classList.some((cls) => cls.startsWith('btn-'))) {
-                    classList.push('btn-primary');
+                if (original.classList.contains('btn-primary')) {
+                    classes.delete('btn-secondary');
+                    classes.add('btn-primary');
                 }
-                clone.className = classList.join(' ');
-                clone.type = 'button';
-                clone.textContent = original.tagName === 'INPUT' ? (original.value || original.getAttribute('value') || original.name || '') : original.textContent;
-                clone.addEventListener('click', () => {
-                    const form = original.form;
-                    if (!form) {
-                        return;
-                    }
-                    if (typeof form.requestSubmit === 'function') {
-                        form.requestSubmit(original);
-                    } else {
-                        original.click();
-                    }
+
+                const labelSource = original.tagName === 'INPUT'
+                    ? (original.value || original.getAttribute('value') || original.getAttribute('aria-label') || original.name || '')
+                    : original.textContent;
+                const label = (labelSource || '').trim() || 'Submit';
+
+                bindings.push({
+                    label,
+                    classes: Array.from(classes).join(' '),
+                    form,
+                    submitter: original,
                 });
-                fragment.appendChild(clone);
-                createdButtons = true;
             });
 
-            if (createdButtons) {
-                area.classList.add('aiplacement-modgen__hidden-submit');
-                area.setAttribute('aria-hidden', 'true');
-                if (!footerNode.innerHTML.trim()) {
-                    footerNode.innerHTML = '';
-                }
-                footerNode.appendChild(fragment);
-            }
+            area.classList.add('aiplacement-modgen__hidden-submit');
+            area.setAttribute('aria-hidden', 'true');
+            area.hidden = true;
         });
 
-        const footerActions = bodyNode.querySelectorAll('[data-region="aiplacement-modgen-footer"] > *');
-        footerActions.forEach((element) => {
-            footerNode.appendChild(element);
+        return bindings;
+    };
+
+    const updateFooterButtons = (buttonBindings) => {
+        footerButtonBindings = buttonBindings || [];
+
+        if (!modalInstance) {
+            return;
+        }
+
+        const footer = modalInstance.getFooter();
+        const footerNode = footer && footer.length ? footer.get(0) : null;
+        if (!footerNode) {
+            return;
+        }
+
+        const existing = footerNode.querySelectorAll('[data-action="aiplacement-modgen-submit"]');
+        existing.forEach((element) => element.remove());
+
+        if (!footerButtonBindings.length) {
+            return;
+        }
+
+        const fragment = document.createDocumentFragment();
+        footerButtonBindings.forEach((binding, index) => {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = binding.classes || 'btn btn-primary';
+            button.dataset.action = 'aiplacement-modgen-submit';
+            button.dataset.buttonIndex = String(index);
+            button.textContent = binding.label || 'Submit';
+            fragment.appendChild(button);
         });
+
+        footerNode.appendChild(fragment);
     };
 
     const bindCloseButtons = () => {
@@ -167,18 +197,33 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
             return;
         }
 
+        const nodes = [];
         const body = modalInstance.getBody();
-        const bodyNode = body && body.length ? body.get(0) : null;
-        if (!bodyNode) {
+        const footer = modalInstance.getFooter();
+
+        if (body && body.length) {
+            nodes.push(body.get(0));
+        }
+        if (footer && footer.length) {
+            nodes.push(footer.get(0));
+        }
+
+        if (!nodes.length) {
             return;
         }
 
-        const buttons = bodyNode.querySelectorAll('[data-action="aiplacement-modgen-close"]');
-        buttons.forEach((button) => {
-            button.addEventListener('click', (event) => {
-                event.preventDefault();
-                shouldRefresh = true;
-                modalInstance.hide();
+        nodes.forEach((node) => {
+            const buttons = node.querySelectorAll('[data-action="aiplacement-modgen-close"]');
+            buttons.forEach((button) => {
+                if (button.dataset.modgenCloseBound === '1') {
+                    return;
+                }
+                button.dataset.modgenCloseBound = '1';
+                button.addEventListener('click', (event) => {
+                    event.preventDefault();
+                    shouldRefresh = true;
+                    modalInstance.hide();
+                });
             });
         });
     };
@@ -212,36 +257,40 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
 
     const enhanceForms = (params) => {
         if (!modalInstance) {
-            return;
+            return [];
         }
 
         const body = modalInstance.getBody();
         const bodyNode = body && body.length ? body.get(0) : null;
         if (!bodyNode) {
-            return;
+            return [];
         }
 
+        const bindings = [];
         const forms = bodyNode.querySelectorAll('form');
         forms.forEach((form) => {
-            if (form.dataset.modgenEnhanced === '1') {
-                return;
-            }
-            form.dataset.modgenEnhanced = '1';
-            form.addEventListener('submit', (event) => {
-                event.preventDefault();
-                const formData = new FormData(form);
-                formData.append('ajax', '1');
-                if (params.embedded) {
-                    formData.append('embedded', '1');
-                }
-                if (!formData.has('sesskey') && typeof M !== 'undefined' && M.cfg && M.cfg.sesskey) {
-                    formData.append('sesskey', M.cfg.sesskey);
-                }
-                loadContent(params, formData);
-            });
+            if (form.dataset.modgenEnhanced !== '1') {
+                form.dataset.modgenEnhanced = '1';
+                form.addEventListener('submit', (event) => {
+                    event.preventDefault();
+                    const formData = new FormData(form);
+                    formData.append('ajax', '1');
+                    if (params.embedded) {
+                        formData.append('embedded', '1');
+                    }
+                    if (!formData.has('sesskey') && typeof M !== 'undefined' && M.cfg && M.cfg.sesskey) {
+                        formData.append('sesskey', M.cfg.sesskey);
+                    }
+                    loadContent(params, formData);
+                });
 
-            setupKeepWeekLabelsToggle(form);
+                setupKeepWeekLabelsToggle(form);
+            }
+
+            bindings.push(...collectSubmitButtons(form));
         });
+
+        return bindings;
     };
 
     const showError = (message) => {
@@ -287,9 +336,10 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
 
         shouldRefresh = shouldRefresh || Boolean(payload.refresh);
 
-    executeInlineScripts();
-        injectFooterButtons();
-        enhanceForms(params);
+        executeInlineScripts();
+        const buttonBindings = enhanceForms(params);
+        moveFooterRegions();
+        updateFooterButtons(buttonBindings);
         bindCloseButtons();
 
         if (payload.close) {
@@ -342,6 +392,30 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
             }).then((modal) => {
                 modalInstance = modal;
 
+                modal.getRoot().on('click', '[data-action="aiplacement-modgen-submit"]', (event) => {
+                    event.preventDefault();
+                    const button = event.currentTarget;
+                    if (!button) {
+                        return;
+                    }
+                    const indexValue = button.getAttribute('data-button-index');
+                    const index = indexValue ? parseInt(indexValue, 10) : NaN;
+                    if (Number.isNaN(index)) {
+                        return;
+                    }
+                    const binding = footerButtonBindings[index];
+                    if (!binding || !binding.submitter || !binding.form) {
+                        return;
+                    }
+                    const form = binding.form;
+                    const submitter = binding.submitter;
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit(submitter);
+                    } else {
+                        submitter.click();
+                    }
+                });
+
                 modal.getRoot().on(ModalEvents.shown, () => {
                     trigger.setAttribute('aria-expanded', 'true');
                     if (!modalInstance.getBody().html()) {
@@ -351,6 +425,7 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
 
                 modal.getRoot().on(ModalEvents.hidden, () => {
                     trigger.setAttribute('aria-expanded', 'false');
+                    footerButtonBindings = [];
                     if (shouldRefresh && !reloadTriggered) {
                         reloadTriggered = true;
                         window.location.reload();
@@ -362,6 +437,7 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
                     modalInstance = null;
                     shouldRefresh = false;
                     reloadTriggered = false;
+                    footerButtonBindings = [];
                     trigger.setAttribute('aria-expanded', 'false');
                 });
 
@@ -371,6 +447,7 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
                 modalInstance = null;
                 shouldRefresh = false;
                 reloadTriggered = false;
+                footerButtonBindings = [];
                 throw error;
             });
         }
@@ -388,7 +465,7 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
             return;
         }
 
-    params.embedded = params.embedded || params.url.indexOf('embedded=1') !== -1;
+        params.embedded = params.embedded || params.url.indexOf('embedded=1') !== -1;
 
         if (document.querySelector('.aiplacement-modgen__fab')) {
             return;

@@ -3,24 +3,21 @@
     <div class="{{classes}}" role="alert">{{message}}</div>
     {{/notifications}}
 
-    <h4>{{promptheading}}</h4>
-    <pre>{{prompt}}</pre>
+    {{#hassummary}}
+    <section class="aiplacement-modgen-preview__summary">
+        <h3>{{summaryheading}}</h3>
+        <p>{{{summary}}}</p>
+    </section>
+    {{/hassummary}}
 
-    {{#debugresponse}}
-    <hr>
-    <h4>{{heading}}</h4>
-    <pre>{{content}}</pre>
-    {{/debugresponse}}
-
-    {{#raw}}
-    <hr>
-    <h4>{{heading}}</h4>
-    <pre>{{content}}</pre>
-    {{/raw}}
-
-    <hr>
-    <h4>{{jsonheading}}</h4>
-    <pre>{{json}}</pre>
-
+   <!-- {{#hasjson}}
+    <section class="aiplacement-modgen-preview__json">
+        <h3>{{jsonheading}}</h3>
+        <p class="aiplacement-modgen-preview__json-description">{{jsondescription}}</p>
+        <pre><code>{{{json}}}</code></pre>
+        <p class="aiplacement-modgen-preview__json-note">{{jsonnote}}</p>
+    </section>
+    {{/hasjson}}
+    -->
     {{{form}}}
 </div>

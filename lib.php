@@ -27,6 +27,25 @@ defined('MOODLE_INTERNAL') || die();
 
 // Core hooks and navigation for aiplacement_modgen
 function aiplacement_modgen_extend_navigation_course($navigation, $course, $context) {
-    $url = new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $course->id]);
-    $navigation->add(get_string('pluginname', 'aiplacement_modgen'), $url, navigation_node::TYPE_SETTING);
+    global $PAGE;
+
+    if (!$PAGE->user_is_editing()) {
+        return;
+    }
+
+    if (!has_capability('local/aiplacement_modgen:use', $context)) {
+        return;
+    }
+
+    $url = new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $course->id, 'embedded' => 1]);
+
+    $params = [
+        'url' => $url->out(false),
+        'buttonlabel' => get_string('launchgenerator', 'aiplacement_modgen'),
+        'dialogtitle' => get_string('modgenmodalheading', 'aiplacement_modgen'),
+        'arialabel' => get_string('modgenfabaria', 'aiplacement_modgen'),
+    ];
+
+    $PAGE->requires->css('/ai/placement/modgen/styles.css');
+    $PAGE->requires->js_call_amd('aiplacement_modgen/fab', 'init', [$params]);
 }

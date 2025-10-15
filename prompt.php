@@ -26,6 +26,8 @@ require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir . '/formslib.php');
 require_login();
 
+$embedded = optional_param('embedded', 0, PARAM_BOOL);
+
 /**
  * Helper to create a subsection module and optionally populate its delegated section summary.
  *
@@ -88,10 +90,17 @@ if (!$courseid) {
 }
 
 $context = context_course::instance($courseid);
-$PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid]));
+$pageparams = ['id' => $courseid];
+if ($embedded) {
+    $pageparams['embedded'] = 1;
+}
+$PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', $pageparams));
 $PAGE->set_context($context);
 $PAGE->set_title(get_string('pluginname', 'aiplacement_modgen'));
 $PAGE->set_heading(get_string('pluginname', 'aiplacement_modgen'));
+if ($embedded) {
+    $PAGE->set_pagelayout('embedded');
+}
 
 // Define first form: prompt input.
 class aiplacement_modgen_prompt_form extends moodleform {
@@ -99,6 +108,10 @@ class aiplacement_modgen_prompt_form extends moodleform {
         $mform = $this->_form;
         $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
         $mform->setType('courseid', PARAM_INT);
+        if (!empty($this->_customdata['embedded'])) {
+            $mform->addElement('hidden', 'embedded', 1);
+            $mform->setType('embedded', PARAM_BOOL);
+        }
         $creditsoptions = [
             30 => get_string('connectedcurriculum30', 'aiplacement_modgen'),
             60 => get_string('connectedcurriculum60', 'aiplacement_modgen'),
@@ -118,12 +131,12 @@ class aiplacement_modgen_prompt_form extends moodleform {
         $mform->setType('keepweeklabels', PARAM_BOOL);
         $mform->setDefault('keepweeklabels', 1);
         $mform->hideIf('keepweeklabels', 'moduletype', 'neq', 'weekly');
-    $mform->addElement('advcheckbox', 'includeaboutassessments', get_string('includeaboutassessments', 'aiplacement_modgen'));
-    $mform->setType('includeaboutassessments', PARAM_BOOL);
-    $mform->setDefault('includeaboutassessments', 0);
-    $mform->addElement('advcheckbox', 'includeaboutlearning', get_string('includeaboutlearning', 'aiplacement_modgen'));
-    $mform->setType('includeaboutlearning', PARAM_BOOL);
-    $mform->setDefault('includeaboutlearning', 0);
+        $mform->addElement('advcheckbox', 'includeaboutassessments', get_string('includeaboutassessments', 'aiplacement_modgen'));
+        $mform->setType('includeaboutassessments', PARAM_BOOL);
+        $mform->setDefault('includeaboutassessments', 0);
+        $mform->addElement('advcheckbox', 'includeaboutlearning', get_string('includeaboutlearning', 'aiplacement_modgen'));
+        $mform->setType('includeaboutlearning', PARAM_BOOL);
+        $mform->setDefault('includeaboutlearning', 0);
         $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), 'rows="4" cols="60"');
         $mform->setType('prompt', PARAM_TEXT);
         $mform->addRule('prompt', null, 'required', null, 'client');
@@ -137,16 +150,20 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform = $this->_form;
         $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
         $mform->setType('courseid', PARAM_INT);
+        if (!empty($this->_customdata['embedded'])) {
+            $mform->addElement('hidden', 'embedded', 1);
+            $mform->setType('embedded', PARAM_BOOL);
+        }
         $mform->addElement('hidden', 'approvedjson', $this->_customdata['approvedjson']);
         $mform->setType('approvedjson', PARAM_RAW);
         $mform->addElement('hidden', 'moduletype', $this->_customdata['moduletype']);
         $mform->setType('moduletype', PARAM_ALPHA);
         $mform->addElement('hidden', 'keepweeklabels', $this->_customdata['keepweeklabels']);
         $mform->setType('keepweeklabels', PARAM_BOOL);
-    $mform->addElement('hidden', 'includeaboutassessments', $this->_customdata['includeaboutassessments']);
-    $mform->setType('includeaboutassessments', PARAM_BOOL);
-    $mform->addElement('hidden', 'includeaboutlearning', $this->_customdata['includeaboutlearning']);
-    $mform->setType('includeaboutlearning', PARAM_BOOL);
+        $mform->addElement('hidden', 'includeaboutassessments', $this->_customdata['includeaboutassessments']);
+        $mform->setType('includeaboutassessments', PARAM_BOOL);
+        $mform->addElement('hidden', 'includeaboutlearning', $this->_customdata['includeaboutlearning']);
+        $mform->setType('includeaboutlearning', PARAM_BOOL);
         $this->add_action_buttons(false, get_string('approveandcreate', 'aiplacement_modgen'));
     }
 }
@@ -170,6 +187,7 @@ if ($approvedjsonparam !== null) {
         'keepweeklabels' => $keepweeklabelsparam,
         'includeaboutassessments' => $includeaboutassessmentsparam,
         'includeaboutlearning' => $includeaboutlearningparam,
+        'embedded' => $embedded ? 1 : 0,
     ]);
 }
 
@@ -320,18 +338,28 @@ if ($approveform && ($adata = $approveform->get_data())) {
         rebuild_course_cache($courseid, true, true);
     }
 
-    $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
     $resultsdata = [
         'notifications' => [],
         'hasresults' => !empty($results),
         'results' => array_map(static function(string $text): array {
             return ['text' => $text];
         }, $results),
-        'returnlink' => [
+    ];
+
+    if ($embedded) {
+        $resultsdata['returnlink'] = [
+            'url' => '#',
+            'label' => get_string('closemodgenmodal', 'aiplacement_modgen'),
+            'dataaction' => 'aiplacement-modgen-close',
+        ];
+        $PAGE->requires->js_call_amd('aiplacement_modgen/embedded_results', 'init');
+    } else {
+        $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
+        $resultsdata['returnlink'] = [
             'url' => $courseurl->out(false),
             'label' => get_string('returntocourse', 'aiplacement_modgen'),
-        ],
-    ];
+        ];
+    }
 
     if (empty($results)) {
         $resultsdata['notifications'][] = [
@@ -347,7 +375,10 @@ if ($approveform && ($adata = $approveform->get_data())) {
 }
 
 // Prompt form handling.
-$promptform = new aiplacement_modgen_prompt_form(null, ['courseid' => $courseid]);
+$promptform = new aiplacement_modgen_prompt_form(null, [
+    'courseid' => $courseid,
+    'embedded' => $embedded ? 1 : 0,
+]);
 if ($promptform->is_cancelled()) {
     redirect(new moodle_url('/course/view.php', ['id' => $courseid]));
 }
@@ -374,6 +405,7 @@ if ($pdata = $promptform->get_data()) {
         'keepweeklabels' => $keepweeklabels ? 1 : 0,
         'includeaboutassessments' => $includeaboutassessments ? 1 : 0,
         'includeaboutlearning' => $includeaboutlearning ? 1 : 0,
+        'embedded' => $embedded ? 1 : 0,
     ]);
 
     $notifications = [];

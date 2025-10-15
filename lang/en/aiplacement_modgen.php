@@ -65,4 +65,7 @@ $string['aboutassessments'] = 'About Assessments';
 $string['aboutlearningoutcomes'] = 'About Learning Outcomes';
 $string['returntocourse'] = 'Return to course home';
 $string['promptsentheading'] = 'Prompt sent to AI subsystem';
-
+$string['launchgenerator'] = 'Open Module Generator';
+$string['modgenmodalheading'] = 'Module Generator';
+$string['modgenfabaria'] = 'Open Module Generator modal';
+$string['closemodgenmodal'] = 'Close generator';

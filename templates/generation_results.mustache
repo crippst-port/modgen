@@ -13,7 +13,7 @@
 
     {{#returnlink}}
     <p class="aiplacement-modgen-results__return">
-        <a href="{{url}}">{{label}}</a>
+        <a class="btn btn-secondary" href="{{url}}" {{#dataaction}}data-action="{{.}}"{{/dataaction}}>{{label}}</a>
     </p>
     {{/returnlink}}
 </div>

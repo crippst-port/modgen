@@ -1,0 +1,39 @@
+/* This file is part of Moodle - https://moodle.org/
+ *
+ * Moodle is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Moodle is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/**
+ * Floating action button styling for the Module Generator launcher.
+ */
+.aiplacement-modgen__fab {
+    position: fixed;
+    right: 1.5rem;
+    bottom: 1.5rem;
+    z-index: 1050;
+    box-shadow: 0 0.75rem 2rem rgba(0, 0, 0, 0.2);
+    border-radius: 999px;
+    padding: 0.75rem 1.5rem;
+}
+
+.aiplacement-modgen__fab:focus {
+    outline: none;
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25), 0 0.75rem 2rem rgba(0, 0, 0, 0.2);
+}
+
+.aiplacement-modgen__iframe {
+    width: 100%;
+    min-height: 70vh;
+    border: 0;
+}

@@ -25,6 +25,10 @@
 
 namespace local_aiplacement_modgen;
 
+use local_aiplacement_modgen\activitytype\registry;
+
+require_once(__DIR__ . '/../activitytype/registry.php');
+
 defined('MOODLE_INTERNAL') || die();
 
 class ai_service {
@@ -59,7 +63,33 @@ class ai_service {
                 "Design learning activities aligned with UK HE standards, inclusive pedagogy, and clear learning outcomes.\n" .
                 "Return ONLY valid JSON matching the schema below. Do not include any commentary or code fences.";
 
+            $activitymetadata = registry::get_supported_activity_metadata();
+            $supportedactivitytypes = array_keys($activitymetadata);
+
             if ($structure === 'theme') {
+                $weekproperties = [
+                    'title' => ['type' => 'string'],
+                    'summary' => ['type' => 'string'],
+                ];
+                if (!empty($supportedactivitytypes)) {
+                    $weekproperties['activities'] = [
+                        'type' => 'array',
+                        'items' => [
+                            'type' => 'object',
+                            'required' => ['type', 'name'],
+                            'properties' => [
+                                'type' => [
+                                    'type' => 'string',
+                                    'enum' => $supportedactivitytypes,
+                                ],
+                                'name' => ['type' => 'string'],
+                                'intro' => ['type' => 'string'],
+                                'description' => ['type' => 'string'],
+                            ],
+                        ],
+                    ];
+                }
+
                 $schemaspec = [
                     'type' => 'object',
                     'required' => ['themes'],
@@ -77,10 +107,7 @@ class ai_service {
                                         'items' => [
                                             'type' => 'object',
                                             'required' => ['title', 'summary'],
-                                            'properties' => [
-                                                'title' => ['type' => 'string'],
-                                                'summary' => ['type' => 'string'],
-                                            ],
+                                            'properties' => $weekproperties,
                                         ],
                                     ],
                                 ],
@@ -89,12 +116,57 @@ class ai_service {
                         'template' => ['type' => 'string'],
                     ],
                 ];
+                if (!empty($supportedactivitytypes)) {
+                    $schemaspec['properties']['themes']['items']['properties']['activities'] = [
+                        'type' => 'array',
+                        'items' => [
+                            'type' => 'object',
+                            'required' => ['type', 'name'],
+                            'properties' => [
+                                'type' => [
+                                    'type' => 'string',
+                                    'enum' => $supportedactivitytypes,
+                                ],
+                                'name' => ['type' => 'string'],
+                                'intro' => ['type' => 'string'],
+                                'description' => ['type' => 'string'],
+                            ],
+                        ],
+                    ];
+                }
                 $formatinstruction = "Schema: " . json_encode($schemaspec) . "\n" .
                     "Output rules: Return a compact JSON object which validates against the schema.\n" .
                     "Each theme includes a 'title', a 'summary', and a 'weeks' array.\n" .
                     "Each week object contains a 'title' and 'summary' giving practical weekly delivery guidance.\n" .
                     "Audience: UK university students. Use British English.";
             } else {
+                $sectionproperties = [
+                    'title' => ['type' => 'string'],
+                    'summary' => ['type' => 'string'],
+                    'outline' => [
+                        'type' => 'array',
+                        'items' => ['type' => 'string'],
+                    ],
+                ];
+                if (!empty($supportedactivitytypes)) {
+                    $sectionproperties['activities'] = [
+                        'type' => 'array',
+                        'items' => [
+                            'type' => 'object',
+                            'required' => ['type', 'name'],
+                            'properties' => [
+                                'type' => [
+                                    'type' => 'string',
+                                    'enum' => $supportedactivitytypes,
+                                ],
+                                'name' => ['type' => 'string'],
+                                'intro' => ['type' => 'string'],
+                                'description' => ['type' => 'string'],
+                            ],
+                        ],
+                    ];
+                }
+
                 $schemaspec = [
                     'type' => 'object',
                     'required' => ['sections'],
@@ -104,14 +176,7 @@ class ai_service {
                             'items' => [
                                 'type' => 'object',
                                 'required' => ['title', 'summary', 'outline'],
-                                'properties' => [
-                                    'title' => ['type' => 'string'],
-                                    'summary' => ['type' => 'string'],
-                                    'outline' => [
-                                        'type' => 'array',
-                                        'items' => ['type' => 'string'],
-                                    ],
-                                ],
+                                'properties' => $sectionproperties,
                             ],
                         ],
                         'template' => ['type' => 'string'],
@@ -121,6 +186,19 @@ class ai_service {
                     "Output rules: Return a compact JSON object which validates against the schema.\n" .
                     "Each section is a teaching week with a 'title', a narrative 'summary', and an 'outline' array of key activities/resources.\n" .
                     "Audience: UK university students. Use British English.";
+            }
+
+            if (!empty($activitymetadata)) {
+                $activitylines = [];
+                foreach ($activitymetadata as $type => $metadata) {
+                    $label = get_string($metadata['stringid'], 'aiplacement_modgen');
+                    $activitylines[] = "- {$type}: {$metadata['description']} (Moodle {$label}).";
+                }
+                $formatinstruction .= "\nWhen listing activities, use the optional 'activities' array and only choose from the supported types below:\n" .
+                    implode("\n", $activitylines) .
+                    "\nDo not invent new activity types beyond this list.";
+            } else {
+                $formatinstruction .= "\nDo not include an 'activities' array because no supported activity types are available.";
             }
 
             $finalprompt = $roleinstruction . "\n\nUser requirements:\n" . trim($prompt) . "\n\n" . $formatinstruction;

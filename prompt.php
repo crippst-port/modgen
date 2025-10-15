@@ -292,6 +292,7 @@ class aiplacement_modgen_approve_form extends moodleform {
 // Business logic.
 $orgparams = get_config('aiplacement_modgen', 'orgparams');
 require_once(__DIR__ . '/classes/local/ai_service.php');
+require_once(__DIR__ . '/classes/activitytype/registry.php');
 
 // Attempt approval form first (so refreshes on approval post are handled).
 $approveform = null;
@@ -339,6 +340,7 @@ if ($approveform && ($adata = $approveform->get_data())) {
     $needscacherefresh = false;
     $aboutassessmentsadded = false;
     $aboutlearningadded = false;
+    $activitywarnings = [];
 
     if ($includeaboutassessments) {
         $assessmentname = get_string('aboutassessments', 'aiplacement_modgen');
@@ -382,6 +384,20 @@ if ($approveform && ($adata = $approveform->get_data())) {
             $sectionrecord->summaryformat = FORMAT_HTML;
             $sectionrecord->timemodified = time();
             $DB->update_record('course_sections', $sectionrecord);
+
+            if (!empty($theme['activities']) && is_array($theme['activities'])) {
+                $activityoutcome = \local_aiplacement_modgen\activitytype\registry::create_for_section(
+                    $theme['activities'],
+                    $course,
+                    $sectionnum
+                );
+                if (!empty($activityoutcome['created'])) {
+                    $results = array_merge($results, $activityoutcome['created']);
+                }
+                if (!empty($activityoutcome['warnings'])) {
+                    $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
+                }
+            }
 
             if (!empty($weeks)) {
                 foreach ($weeks as $week) {
@@ -452,6 +468,20 @@ if ($approveform && ($adata = $approveform->get_data())) {
             $sectionrecord->timemodified = time();
             $DB->update_record('course_sections', $sectionrecord);
 
+            if (!empty($sectiondata['activities']) && is_array($sectiondata['activities'])) {
+                $activityoutcome = \local_aiplacement_modgen\activitytype\registry::create_for_section(
+                    $sectiondata['activities'],
+                    $course,
+                    $sectionnum
+                );
+                if (!empty($activityoutcome['created'])) {
+                    $results = array_merge($results, $activityoutcome['created']);
+                }
+                if (!empty($activityoutcome['warnings'])) {
+                    $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
+                }
+            }
+
             $results[] = get_string('sectioncreated', 'aiplacement_modgen', $title);
             $sectionnum++;
         }
@@ -469,6 +499,15 @@ if ($approveform && ($adata = $approveform->get_data())) {
         }, $results),
         'showreturnlinkinbody' => !$ajax,
     ];
+
+    if (!empty($activitywarnings)) {
+        foreach ($activitywarnings as $warning) {
+            $resultsdata['notifications'][] = [
+                'message' => $warning,
+                'classes' => 'alert alert-warning',
+            ];
+        }
+    }
 
     if ($embedded) {
         $resultsdata['returnlink'] = [

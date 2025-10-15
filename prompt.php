@@ -28,6 +28,12 @@ require_login();
 
 $embedded = optional_param('embedded', 0, PARAM_BOOL);
 
+if ($embedded) {
+    $PAGE->requires->css('/ai/placement/modgen/styles.css');
+    $PAGE->add_body_class('aiplacement-modgen-embedded');
+    $PAGE->requires->js_call_amd('aiplacement_modgen/embedded_prompt', 'init');
+}
+
 /**
  * Helper to create a subsection module and optionally populate its delegated section summary.
  *
@@ -98,9 +104,9 @@ $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', $pageparams));
 $PAGE->set_context($context);
 $PAGE->set_title(get_string('pluginname', 'aiplacement_modgen'));
 $PAGE->set_heading(get_string('pluginname', 'aiplacement_modgen'));
-if ($embedded) {
-    $PAGE->set_pagelayout('embedded');
-}
+    if ($embedded) {
+        $PAGE->set_pagelayout('embedded');
+    }
 
 // Define first form: prompt input.
 class aiplacement_modgen_prompt_form extends moodleform {

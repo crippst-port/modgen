@@ -34,6 +34,7 @@
 
 .aiplacement-modgen__iframe {
     width: 100%;
-    min-height: 70vh;
+    height: max-content;
+    max-height: 100vh;
     border: 0;
 }

@@ -98,61 +98,45 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
 
     };
 
-    const moveFooterRegions = () => {
-        if (!modalInstance) {
-            return;
-        }
-
-        const body = modalInstance.getBody();
-        const footer = modalInstance.getFooter();
-        const bodyNode = body && body.length ? body.get(0) : null;
-        const footerNode = footer && footer.length ? footer.get(0) : null;
-
-        if (!bodyNode || !footerNode) {
-            return;
-        }
-
-        const regions = bodyNode.querySelectorAll('[data-region="aiplacement-modgen-footer"]');
-        regions.forEach((region) => {
-            footerNode.appendChild(region);
-        });
-    };
-
     const collectSubmitButtons = (form) => {
         const bindings = [];
-        const submitAreas = form.querySelectorAll('.form-submit');
+        const submitters = form.querySelectorAll('button[type="submit"], input[type="submit"]');
 
-        submitAreas.forEach((area) => {
-            const buttons = area.querySelectorAll('button, input[type="submit"], input[type="button"]');
-            buttons.forEach((original) => {
-                const originalClasses = (original.className || '').split(/\s+/).filter(Boolean);
-                const classes = new Set(originalClasses);
-                classes.add('btn');
-                const hasVariant = Array.from(classes).some((cls) => cls.indexOf('btn-') === 0);
-                if (!hasVariant) {
-                    classes.add('btn-secondary');
-                }
-                if (original.classList.contains('btn-primary')) {
-                    classes.delete('btn-secondary');
-                    classes.add('btn-primary');
-                }
+        submitters.forEach((submitter) => {
+            const originalClasses = (submitter.className || '').split(/\s+/).filter(Boolean);
+            const classes = new Set(originalClasses);
+            classes.add('btn');
+            const hasVariant = Array.from(classes).some((cls) => cls.indexOf('btn-') === 0);
+            if (!hasVariant) {
+                classes.add('btn-secondary');
+            }
+            if (submitter.classList.contains('btn-primary')) {
+                classes.delete('btn-secondary');
+                classes.add('btn-primary');
+            }
 
-                const labelSource = original.tagName === 'INPUT'
-                    ? (original.value || original.getAttribute('value') || original.getAttribute('aria-label') || original.name || '')
-                    : original.textContent;
-                const label = (labelSource || '').trim() || 'Submit';
+            const labelSource = submitter.tagName === 'INPUT'
+                ? (submitter.value || submitter.getAttribute('value') || submitter.getAttribute('aria-label') || submitter.name || '')
+                : submitter.textContent;
+            const label = (labelSource || '').trim() || 'Submit';
 
-                bindings.push({
-                    label,
-                    classes: Array.from(classes).join(' '),
-                    form,
-                    submitter: original,
-                });
+            bindings.push({
+                label,
+                classes: Array.from(classes).join(' '),
+                form,
+                submitter,
             });
 
-            area.classList.add('aiplacement-modgen__hidden-submit');
-            area.setAttribute('aria-hidden', 'true');
-            area.hidden = true;
+            const container = submitter.closest('.form-submit, .form-actions, .form-buttons, .buttons');
+            if (container) {
+                container.classList.add('aiplacement-modgen__hidden-submit');
+                container.setAttribute('aria-hidden', 'true');
+                container.hidden = true;
+            } else {
+                submitter.classList.add('aiplacement-modgen__hidden-submit');
+                submitter.setAttribute('aria-hidden', 'true');
+                submitter.hidden = true;
+            }
         });
 
         return bindings;
@@ -171,25 +155,12 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
             return;
         }
 
-        const existing = footerNode.querySelectorAll('[data-action="aiplacement-modgen-submit"]');
-        existing.forEach((element) => element.remove());
-
-        if (!footerButtonBindings.length) {
-            return;
-        }
-
-        const fragment = document.createDocumentFragment();
-        footerButtonBindings.forEach((binding, index) => {
-            const button = document.createElement('button');
-            button.type = 'button';
-            button.className = binding.classes || 'btn btn-primary';
-            button.dataset.action = 'aiplacement-modgen-submit';
-            button.dataset.buttonIndex = String(index);
-            button.textContent = binding.label || 'Submit';
-            fragment.appendChild(button);
+        const submitButtons = footerNode.querySelectorAll('[data-action="aiplacement-modgen-submit"]');
+        submitButtons.forEach((button, index) => {
+            if (!button.hasAttribute('data-button-index')) {
+                button.dataset.buttonIndex = String(index);
+            }
         });
-
-        footerNode.appendChild(fragment);
     };
 
     const bindCloseButtons = () => {
@@ -336,10 +307,9 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
 
         shouldRefresh = shouldRefresh || Boolean(payload.refresh);
 
-        executeInlineScripts();
-        const buttonBindings = enhanceForms(params);
-        moveFooterRegions();
-        updateFooterButtons(buttonBindings);
+    executeInlineScripts();
+    const buttonBindings = enhanceForms(params);
+    updateFooterButtons(buttonBindings);
         bindCloseButtons();
 
         if (payload.close) {
@@ -414,6 +384,12 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
                     } else {
                         submitter.click();
                     }
+                });
+
+                modal.getRoot().on('click', '[data-action="aiplacement-modgen-reenter"]', (event) => {
+                    event.preventDefault();
+                    footerButtonBindings = [];
+                    loadContent(params);
                 });
 
                 modal.getRoot().on(ModalEvents.shown, () => {

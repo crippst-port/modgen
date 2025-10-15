@@ -1,0 +1,18 @@
+{{!
+    @template aiplacement_modgen/modal_footer
+    @description Action area for the Module Generator modal footer.
+}}
+<div class="aiplacement-modgen-modal-actions">
+    {{#actions}}
+        {{#isbutton}}
+    <button type="button" class="{{classes}}" {{#action}}data-action="{{.}}"{{/action}} {{#hasindex}}data-button-index="{{index}}"{{/hasindex}}>
+            {{label}}
+        </button>
+        {{/isbutton}}
+        {{#islink}}
+        <a class="{{classes}}" href="{{url}}" {{#action}}data-action="{{.}}"{{/action}}>
+            {{label}}
+        </a>
+        {{/islink}}
+    {{/actions}}
+</div>

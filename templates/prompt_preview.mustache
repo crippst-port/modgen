@@ -3,10 +3,21 @@
     <div class="{{classes}}" role="alert">{{message}}</div>
     {{/notifications}}
 
+    {{#hasprompt}}
+    <section class="aiplacement-modgen-preview__prompt">
+        <h3>{{promptheading}}</h3>
+        <div id="aiplacement-modgen-prompt">
+            <div class="aiplacement-modgen-preview__prompt-body">
+                <p>{{prompttext}}</p>
+            </div>
+        </div>
+    </section>
+    {{/hasprompt}}
+
     {{#hassummary}}
-    <section class="aiplacement-modgen-preview__summary">
+    <section>
         <h3>{{summaryheading}}</h3>
-        <p>{{{summary}}}</p>
+        <p class="aiplacement-modgen-preview__summary">{{{summary}}}</p>
     </section>
     {{/hassummary}}
 

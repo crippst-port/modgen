@@ -67,6 +67,34 @@ function aiplacement_modgen_send_ajax_response(string $body, string $footer = ''
 }
 
 /**
+ * Render the standard modal footer actions template.
+ *
+ * @param array $actions Action definitions for the footer.
+ * @param bool $includeclose Whether to append the default close button.
+ * @return string HTML fragment for the modal footer.
+ */
+function aiplacement_modgen_render_modal_footer(array $actions, bool $includeclose = true): string {
+    global $OUTPUT;
+
+    if ($includeclose) {
+        $actions[] = [
+            'label' => get_string('closemodgenmodal', 'aiplacement_modgen'),
+            'classes' => 'btn btn-secondary',
+            'isbutton' => true,
+            'action' => 'aiplacement-modgen-close',
+        ];
+    }
+
+    if (empty($actions)) {
+        return '';
+    }
+
+    return $OUTPUT->render_from_template('aiplacement_modgen/modal_footer', [
+        'actions' => $actions,
+    ]);
+}
+
+/**
  * Helper to create a subsection module and optionally populate its delegated section summary.
  *
  * @param stdClass $course Course record.
@@ -439,6 +467,7 @@ if ($approveform && ($adata = $approveform->get_data())) {
         'results' => array_map(static function(string $text): array {
             return ['text' => $text];
         }, $results),
+        'showreturnlinkinbody' => !$ajax,
     ];
 
     if ($embedded) {
@@ -469,7 +498,27 @@ if ($approveform && ($adata = $approveform->get_data())) {
     $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
 
     if ($ajax) {
-        aiplacement_modgen_send_ajax_response($bodyhtml, '', true, [
+        $footeractions = [];
+        if ($embedded) {
+            $footeractions[] = [
+                'label' => get_string('closemodgenmodal', 'aiplacement_modgen'),
+                'classes' => 'btn btn-secondary',
+                'isbutton' => true,
+                'action' => 'aiplacement-modgen-close',
+            ];
+            $footerhtml = aiplacement_modgen_render_modal_footer($footeractions, false);
+        } else {
+            $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
+            $footeractions[] = [
+                'label' => get_string('returntocourse', 'aiplacement_modgen'),
+                'classes' => 'btn btn-primary',
+                'islink' => true,
+                'url' => $courseurl->out(false),
+            ];
+            $footerhtml = aiplacement_modgen_render_modal_footer($footeractions);
+        }
+
+        aiplacement_modgen_send_ajax_response($bodyhtml, $footerhtml, true, [
             'close' => false,
             'title' => get_string('pluginname', 'aiplacement_modgen'),
         ]);
@@ -551,13 +600,32 @@ if ($pdata = $promptform->get_data()) {
         'json' => s($jsonstr),
         'jsonnote' => get_string('generationresultsjsonnote', 'aiplacement_modgen'),
         'form' => $formhtml,
+        'promptheading' => get_string('generationresultspromptheading', 'aiplacement_modgen'),
+        'prompttoggle' => get_string('generationresultsprompttoggle', 'aiplacement_modgen'),
+        'prompttext' => format_text($prompt, FORMAT_PLAIN),
+        'hasprompt' => trim($prompt) !== '',
     ];
 
     $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/prompt_preview', $previewdata);
     $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
 
     if ($ajax) {
-        aiplacement_modgen_send_ajax_response($bodyhtml, '', false, [
+        $footeractions = [[
+            'label' => get_string('reenterprompt', 'aiplacement_modgen'),
+            'classes' => 'btn btn-secondary',
+            'isbutton' => true,
+            'action' => 'aiplacement-modgen-reenter',
+        ], [
+            'label' => get_string('approveandcreate', 'aiplacement_modgen'),
+            'classes' => 'btn btn-primary',
+            'isbutton' => true,
+            'action' => 'aiplacement-modgen-submit',
+            'index' => 0,
+            'hasindex' => true,
+        ]];
+        $footerhtml = aiplacement_modgen_render_modal_footer($footeractions);
+
+        aiplacement_modgen_send_ajax_response($bodyhtml, $footerhtml, false, [
             'title' => get_string('pluginname', 'aiplacement_modgen'),
         ]);
     }
@@ -575,7 +643,17 @@ $formhtml = ob_get_clean();
 $bodyhtml = html_writer::div($formhtml, 'aiplacement-modgen__content');
 
 if ($ajax) {
-    aiplacement_modgen_send_ajax_response($bodyhtml, '', false, [
+    $footeractions = [[
+        'label' => get_string('submit', 'aiplacement_modgen'),
+        'classes' => 'btn btn-primary',
+        'isbutton' => true,
+        'action' => 'aiplacement-modgen-submit',
+        'index' => 0,
+        'hasindex' => true,
+    ]];
+    $footerhtml = aiplacement_modgen_render_modal_footer($footeractions);
+
+    aiplacement_modgen_send_ajax_response($bodyhtml, $footerhtml, false, [
         'title' => get_string('pluginname', 'aiplacement_modgen'),
     ]);
 }

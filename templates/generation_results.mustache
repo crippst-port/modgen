@@ -11,9 +11,11 @@
     </ul>
     {{/hasresults}}
 
-    {{#returnlink}}
-    <div class="aiplacement-modgen-results__return" data-region="aiplacement-modgen-footer">
-        <a class="btn btn-secondary" href="{{url}}" {{#dataaction}}data-action="{{.}}"{{/dataaction}}>{{label}}</a>
-    </div>
-    {{/returnlink}}
+    {{#showreturnlinkinbody}}
+        {{#returnlink}}
+        <div class="aiplacement-modgen-results__return">
+            <a class="btn btn-secondary" href="{{url}}" {{#dataaction}}data-action="{{.}}"{{/dataaction}}>{{label}}</a>
+        </div>
+        {{/returnlink}}
+    {{/showreturnlinkinbody}}
 </div>

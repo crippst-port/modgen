@@ -21,7 +21,7 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, ModgenModal) {
+define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(ModalEvents, ModgenModal, Str) {
     /**
      * Create the floating action button element.
      *
@@ -40,11 +40,14 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
         return button;
     };
 
+    const FALLBACK_LOADING_MESSAGE = 'Thinking...';
+
     let modalPromise = null;
     let modalInstance = null;
     let shouldRefresh = false;
     let reloadTriggered = false;
     let footerButtonBindings = [];
+    let needsContentReload = true;
 
     const getModalUrl = (baseUrl, params) => {
         const url = new URL(baseUrl, window.location.origin);
@@ -277,8 +280,36 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
         if (!modalInstance) {
             return;
         }
-        modalInstance.setBody('<div class="aiplacement-modgen__loading"><span class="spinner-border" role="status" aria-hidden="true"></span></div>');
+
+        const markup = '' +
+            '<div class="aiplacement-modgen__loading" role="status" aria-live="polite">' +
+            '<span class="spinner-border" aria-hidden="true"></span>' +
+            '<p class="aiplacement-modgen__loading-message"></p>' +
+            '</div>';
+
+        const updateMessage = (text) => {
+            const body = modalInstance.getBody();
+            const bodyNode = body && body.length ? body.get(0) : null;
+            if (!bodyNode) {
+                return;
+            }
+            const messageNode = bodyNode.querySelector('.aiplacement-modgen__loading-message');
+            if (messageNode) {
+                messageNode.textContent = text;
+            }
+        };
+
+        modalInstance.setBody(markup);
         modalInstance.setFooter('');
+        updateMessage(FALLBACK_LOADING_MESSAGE);
+
+        if (Str && typeof Str.get_string === 'function') {
+            Str.get_string('loadingthinking', 'aiplacement_modgen').then((message) => {
+                updateMessage(message);
+            }).catch(() => {
+                updateMessage(FALLBACK_LOADING_MESSAGE);
+            });
+        }
     };
 
     const processPayload = (payload, params) => {
@@ -311,6 +342,7 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
     const buttonBindings = enhanceForms(params);
     updateFooterButtons(buttonBindings);
         bindCloseButtons();
+        needsContentReload = false;
 
         if (payload.close) {
             modalInstance.hide();
@@ -394,7 +426,7 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
 
                 modal.getRoot().on(ModalEvents.shown, () => {
                     trigger.setAttribute('aria-expanded', 'true');
-                    if (!modalInstance.getBody().html()) {
+                    if (needsContentReload || !modalInstance.getBody().html()) {
                         loadContent(params);
                     }
                 });
@@ -402,6 +434,7 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
                 modal.getRoot().on(ModalEvents.hidden, () => {
                     trigger.setAttribute('aria-expanded', 'false');
                     footerButtonBindings = [];
+                    needsContentReload = true;
                     if (shouldRefresh && !reloadTriggered) {
                         reloadTriggered = true;
                         window.location.reload();
@@ -414,6 +447,7 @@ define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, 
                     shouldRefresh = false;
                     reloadTriggered = false;
                     footerButtonBindings = [];
+                    needsContentReload = true;
                     trigger.setAttribute('aria-expanded', 'false');
                 });
 

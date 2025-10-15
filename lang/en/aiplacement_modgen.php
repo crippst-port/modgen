@@ -25,10 +25,10 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$string['pluginname'] = 'Module Generator';
+$string['pluginname'] = 'Module Assistant';
 
-$string['prompt'] = 'Describe your module in a few sentences';
-$string['submit'] = 'Generate module';
+$string['prompt'] = 'What would you like to create for your module?';
+$string['submit'] = 'Submit prompt';
 $string['orgparams'] = 'Organisation parameters';
 
 $string['reviewjson'] = 'Review the generated module JSON below. Approve to create activities.';
@@ -53,6 +53,7 @@ $string['connectedcurriculum120'] = '120 credit module';
 $string['connectedcurriculuminstruction'] = 'Module credit volume: {$a} credit Connected Curriculum module.';
 $string['approveandcreate'] = 'Approve and create';
 $string['reenterprompt'] = 'Re-enter prompt';
+$string['loadingthinking'] = 'Thinking... generating your request.';
 $string['aigenlabel'] = 'AI Generated Label';
 $string['aigenquiz'] = 'AI Generated Quiz';
 $string['labelcreated'] = 'Label created (cmid: {$a})';
@@ -74,7 +75,7 @@ $string['aboutassessments'] = 'About Assessments';
 $string['aboutlearningoutcomes'] = 'About Learning Outcomes';
 $string['returntocourse'] = 'Return to course home';
 $string['promptsentheading'] = 'Prompt sent to AI subsystem';
-$string['launchgenerator'] = 'Open Module Generator';
-$string['modgenmodalheading'] = 'Module Generator';
-$string['modgenfabaria'] = 'Open Module Generator modal';
+$string['launchgenerator'] = 'Module Assistant';
+$string['modgenmodalheading'] = 'Module Assistant';
+$string['modgenfabaria'] = 'Open Module Assistant';
 $string['closemodgenmodal'] = 'Close and return to module';

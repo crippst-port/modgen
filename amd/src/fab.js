@@ -21,7 +21,7 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-define(['core/modal', 'core/modal_events'], function(Modal, ModalEvents) {
+define(['core/modal_events', 'aiplacement_modgen/modal'], function(ModalEvents, ModgenModal) {
     /**
      * Create the floating action button element.
      *
@@ -89,11 +89,10 @@ define(['core/modal', 'core/modal_events'], function(Modal, ModalEvents) {
 
     const getModal = (params, trigger) => {
         if (!modalPromise) {
-            modalPromise = Modal.create({
+            modalPromise = ModgenModal.create({
                 title: params.dialogtitle,
                 body: '',
-                large: true,
-            }, trigger).then((modal) => {
+            }).then((modal) => {
                 modalInstance = modal;
                 const body = modal.getBody();
                 body.empty();

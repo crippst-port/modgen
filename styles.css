@@ -32,9 +32,28 @@
     box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25), 0 0.75rem 2rem rgba(0, 0, 0, 0.2);
 }
 
+.aiplacement-modgen__modal .modal-content {
+    height: 100%;
+}
+
+.aiplacement-modgen__modal-body {
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 60vh;
+}
+
 .aiplacement-modgen__iframe {
     width: 100%;
-    height: max-content;
-    max-height: 100vh;
+    flex: 1;
+    
+    min-height: 60vh;
     border: 0;
+}
+
+.aiplacement-modgen__modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    justify-content: flex-end;
 }

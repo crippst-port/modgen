@@ -25,8 +25,15 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+use core_ai\admin\admin_settingspage_provider;
+
 if ($hassiteconfig) {
-    $settings = new admin_settingpage('aiplacement_modgen_settings', new lang_string('pluginname', 'aiplacement_modgen'));
+    $settings = new admin_settingspage_provider(
+        'aiplacement_modgen',
+        new lang_string('pluginname', 'aiplacement_modgen'),
+        'moodle/site:config',
+        true
+    );
 
     // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedIf
     if ($ADMIN->fulltree) {
@@ -35,6 +42,13 @@ if ($hassiteconfig) {
             new lang_string('orgparams', 'aiplacement_modgen'),
             'Organisation parameters for AI context.',
             ''
+        ));
+        
+        $settings->add(new admin_setting_configtext(
+            'aiplacement_modgen/timeout',
+            new lang_string('timeout', 'aiplacement_modgen'),
+            new lang_string('timeout_desc', 'aiplacement_modgen'),
+            '300'
         ));
         // Add file upload or other settings as needed.
     }

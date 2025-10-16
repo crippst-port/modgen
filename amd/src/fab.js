@@ -304,10 +304,14 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
         updateMessage(FALLBACK_LOADING_MESSAGE);
 
         if (Str && typeof Str.get_string === 'function') {
-            Str.get_string('loadingthinking', 'aiplacement_modgen').then((message) => {
+            Str.get_string('processing', 'aiplacement_modgen').then((message) => {
                 updateMessage(message);
             }).catch(() => {
-                updateMessage(FALLBACK_LOADING_MESSAGE);
+                Str.get_string('loadingthinking', 'aiplacement_modgen').then((message) => {
+                    updateMessage(message);
+                }).catch(() => {
+                    updateMessage(FALLBACK_LOADING_MESSAGE);
+                });
             });
         }
     };
@@ -357,20 +361,46 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
         setLoadingState();
 
         const url = getModalUrl(params.url, params);
+        
+        // Create AbortController for timeout handling
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 300000); // 5 minutes timeout
+
         const options = {
             method: formData ? 'POST' : 'GET',
             credentials: 'same-origin',
             headers: {
                 Accept: 'application/json',
             },
+            signal: controller.signal,
         };
 
         if (formData) {
             options.body = formData;
+            // Show enhanced loading message for form submissions (likely AI processing)
+            if (modalInstance) {
+                const body = modalInstance.getBody();
+                const bodyNode = body && body.length ? body.get(0) : null;
+                if (bodyNode) {
+                    const messageNode = bodyNode.querySelector('.aiplacement-modgen__loading-message');
+                    if (messageNode) {
+                        Str.get_string('aiprocessingdetail', 'aiplacement_modgen').then((message) => {
+                            if (messageNode) {
+                                messageNode.textContent = message;
+                            }
+                        }).catch(() => {
+                            if (messageNode) {
+                                messageNode.textContent = 'AI is analyzing your request and generating module content. This process may take several minutes for complex requests.';
+                            }
+                        });
+                    }
+                }
+            }
         }
 
         return fetch(url.toString(), options)
             .then((response) => {
+                clearTimeout(timeoutId);
                 if (!response.ok) {
                     throw new Error('Failed to load modal content.');
                 }
@@ -380,9 +410,14 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
                 processPayload(payload, params);
             })
             .catch((error) => {
+                clearTimeout(timeoutId);
                 // eslint-disable-next-line no-console
                 console.error(error);
-                showError(error.message);
+                if (error.name === 'AbortError') {
+                    showError('Your request is taking longer than expected. Please try with a shorter prompt or try again later.');
+                } else {
+                    showError(error.message);
+                }
             });
     };
 

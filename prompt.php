@@ -29,6 +29,11 @@ require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir . '/formslib.php');
 require_login();
 
+// Increase PHP execution time for AI processing
+$timeout = get_config('aiplacement_modgen', 'timeout') ?: 300;
+set_time_limit($timeout);
+ini_set('max_execution_time', $timeout);
+
 $embedded = optional_param('embedded', 0, PARAM_BOOL);
 $ajax = optional_param('ajax', 0, PARAM_BOOL);
 
@@ -209,6 +214,87 @@ if (!$courseid) {
 }
 
 $context = context_course::instance($courseid);
+
+// Handle policy acceptance first (before checking status).
+$acceptpolicy = optional_param('acceptpolicy', 0, PARAM_BOOL);
+if ($acceptpolicy && confirm_sesskey()) {
+    $manager = \core\di::get(\core_ai\manager::class);
+    $manager->user_policy_accepted($USER->id, $context->id);
+    if ($ajax) {
+        // For AJAX requests, continue to show the main form instead of stopping here.
+        // The policy check below will now pass and show the normal content.
+    } else {
+        redirect($PAGE->url);
+    }
+}
+
+// Check AI policy acceptance before allowing access.
+$manager = \core\di::get(\core_ai\manager::class);
+if (!$manager->get_user_policy_status($USER->id)) {
+    // User hasn't accepted AI policy yet.
+    if ($ajax) {
+        // For AJAX requests, return policy acceptance form.
+        $body = '
+            <div class="ai-policy-acceptance">
+                <h4>' . get_string('aipolicyacceptance', 'aiplacement_modgen') . '</h4>
+                <div class="alert alert-info">
+                    <p>' . get_string('aipolicyinfo', 'aiplacement_modgen') . '</p>
+                </div>
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="acceptpolicy">
+                    <label class="form-check-label" for="acceptpolicy">
+                        ' . get_string('acceptaipolicy', 'aiplacement_modgen') . '
+                    </label>
+                </div>
+                <form id="ai-policy-form" method="post">
+                    <input type="hidden" name="courseid" value="' . $courseid . '">
+                    <input type="hidden" name="acceptpolicy" value="1">
+                    <input type="hidden" name="embedded" value="' . ($embedded ? 1 : 0) . '">
+                    <input type="hidden" name="ajax" value="1">
+                    <input type="hidden" name="sesskey" value="' . sesskey() . '">
+                    <button type="submit" id="hidden-submit-btn" style="display: none;">Submit</button>
+                </form>
+            </div>
+        ';
+        
+        $footer = aiplacement_modgen_render_modal_footer([
+            [
+                'label' => get_string('accept'),
+                'classes' => 'btn btn-primary',
+                'isbutton' => true,
+                'action' => 'aiplacement-modgen-submit',
+                'disabled' => true,
+                'id' => 'accept-policy-btn',
+            ]
+        ]);
+        
+        // Add JavaScript to handle policy acceptance
+        $js = '
+        <script>
+            require(["jquery"], function($) {
+                $("#acceptpolicy").on("change", function() {
+                    $("[data-action=\"aiplacement-modgen-submit\"]").prop("disabled", !this.checked);
+                });
+                
+                // Handle form submission for policy acceptance
+                $("#ai-policy-form").on("submit", function(e) {
+                    if (!$("#acceptpolicy").is(":checked")) {
+                        e.preventDefault();
+                        return false;
+                    }
+                    // Allow normal form submission to server
+                    // After the server processes it, the response should show the main form
+                });
+            });
+        </script>';
+        
+        aiplacement_modgen_send_ajax_response($body . $js, $footer);
+    } else {
+        // For regular requests, show error.
+        print_error('aipolicynotaccepted', 'aiplacement_modgen');
+    }
+}
+
 $pageparams = ['id' => $courseid];
 if ($embedded) {
     $pageparams['embedded'] = 1;
@@ -259,6 +345,13 @@ class aiplacement_modgen_prompt_form extends moodleform {
         $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), 'rows="4" cols="60"');
         $mform->setType('prompt', PARAM_TEXT);
         $mform->addRule('prompt', null, 'required', null, 'client');
+        $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
+        
+        // Add warning about processing time
+        $mform->addElement('static', 'processingwarning', '', 
+            '<div class="alert alert-info"><i class="fa fa-info-circle"></i> ' . 
+            get_string('longquery', 'aiplacement_modgen') . '</div>');
+        
         $this->add_action_buttons(false, get_string('submit', 'aiplacement_modgen'));
     }
 }

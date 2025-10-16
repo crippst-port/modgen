@@ -23,9 +23,9 @@
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-namespace local_aiplacement_modgen;
+namespace aiplacement_modgen;
 
-use local_aiplacement_modgen\activitytype\registry;
+use aiplacement_modgen\activitytype\registry;
 
 require_once(__DIR__ . '/../activitytype/registry.php');
 
@@ -65,6 +65,10 @@ class ai_service {
 
             $activitymetadata = registry::get_supported_activity_metadata();
             $supportedactivitytypes = array_keys($activitymetadata);
+
+            // Debug: Log what activity types are available
+            file_put_contents('/tmp/modgen_debug.log', "AI_SERVICE: Activity metadata: " . print_r($activitymetadata, true) . "\n", FILE_APPEND);
+            file_put_contents('/tmp/modgen_debug.log', "AI_SERVICE: Supported types: " . print_r($supportedactivitytypes, true) . "\n", FILE_APPEND);
 
             if ($structure === 'theme') {
                 $weekproperties = [
@@ -203,6 +207,9 @@ class ai_service {
 
             $finalprompt = $roleinstruction . "\n\nUser requirements:\n" . trim($prompt) . "\n\n" . $formatinstruction;
 
+            // Debug: Log the prompt being sent to AI
+            file_put_contents('/tmp/modgen_debug.log', "AI_SERVICE: Final prompt being sent:\n" . $finalprompt . "\n\n", FILE_APPEND);
+
             // Instantiate the generate_text action with required parameters.
             $action = new \core_ai\aiactions\generate_text(
                 $contextid,
@@ -217,8 +224,15 @@ class ai_service {
             $response = $aimanager->process_action($action);
             $data = $response->get_response_data();
 
+            // Debug: Log the AI response
+            file_put_contents('/tmp/modgen_debug.log', "AI_SERVICE: AI response data: " . print_r($data, true) . "\n", FILE_APPEND);
+
             // Try to decode the provider's generated text as JSON per our schema.
             $text = $data['generatedtext'] ?? ($data['generatedcontent'] ?? '');
+            
+            // Debug: Log the raw text response
+            file_put_contents('/tmp/modgen_debug.log', "AI_SERVICE: Raw AI text response: " . $text . "\n\n", FILE_APPEND);
+            
             $jsondecoded = null;
             if (is_string($text)) {
                 // First attempt: direct JSON decode.
@@ -236,8 +250,16 @@ class ai_service {
                 $jsondecoded['raw'] = $text;
                 $jsondecoded['debugprompt'] = $finalprompt;
                 $jsondecoded['debugresponse'] = $data;
+                
+                // Debug: Log the final processed JSON
+                file_put_contents('/tmp/modgen_debug.log', "AI_SERVICE: Final processed JSON: " . print_r($jsondecoded, true) . "\n\n", FILE_APPEND);
+                
                 return $jsondecoded;
             }
+
+            // Debug: JSON decode failed or invalid structure
+            file_put_contents('/tmp/modgen_debug.log', "AI_SERVICE: JSON decode failed or invalid structure. Using fallback.\n", FILE_APPEND);
+            file_put_contents('/tmp/modgen_debug.log', "AI_SERVICE: jsondecoded: " . print_r($jsondecoded, true) . "\n", FILE_APPEND);
 
             // Fallback mapping: wrap generated text into a label.
             $revised = $data['revisedprompt'] ?? '';

@@ -14,7 +14,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
-namespace local_aiplacement_modgen\activitytype;
+namespace aiplacement_modgen\activitytype;
 
 use stdClass;
 

@@ -479,11 +479,18 @@ if ($approveform && ($adata = $approveform->get_data())) {
             $DB->update_record('course_sections', $sectionrecord);
 
             if (!empty($theme['activities']) && is_array($theme['activities'])) {
-                $activityoutcome = \local_aiplacement_modgen\activitytype\registry::create_for_section(
+                // Debug: Log the activities being processed
+                file_put_contents('/tmp/modgen_debug.log', "THEME ACTIVITIES: " . print_r($theme['activities'], true) . "\n", FILE_APPEND);
+                
+                $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
                     $theme['activities'],
                     $course,
                     $sectionnum
                 );
+                
+                // Debug: Log the outcome
+                file_put_contents('/tmp/modgen_debug.log', "ACTIVITY OUTCOME: " . print_r($activityoutcome, true) . "\n", FILE_APPEND);
+                
                 if (!empty($activityoutcome['created'])) {
                     $results = array_merge($results, $activityoutcome['created']);
                 }
@@ -509,6 +516,28 @@ if ($approveform && ($adata = $approveform->get_data())) {
                     $cmid = local_aiplacement_modgen_create_subsection($course, $sectionnum, $weektitle, $subsectionsummary, $needscacherefresh);
                     if (!empty($cmid)) {
                         $results[] = get_string('subsectioncreated', 'aiplacement_modgen', $weektitle);
+                    }
+
+                    // Process activities within this week
+                    if (!empty($week['activities']) && is_array($week['activities'])) {
+                        // Debug: Log the week activities being processed
+                        file_put_contents('/tmp/modgen_debug.log', "WEEK ACTIVITIES: " . print_r($week['activities'], true) . "\n", FILE_APPEND);
+                        
+                        $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
+                            $week['activities'],
+                            $course,
+                            $sectionnum
+                        );
+                        
+                        // Debug: Log the outcome
+                        file_put_contents('/tmp/modgen_debug.log', "WEEK ACTIVITY OUTCOME: " . print_r($activityoutcome, true) . "\n", FILE_APPEND);
+                        
+                        if (!empty($activityoutcome['created'])) {
+                            $results = array_merge($results, $activityoutcome['created']);
+                        }
+                        if (!empty($activityoutcome['warnings'])) {
+                            $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
+                        }
                     }
                 }
             }
@@ -562,11 +591,18 @@ if ($approveform && ($adata = $approveform->get_data())) {
             $DB->update_record('course_sections', $sectionrecord);
 
             if (!empty($sectiondata['activities']) && is_array($sectiondata['activities'])) {
-                $activityoutcome = \local_aiplacement_modgen\activitytype\registry::create_for_section(
+                // Debug: Log the activities being processed
+                file_put_contents('/tmp/modgen_debug.log', "SECTION ACTIVITIES: " . print_r($sectiondata['activities'], true) . "\n", FILE_APPEND);
+                
+                $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
                     $sectiondata['activities'],
                     $course,
                     $sectionnum
                 );
+                
+                // Debug: Log the outcome  
+                file_put_contents('/tmp/modgen_debug.log', "ACTIVITY OUTCOME: " . print_r($activityoutcome, true) . "\n", FILE_APPEND);
+                
                 if (!empty($activityoutcome['created'])) {
                     $results = array_merge($results, $activityoutcome['created']);
                 }
@@ -684,14 +720,14 @@ if ($pdata = $promptform->get_data()) {
     $typeinstructionkey = $moduletype === 'theme' ? 'moduletypeinstruction_theme' : 'moduletypeinstruction_weekly';
     $typeinstruction = get_string($typeinstructionkey, 'aiplacement_modgen');
     $compositeprompt = trim($prompt . "\n\n" . $creditinfo . "\n" . $typeinstruction);
-    $json = \local_aiplacement_modgen\ai_service::generate_module($compositeprompt, $orgparams, [], $moduletype);
+    $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $orgparams, [], $moduletype);
     // Get the final prompt sent to AI for debugging (returned by ai_service).
     $debugprompt = isset($json['debugprompt']) ? $json['debugprompt'] : $prompt;
     $jsonstr = json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($jsonstr === false) {
         $jsonstr = print_r($json, true);
     }
-    $summarytext = \local_aiplacement_modgen\ai_service::summarise_module($json, $moduletype);
+    $summarytext = \aiplacement_modgen\ai_service::summarise_module($json, $moduletype);
     if ($summarytext === '') {
         $summarytext = aiplacement_modgen_generate_fallback_summary($json, $moduletype);
     }

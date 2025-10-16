@@ -317,14 +317,8 @@ class aiplacement_modgen_prompt_form extends moodleform {
             $mform->addElement('hidden', 'embedded', 1);
             $mform->setType('embedded', PARAM_BOOL);
         }
-        $creditsoptions = [
-            30 => get_string('connectedcurriculum30', 'aiplacement_modgen'),
-            60 => get_string('connectedcurriculum60', 'aiplacement_modgen'),
-            120 => get_string('connectedcurriculum120', 'aiplacement_modgen'),
-        ];
-        $mform->addElement('select', 'credits', get_string('connectedcurriculumcredits', 'aiplacement_modgen'), $creditsoptions);
-        $mform->setType('credits', PARAM_INT);
-        $mform->setDefault('credits', 30);
+        
+        // Add module type selection
         $moduletypeoptions = [
             'weekly' => get_string('moduletype_weekly', 'aiplacement_modgen'),
             'theme' => get_string('moduletype_theme', 'aiplacement_modgen'),
@@ -332,6 +326,23 @@ class aiplacement_modgen_prompt_form extends moodleform {
         $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
         $mform->setType('moduletype', PARAM_ALPHA);
         $mform->setDefault('moduletype', 'weekly');
+        $mform->addHelpButton('moduletype', 'moduletype', 'aiplacement_modgen');
+        
+        // Add curriculum template selection if enabled
+        if (get_config('aiplacement_modgen', 'enable_templates')) {
+            require_once(__DIR__ . '/classes/local/template_reader.php');
+            $template_reader = new \aiplacement_modgen\local\template_reader();
+            $curriculum_templates = $template_reader->get_curriculum_templates();
+            
+            if (!empty($curriculum_templates)) {
+                $template_options = ['' => get_string('nocurriculum', 'aiplacement_modgen')] + $curriculum_templates;
+                $mform->addElement('select', 'curriculum_template', 
+                    get_string('selectcurriculum', 'aiplacement_modgen'), $template_options);
+                $mform->setType('curriculum_template', PARAM_TEXT);
+                $mform->addHelpButton('curriculum_template', 'curriculumtemplates', 'aiplacement_modgen');
+            }
+        }
+        
         $mform->addElement('advcheckbox', 'keepweeklabels', get_string('keepweeklabels', 'aiplacement_modgen'));
         $mform->setType('keepweeklabels', PARAM_BOOL);
         $mform->setDefault('keepweeklabels', 1);
@@ -339,9 +350,11 @@ class aiplacement_modgen_prompt_form extends moodleform {
         $mform->addElement('advcheckbox', 'includeaboutassessments', get_string('includeaboutassessments', 'aiplacement_modgen'));
         $mform->setType('includeaboutassessments', PARAM_BOOL);
         $mform->setDefault('includeaboutassessments', 0);
+        $mform->hideIf('includeaboutassessments', 'moduletype', 'neq', 'theme');
         $mform->addElement('advcheckbox', 'includeaboutlearning', get_string('includeaboutlearning', 'aiplacement_modgen'));
         $mform->setType('includeaboutlearning', PARAM_BOOL);
         $mform->setDefault('includeaboutlearning', 0);
+        $mform->hideIf('includeaboutlearning', 'moduletype', 'neq', 'theme');
         $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), 'rows="4" cols="60"');
         $mform->setType('prompt', PARAM_TEXT);
         $mform->addRule('prompt', null, 'required', null, 'client');
@@ -378,6 +391,10 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->setType('includeaboutlearning', PARAM_BOOL);
         $mform->addElement('hidden', 'generatedsummary', $this->_customdata['generatedsummary']);
         $mform->setType('generatedsummary', PARAM_RAW);
+        if (isset($this->_customdata['curriculum_template'])) {
+            $mform->addElement('hidden', 'curriculum_template', $this->_customdata['curriculum_template']);
+            $mform->setType('curriculum_template', PARAM_TEXT);
+        }
         $this->add_action_buttons(false, get_string('approveandcreate', 'aiplacement_modgen'));
     }
 }
@@ -395,6 +412,7 @@ $keepweeklabelsparam = optional_param('keepweeklabels', 0, PARAM_BOOL);
 $includeaboutassessmentsparam = optional_param('includeaboutassessments', 0, PARAM_BOOL);
 $includeaboutlearningparam = optional_param('includeaboutlearning', 0, PARAM_BOOL);
 $generatedsummaryparam = optional_param('generatedsummary', '', PARAM_RAW);
+$curriculumtemplateparam = optional_param('curriculum_template', '', PARAM_TEXT);
 if ($approvedjsonparam !== null) {
     $approveform = new aiplacement_modgen_approve_form(null, [
         'courseid' => $courseid,
@@ -404,6 +422,7 @@ if ($approvedjsonparam !== null) {
         'includeaboutassessments' => $includeaboutassessmentsparam,
         'includeaboutlearning' => $includeaboutlearningparam,
         'generatedsummary' => $generatedsummaryparam,
+        'curriculum_template' => $curriculumtemplateparam,
         'embedded' => $embedded ? 1 : 0,
     ]);
 }
@@ -711,16 +730,29 @@ if ($promptform->is_cancelled()) {
 }
 if ($pdata = $promptform->get_data()) {
     $prompt = $pdata->prompt;
-    $credits = isset($pdata->credits) ? (int)$pdata->credits : 30;
     $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
-    $keepweeklabels = ($moduletype === 'weekly') && !empty($pdata->keepweeklabels);
+    $keepweeklabels = !empty($pdata->keepweeklabels);
     $includeaboutassessments = !empty($pdata->includeaboutassessments);
     $includeaboutlearning = !empty($pdata->includeaboutlearning);
-    $creditinfo = get_string('connectedcurriculuminstruction', 'aiplacement_modgen', $credits);
-    $typeinstructionkey = $moduletype === 'theme' ? 'moduletypeinstruction_theme' : 'moduletypeinstruction_weekly';
-    $typeinstruction = get_string($typeinstructionkey, 'aiplacement_modgen');
-    $compositeprompt = trim($prompt . "\n\n" . $creditinfo . "\n" . $typeinstruction);
-    $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $orgparams, [], $moduletype);
+    $curriculum_template = !empty($pdata->curriculum_template) ? $pdata->curriculum_template : '';
+    $typeinstruction = get_string('moduletypeinstruction_' . $moduletype, 'aiplacement_modgen');
+    $compositeprompt = trim($prompt . "\n\n" . $typeinstruction);
+    
+    // Generate module with or without template
+    if (!empty($curriculum_template)) {
+        try {
+            require_once(__DIR__ . '/classes/local/template_reader.php');
+            $template_reader = new \aiplacement_modgen\local\template_reader();
+            $template_data = $template_reader->extract_curriculum_template($curriculum_template);
+            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $orgparams, $template_data, [], $moduletype);
+        } catch (Exception $e) {
+            // Fall back to normal generation if template fails
+            error_log('Template generation failed: ' . $e->getMessage());
+            $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $orgparams, [], $moduletype);
+        }
+    } else {
+        $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $orgparams, [], $moduletype);
+    }
     // Get the final prompt sent to AI for debugging (returned by ai_service).
     $debugprompt = isset($json['debugprompt']) ? $json['debugprompt'] : $prompt;
     $jsonstr = json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
@@ -741,6 +773,7 @@ if ($pdata = $promptform->get_data()) {
         'includeaboutassessments' => $includeaboutassessments ? 1 : 0,
         'includeaboutlearning' => $includeaboutlearning ? 1 : 0,
         'generatedsummary' => $summarytext,
+        'curriculum_template' => $curriculum_template,
         'embedded' => $embedded ? 1 : 0,
     ]);
 

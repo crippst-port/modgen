@@ -335,4 +335,56 @@ class ai_service {
             return '';
         }
     }
+
+    /**
+     * Generate module content using a curriculum template.
+     *
+     * @param string $prompt User prompt
+     * @param string $orgparams Organization parameters
+     * @param array $template_data Template data structure
+     * @param array $documents Supporting documents
+     * @param string $structure Module structure
+     * @return array Response from AI service
+     */
+    public static function generate_module_with_template($prompt, $orgparams, $template_data, $documents = [], $structure = 'weekly') {
+        $enhanced_prompt = self::build_template_prompt($prompt, $orgparams, $template_data, $structure);
+        return self::generate_module($enhanced_prompt, $orgparams, $documents, $structure);
+    }
+
+    /**
+     * Build enhanced prompt that includes template data as context.
+     *
+     * @param string $user_prompt Original user prompt
+     * @param string $orgparams Organization parameters
+     * @param array $template_data Template structure data
+     * @param string $structure Module structure
+     * @return string Enhanced prompt with template context
+     */
+    private static function build_template_prompt($user_prompt, $orgparams, $template_data, $structure) {
+        $template_json = json_encode($template_data, JSON_PRETTY_PRINT);
+        
+        $enhanced_prompt = "You are a Moodle course designer. Use the following CURRICULUM TEMPLATE as a structural and pedagogical guide, then adapt it based on the user's request.
+
+CURRICULUM TEMPLATE STRUCTURE:
+{$template_json}
+
+USER REQUEST: {$user_prompt}
+
+ORGANIZATION CONTEXT: {$orgparams}
+
+INSTRUCTIONS:
+1. Use the template's structure, organization, and pedagogical approach as your foundation
+2. Adapt the content to match the user's topic/subject while maintaining the template's quality and depth
+3. If the template has quizzes with specific question types and patterns, create similar activities for the new topic
+4. Preserve the template's section organization and activity distribution unless the user requests changes
+5. Match the template's level of detail and instructional design principles
+6. Maintain the same course format and learning progression as the template
+7. Follow the template's naming conventions and activity types
+
+STRUCTURE: Create a {$structure} module structure.
+
+Please provide a complete module structure that adapts the template to the user's request while maintaining the same pedagogical quality and organization.";
+
+        return $enhanced_prompt;
+    }
 }

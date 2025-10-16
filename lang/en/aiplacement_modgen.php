@@ -46,11 +46,6 @@ $string['rawoutput'] = 'Raw output';
 $string['aigensummary'] = 'AI Generated Summary';
 $string['sectioncreated'] = 'Section created: {$a}';
 $string['nosectionscreated'] = 'No sections were created from the AI response.';
-$string['connectedcurriculumcredits'] = 'Module type';
-$string['connectedcurriculum30'] = '30 credit module';
-$string['connectedcurriculum60'] = '60 credit module';
-$string['connectedcurriculum120'] = '120 credit module';
-$string['connectedcurriculuminstruction'] = 'Module credit volume: {$a} credit Connected Curriculum module.';
 $string['approveandcreate'] = 'Approve and create';
 $string['reenterprompt'] = 'Re-enter prompt';
 $string['loadingthinking'] = 'Thinking... generating your request.';
@@ -87,6 +82,7 @@ $string['launchgenerator'] = 'Module Assistant';
 $string['modgenmodalheading'] = 'Module Assistant';
 $string['modgenfabaria'] = 'Open Module Assistant';
 $string['closemodgenmodal'] = 'Close and return to module';
+$string['missingcourseid'] = 'Course ID is required to use the Module Assistant.';
 $string['aipolicynotaccepted'] = 'You must accept the AI policy before using the Module Assistant.';
 $string['aipolicyacceptance'] = 'AI Policy Acceptance Required';
 $string['acceptaipolicy'] = 'I agree to the terms of AI use in this system';
@@ -99,3 +95,26 @@ $string['aiprocessing'] = 'AI is generating your module. Please wait...';
 $string['longquery'] = 'Long queries may take up to 5 minutes to process.';
 $string['aiprocessingdetail'] = 'AI is analyzing your request and generating module content. This process may take several minutes for complex requests.';
 $string['prompt_help'] = 'Describe what you want to create for your module. Be specific about the topic, learning objectives, and type of activities you want. More detailed prompts will give better results but may take longer to process.';
+$string['moduletype_help'] = 'Choose how to structure your module:
+
+**Weekly format**: Creates sequential weekly sections with clear titles and activities for each week of teaching.
+
+**Themed format**: Organizes content into distinct learning themes that may span multiple weeks.';
+
+// Template system strings
+$string['templateheading'] = 'Curriculum Template Configuration';
+$string['templateheading_desc'] = 'Configure curriculum modules that can be used as templates for AI generation';
+$string['enabletemplates'] = 'Enable Template System';
+$string['enabletemplates_desc'] = 'Allow users to select predefined modules as templates for AI generation';
+$string['curriculumtemplates'] = 'Curriculum Template Modules';
+$string['curriculumtemplates_desc'] = 'Define curriculum template modules. Format: One per line as "Template Name|Course ID|Section ID (optional)". Example:<br/>
+Basic Mathematics|15<br/>
+Advanced Chemistry|23|2<br/>
+Introduction to Biology|31';
+$string['selectcurriculum'] = 'Select Template';
+$string['nocurriculum'] = 'Create from scratch';
+$string['curriculumnotfound'] = 'Selected curriculum template not found or not accessible';
+$string['invalidcurriculumconfig'] = 'Invalid curriculum template configuration. Please check admin settings.';
+$string['curriculumtemplates_help'] = 'Select an existing module to use as a template for AI generation. The AI will analyze the structure, activities, and content of the selected template to create similar content for your prompt.
+
+Choose "Create from scratch" to generate content without using any existing template.';

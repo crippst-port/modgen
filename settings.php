@@ -50,6 +50,30 @@ if ($hassiteconfig) {
             new lang_string('timeout_desc', 'aiplacement_modgen'),
             '300'
         ));
+
+        // Template curriculum modules configuration
+        $settings->add(new admin_setting_heading(
+            'aiplacement_modgen/templateheading',
+            new lang_string('templateheading', 'aiplacement_modgen'),
+            new lang_string('templateheading_desc', 'aiplacement_modgen')
+        ));
+
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_templates',
+            new lang_string('enabletemplates', 'aiplacement_modgen'),
+            new lang_string('enabletemplates_desc', 'aiplacement_modgen'),
+            1
+        ));
+
+        $settings->add(new admin_setting_configtextarea(
+            'aiplacement_modgen/curriculum_templates',
+            new lang_string('curriculumtemplates', 'aiplacement_modgen'),
+            new lang_string('curriculumtemplates_desc', 'aiplacement_modgen'),
+            '',
+            PARAM_TEXT,
+            60,
+            10
+        ));
         // Add file upload or other settings as needed.
     }
 }

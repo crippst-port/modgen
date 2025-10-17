@@ -893,6 +893,24 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     }
     error_log('=== END FORM DEBUG ===');
     
+    // Visual debug display (appears on page if ?debug=1 is in URL)
+    if (isset($_GET['debug'])) {
+        echo '<div style="background: #fff3cd; border: 2px solid #ffc107; padding: 15px; margin: 20px 0; font-family: monospace; font-size: 12px; border-radius: 4px;">';
+        echo '<strong style="color: #ff6b00;">⚠️ DEBUG MODE: Form Submission</strong><br>';
+        echo 'curriculum_template isset: <strong>' . (isset($pdata->curriculum_template) ? 'YES' : 'NO') . '</strong><br>';
+        echo 'curriculum_template value: <code style="background: white; padding: 2px 4px;">"' . htmlspecialchars((string)($pdata->curriculum_template ?? '')) . '"</code><br>';
+        echo 'curriculum_template empty: <strong>' . (empty($pdata->curriculum_template) ? 'YES' : 'NO') . '</strong><br>';
+        echo 'All form fields: ';
+        $fields = [];
+        foreach ((array)$pdata as $key => $val) {
+            if (!is_object($val) && !is_array($val)) {
+                $fields[] = "$key=" . substr((string)$val, 0, 20);
+            }
+        }
+        echo implode(', ', $fields) . '<br>';
+        echo '</div>';
+    }
+    
     $prompt = $pdata->prompt;
     $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
     $keepweeklabels = !empty($pdata->keepweeklabels);

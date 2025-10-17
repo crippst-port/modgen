@@ -177,7 +177,7 @@ class template_reader {
                 $activity_data = [
                     'type' => $cm->modname,
                     'name' => $cm->name,
-                    'intro' => strip_tags($cm->get_content()),
+                    'intro' => strip_tags($cm->content ?? ''),
                     'section' => get_section_name($courseid, $cm->sectionnum)
                 ];
                 

@@ -29,10 +29,16 @@ require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir . '/formslib.php');
 require_login();
 
+// Cache configuration values for efficiency
+$pluginconfig = (object)[
+    'timeout' => get_config('aiplacement_modgen', 'timeout') ?: 300,
+    'orgparams' => get_config('aiplacement_modgen', 'orgparams'),
+    'enable_templates' => get_config('aiplacement_modgen', 'enable_templates'),
+];
+
 // Increase PHP execution time for AI processing
-$timeout = get_config('aiplacement_modgen', 'timeout') ?: 300;
-set_time_limit($timeout);
-ini_set('max_execution_time', $timeout);
+set_time_limit($pluginconfig->timeout);
+ini_set('max_execution_time', $pluginconfig->timeout);
 
 $embedded = optional_param('embedded', 0, PARAM_BOOL);
 $ajax = optional_param('ajax', 0, PARAM_BOOL);
@@ -97,6 +103,28 @@ function aiplacement_modgen_render_modal_footer(array $actions, bool $includeclo
     return $OUTPUT->render_from_template('aiplacement_modgen/modal_footer', [
         'actions' => $actions,
     ]);
+}
+
+/**
+ * Helper function to output response in AJAX or regular mode.
+ *
+ * @param string $bodyhtml Body HTML content.
+ * @param array $footeractions Footer action definitions.
+ * @param bool $ajax Whether this is an AJAX request.
+ * @param string $title Modal title for AJAX mode.
+ * @param bool $refresh Whether to refresh on close (AJAX only).
+ */
+function aiplacement_modgen_output_response(string $bodyhtml, array $footeractions, bool $ajax, string $title, bool $refresh = false): void {
+    global $OUTPUT;
+    
+    if ($ajax) {
+        $footerhtml = aiplacement_modgen_render_modal_footer($footeractions);
+        aiplacement_modgen_send_ajax_response($bodyhtml, $footerhtml, $refresh, ['title' => $title]);
+    }
+    
+    echo $OUTPUT->header();
+    echo $bodyhtml;
+    echo $OUTPUT->footer();
 }
 
 /**
@@ -330,7 +358,6 @@ class aiplacement_modgen_prompt_form extends moodleform {
         
         // Add curriculum template selection if enabled
         if (get_config('aiplacement_modgen', 'enable_templates')) {
-            require_once(__DIR__ . '/classes/local/template_reader.php');
             $template_reader = new \aiplacement_modgen\local\template_reader();
             $curriculum_templates = $template_reader->get_curriculum_templates();
             
@@ -399,10 +426,16 @@ class aiplacement_modgen_approve_form extends moodleform {
     }
 }
 
-// Business logic.
-$orgparams = get_config('aiplacement_modgen', 'orgparams');
+// Business logic - use cached config values.
 require_once(__DIR__ . '/classes/local/ai_service.php');
 require_once(__DIR__ . '/classes/activitytype/registry.php');
+require_once(__DIR__ . '/classes/local/template_reader.php');
+
+// Load course libraries once (used by approval form processing)
+require_once($CFG->dirroot . '/course/lib.php');
+require_once($CFG->dirroot . '/course/format/lib.php');
+require_once($CFG->dirroot . '/course/modlib.php');
+require_once($CFG->dirroot . '/mod/subsection/classes/manager.php');
 
 // Attempt approval form first (so refreshes on approval post are handled).
 $approveform = null;
@@ -430,10 +463,6 @@ if ($approvedjsonparam !== null) {
 if ($approveform && ($adata = $approveform->get_data())) {
     // Create weekly sections from approved JSON.
     $json = json_decode($adata->approvedjson, true);
-    require_once($CFG->dirroot . '/course/lib.php');
-    require_once($CFG->dirroot . '/course/format/lib.php');
-    require_once($CFG->dirroot . '/course/modlib.php');
-    require_once($CFG->dirroot . '/mod/subsection/classes/manager.php');
     $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'weekly';
     $keepweeklabels = $moduletype === 'weekly' && !empty($adata->keepweeklabels);
     $includeaboutassessments = !empty($adata->includeaboutassessments);
@@ -498,17 +527,11 @@ if ($approveform && ($adata = $approveform->get_data())) {
             $DB->update_record('course_sections', $sectionrecord);
 
             if (!empty($theme['activities']) && is_array($theme['activities'])) {
-                // Debug: Log the activities being processed
-                file_put_contents('/tmp/modgen_debug.log', "THEME ACTIVITIES: " . print_r($theme['activities'], true) . "\n", FILE_APPEND);
-                
                 $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
                     $theme['activities'],
                     $course,
                     $sectionnum
                 );
-                
-                // Debug: Log the outcome
-                file_put_contents('/tmp/modgen_debug.log', "ACTIVITY OUTCOME: " . print_r($activityoutcome, true) . "\n", FILE_APPEND);
                 
                 if (!empty($activityoutcome['created'])) {
                     $results = array_merge($results, $activityoutcome['created']);
@@ -539,17 +562,11 @@ if ($approveform && ($adata = $approveform->get_data())) {
 
                     // Process activities within this week
                     if (!empty($week['activities']) && is_array($week['activities'])) {
-                        // Debug: Log the week activities being processed
-                        file_put_contents('/tmp/modgen_debug.log', "WEEK ACTIVITIES: " . print_r($week['activities'], true) . "\n", FILE_APPEND);
-                        
                         $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
                             $week['activities'],
                             $course,
                             $sectionnum
                         );
-                        
-                        // Debug: Log the outcome
-                        file_put_contents('/tmp/modgen_debug.log', "WEEK ACTIVITY OUTCOME: " . print_r($activityoutcome, true) . "\n", FILE_APPEND);
                         
                         if (!empty($activityoutcome['created'])) {
                             $results = array_merge($results, $activityoutcome['created']);
@@ -610,17 +627,11 @@ if ($approveform && ($adata = $approveform->get_data())) {
             $DB->update_record('course_sections', $sectionrecord);
 
             if (!empty($sectiondata['activities']) && is_array($sectiondata['activities'])) {
-                // Debug: Log the activities being processed
-                file_put_contents('/tmp/modgen_debug.log', "SECTION ACTIVITIES: " . print_r($sectiondata['activities'], true) . "\n", FILE_APPEND);
-                
                 $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
                     $sectiondata['activities'],
                     $course,
                     $sectionnum
                 );
-                
-                // Debug: Log the outcome  
-                file_put_contents('/tmp/modgen_debug.log', "ACTIVITY OUTCOME: " . print_r($activityoutcome, true) . "\n", FILE_APPEND);
                 
                 if (!empty($activityoutcome['created'])) {
                     $results = array_merge($results, $activityoutcome['created']);
@@ -741,17 +752,16 @@ if ($pdata = $promptform->get_data()) {
     // Generate module with or without template
     if (!empty($curriculum_template)) {
         try {
-            require_once(__DIR__ . '/classes/local/template_reader.php');
             $template_reader = new \aiplacement_modgen\local\template_reader();
             $template_data = $template_reader->extract_curriculum_template($curriculum_template);
-            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $orgparams, $template_data, [], $moduletype);
+            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $pluginconfig->orgparams, $template_data, [], $moduletype);
         } catch (Exception $e) {
             // Fall back to normal generation if template fails
             error_log('Template generation failed: ' . $e->getMessage());
-            $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $orgparams, [], $moduletype);
+            $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $pluginconfig->orgparams, [], $moduletype);
         }
     } else {
-        $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $orgparams, [], $moduletype);
+        $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $pluginconfig->orgparams, [], $moduletype);
     }
     // Get the final prompt sent to AI for debugging (returned by ai_service).
     $debugprompt = isset($json['debugprompt']) ? $json['debugprompt'] : $prompt;
@@ -810,30 +820,21 @@ if ($pdata = $promptform->get_data()) {
     $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/prompt_preview', $previewdata);
     $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
 
-    if ($ajax) {
-        $footeractions = [[
-            'label' => get_string('reenterprompt', 'aiplacement_modgen'),
-            'classes' => 'btn btn-secondary',
-            'isbutton' => true,
-            'action' => 'aiplacement-modgen-reenter',
-        ], [
-            'label' => get_string('approveandcreate', 'aiplacement_modgen'),
-            'classes' => 'btn btn-primary',
-            'isbutton' => true,
-            'action' => 'aiplacement-modgen-submit',
-            'index' => 0,
-            'hasindex' => true,
-        ]];
-        $footerhtml = aiplacement_modgen_render_modal_footer($footeractions);
+    $footeractions = [[
+        'label' => get_string('reenterprompt', 'aiplacement_modgen'),
+        'classes' => 'btn btn-secondary',
+        'isbutton' => true,
+        'action' => 'aiplacement-modgen-reenter',
+    ], [
+        'label' => get_string('approveandcreate', 'aiplacement_modgen'),
+        'classes' => 'btn btn-primary',
+        'isbutton' => true,
+        'action' => 'aiplacement-modgen-submit',
+        'index' => 0,
+        'hasindex' => true,
+    ]];
 
-        aiplacement_modgen_send_ajax_response($bodyhtml, $footerhtml, false, [
-            'title' => get_string('pluginname', 'aiplacement_modgen'),
-        ]);
-    }
-
-    echo $OUTPUT->header();
-    echo $bodyhtml;
-    echo $OUTPUT->footer();
+    aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
     exit;
 }
 
@@ -843,22 +844,13 @@ $promptform->display();
 $formhtml = ob_get_clean();
 $bodyhtml = html_writer::div($formhtml, 'aiplacement-modgen__content');
 
-if ($ajax) {
-    $footeractions = [[
-        'label' => get_string('submit', 'aiplacement_modgen'),
-        'classes' => 'btn btn-primary',
-        'isbutton' => true,
-        'action' => 'aiplacement-modgen-submit',
-        'index' => 0,
-        'hasindex' => true,
-    ]];
-    $footerhtml = aiplacement_modgen_render_modal_footer($footeractions);
+$footeractions = [[
+    'label' => get_string('submit', 'aiplacement_modgen'),
+    'classes' => 'btn btn-primary',
+    'isbutton' => true,
+    'action' => 'aiplacement-modgen-submit',
+    'index' => 0,
+    'hasindex' => true,
+]];
 
-    aiplacement_modgen_send_ajax_response($bodyhtml, $footerhtml, false, [
-        'title' => get_string('pluginname', 'aiplacement_modgen'),
-    ]);
-}
-
-echo $OUTPUT->header();
-echo $bodyhtml;
-echo $OUTPUT->footer();
+aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));

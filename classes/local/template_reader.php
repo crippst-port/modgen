@@ -54,8 +54,8 @@ class template_reader {
             $parts = explode('|', $line);
             if (count($parts) >= 2) {
                 $name = trim($parts[0]);
-                $courseid = trim($parts[1]);
-                $sectionid = isset($parts[2]) ? trim($parts[2]) : null;
+                $courseid = (int)trim($parts[1]);
+                $sectionid = isset($parts[2]) ? (int)trim($parts[2]) : null;
                 
                 // Validate course exists and user has access
                 if ($this->validate_template_access($courseid)) {

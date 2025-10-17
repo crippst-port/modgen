@@ -233,6 +233,7 @@ class ai_service {
                 self::debug_log('Template guidance built, length: ' . strlen($template_guidance));
                 if (strlen($template_guidance) > 0) {
                     self::debug_log('First 300 chars of guidance: ' . substr($template_guidance, 0, 300));
+                    self::debug_log('FULL TEMPLATE GUIDANCE:\n' . $template_guidance);
                 }
             } else {
                 self::debug_log('No template data provided to generate_module');
@@ -241,6 +242,8 @@ class ai_service {
             $finalprompt = $roleinstruction . "\n\nUser requirements:\n" . trim($prompt) . "\n\n" . $template_guidance . "\n\n" . $formatinstruction;
 
             // Debug: Log the prompt being sent to AI
+            self::debug_log("AI_SERVICE: Final prompt length: " . strlen($finalprompt));
+            self::debug_log("AI_SERVICE: Template guidance included in final prompt: " . (strlen($template_guidance) > 0 ? 'YES' : 'NO'));
             self::debug_log("AI_SERVICE: Final prompt being sent:\n" . $finalprompt);
 
             // Instantiate the generate_text action with required parameters.
@@ -380,6 +383,12 @@ class ai_service {
      * @return array Response from AI service
      */
     public static function generate_module_with_template($prompt, $orgparams, $template_data, $documents = [], $structure = 'weekly') {
+        self::debug_log('=== generate_module_with_template called ===');
+        self::debug_log('template_data type: ' . gettype($template_data));
+        self::debug_log('template_data is empty: ' . (empty($template_data) ? 'YES' : 'NO'));
+        if (is_array($template_data)) {
+            self::debug_log('template_data keys: ' . implode(', ', array_keys($template_data)));
+        }
         return self::generate_module($prompt, $orgparams, $documents, $structure, $template_data);
     }
 
@@ -413,29 +422,42 @@ class ai_service {
             $guidance .= "CURRICULUM TEMPLATE INFORMATION:\n";
             $guidance .= "Template Name: " . (!empty($course['name']) ? $course['name'] : 'Unnamed') . "\n";
             $guidance .= "Template Format: " . (!empty($course['format']) ? $course['format'] : 'Unknown') . "\n";
-            $guidance .= "Template Summary: " . (!empty($course['summary']) ? substr($course['summary'], 0, 200) : 'None') . "\n\n";
+            if (!empty($course['summary'])) {
+                $guidance .= "Template Summary: " . substr($course['summary'], 0, 300) . "\n";
+            }
+            $guidance .= "\n";
         }
         
         // Add structure guidance
-        if (!empty($template_data['structure'])) {
+        if (!empty($template_data['structure']) && is_array($template_data['structure'])) {
             $guidance .= "TEMPLATE STRUCTURE:\n";
             $guidance .= "The template is organized into " . count($template_data['structure']) . " sections:\n";
             foreach ($template_data['structure'] as $section) {
-                $guidance .= "- " . $section['name'] . " (" . $section['activity_count'] . " activities)\n";
+                $section_name = is_array($section) && !empty($section['name']) ? $section['name'] : 'Unknown Section';
+                $activity_count = is_array($section) && !empty($section['activity_count']) ? $section['activity_count'] : 0;
+                $guidance .= "- {$section_name} ({$activity_count} activities)\n";
             }
             $guidance .= "\n";
         }
         
         // Add activities guidance
-        if (!empty($template_data['activities'])) {
+        if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
             $guidance .= "TEMPLATE ACTIVITIES:\n";
             $guidance .= "The template uses the following activity types and patterns:\n";
             $activity_types = [];
+            $activity_details = [];
             foreach ($template_data['activities'] as $activity) {
-                $activity_types[$activity['type']] = ($activity_types[$activity['type']] ?? 0) + 1;
+                if (is_array($activity)) {
+                    $type = $activity['type'] ?? 'unknown';
+                    $activity_types[$type] = ($activity_types[$type] ?? 0) + 1;
+                    $activity_details[] = "  - " . ($activity['name'] ?? 'Unnamed') . " (type: {$type})";
+                }
             }
             foreach ($activity_types as $type => $count) {
                 $guidance .= "- {$type}: {$count} instance(s)\n";
+            }
+            if (!empty($activity_details)) {
+                $guidance .= "\nDetailed Activities:\n" . implode("\n", array_slice($activity_details, 0, 15)) . "\n";
             }
             $guidance .= "Follow this same activity pattern in your generated module.\n\n";
         }
@@ -457,12 +479,13 @@ class ai_service {
             }
             
             $guidance .= "IMPORTANT: Include appropriate HTML markup with Bootstrap classes in your section summaries\n";
-            $guidance .= "to match the template's visual structure. For example:\n";
-            $guidance .= "- Use HTML divs with Bootstrap classes like 'row', 'col-md-6', 'card', 'nav-tabs', etc.\n";
-            $guidance .= "- Structure content with proper HTML hierarchy\n";
-            $guidance .= "- Maintain the same visual layout patterns as the template\n\n";
-        } else {
-            self::debug_log('No template_html in template_data');
+            $guidance .= "to match the template's visual structure.\n\n";
+        }
+        
+        // Add bootstrap structure if available
+        if (!empty($template_data['bootstrap_structure'])) {
+            $guidance .= "BOOTSTRAP STRUCTURE ANALYSIS:\n";
+            $guidance .= "The template's Bootstrap structure: " . (is_array($template_data['bootstrap_structure']) ? implode(', ', $template_data['bootstrap_structure']) : $template_data['bootstrap_structure']) . "\n\n";
         }
         
         $guidance .= "ADAPTATION INSTRUCTIONS:\n";

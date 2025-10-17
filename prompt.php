@@ -903,6 +903,9 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     $compositeprompt = trim($prompt . "\n\n" . $typeinstruction);
     
     // Generate module with or without template
+    error_log('DEBUG: $pdata->curriculum_template exists: ' . (isset($pdata->curriculum_template) ? 'YES' : 'NO'));
+    error_log('DEBUG: $pdata->curriculum_template value: ' . var_export($pdata->curriculum_template, true));
+    error_log('DEBUG: $curriculum_template after assignment: ' . var_export($curriculum_template, true));
     error_log('Checking curriculum_template: empty=' . (empty($curriculum_template) ? '1' : '0') . ', value=' . var_export($curriculum_template, true));
     if (!empty($curriculum_template)) {
         error_log('Template selected: ' . $curriculum_template);
@@ -910,6 +913,19 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
             $template_reader = new \aiplacement_modgen\local\template_reader();
             $template_data = $template_reader->extract_curriculum_template($curriculum_template);
             error_log('Template data extracted, keys: ' . implode(', ', array_keys($template_data)));
+            
+            // Validate template data has content
+            $data_summary = [];
+            foreach ($template_data as $key => $value) {
+                if (is_array($value)) {
+                    $data_summary[$key] = 'array(' . count($value) . ')';
+                } elseif (is_string($value)) {
+                    $data_summary[$key] = 'string(' . strlen($value) . ')';
+                } else {
+                    $data_summary[$key] = gettype($value);
+                }
+            }
+            error_log('Template data summary: ' . json_encode($data_summary));
             
             // Extract Bootstrap structure from the template
             $bootstrap_structure = $template_reader->extract_bootstrap_structure($curriculum_template);
@@ -922,6 +938,19 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
                 error_log('First 500 chars of template HTML: ' . substr($template_data['template_html'], 0, 500));
             } else {
                 error_log('No template HTML extracted');
+            }
+            
+            // Validate structure and activities are not empty
+            if (empty($template_data['structure'])) {
+                error_log('WARNING: Template has no structure/sections');
+            } else {
+                error_log('Template structure count: ' . count($template_data['structure']));
+            }
+            
+            if (empty($template_data['activities'])) {
+                error_log('WARNING: Template has no activities');
+            } else {
+                error_log('Template activities count: ' . count($template_data['activities']));
             }
             
             error_log('Calling generate_module_with_template with template data');

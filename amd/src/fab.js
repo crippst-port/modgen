@@ -483,7 +483,14 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
                     reloadTriggered = false;
                     footerButtonBindings = [];
                     needsContentReload = true;
-                    trigger.setAttribute('aria-expanded', 'false');
+                });
+
+                // Listen for form updates (e.g., when upload form is loaded dynamically)
+                document.addEventListener('aiplacement-modgen-forms-updated', () => {
+                    if (modalInstance) {
+                        const newBindings = enhanceForms(params);
+                        updateFooterButtons(newBindings);
+                    }
                 });
 
                 return modal;

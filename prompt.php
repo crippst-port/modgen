@@ -426,10 +426,75 @@ class aiplacement_modgen_approve_form extends moodleform {
     }
 }
 
+// Define upload form: file upload and content import.
+class aiplacement_modgen_upload_form extends moodleform {
+    public function definition() {
+        $mform = $this->_form;
+        $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
+        $mform->setType('courseid', PARAM_INT);
+        if (!empty($this->_customdata['embedded'])) {
+            $mform->addElement('hidden', 'embedded', 1);
+            $mform->setType('embedded', PARAM_BOOL);
+        }
+        
+        // Use Moodle's filepicker
+        $mform->addElement('filepicker', 'contentfile', 
+            get_string('contentfile', 'aiplacement_modgen'),
+            null,
+            ['accepted_types' => ['.docx', '.doc', '.odt']]
+        );
+        $mform->addRule('contentfile', null, 'required', null, 'client');
+        
+        $activities = [
+            'book' => get_string('activitytype_book', 'aiplacement_modgen') . ' - ' . 
+                      get_string('bookdescription', 'aiplacement_modgen'),
+        ];
+        $mform->addElement('select', 'activitytype', 
+            get_string('selectactivitytype', 'aiplacement_modgen'), $activities);
+        $mform->setType('activitytype', PARAM_ALPHA);
+        $mform->setDefault('activitytype', 'book');
+        
+        $mform->addElement('text', 'activityname', get_string('name', 'moodle'));
+        $mform->setType('activityname', PARAM_TEXT);
+        $mform->addRule('activityname', null, 'required', null, 'client');
+        
+        $mform->addElement('hidden', 'sectionnumber', 0);
+        $mform->setType('sectionnumber', PARAM_INT);
+        
+        $mform->addElement('textarea', 'activityintro', 
+            get_string('activityintro', 'aiplacement_modgen'), 'rows="3" cols="60"');
+        $mform->setType('activityintro', PARAM_RAW);
+        
+        $this->add_action_buttons(false, get_string('uploadandcreate', 'aiplacement_modgen'));
+    }
+}
+
+// Handle AJAX request for upload form only (to avoid filepicker initialization in hidden elements).
+// This must come AFTER the form class definitions above.
+if ($ajax && optional_param('action', '', PARAM_ALPHA) === 'getuploadform') {
+    require_sesskey();
+    $uploadform = new aiplacement_modgen_upload_form(null, [
+        'courseid' => $courseid,
+        'embedded' => $embedded ? 1 : 0,
+    ]);
+    
+    ob_start();
+    $uploadform->display();
+    $uploadformhtml = ob_get_clean();
+    
+    @header('Content-Type: application/json; charset=utf-8');
+    echo json_encode([
+        'form' => $uploadformhtml,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
+}
+
 // Business logic - use cached config values.
 require_once(__DIR__ . '/classes/local/ai_service.php');
 require_once(__DIR__ . '/classes/activitytype/registry.php');
 require_once(__DIR__ . '/classes/local/template_reader.php');
+require_once(__DIR__ . '/classes/local/filehandler/file_processor.php');
+require_once(__DIR__ . '/classes/local/activity/book_activity.php');
 
 // Load course libraries once (used by approval form processing)
 require_once($CFG->dirroot . '/course/lib.php');
@@ -733,13 +798,84 @@ $promptform = new aiplacement_modgen_prompt_form(null, [
     'courseid' => $courseid,
     'embedded' => $embedded ? 1 : 0,
 ]);
-if ($promptform->is_cancelled()) {
+
+// Upload form handling.
+$uploadform = new aiplacement_modgen_upload_form(null, [
+    'courseid' => $courseid,
+    'embedded' => $embedded ? 1 : 0,
+]);
+
+if ($promptform->is_cancelled() || $uploadform->is_cancelled()) {
     if ($ajax) {
         aiplacement_modgen_send_ajax_response('', '', false, ['close' => true]);
     }
     redirect(new moodle_url('/course/view.php', ['id' => $courseid]));
 }
-if ($pdata = $promptform->get_data()) {
+
+// Handle upload form submission.
+if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
+    $uploaddata = $uploadform->get_data();
+    if ($uploaddata) {
+        try {
+            $file_processor = new \aiplacement_modgen\local\filehandler\file_processor();
+            $courseid_int = (int) $courseid;
+            $course = get_course($courseid_int);
+            
+            // Get the uploaded file from filepicker draft area
+            $usercontextid = context_user::instance($USER->id)->id;
+            $file_storage = get_file_storage();
+            $files = $file_storage->get_area_files($usercontextid, 'user', 'draft', $uploaddata->contentfile);
+            
+            $file = null;
+            foreach ($files as $f) {
+                if (!$f->is_directory()) {
+                    $file = $f;
+                    break;
+                }
+            }
+            
+            if (!$file) {
+                throw new Exception(get_string('nofileuploadederror', 'aiplacement_modgen'));
+            }
+            
+            // Extract content from the file.
+            $chapters = $file_processor->extract_content_from_file($file, 'html');
+            
+            if (empty($chapters)) {
+                throw new Exception(get_string('nochaptersextractederror', 'aiplacement_modgen'));
+            }
+            
+            // Create the book activity.
+            $activity_data = [
+                'name' => $uploaddata->activityname,
+                'intro' => $uploaddata->activityintro ?? '',
+            ];
+            
+            $book_handler = new \aiplacement_modgen\local\activity\book_activity();
+            $book_module = $book_handler->create(
+                $activity_data,
+                $course,
+                (int) $uploaddata->sectionnumber
+            );
+            
+            // Add chapters to the book.
+            $book_handler->add_chapters_to_book($book_module->instance, $chapters);
+            
+            $success_message = get_string('bookactivitycreated', 'aiplacement_modgen', $uploaddata->activityname);
+            
+            if ($ajax) {
+                aiplacement_modgen_send_ajax_response('', '', false, ['close' => true, 'success' => $success_message]);
+            } else {
+                redirect(new moodle_url('/course/view.php', ['id' => $courseid]));
+            }
+        } catch (Exception $e) {
+            error_log('Upload form error: ' . $e->getMessage());
+            if ($ajax) {
+                aiplacement_modgen_send_ajax_response($e->getMessage(), '', false);
+            }
+        }
+    }
+}if ($pdata = $promptform->get_data()) {
     $prompt = $pdata->prompt;
     $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
     $keepweeklabels = !empty($pdata->keepweeklabels);
@@ -838,11 +974,29 @@ if ($pdata = $promptform->get_data()) {
     exit;
 }
 
-// Default display: prompt form.
+// Default display: tabbed modal with generate and upload forms.
 ob_start();
 $promptform->display();
-$formhtml = ob_get_clean();
-$bodyhtml = html_writer::div($formhtml, 'aiplacement-modgen__content');
+$generateformhtml = ob_get_clean();
+
+// Don't render upload form in hidden tab - load it via AJAX instead to avoid filepicker initialization issues
+$uploadformhtml = '';
+$enablefileupload = get_config('aiplacement_modgen', 'enable_fileupload');
+
+// Render tabbed modal
+$tabdata = [
+    'generatecontent' => $generateformhtml,
+    'uploadcontent' => $uploadformhtml,
+    'generatetablabel' => get_string('generatetablabel', 'aiplacement_modgen'),
+    'uploadtablabel' => get_string('uploadtablabel', 'aiplacement_modgen'),
+    'submitbuttontext' => get_string('submit', 'aiplacement_modgen'),
+    'uploadbuttontext' => get_string('uploadandcreate', 'aiplacement_modgen'),
+    'showuploadtab' => $enablefileupload,
+    'courseid' => $courseid,
+    'embedded' => $embedded ? 1 : 0,
+];
+$bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/modal_tabbed', $tabdata);
+$bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
 
 $footeractions = [[
     'label' => get_string('submit', 'aiplacement_modgen'),

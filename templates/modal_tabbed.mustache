@@ -1,0 +1,245 @@
+{{! Tabbed modal interface for the Module Generator - Using Bootstrap 5 tabs }}
+<div class="aiplacement-modgen-tabs" 
+     data-submit-text="{{submitbuttontext}}" 
+     data-upload-text="{{uploadbuttontext}}">
+    {{! Tab Navigation }}
+    <ul class="nav nav-tabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <a class="nav-link active" 
+               id="generate-tab" 
+               href="#generate-content"
+               data-bs-toggle="tab" 
+               role="tab" 
+               aria-controls="generate-content" 
+               aria-selected="true">
+                {{#generatetablabel}}{{generatetablabel}}{{/generatetablabel}}{{^generatetablabel}}Generate from Template{{/generatetablabel}}
+            </a>
+        </li>
+        {{#showuploadtab}}
+        <li class="nav-item" role="presentation">
+            <a class="nav-link" 
+               id="upload-tab" 
+               href="#upload-content"
+               data-bs-toggle="tab" 
+               role="tab" 
+               aria-controls="upload-content" 
+               aria-selected="false">
+                {{#uploadtablabel}}{{uploadtablabel}}{{/uploadtablabel}}{{^uploadtablabel}}Upload Content{{/uploadtablabel}}
+            </a>
+        </li>
+        {{/showuploadtab}}
+    </ul>
+
+    {{! Tab Content }}
+    <div class="tab-content">
+        <div class="tab-pane fade show active" 
+             id="generate-content" 
+             role="tabpanel" 
+             aria-labelledby="generate-tab">
+            {{{generatecontent}}}
+        </div>
+
+        {{#showuploadtab}}
+        <div class="tab-pane fade" 
+             id="upload-content" 
+             role="tabpanel" 
+             aria-labelledby="upload-tab"
+             data-upload-loaded="false">
+            {{#uploadcontent}}{{{uploadcontent}}}{{/uploadcontent}}
+            {{^uploadcontent}}<div class="upload-loading">Loading upload form...</div>{{/uploadcontent}}
+        </div>
+        {{/showuploadtab}}
+    </div>
+</div>
+
+<style>
+.aiplacement-modgen-tabs {
+    width: 100%;
+}
+
+.aiplacement-modgen-tabs .nav-tabs {
+    border-bottom: 1px solid #dee2e6;
+    margin-bottom: 1rem;
+}
+
+.aiplacement-modgen-tabs .nav-link {
+    color: #6c757d;
+    border: 1px solid transparent;
+    border-bottom: 3px solid transparent;
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    background-color: transparent;
+    transition: all 0.15s ease-in-out;
+    text-decoration: none;
+}
+
+.aiplacement-modgen-tabs .nav-link:hover {
+    color: #495057;
+    border-color: #dee2e6;
+    border-bottom-color: #dee2e6;
+}
+
+.aiplacement-modgen-tabs .nav-link.active {
+    color: #0d6efd;
+    background-color: transparent;
+    border-color: #dee2e6;
+    border-bottom-color: #0d6efd;
+    border-bottom-width: 3px;
+}
+
+.aiplacement-modgen-tabs .tab-content {
+    padding: 1rem 0;
+}
+
+.aiplacement-modgen-tabs .tab-pane {
+    display: none;
+}
+
+.aiplacement-modgen-tabs .tab-pane.show {
+    display: block;
+}
+
+.aiplacement-modgen-tabs .tab-pane.fade {
+    opacity: 0;
+    transition: opacity 0.15s linear;
+}
+
+.aiplacement-modgen-tabs .tab-pane.show.fade {
+    opacity: 1;
+}
+
+/* Loading indicator for upload form */
+.aiplacement-modgen-tabs .upload-loading {
+    text-align: center;
+    padding: 2rem 1rem;
+    color: #6c757d;
+}
+</style>
+
+<script>
+(function() {
+    // Manual tab initialization for Bootstrap 5
+    var tabLinks = document.querySelectorAll('[data-bs-toggle="tab"]');
+    
+    tabLinks.forEach(function(tabLink) {
+        tabLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            
+            // Get target
+            var targetId = this.getAttribute('href') || this.getAttribute('data-bs-target');
+            if (!targetId) return;
+            
+            var targetPane = document.querySelector(targetId);
+            if (!targetPane) return;
+            
+            // Remove active class from all tabs and panes
+            document.querySelectorAll('[data-bs-toggle="tab"]').forEach(function(tab) {
+                tab.classList.remove('active');
+                tab.setAttribute('aria-selected', 'false');
+            });
+            
+            document.querySelectorAll('.tab-pane').forEach(function(pane) {
+                pane.classList.remove('show', 'active');
+            });
+            
+            // Add active class to clicked tab and target pane
+            this.classList.add('active');
+            this.setAttribute('aria-selected', 'true');
+            targetPane.classList.add('show', 'active');
+            
+            // Update the submit button text based on active tab
+            updateSubmitButtonText(targetId);
+            
+            // If this is the upload tab and form hasn't been loaded yet
+            if (targetId === '#upload-content' && targetPane.getAttribute('data-upload-loaded') !== 'true') {
+                loadUploadForm(targetPane);
+            }
+        });
+    });
+    
+    // Function to update submit button text based on active tab
+    function updateSubmitButtonText(targetId) {
+        var submitButton = document.querySelector('[data-action="aiplacement-modgen-submit"]');
+        if (!submitButton) return;
+        
+        var tabsContainer = document.querySelector('.aiplacement-modgen-tabs');
+        if (!tabsContainer) return;
+        
+        var submitText = tabsContainer.getAttribute('data-submit-text');
+        var uploadText = tabsContainer.getAttribute('data-upload-text');
+        
+        if (targetId === '#upload-content') {
+            submitButton.textContent = uploadText || 'Upload and create activity';
+        } else {
+            submitButton.textContent = submitText || 'Submit prompt';
+        }
+    }
+    
+    function loadUploadForm(uploadPane) {
+        // Get course ID and session key from form
+        var courseIdInput = document.querySelector('input[name="courseid"]');
+        var sessKeyInput = document.querySelector('input[name="sesskey"]');
+        
+        if (!courseIdInput || !sessKeyInput) {
+            uploadPane.innerHTML = '<div class="alert alert-danger">Error: Required form data not found.</div>';
+            return;
+        }
+        
+        var courseId = courseIdInput.value;
+        var sessKey = sessKeyInput.value;
+        
+        console.log('Fetching upload form with courseId=' + courseId);
+        
+        // Use Moodle's wwwroot for proper URL construction
+        var url = (typeof M !== 'undefined' && M.cfg && M.cfg.wwwroot) 
+            ? M.cfg.wwwroot + '/ai/placement/modgen/prompt.php'
+            : '/ai/placement/modgen/prompt.php';
+        
+        // Fetch the upload form via AJAX
+        fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: 'action=getuploadform&courseid=' + encodeURIComponent(courseId) + 
+                  '&sesskey=' + encodeURIComponent(sessKey) + '&ajax=1',
+            credentials: 'include'
+        })
+        .then(function(response) {
+            console.log('Response status:', response.status, response.statusText);
+            if (!response.ok) {
+                return response.text().then(function(text) {
+                    console.error('Response body:', text.substring(0, 500));
+                    throw new Error('HTTP ' + response.status + ': ' + response.statusText);
+                });
+            }
+            return response.json();
+        })
+        .then(function(data) {
+            console.log('Upload form loaded successfully');
+            if (data.form) {
+                uploadPane.innerHTML = data.form;
+                uploadPane.setAttribute('data-upload-loaded', 'true');
+                
+                // Trigger any necessary re-initialization of form elements
+                if (typeof M !== 'undefined' && M.form) {
+                    // Dispatch event to initialize form elements (filepickers, etc)
+                    var event = new CustomEvent('form-inited');
+                    uploadPane.dispatchEvent(event);
+                }
+                
+                // Trigger re-scan of forms for the modal to pick up the new upload form
+                // This sends a custom event that the modal can listen to
+                document.dispatchEvent(new CustomEvent('aiplacement-modgen-forms-updated'));
+            } else {
+                uploadPane.innerHTML = '<div class="alert alert-danger">Error: Failed to load upload form (no form data in response).</div>';
+            }
+        })
+        .catch(function(error) {
+            console.error('Error loading upload form:', error);
+            uploadPane.innerHTML = '<div class="alert alert-danger">Error loading upload form: ' + error.message + '</div>';
+        });
+    }
+})();
+</script>

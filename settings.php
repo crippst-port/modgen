@@ -74,6 +74,20 @@ if ($hassiteconfig) {
             60,
             10
         ));
+
+        // File upload workflow configuration
+        $settings->add(new admin_setting_heading(
+            'aiplacement_modgen/fileuploadheading',
+            new lang_string('fileuploadheading', 'aiplacement_modgen'),
+            new lang_string('fileuploadheading_desc', 'aiplacement_modgen')
+        ));
+
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_fileupload',
+            new lang_string('enablefileupload', 'aiplacement_modgen'),
+            new lang_string('enablefileupload_desc', 'aiplacement_modgen'),
+            1
+        ));
         // Add file upload or other settings as needed.
     }
 }

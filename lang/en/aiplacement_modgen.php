@@ -83,6 +83,35 @@ $string['modgenmodalheading'] = 'Module Assistant';
 $string['modgenfabaria'] = 'Open Module Assistant';
 $string['closemodgenmodal'] = 'Close and return to module';
 $string['missingcourseid'] = 'Course ID is required to use the Module Assistant.';
+
+// Tabbed interface
+$string['generatetablabel'] = 'Generate from Template';
+$string['uploadtablabel'] = 'Upload Content';
+
+// File upload and content import
+$string['contentfile'] = 'Upload document file';
+$string['contentfiledescription'] = 'Upload a Word document or OpenDocument file to extract content and create activities.';
+$string['selectactivitytype'] = 'What activity would you like to create?';
+$string['unsupportedfiletype'] = 'File type "{$a}" is not supported. Please upload a .docx, .doc, or .odt file.';
+$string['conversionfailed'] = 'Could not convert "{$a}" to HTML. Falling back to plain text extraction.';
+$string['fallbacktoplaintext'] = 'File was converted to plain text (formatting was not preserved).';
+$string['couldnotextractcontent'] = 'Could not extract content from "{$a}". Please check the file and try again.';
+$string['bookcreated'] = 'Book activity created: {$a} with {$chapters} chapters.';
+$string['uploadandcreate'] = 'Upload and create activity';
+$string['longquery'] = 'This may take a moment while the AI processes your request.';
+$string['connectedcurriculum30'] = '30 credit module';
+$string['connectedcurriculum60'] = '60 credit module';
+$string['connectedcurriculum120'] = '120 credit module';
+$string['connectedcurriculumcredits'] = 'Module type';
+$string['connectedcurriculuminstruction'] = 'Module credit volume: {$a} credit Connected Curriculum module.';
+$string['nocurriculum'] = 'No curriculum template';
+$string['selectcurriculum'] = 'Curriculum template';
+$string['curriculumtemplates'] = 'Curriculum templates';
+
+// Book activity
+$string['activitytype_book'] = 'Book';
+$string['bookdescription'] = 'Chapter-based content from uploaded document';
+
 $string['aipolicynotaccepted'] = 'You must accept the AI policy before using the Module Assistant.';
 $string['aipolicyacceptance'] = 'AI Policy Acceptance Required';
 $string['acceptaipolicy'] = 'I agree to the terms of AI use in this system';
@@ -118,3 +147,22 @@ $string['invalidcurriculumconfig'] = 'Invalid curriculum template configuration.
 $string['curriculumtemplates_help'] = 'Select an existing module to use as a template for AI generation. The AI will analyze the structure, activities, and content of the selected template to create similar content for your prompt.
 
 Choose "Create from scratch" to generate content without using any existing template.';
+
+// Upload form error messages
+$string['nofileuploadederror'] = 'No file was uploaded. Please select a file to upload.';
+$string['nochaptersextractederror'] = 'Could not extract chapters from the uploaded file. Ensure it is a valid document (.doc, .docx, or .odt).';
+$string['bookactivitycreated'] = 'Book activity "{$a}" has been created successfully with imported chapters.';
+
+// Upload form labels
+$string['contentfile'] = 'Upload document';
+$string['contentfile_help'] = 'Select a document file (.doc, .docx, or .odt) to extract content from. The content will be parsed into chapters for the activity.';
+$string['selectactivitytype'] = 'Activity type';
+$string['activityintro'] = 'Activity description';
+$string['generatetablabel'] = 'Generate from template';
+$string['uploadtablabel'] = 'Activity from file';
+
+// File upload workflow settings
+$string['fileuploadheading'] = 'File Upload Workflow';
+$string['fileuploadheading_desc'] = 'Configure the file upload workflow that allows users to create activities from uploaded documents.';
+$string['enablefileupload'] = 'Enable file upload workflow';
+$string['enablefileupload_desc'] = 'When enabled, users will see an "Activity from file" tab in the Module Assistant where they can upload documents to create book activities.';

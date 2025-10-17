@@ -235,6 +235,12 @@ class ai_service {
                     self::debug_log('First 300 chars of guidance: ' . substr($template_guidance, 0, 300));
                     self::debug_log('FULL TEMPLATE GUIDANCE:\n' . $template_guidance);
                 }
+                
+                // When template is used, update format instruction to require HTML
+                $formatinstruction .= "\n\nTEMPLATE MODE: Each section summary MUST be valid HTML content.\n" .
+                    "Use HTML markup with Bootstrap 4/5 classes to structure the section summaries.\n" .
+                    "Each 'summary' field must contain formatted HTML, not plain text.\n" .
+                    "Example: <div class='card'><div class='card-body'><h5>Content</h5><p>Details here</p></div></div>";
             } else {
                 self::debug_log('No template data provided to generate_module');
             }
@@ -470,16 +476,28 @@ class ai_service {
             
             $guidance .= "HTML STRUCTURE AND BOOTSTRAP COMPONENTS:\n";
             $guidance .= "The template uses specific HTML and Bootstrap markup. When generating section summaries,\n";
-            $guidance .= "include similar HTML structure and Bootstrap classes. The template HTML includes:\n";
+            $guidance .= "include similar HTML structure and Bootstrap classes. The template HTML includes:\n\n";
+            
+            // Include actual HTML snippets from template
+            $html_excerpt = substr($template_data['template_html'], 0, 1000);
+            $guidance .= "TEMPLATE HTML EXAMPLES:\n";
+            $guidance .= "```html\n";
+            $guidance .= $html_excerpt;
+            if (strlen($template_data['template_html']) > 1000) {
+                $guidance .= "\n... (additional HTML content)\n";
+            }
+            $guidance .= "```\n\n";
             
             // Extract Bootstrap classes for guidance
             $bootstrap_classes = self::extract_bootstrap_classes_from_html($template_data['template_html']);
             if (!empty($bootstrap_classes)) {
-                $guidance .= "- Bootstrap components: " . implode(', ', array_slice($bootstrap_classes, 0, 10)) . "\n";
+                $guidance .= "Bootstrap classes used in template: " . implode(', ', array_slice($bootstrap_classes, 0, 15)) . "\n";
+                $guidance .= "Use these same Bootstrap classes in your generated section summaries.\n\n";
             }
             
-            $guidance .= "IMPORTANT: Include appropriate HTML markup with Bootstrap classes in your section summaries\n";
-            $guidance .= "to match the template's visual structure.\n\n";
+            $guidance .= "IMPORTANT: Your section summaries MUST include HTML markup matching the template's style.\n";
+            $guidance .= "Structure content with divs using Bootstrap classes like 'container', 'row', 'col-md-6', 'card', etc.\n";
+            $guidance .= "Do not output plain text sections - each section summary MUST be formatted as HTML.\n\n";
         }
         
         // Add bootstrap structure if available

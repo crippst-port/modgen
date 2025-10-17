@@ -86,7 +86,8 @@ class template_reader {
         $template = [
             'course_info' => $this->get_course_info($courseid),
             'structure' => $this->get_course_structure($courseid, $sectionid),
-            'activities' => $this->get_activities_detail($courseid, $sectionid)
+            'activities' => $this->get_activities_detail($courseid, $sectionid),
+            'template_html' => $this->get_course_html_structure($courseid, $sectionid)
         ];
         
         return $template;
@@ -307,5 +308,176 @@ class template_reader {
         
         $label = $DB->get_record('label', ['id' => $labelid], 'intro');
         return $label ? strip_tags($label->intro) : '';
+    }
+
+    /**
+     * Extract Bootstrap structure patterns from template sections.
+     * Analyzes section summaries for Bootstrap components (tabs, cards, accordion, etc.)
+     *
+     * @param string $template_key Template key in format "courseid" or "courseid|sectionid"
+     * @return array Array with 'components' and 'description' keys
+     */
+    public function extract_bootstrap_structure($template_key) {
+        $parts = explode('|', $template_key);
+        $courseid = (int)$parts[0];
+        $sectionid = isset($parts[1]) ? (int)$parts[1] : null;
+
+        if (!$this->validate_template_access($courseid)) {
+            return ['components' => [], 'description' => ''];
+        }
+
+        global $DB;
+        $components = [];
+        $description_parts = [];
+
+        if ($sectionid) {
+            // Specific section
+            $section = $DB->get_record('course_sections', ['course' => $courseid, 'id' => $sectionid]);
+            if ($section) {
+                $components = $this->analyze_html_for_bootstrap($section->summary);
+                $description_parts[] = "Section '{$section->name}' uses: " . implode(', ', $components);
+            }
+        } else {
+            // All sections in course
+            $sections = $DB->get_records('course_sections', ['course' => $courseid], 'section');
+            foreach ($sections as $section) {
+                if (empty($section->summary)) {
+                    continue;
+                }
+                $section_components = $this->analyze_html_for_bootstrap($section->summary);
+                if (!empty($section_components)) {
+                    $components = array_unique(array_merge($components, $section_components));
+                    $description_parts[] = "Section {$section->section}: " . implode(', ', $section_components);
+                }
+            }
+        }
+
+        // Build description
+        $description = "Template structure uses the following Bootstrap components:\n";
+        if (!empty($description_parts)) {
+            $description .= "- " . implode("\n- ", $description_parts);
+        } else {
+            $description .= "- Standard Moodle layout (plain text sections)";
+        }
+
+        return [
+            'components' => array_values(array_unique($components)),
+            'description' => $description,
+        ];
+    }
+
+    /**
+     * Analyze HTML content for Bootstrap component usage.
+     *
+     * @param string $html HTML content to analyze
+     * @return array Array of Bootstrap component names found
+     */
+    private function analyze_html_for_bootstrap($html) {
+        $components = [];
+
+        // Check for specific Bootstrap classes
+        if (preg_match('/nav-tabs|tabs/', $html)) {
+            $components[] = 'Bootstrap tabs';
+        }
+        if (preg_match('/card/', $html)) {
+            $components[] = 'Bootstrap cards';
+        }
+        if (preg_match('/accordion/', $html)) {
+            $components[] = 'Bootstrap accordion';
+        }
+        if (preg_match('/collapse/', $html)) {
+            $components[] = 'Bootstrap collapsible content';
+        }
+        if (preg_match('/btn-group|button-group/', $html)) {
+            $components[] = 'Bootstrap button groups';
+        }
+        if (preg_match('/alert/', $html)) {
+            $components[] = 'Bootstrap alerts';
+        }
+        if (preg_match('/row|col-md|col-lg/', $html)) {
+            $components[] = 'Bootstrap grid layout';
+        }
+        if (preg_match('/badge|pill/', $html)) {
+            $components[] = 'Bootstrap badges/pills';
+        }
+
+        return $components;
+    }
+
+    /**
+     * Get the HTML structure of the course for structure preservation
+     *
+     * @param int $courseid Course ID
+     * @param int|null $sectionid Specific section ID (optional)
+     * @return string Combined HTML from course sections
+     */
+    private function get_course_html_structure($courseid, $sectionid = null) {
+        global $DB;
+        
+        $modinfo = get_fast_modinfo($courseid);
+        $html_parts = [];
+        
+        // Get HTML from section summaries
+        foreach ($modinfo->get_section_info_all() as $section) {
+            if ($sectionid && $section->id != $sectionid) {
+                continue;
+            }
+            
+            if ($section->uservisible && !empty($section->summary)) {
+                // Keep the raw HTML from section summary (not stripped)
+                $html_parts[] = $section->summary;
+            }
+        }
+        
+        // Also check for page and label modules that might have structured HTML
+        foreach ($modinfo->get_cms() as $cm) {
+            if ($sectionid && $cm->sectionnum != $sectionid) {
+                continue;
+            }
+            
+            if ($cm->uservisible) {
+                // For pages and labels, try to get the actual HTML content
+                if ($cm->modname === 'page') {
+                    $page_html = $this->extract_page_html($cm->instance);
+                    if (!empty($page_html)) {
+                        $html_parts[] = $page_html;
+                    }
+                } elseif ($cm->modname === 'label') {
+                    $label_html = $this->extract_label_html($cm->instance);
+                    if (!empty($label_html)) {
+                        $html_parts[] = $label_html;
+                    }
+                }
+            }
+        }
+        
+        // Combine all HTML parts
+        return implode("\n", $html_parts);
+    }
+
+    /**
+     * Extract raw HTML content from a page module instance
+     *
+     * @param int $pageid Page ID
+     * @return string Page HTML content
+     */
+    private function extract_page_html($pageid) {
+        global $DB;
+        
+        $page = $DB->get_record('page', ['id' => $pageid], 'content');
+        return $page ? $page->content : '';
+    }
+
+    /**
+     * Extract raw HTML content from a label module instance
+     *
+     * @param int $labelid Label ID
+     * @return string Label HTML content
+     */
+    private function extract_label_html($labelid) {
+        global $DB;
+        
+        $label = $DB->get_record('label', ['id' => $labelid], 'intro');
+        return $label ? $label->intro : '';
     }
 }

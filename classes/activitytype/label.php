@@ -23,7 +23,7 @@ class label implements activity_type {
 
     /** @inheritDoc */
     public static function get_prompt_description(): string {
-        return 'A Moodle label to display text and information.';
+        return 'A Moodle label to display text and information. Can include HTML markup with Bootstrap 4/5 classes for layout purposes (cards, grid layouts, alerts, badges, etc.). Use HTML to create visually structured content sections.';
     }
 
     /** @inheritDoc */

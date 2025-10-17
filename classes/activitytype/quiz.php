@@ -23,7 +23,7 @@ class quiz implements activity_type {
 
     /** @inheritDoc */
     public static function get_prompt_description(): string {
-        return 'A Moodle quiz activity containing the supplied questions and settings.';
+        return 'A Moodle quiz activity containing the supplied questions and settings. Supports multiple question types and assessment configurations.';
     }
 
     /** @inheritDoc */

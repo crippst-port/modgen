@@ -358,16 +358,23 @@ class aiplacement_modgen_prompt_form extends moodleform {
         
         // Add curriculum template selection if enabled
         if (get_config('aiplacement_modgen', 'enable_templates')) {
+            error_log('Templates are ENABLED');
             $template_reader = new \aiplacement_modgen\local\template_reader();
             $curriculum_templates = $template_reader->get_curriculum_templates();
+            error_log('Available templates: ' . count($curriculum_templates));
             
             if (!empty($curriculum_templates)) {
+                error_log('Adding template form element with ' . count($curriculum_templates) . ' options');
                 $template_options = ['' => get_string('nocurriculum', 'aiplacement_modgen')] + $curriculum_templates;
                 $mform->addElement('select', 'curriculum_template', 
                     get_string('selectcurriculum', 'aiplacement_modgen'), $template_options);
                 $mform->setType('curriculum_template', PARAM_TEXT);
                 $mform->addHelpButton('curriculum_template', 'curriculumtemplates', 'aiplacement_modgen');
+            } else {
+                error_log('No curriculum templates available');
             }
+        } else {
+            error_log('Templates are DISABLED - enable_templates config is: ' . (get_config('aiplacement_modgen', 'enable_templates') ? 'TRUE' : 'FALSE'));
         }
         
         $mform->addElement('advcheckbox', 'keepweeklabels', get_string('keepweeklabels', 'aiplacement_modgen'));
@@ -876,6 +883,16 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
         }
     }
 }if ($pdata = $promptform->get_data()) {
+    // Debug: Log all form data received
+    error_log('=== PROMPT FORM SUBMITTED ===');
+    error_log('All pdata properties: ' . print_r((array)$pdata, true));
+    error_log('curriculum_template in pdata: ' . (isset($pdata->curriculum_template) ? 'YES' : 'NO'));
+    if (isset($pdata->curriculum_template)) {
+        error_log('curriculum_template value: "' . $pdata->curriculum_template . '"');
+        error_log('curriculum_template is empty: ' . (empty($pdata->curriculum_template) ? 'YES' : 'NO'));
+    }
+    error_log('=== END FORM DEBUG ===');
+    
     $prompt = $pdata->prompt;
     $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
     $keepweeklabels = !empty($pdata->keepweeklabels);
@@ -886,17 +903,37 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     $compositeprompt = trim($prompt . "\n\n" . $typeinstruction);
     
     // Generate module with or without template
+    error_log('Checking curriculum_template: empty=' . (empty($curriculum_template) ? '1' : '0') . ', value=' . var_export($curriculum_template, true));
     if (!empty($curriculum_template)) {
+        error_log('Template selected: ' . $curriculum_template);
         try {
             $template_reader = new \aiplacement_modgen\local\template_reader();
             $template_data = $template_reader->extract_curriculum_template($curriculum_template);
+            error_log('Template data extracted, keys: ' . implode(', ', array_keys($template_data)));
+            
+            // Extract Bootstrap structure from the template
+            $bootstrap_structure = $template_reader->extract_bootstrap_structure($curriculum_template);
+            error_log('Extracted bootstrap structure: ' . print_r($bootstrap_structure, true));
+            $template_data['bootstrap_structure'] = $bootstrap_structure;
+            
+            // Log template HTML extraction
+            if (!empty($template_data['template_html'])) {
+                error_log('Template HTML extracted, length: ' . strlen($template_data['template_html']));
+                error_log('First 500 chars of template HTML: ' . substr($template_data['template_html'], 0, 500));
+            } else {
+                error_log('No template HTML extracted');
+            }
+            
+            error_log('Calling generate_module_with_template with template data');
             $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $pluginconfig->orgparams, $template_data, [], $moduletype);
         } catch (Exception $e) {
             // Fall back to normal generation if template fails
-            error_log('Template generation failed: ' . $e->getMessage());
+            error_log('Template generation EXCEPTION: ' . $e->getMessage());
+            error_log('Exception trace: ' . $e->getTraceAsString());
             $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $pluginconfig->orgparams, [], $moduletype);
         }
     } else {
+        error_log('No template selected');
         $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $pluginconfig->orgparams, [], $moduletype);
     }
     // Get the final prompt sent to AI for debugging (returned by ai_service).

@@ -177,6 +177,53 @@ Terminal 2 - Test:
 - `classes/local/template_reader.php` - Template data extraction (lines 77-200)
 - `debug_template_flow.php` - Diagnostic tool (this directory)
 
+## HTML Integration with Templates
+
+**Updated:** Template HTML is now explicitly included in the AI prompt with concrete examples!
+
+### What's New
+1. ✅ **HTML Examples**: First 1000 characters of template HTML included as code block
+2. ✅ **Bootstrap Classes**: All Bootstrap classes extracted and listed for AI
+3. ✅ **Explicit Instructions**: Format instruction now explicitly requires HTML in template mode
+4. ✅ **Visual Guidance**: AI sees actual HTML markup to emulate
+
+### Expected Output
+When using a template, generated section summaries should now be HTML-formatted:
+```html
+<div class="card mb-3">
+  <div class="card-body">
+    <h5>Section Title</h5>
+    <p>Content with HTML markup...</p>
+  </div>
+</div>
+```
+
+Instead of plain text:
+```
+Section content as plain text...
+```
+
+### Checking HTML Integration
+```bash
+# Look for template HTML examples in prompt
+grep -A 10 "TEMPLATE HTML EXAMPLES:" /Users/tom/moodledata45/modgen_logs/debug.log
+
+# Check if Bootstrap classes are listed
+grep "Bootstrap classes used" /Users/tom/moodledata45/modgen_logs/debug.log
+
+# Verify final prompt includes template mode instruction
+tail -300 /Users/tom/moodledata45/modgen_logs/debug.log | grep "TEMPLATE MODE:"
+```
+
+### If Generated Content is Still Plain Text
+1. Check the error logs show "TEMPLATE HTML EXAMPLES:" section
+2. Verify Bootstrap classes are listed
+3. Check final prompt includes "TEMPLATE MODE: Each section summary MUST be valid HTML"
+4. If these are present but AI still generates plain text:
+   - The AI model may need more specific guidance
+   - Consider creating a template with simpler, clearer HTML patterns
+   - Try a different AI model/backend if available
+
 ## Questions?
 
 Check the error log immediately after testing - the DEBUG logs will tell you exactly what happened:

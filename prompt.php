@@ -372,7 +372,6 @@ require_once(__DIR__ . '/classes/local/ai_service.php');
 require_once(__DIR__ . '/classes/activitytype/registry.php');
 require_once(__DIR__ . '/classes/local/template_reader.php');
 require_once(__DIR__ . '/classes/local/filehandler/file_processor.php');
-require_once(__DIR__ . '/classes/local/activity/book_activity.php');
 
 // Load course libraries once (used by approval form processing)
 require_once($CFG->dirroot . '/course/lib.php');
@@ -735,21 +734,22 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
                 throw new Exception(get_string('nochaptersextractederror', 'aiplacement_modgen'));
             }
             
-            // Create the book activity.
-            $activity_data = [
-                'name' => $uploaddata->activityname,
-                'intro' => $uploaddata->activityintro ?? '',
-            ];
+            // Create the book activity using the registry
+            $activity_data = new stdClass();
+            $activity_data->name = $uploaddata->activityname;
+            $activity_data->intro = $uploaddata->activityintro ?? '';
+            $activity_data->chapters = $chapters;
             
-            $book_handler = new \aiplacement_modgen\local\activity\book_activity();
-            $book_module = $book_handler->create(
+            $bookhandler = \aiplacement_modgen\activitytype\registry::get_handler('book');
+            if (!$bookhandler) {
+                throw new Exception('Book activity handler not available');
+            }
+            
+            $book_module = $bookhandler->create(
                 $activity_data,
                 $course,
                 (int) $uploaddata->sectionnumber
             );
-            
-            // Add chapters to the book.
-            $book_handler->add_chapters_to_book($book_module->instance, $chapters);
             
             $success_message = get_string('bookactivitycreated', 'aiplacement_modgen', $uploaddata->activityname);
             

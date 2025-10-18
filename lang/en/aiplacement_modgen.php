@@ -28,6 +28,7 @@ defined('MOODLE_INTERNAL') || die();
 $string['pluginname'] = 'Module Assistant';
 
 $string['prompt'] = 'What would you like to create for your module?';
+$string['submit'] = 'Submit prompt';
 
 $string['reviewjson'] = 'Review the generated module JSON below. Approve to create activities.';
 $string['jsonpreview'] = 'JSON preview';

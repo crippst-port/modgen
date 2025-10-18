@@ -57,12 +57,16 @@ try {
     // Generate learning types chart data
     $chartdata = generate_learning_types_chart($insights['moduledata']);
     
+    // Generate quick summary for card display
+    $summary = generate_quick_summary($insights);
+    
     // Prepare template data
     $templatedata = [
         'pedagogical' => $insights['insights']['pedagogical'],
         'learning_types' => $insights['insights']['learning_types'],
         'activities' => $insights['insights']['activities'],
         'improvements' => $insights['insights']['improvements'],
+        'summary' => $summary,
         'chart_data' => $chartdata,
         'debug' => [
             'moduledata' => $insights['moduledata'],
@@ -278,6 +282,51 @@ function parse_improvement_json(string $response): array {
     return [
         'summary' => 'Recommendations for improvement:',
         'suggestions' => [$response]
+    ];
+}
+
+/**
+ * Generate a quick summary with headline positives and key improvement points.
+ * Perfect for card-style display.
+ *
+ * @param array $insights The insights data containing pedagogical, learning_types, and improvements
+ * @return array Summary with 'positives' and 'improvements' arrays
+ */
+function generate_quick_summary(array $insights): array {
+    $ped_text = implode(' ', $insights['insights']['pedagogical']['paragraphs'] ?? []);
+    $lt_text = implode(' ', $insights['insights']['learning_types']['paragraphs'] ?? []);
+    $imp_text = implode(' ', $insights['insights']['improvements']['suggestions'] ?? []);
+    
+    $prompt = "Create a concise executive summary of a Moodle course based on these analyses. Return ONLY valid JSON.\n\n" .
+        "PEDAGOGICAL ANALYSIS:\n" . $ped_text . "\n\n" .
+        "LEARNING TYPES ANALYSIS:\n" . $lt_text . "\n\n" .
+        "IMPROVEMENT SUGGESTIONS:\n" . $imp_text . "\n\n" .
+        "Return ONLY a valid JSON object with this exact structure:\n" .
+        "{" .
+        "\"positives\": [\"Positive strength 1\", \"Positive strength 2\", \"Positive strength 3\"], " .
+        "\"improvements\": [\"Key improvement area 1\", \"Key improvement area 2\"]" .
+        "}\n\n";
+    
+    return parse_summary_json(get_ai_analysis($prompt));
+}
+
+/**
+ * Parse quick summary JSON.
+ */
+function parse_summary_json(string $response): array {
+    try {
+        $data = json_decode($response, true);
+        if (is_array($data) && isset($data['positives']) && isset($data['improvements'])) {
+            return $data;
+        }
+    } catch (Exception $e) {
+        error_log('Failed to parse summary JSON: ' . $e->getMessage());
+    }
+    
+    // Fallback
+    return [
+        'positives' => ['Module is structured with multiple activity types'],
+        'improvements' => ['Review and enhance course content delivery']
     ];
 }
 

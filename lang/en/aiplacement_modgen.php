@@ -190,6 +190,9 @@ $string['exploreactivities'] = 'Activity Breakdown';
 $string['exploreloading'] = 'Generating module insights...';
 $string['exploreerror'] = 'Unable to generate module insights at this time. Please try again later.';
 $string['explorationdisabled'] = 'Module exploration feature is not enabled.';
+$string['analysiscard'] = 'Analysis Summary';
+$string['strengths'] = 'Key Strengths';
+$string['keyimprovements'] = 'Areas to Improve';
 $string['downloadreport'] = 'Download PDF Report';
 $string['downloadreporthelp'] = 'Download the module exploration report as a PDF file containing all insights and analysis.';
 

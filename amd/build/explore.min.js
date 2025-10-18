@@ -108,6 +108,21 @@ define(['core/ajax', 'core/templates'], function(ajax, templates) {
                             }
                         }
                         
+                        // Render summary section using Moodle template rendering
+                        if (data.data.summary) {
+                            templates.renderForPromise('aiplacement_modgen/insights_summary', data.data.summary)
+                                .then(function(result) {
+                                    var summaryDiv = document.getElementById('insights-summary');
+                                    if (summaryDiv) {
+                                        summaryDiv.innerHTML = result.html;
+                                    }
+                                    return;
+                                })
+                                .catch(function(err) {
+                                    console.error('Error rendering summary template:', err);
+                                });
+                        }
+                        
                         // Render learning types section
                         if (data.data.learning_types) {
                             var ltSection = document.getElementById('insights-learning-types');

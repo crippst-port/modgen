@@ -1,0 +1,28 @@
+<div class="card mt-3 mb-4">
+    <div class="card-body">
+        <h5 class="card-title">{{#str}}analysiscard,aiplacement_modgen{{/str}}</h5>
+        
+        <div class="row mt-3">
+            <div class="col-md-6">
+                <h6 class="text-success fw-bold">{{#str}}strengths,aiplacement_modgen{{/str}}</h6>
+                <ul class="list-unstyled">
+                    {{#positives}}
+                    <li class="mb-2">
+                        <i style="color: #357a32;" class="fas fa-check-circle mr-2"></i>{{.}}
+                    </li>
+                    {{/positives}}
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <h6 class="text-warning fw-bold">{{#str}}keyimprovements,aiplacement_modgen{{/str}}</h6>
+                <ul class="list-unstyled">
+                    {{#improvements}}
+                    <li class="mb-2">
+                        <i style="color: #f0ad4e;" class="fas fa-arrow-circle-right mr-2"></i>{{.}}
+                    </li>
+                    {{/improvements}}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>

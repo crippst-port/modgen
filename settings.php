@@ -105,6 +105,20 @@ if ($hassiteconfig) {
             new lang_string('enablefileupload_desc', 'aiplacement_modgen'),
             1
         ));
+
+        // Module exploration feature
+        $settings->add(new admin_setting_heading(
+            'aiplacement_modgen/explorationheading',
+            new lang_string('explorationheading', 'aiplacement_modgen'),
+            new lang_string('explorationheading_desc', 'aiplacement_modgen')
+        ));
+
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_exploration',
+            new lang_string('enableexploration', 'aiplacement_modgen'),
+            new lang_string('enableexploration_desc', 'aiplacement_modgen'),
+            0
+        ));
         // Add file upload or other settings as needed.
     }
 }

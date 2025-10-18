@@ -29,23 +29,38 @@ defined('MOODLE_INTERNAL') || die();
 function aiplacement_modgen_extend_navigation_course($navigation, $course, $context) {
     global $PAGE;
 
-    if (!$PAGE->user_is_editing()) {
+    if (!has_capability('moodle/course:update', $context)) {
         return;
     }
 
-    if (!has_capability('local/aiplacement_modgen:use', $context)) {
-        return;
+    // Module generator - only show in edit mode
+    if ($PAGE->user_is_editing()) {
+        if (has_capability('local/aiplacement_modgen:use', $context)) {
+            $url = new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $course->id, 'embedded' => 1]);
+
+            $params = [
+                'url' => $url->out(false),
+                'buttonlabel' => get_string('launchgenerator', 'aiplacement_modgen'),
+                'dialogtitle' => get_string('modgenmodalheading', 'aiplacement_modgen'),
+                'arialabel' => get_string('modgenfabaria', 'aiplacement_modgen'),
+            ];
+
+            $PAGE->requires->css('/ai/placement/modgen/styles.css');
+            $PAGE->requires->js_call_amd('aiplacement_modgen/fab', 'init', [$params]);
+        }
     }
 
-    $url = new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $course->id, 'embedded' => 1]);
-
-    $params = [
-        'url' => $url->out(false),
-        'buttonlabel' => get_string('launchgenerator', 'aiplacement_modgen'),
-        'dialogtitle' => get_string('modgenmodalheading', 'aiplacement_modgen'),
-        'arialabel' => get_string('modgenfabaria', 'aiplacement_modgen'),
-    ];
-
-    $PAGE->requires->css('/ai/placement/modgen/styles.css');
-    $PAGE->requires->js_call_amd('aiplacement_modgen/fab', 'init', [$params]);
+    // Module exploration - always show when enabled and user can edit
+    if (get_config('aiplacement_modgen', 'enable_exploration')) {
+        $exploreurl = new moodle_url('/ai/placement/modgen/explore.php', ['id' => $course->id]);
+        $navigation->add(
+            get_string('exploremenuitem', 'aiplacement_modgen'),
+            $exploreurl,
+            navigation_node::TYPE_SETTING,
+            null,
+            'aiplacement_modgen_explore'
+        );
+    }
 }
+
+

@@ -656,5 +656,47 @@ class ai_service {
 
         return $guidance;
     }
+
+    /**
+     * Analyze a module using a custom prompt.
+     *
+     * @param string $prompt The analysis prompt
+     * @return string Analysis text
+     */
+    public static function analyze_module(string $prompt): string {
+        global $USER, $COURSE;
+
+        try {
+            if (!class_exists('\\core_ai\\manager') || !class_exists('\\core_ai\\aiactions\\generate_text')) {
+                return '';
+            }
+
+            $contextid = !empty($COURSE->id)
+                ? \context_course::instance($COURSE->id)->id
+                : \context_system::instance()->id;
+
+            $aimanager = new \core_ai\manager();
+            if (!$aimanager->get_user_policy_status($USER->id)) {
+                return '';
+            }
+
+            $action = new \core_ai\aiactions\generate_text(
+                $contextid,
+                $USER->id,
+                $prompt
+            );
+
+            $response = $aimanager->process_action($action);
+            $data = $response->get_response_data();
+            $text = $data['generatedtext'] ?? ($data['generatedcontent'] ?? '');
+            if (is_string($text)) {
+                return trim($text);
+            }
+            return '';
+        } catch (\Throwable $e) {
+            error_log('AI analysis error: ' . $e->getMessage());
+            return '';
+        }
+    }
 }
 

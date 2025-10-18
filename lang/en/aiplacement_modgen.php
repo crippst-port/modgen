@@ -176,3 +176,21 @@ $string['aipromptheading_desc'] = 'Configure the pedagogical guidance and instit
 $string['baseprompt'] = 'Pedagogical Guidance';
 $string['baseprompt_desc'] = 'This guidance is sent to the AI to establish pedagogical context, institutional approach, and quality standards. Include information about your institution\'s teaching philosophy, any mandatory pedagogical frameworks, accessibility requirements, or specific learning design principles. The system automatically appends the technical JSON schema requirements to this guidance.';
 
+// Module exploration feature
+$string['explorationheading'] = 'Module Exploration';
+$string['explorationheading_desc'] = 'Enable pedagogical insights and learning analytics for generated modules.';
+$string['enableexploration'] = 'Enable module exploration';
+$string['enableexploration_desc'] = 'When enabled, users will see an "EXPLORE this module" link in the course module menu. This provides AI-generated pedagogical insights, learning type breakdowns, and activity summaries.';
+$string['exploretitle'] = 'EXPLORE this module';
+$string['exploremenuitem'] = 'EXPLORE this module';
+$string['exploreheading'] = 'Module Learning Insights';
+$string['explorepedagogical'] = 'Pedagogical Analysis';
+$string['explorelearningtypes'] = "Laurillard's Learning Types";
+$string['exploreactivities'] = 'Activity Breakdown';
+$string['exploreloading'] = 'Generating module insights...';
+$string['exploreerror'] = 'Unable to generate module insights at this time. Please try again later.';
+$string['explorationdisabled'] = 'Module exploration feature is not enabled.';
+$string['downloadreport'] = 'Download PDF Report';
+$string['downloadreporthelp'] = 'Download the module exploration report as a PDF file containing all insights and analysis.';
+
+

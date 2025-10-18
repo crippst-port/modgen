@@ -45,7 +45,7 @@ class ai_service {
         $timestamp = date('Y-m-d H:i:s');
         file_put_contents($logfile, "[$timestamp] $message\n", FILE_APPEND);
     }
-    public static function generate_module($prompt, $orgparams, $documents = [], $structure = 'weekly', $template_data = null) {
+    public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null) {
         global $USER, $COURSE;
         
         // Log whether template_data was passed
@@ -76,11 +76,22 @@ class ai_service {
 
             // Compose an instruction-rich prompt with strict JSON schema requirements.
             $structure = ($structure === 'theme') ? 'theme' : 'weekly';
-            $roleinstruction = "You are an expert Moodle learning content designer at a UK higher education institution.\n" .
-                "Your task is to design a Moodle module for the user's input, using activities and resources appropriate for UK HE.\n" .
-                "The JSON structure you return must represent a Moodle module for the user's requirements, not just generic activities.\n" .
-                "Design learning activities aligned with UK HE standards, inclusive pedagogy, and clear learning outcomes.\n" .
+            
+            // Start with fixed JSON schema requirements
+            $jsonrequirements = "The JSON structure you return must represent a Moodle module for the user's requirements, not just generic activities.\n" .
                 "Return ONLY valid JSON matching the schema below. Do not include any commentary or code fences.";
+            
+            // Get the configurable pedagogical guidance from admin settings
+            $pedagogicalguidance = get_config('aiplacement_modgen', 'baseprompt');
+            if (empty($pedagogicalguidance)) {
+                // Fallback to default if not configured
+                $pedagogicalguidance = "You are an expert Moodle learning content designer at a UK higher education institution.\n" .
+                    "Your task is to design a Moodle module for the user's input, using activities and resources appropriate for UK HE.\n" .
+                    "Design learning activities aligned with UK HE standards, inclusive pedagogy, and clear learning outcomes.";
+            }
+            
+            // Combine pedagogical guidance with JSON requirements
+            $roleinstruction = $pedagogicalguidance . "\n\n" . $jsonrequirements;
 
             $activitymetadata = registry::get_supported_activity_metadata();
             $supportedactivitytypes = array_keys($activitymetadata);
@@ -382,20 +393,19 @@ class ai_service {
      * Generate module content using a curriculum template.
      *
      * @param string $prompt User prompt
-     * @param string $orgparams Organization parameters
      * @param array $template_data Template data structure
      * @param array $documents Supporting documents
      * @param string $structure Module structure
      * @return array Response from AI service
      */
-    public static function generate_module_with_template($prompt, $orgparams, $template_data, $documents = [], $structure = 'weekly') {
+    public static function generate_module_with_template($prompt, $template_data, $documents = [], $structure = 'weekly') {
         self::debug_log('=== generate_module_with_template called ===');
         self::debug_log('template_data type: ' . gettype($template_data));
         self::debug_log('template_data is empty: ' . (empty($template_data) ? 'YES' : 'NO'));
         if (is_array($template_data)) {
             self::debug_log('template_data keys: ' . implode(', ', array_keys($template_data)));
         }
-        return self::generate_module($prompt, $orgparams, $documents, $structure, $template_data);
+        return self::generate_module($prompt, $documents, $structure, $template_data);
     }
 
     /**
@@ -568,56 +578,6 @@ class ai_service {
         return false;
     }
     
-    /**
-     * Build enhanced prompt that includes template data as context.
-     *
-     * @param string $user_prompt Original user prompt
-     * @param string $orgparams Organization parameters
-     * @param array $template_data Template structure data
-     * @param string $structure Module structure
-     * @return string Enhanced prompt with template context
-     * 
-     * @deprecated Use build_template_prompt_guidance() instead - this is kept for backwards compatibility
-     */
-    private static function build_template_prompt($user_prompt, $orgparams, $template_data, $structure) {
-        $template_json = json_encode($template_data, JSON_PRETTY_PRINT);
-        
-        // Extract Bootstrap structure information from template
-        $bootstrap_guidance = self::build_bootstrap_guidance($template_data);
-        
-        // Extract HTML structure with placeholders
-        $structure_guidance = self::build_html_structure_guidance($template_data);
-        
-        $enhanced_prompt = "You are a Moodle course designer. Use the following CURRICULUM TEMPLATE as a structural and pedagogical guide, then adapt it based on the user's request.
-
-CURRICULUM TEMPLATE STRUCTURE:
-{$template_json}
-
-{$bootstrap_guidance}
-
-{$structure_guidance}
-
-USER REQUEST: {$user_prompt}
-
-ORGANIZATION CONTEXT: {$orgparams}
-
-INSTRUCTIONS:
-1. Use the template's structure, organization, and pedagogical approach as your foundation
-2. Adapt the content to match the user's topic/subject while maintaining the template's quality and depth
-3. If the template has quizzes with specific question types and patterns, create similar activities for the new topic
-4. Preserve the template's section organization and activity distribution unless the user requests changes
-5. Match the template's level of detail and instructional design principles
-6. Maintain the same course format and learning progression as the template
-7. Follow the template's naming conventions and activity types
-8. IMPORTANT: Preserve the exact HTML structure, Bootstrap layout, and CSS classes from the template. Only replace the content.
-
-STRUCTURE: Create a {$structure} module structure.
-
-Please provide a complete module structure that adapts the template to the user's request while maintaining the same pedagogical quality and organization.";
-
-        return $enhanced_prompt;
-    }
-
     /**
      * Build guidance text about Bootstrap components used in the template.
      * This helps the AI understand visual/structural patterns to replicate.

@@ -26,22 +26,39 @@
 defined('MOODLE_INTERNAL') || die();
 require_once($CFG->libdir . '/formslib.php');
 
+/**
+ * Form for approving and creating generated modules.
+ * 
+ * This form allows users to review AI-generated module structure
+ * before creating it in the course.
+ */
 class aiplacement_modgen_approve_form extends moodleform {
     public function definition() {
         $mform = $this->_form;
-        $mform->addElement('hidden', 'courseid');
+        $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
         $mform->setType('courseid', PARAM_INT);
-        $mform->addElement('hidden', 'approvedjson');
+        if (!empty($this->_customdata['embedded'])) {
+            $mform->addElement('hidden', 'embedded', 1);
+            $mform->setType('embedded', PARAM_BOOL);
+        }
+        $mform->addElement('hidden', 'approvedjson', $this->_customdata['approvedjson']);
         $mform->setType('approvedjson', PARAM_RAW);
-        $mform->addElement('hidden', 'moduletype');
+        $mform->addElement('hidden', 'moduletype', $this->_customdata['moduletype']);
         $mform->setType('moduletype', PARAM_ALPHA);
-        $mform->addElement('hidden', 'keepweeklabels');
+        $mform->addElement('hidden', 'keepweeklabels', $this->_customdata['keepweeklabels']);
         $mform->setType('keepweeklabels', PARAM_BOOL);
-    $mform->addElement('hidden', 'includeaboutassessments');
-    $mform->setType('includeaboutassessments', PARAM_BOOL);
-    $mform->addElement('hidden', 'includeaboutlearning');
-    $mform->setType('includeaboutlearning', PARAM_BOOL);
-        
-        $mform->addElement('submit', 'approvebutton', get_string('approveandcreate', 'aiplacement_modgen'));
+        $mform->addElement('hidden', 'includeaboutassessments', $this->_customdata['includeaboutassessments']);
+        $mform->setType('includeaboutassessments', PARAM_BOOL);
+        $mform->addElement('hidden', 'includeaboutlearning', $this->_customdata['includeaboutlearning']);
+        $mform->setType('includeaboutlearning', PARAM_BOOL);
+        $mform->addElement('hidden', 'createsuggestedactivities', $this->_customdata['createsuggestedactivities']);
+        $mform->setType('createsuggestedactivities', PARAM_BOOL);
+        $mform->addElement('hidden', 'generatedsummary', $this->_customdata['generatedsummary']);
+        $mform->setType('generatedsummary', PARAM_RAW);
+        if (isset($this->_customdata['curriculum_template'])) {
+            $mform->addElement('hidden', 'curriculum_template', $this->_customdata['curriculum_template']);
+            $mform->setType('curriculum_template', PARAM_TEXT);
+        }
+        $this->add_action_buttons(false, get_string('approveandcreate', 'aiplacement_modgen'));
     }
 }

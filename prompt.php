@@ -29,10 +29,14 @@ require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir . '/formslib.php');
 require_login();
 
+// Include form classes
+require_once(__DIR__ . '/classes/form/generator_form.php');
+require_once(__DIR__ . '/classes/form/approve_form.php');
+require_once(__DIR__ . '/classes/form/upload_form.php');
+
 // Cache configuration values for efficiency
 $pluginconfig = (object)[
     'timeout' => get_config('aiplacement_modgen', 'timeout') ?: 300,
-    'orgparams' => get_config('aiplacement_modgen', 'orgparams'),
     'enable_templates' => get_config('aiplacement_modgen', 'enable_templates'),
 ];
 
@@ -344,155 +348,7 @@ if ($embedded || $ajax) {
     $PAGE->set_pagelayout('embedded');
 }
 
-// Define first form: prompt input.
-class aiplacement_modgen_prompt_form extends moodleform {
-    public function definition() {
-        $mform = $this->_form;
-        $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
-        $mform->setType('courseid', PARAM_INT);
-        if (!empty($this->_customdata['embedded'])) {
-            $mform->addElement('hidden', 'embedded', 1);
-            $mform->setType('embedded', PARAM_BOOL);
-        }
-        
-        // Add module type selection
-        $moduletypeoptions = [
-            'weekly' => get_string('moduletype_weekly', 'aiplacement_modgen'),
-            'theme' => get_string('moduletype_theme', 'aiplacement_modgen'),
-        ];
-        $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
-        $mform->setType('moduletype', PARAM_ALPHA);
-        $mform->setDefault('moduletype', 'weekly');
-        $mform->addHelpButton('moduletype', 'moduletype', 'aiplacement_modgen');
-        
-        // Add curriculum template selection if enabled
-        if (get_config('aiplacement_modgen', 'enable_templates')) {
-            error_log('Templates are ENABLED');
-            $template_reader = new \aiplacement_modgen\local\template_reader();
-            $curriculum_templates = $template_reader->get_curriculum_templates();
-            error_log('Available templates: ' . count($curriculum_templates));
-            
-            if (!empty($curriculum_templates)) {
-                error_log('Adding template form element with ' . count($curriculum_templates) . ' options');
-                $template_options = ['' => get_string('nocurriculum', 'aiplacement_modgen')] + $curriculum_templates;
-                $mform->addElement('select', 'curriculum_template', 
-                    get_string('selectcurriculum', 'aiplacement_modgen'), $template_options);
-                $mform->setType('curriculum_template', PARAM_TEXT);
-                $mform->addHelpButton('curriculum_template', 'curriculumtemplates', 'aiplacement_modgen');
-            } else {
-                error_log('No curriculum templates available');
-            }
-        } else {
-            error_log('Templates are DISABLED - enable_templates config is: ' . (get_config('aiplacement_modgen', 'enable_templates') ? 'TRUE' : 'FALSE'));
-        }
-        
-        $mform->addElement('advcheckbox', 'keepweeklabels', get_string('keepweeklabels', 'aiplacement_modgen'));
-        $mform->setType('keepweeklabels', PARAM_BOOL);
-        $mform->setDefault('keepweeklabels', 1);
-        $mform->hideIf('keepweeklabels', 'moduletype', 'neq', 'weekly');
-        $mform->addElement('advcheckbox', 'includeaboutassessments', get_string('includeaboutassessments', 'aiplacement_modgen'));
-        $mform->setType('includeaboutassessments', PARAM_BOOL);
-        $mform->setDefault('includeaboutassessments', 0);
-        $mform->hideIf('includeaboutassessments', 'moduletype', 'neq', 'theme');
-        $mform->addElement('advcheckbox', 'includeaboutlearning', get_string('includeaboutlearning', 'aiplacement_modgen'));
-        $mform->setType('includeaboutlearning', PARAM_BOOL);
-        $mform->setDefault('includeaboutlearning', 0);
-        $mform->hideIf('includeaboutlearning', 'moduletype', 'neq', 'theme');
-        $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), 'rows="4" cols="60"');
-        $mform->setType('prompt', PARAM_TEXT);
-        $mform->addRule('prompt', null, 'required', null, 'client');
-        $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
-        $mform->addElement('advcheckbox', 'createsuggestedactivities', get_string('createsuggestedactivities', 'aiplacement_modgen'));
-        $mform->addHelpButton('createsuggestedactivities', 'createsuggestedactivities', 'aiplacement_modgen');
-        $mform->setType('createsuggestedactivities', PARAM_BOOL);
-        $mform->setDefault('createsuggestedactivities', 1);
-        
-        // Add warning about processing time
-        $mform->addElement('static', 'processingwarning', '', 
-            '<div class="alert alert-info"><i class="fa fa-info-circle"></i> ' . 
-            get_string('longquery', 'aiplacement_modgen') . '</div>');
-        
-        $this->add_action_buttons(false, get_string('submit', 'aiplacement_modgen'));
-    }
-}
-
-// Define second form: approval.
-class aiplacement_modgen_approve_form extends moodleform {
-    public function definition() {
-        $mform = $this->_form;
-        $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
-        $mform->setType('courseid', PARAM_INT);
-        if (!empty($this->_customdata['embedded'])) {
-            $mform->addElement('hidden', 'embedded', 1);
-            $mform->setType('embedded', PARAM_BOOL);
-        }
-        $mform->addElement('hidden', 'approvedjson', $this->_customdata['approvedjson']);
-        $mform->setType('approvedjson', PARAM_RAW);
-        $mform->addElement('hidden', 'moduletype', $this->_customdata['moduletype']);
-        $mform->setType('moduletype', PARAM_ALPHA);
-        $mform->addElement('hidden', 'keepweeklabels', $this->_customdata['keepweeklabels']);
-        $mform->setType('keepweeklabels', PARAM_BOOL);
-        $mform->addElement('hidden', 'includeaboutassessments', $this->_customdata['includeaboutassessments']);
-        $mform->setType('includeaboutassessments', PARAM_BOOL);
-        $mform->addElement('hidden', 'includeaboutlearning', $this->_customdata['includeaboutlearning']);
-        $mform->setType('includeaboutlearning', PARAM_BOOL);
-        $mform->addElement('hidden', 'createsuggestedactivities', $this->_customdata['createsuggestedactivities']);
-        $mform->setType('createsuggestedactivities', PARAM_BOOL);
-        $mform->addElement('hidden', 'generatedsummary', $this->_customdata['generatedsummary']);
-        $mform->setType('generatedsummary', PARAM_RAW);
-        if (isset($this->_customdata['curriculum_template'])) {
-            $mform->addElement('hidden', 'curriculum_template', $this->_customdata['curriculum_template']);
-            $mform->setType('curriculum_template', PARAM_TEXT);
-        }
-        $this->add_action_buttons(false, get_string('approveandcreate', 'aiplacement_modgen'));
-    }
-}
-
-// Define upload form: file upload and content import.
-class aiplacement_modgen_upload_form extends moodleform {
-    public function definition() {
-        $mform = $this->_form;
-        $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
-        $mform->setType('courseid', PARAM_INT);
-        if (!empty($this->_customdata['embedded'])) {
-            $mform->addElement('hidden', 'embedded', 1);
-            $mform->setType('embedded', PARAM_BOOL);
-        }
-        
-        // Use Moodle's filepicker
-        $mform->addElement('filepicker', 'contentfile', 
-            get_string('contentfile', 'aiplacement_modgen'),
-            null,
-            ['accepted_types' => ['.docx', '.doc', '.odt']]
-        );
-        $mform->addRule('contentfile', null, 'required', null, 'client');
-        
-        $activities = [
-            'book' => get_string('activitytype_book', 'aiplacement_modgen') . ' - ' . 
-                      get_string('bookdescription', 'aiplacement_modgen'),
-        ];
-        $mform->addElement('select', 'activitytype', 
-            get_string('selectactivitytype', 'aiplacement_modgen'), $activities);
-        $mform->setType('activitytype', PARAM_ALPHA);
-        $mform->setDefault('activitytype', 'book');
-        
-        $mform->addElement('text', 'activityname', get_string('name', 'moodle'));
-        $mform->setType('activityname', PARAM_TEXT);
-        $mform->addRule('activityname', null, 'required', null, 'client');
-        
-        $mform->addElement('hidden', 'sectionnumber', 0);
-        $mform->setType('sectionnumber', PARAM_INT);
-        
-        $mform->addElement('textarea', 'activityintro', 
-            get_string('activityintro', 'aiplacement_modgen'), 'rows="3" cols="60"');
-        $mform->setType('activityintro', PARAM_RAW);
-        
-        $this->add_action_buttons(false, get_string('uploadandcreate', 'aiplacement_modgen'));
-    }
-}
-
 // Handle AJAX request for upload form only (to avoid filepicker initialization in hidden elements).
-// This must come AFTER the form class definitions above.
 if ($ajax && optional_param('action', '', PARAM_ALPHA) === 'getuploadform') {
     require_sesskey();
     $uploadform = new aiplacement_modgen_upload_form(null, [
@@ -828,7 +684,7 @@ if ($approveform && ($adata = $approveform->get_data())) {
 }
 
 // Prompt form handling.
-$promptform = new aiplacement_modgen_prompt_form(null, [
+$promptform = new aiplacement_modgen_generator_form(null, [
     'courseid' => $courseid,
     'embedded' => $embedded ? 1 : 0,
 ]);
@@ -1007,16 +863,16 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
             }
             
             error_log('Calling generate_module_with_template with template data');
-            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $pluginconfig->orgparams, $template_data, [], $moduletype);
+            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, [], $moduletype);
         } catch (Exception $e) {
             // Fall back to normal generation if template fails
             error_log('Template generation EXCEPTION: ' . $e->getMessage());
             error_log('Exception trace: ' . $e->getTraceAsString());
-            $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $pluginconfig->orgparams, [], $moduletype);
+            $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype);
         }
     } else {
         error_log('No template selected');
-        $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $pluginconfig->orgparams, [], $moduletype);
+        $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype);
     }
     // Get the final prompt sent to AI for debugging (returned by ai_service).
     $debugprompt = isset($json['debugprompt']) ? $json['debugprompt'] : $prompt;

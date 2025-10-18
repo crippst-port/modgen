@@ -28,8 +28,6 @@ defined('MOODLE_INTERNAL') || die();
 $string['pluginname'] = 'Module Assistant';
 
 $string['prompt'] = 'What would you like to create for your module?';
-$string['submit'] = 'Submit prompt';
-$string['orgparams'] = 'Organisation parameters';
 
 $string['reviewjson'] = 'Review the generated module JSON below. Approve to create activities.';
 $string['jsonpreview'] = 'JSON preview';
@@ -170,3 +168,10 @@ $string['enablefileupload_desc'] = 'When enabled, users will see an "Activity fr
 // Activity creation toggle
 $string['createsuggestedactivities'] = 'Create suggested activities';
 $string['createsuggestedactivities_help'] = 'When enabled, the generator will create activity shells as suggestions for your content. These are empty placeholder activities without content, ready for you to fill in with your own materials. When disabled, only section headings and descriptions will be created.';
+
+// AI prompt configuration
+$string['aipromptheading'] = 'AI Generation Settings';
+$string['aipromptheading_desc'] = 'Configure the pedagogical guidance and institutional context sent to the AI for module generation. The JSON schema and technical requirements are managed by the system and cannot be modified here.';
+$string['baseprompt'] = 'Pedagogical Guidance';
+$string['baseprompt_desc'] = 'This guidance is sent to the AI to establish pedagogical context, institutional approach, and quality standards. Include information about your institution\'s teaching philosophy, any mandatory pedagogical frameworks, accessibility requirements, or specific learning design principles. The system automatically appends the technical JSON schema requirements to this guidance.';
+

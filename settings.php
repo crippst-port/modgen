@@ -37,19 +37,36 @@ if ($hassiteconfig) {
 
     // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedIf
     if ($ADMIN->fulltree) {
-        $settings->add(new admin_setting_configtext(
-            'aiplacement_modgen/orgparams',
-            new lang_string('orgparams', 'aiplacement_modgen'),
-            'Organisation parameters for AI context.',
-            ''
+        // AI Generation Settings
+        $settings->add(new admin_setting_heading(
+            'aiplacement_modgen/aipromptheading',
+            new lang_string('aipromptheading', 'aiplacement_modgen'),
+            new lang_string('aipromptheading_desc', 'aiplacement_modgen')
         ));
-        
+
+        $basepromptdefault = "You are an expert Moodle learning content designer at a UK higher education institution.\n" .
+            "Your task is to design a Moodle module for the user's input, using activities and resources appropriate for UK HE.\n" .
+            "Design learning activities aligned with UK HE standards, inclusive pedagogy, and clear learning outcomes.\n" .
+            "Structure the module with sections, activities, and resources that promote engagement and effective learning, keep any graphical elements consistent, and ensure accessibility for all users.";
+
+        $settings->add(new admin_setting_configtextarea(
+            'aiplacement_modgen/baseprompt',
+            new lang_string('baseprompt', 'aiplacement_modgen'),
+            new lang_string('baseprompt_desc', 'aiplacement_modgen'),
+            $basepromptdefault,
+            PARAM_TEXT,
+            60,
+            10
+        ));
+
         $settings->add(new admin_setting_configtext(
             'aiplacement_modgen/timeout',
             new lang_string('timeout', 'aiplacement_modgen'),
             new lang_string('timeout_desc', 'aiplacement_modgen'),
             '300'
         ));
+
+        // File upload workflow configuration
 
         // Template curriculum modules configuration
         $settings->add(new admin_setting_heading(

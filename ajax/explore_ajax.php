@@ -153,14 +153,12 @@ function generate_module_insights(stdClass $course) {
         // Generate insights using AI
         $pedagogical = generate_pedagogical_analysis($moduledata);
         $learning_types = generate_learning_types_analysis($moduledata);
-        $activities = generate_activities_summary($moduledata);
         $improvements = generate_improvement_suggestions($moduledata, $pedagogical, $learning_types);
         
         return [
             'insights' => [
                 'pedagogical' => $pedagogical,
                 'learning_types' => $learning_types,
-                'activities' => $activities,
                 'improvements' => $improvements,
             ],
             'moduledata' => $moduledata,
@@ -175,81 +173,112 @@ function generate_module_insights(stdClass $course) {
  * Generate pedagogical analysis using AI.
  *
  * @param array $moduledata Module structure
- * @return string Analysis text
+ * @return array Analysis with heading and paragraphs
  */
-function generate_pedagogical_analysis(array $moduledata): string {
+function generate_pedagogical_analysis(array $moduledata): array {
     $prompt = "Analyze the following Moodle course structure and provide a pedagogical analysis.\n" .
         "Focus on:\n" .
         "1. Overall pedagogical approach and teaching strategy\n" .
         "2. Alignment of activities with learning objectives\n" .
         "3. Balance between different types of learning activities\n" .
         "4. Use of formative and summative assessment\n\n" .
+        "Return ONLY a valid JSON object with this exact structure:\n" .
+        "{\"heading\": \"Brief title\", \"paragraphs\": [\"paragraph 1\", \"paragraph 2\"]}\n\n" .
         "Course data:\n" . json_encode($moduledata, JSON_PRETTY_PRINT);
     
-    return get_ai_analysis($prompt);
+    return parse_analysis_json(get_ai_analysis($prompt));
+}
+
+/**
+ * Parse AI response as JSON and ensure it has the right structure.
+ */
+function parse_analysis_json(string $response): array {
+    try {
+        $data = json_decode($response, true);
+        if (is_array($data)) {
+            return $data;
+        }
+    } catch (Exception $e) {
+        error_log('Failed to parse JSON: ' . $e->getMessage());
+    }
+    
+    // Fallback if JSON parsing fails
+    return [
+        'heading' => 'Analysis',
+        'paragraphs' => [$response]
+    ];
 }
 
 /**
  * Generate learning types analysis using Laurillard's framework.
  *
  * @param array $moduledata Module structure
- * @return string Analysis text
+ * @return array Analysis with heading and paragraphs
  */
-function generate_learning_types_analysis(array $moduledata): string {
+function generate_learning_types_analysis(array $moduledata): array {
     $prompt = "Analyze the following Moodle course and identify how it incorporates Laurillard's Learning Types:\n" .
         "1. Narrative/Expository (lectures, explanations)\n" .
         "2. Dialogic (discussions, interactions)\n" .
         "3. Adaptive (feedback, personalization)\n" .
         "4. Interactive (simulations, scenarios)\n" .
         "5. Productive (creation, problem-solving)\n\n" .
-        "Provide a breakdown of which learning types are present in the course structure:\n\n" .
+        "Return ONLY a valid JSON object with this exact structure:\n" .
+        "{\"heading\": \"Learning types analysis\", \"paragraphs\": [\"paragraph 1\", \"paragraph 2\"]}\n\n" .
         json_encode($moduledata, JSON_PRETTY_PRINT);
     
-    return get_ai_analysis($prompt);
+    return parse_analysis_json(get_ai_analysis($prompt));
 }
 
 /**
  * Generate activities summary.
  *
  * @param array $moduledata Module structure
- * @return string Summary text
+ * @return array Summary with activities list and paragraphs
  */
-function generate_activities_summary(array $moduledata): string {
-    $prompt = "Summarize the activities in the following course structure.\n" .
-        "Provide:\n" .
-        "1. Count and types of activities by category\n" .
-        "2. Distribution across course sections\n" .
-        "3. Balance and variety of activity types\n" .
-        "4. Suggestions for improvement (if any)\n\n" .
-        json_encode($moduledata, JSON_PRETTY_PRINT);
-    
-    return get_ai_analysis($prompt);
-}
 
 /**
  * Generate improvement suggestions based on pedagogical and learning types analysis.
  *
  * @param array $moduledata Module structure
- * @param string $pedagogical Pedagogical analysis feedback
- * @param string $learning_types Learning types analysis feedback
- * @return string Improvement suggestions
+ * @param array $pedagogical Pedagogical analysis feedback
+ * @param array $learning_types Learning types analysis feedback
+ * @return array Improvement suggestions with summary and numbered list
  */
-function generate_improvement_suggestions(array $moduledata, string $pedagogical, string $learning_types): string {
-    $prompt = "Based on the following course analysis and feedback, provide concrete, actionable suggestions to improve the learning experience:\n\n" .
-        "PEDAGOGICAL FEEDBACK:\n" .
-        $pedagogical . "\n\n" .
-        "LEARNING TYPES ANALYSIS:\n" .
-        $learning_types . "\n\n" .
-        "COURSE STRUCTURE:\n" .
-        json_encode($moduledata, JSON_PRETTY_PRINT) . "\n\n" .
-        "Please provide specific, critical, prioritized recommendations such as:\n" .
-        "1. Which learning types are underrepresented and should be added\n" .
-        "2. Which sections could benefit from additional activities\n" .
-        "3. Specific types of activities to introduce (e.g., discussions, quizzes, collaborative tasks)\n" .
-        "4. How to better align activities with learning objectives\n" .
-        "5. Suggestions for improving the pedagogical balance and effectiveness";
+function generate_improvement_suggestions(array $moduledata, array $pedagogical, array $learning_types): array {
+    $ped_text = implode(' ', $pedagogical['paragraphs'] ?? []);
+    $lt_text = implode(' ', $learning_types['paragraphs'] ?? []);
     
-    return get_ai_analysis($prompt);
+    $prompt = "Based on the following course analysis and feedback, provide concrete, actionable suggestions to improve the learning experience.\n\n" .
+        "PEDAGOGICAL FEEDBACK:\n" . $ped_text . "\n\n" .
+        "LEARNING TYPES ANALYSIS:\n" . $lt_text . "\n\n" .
+        "COURSE STRUCTURE:\n" . json_encode($moduledata, JSON_PRETTY_PRINT) . "\n\n" .
+        "Return ONLY a valid JSON object with this exact structure:\n" .
+        "{" .
+        "\"summary\": \"Brief lead paragraph\", " .
+        "\"suggestions\": [\"First suggestion\", \"Second suggestion\", ...]" .
+        "}\n\n";
+    
+    return parse_improvement_json(get_ai_analysis($prompt));
+}
+
+/**
+ * Parse improvement suggestions JSON.
+ */
+function parse_improvement_json(string $response): array {
+    try {
+        $data = json_decode($response, true);
+        if (is_array($data) && isset($data['summary']) && isset($data['suggestions'])) {
+            return $data;
+        }
+    } catch (Exception $e) {
+        error_log('Failed to parse improvements JSON: ' . $e->getMessage());
+    }
+    
+    // Fallback
+    return [
+        'summary' => 'Recommendations for improvement:',
+        'suggestions' => [$response]
+    ];
 }
 
 /**
@@ -339,18 +368,24 @@ function get_ai_analysis(string $prompt): string {
     try {
         if (!class_exists('aiplacement_modgen\\ai_service')) {
             error_log('ai_service class not found');
-            return 'AI service not available.';
+            return json_encode(['error' => 'AI service not available.']);
         }
+        
+        error_log('Calling AI service with prompt length: ' . strlen($prompt));
         
         $analysis = \aiplacement_modgen\ai_service::analyze_module($prompt);
         
+        error_log('AI service returned: ' . (empty($analysis) ? 'EMPTY' : 'Response length: ' . strlen($analysis)));
+        
         if (empty($analysis)) {
-            return 'Analysis unavailable at this time.';
+            error_log('Analysis is empty - returning error JSON');
+            return json_encode(['error' => 'Analysis unavailable at this time.']);
         }
         
         return $analysis;
     } catch (Throwable $e) {
         error_log('AI analysis error: ' . $e->getMessage());
-        return 'Unable to generate analysis: ' . $e->getMessage();
+        error_log('Stack trace: ' . $e->getTraceAsString());
+        return json_encode(['error' => 'Unable to generate analysis: ' . $e->getMessage()]);
     }
 }

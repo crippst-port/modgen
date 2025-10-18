@@ -11,40 +11,32 @@ define(['core/ajax', 'core/templates'], function(ajax, templates) {
 
     var reportData = null;
     var courseid = null;
+    var activitySummary = null;
+    var chartData = null;
 
     return {
         /**
          * Initialize the exploration insights loader.
          *
          * @param {number} cid The course ID
-         * @param {object} chartData Optional chart data
+         * @param {object} chData Chart data passed from explore.php
+         * @param {array} actSummary Activity summary array
          */
-        init: function(cid, chartData) {
+        init: function(cid, chData, actSummary) {
             courseid = cid;
-            var container = document.getElementById('exploration-insights');
-            if (container) {
-                this.loadInsights(container, cid);
-            }
+            activitySummary = actSummary;
+            chartData = chData;
             
-            // Render chart if data is provided
-            if (chartData && chartData.hasActivities) {
-                this.renderLearningTypesChart(chartData);
-            }
-            
-            // Set up download button - initially disabled
-            var downloadBtn = document.getElementById('download-report-btn');
-            if (downloadBtn) {
-                downloadBtn.disabled = true;
-                downloadBtn.title = 'Report will be available after insights load';
-            }
+            // Load insights via AJAX
+            this.loadInsights(cid);
         },
 
         /**
-         * Fetch insights from the server via AJAX using Moodle's AJAX API.
+         * Fetch insights from the server via AJAX and update the template.
          *
          * @param {number} cid The course ID
          */
-        loadInsights: function(container, cid) {
+        loadInsights: function(cid) {
             var self = this;
             var ajaxUrl = M.cfg.wwwroot + '/ai/placement/modgen/ajax/explore_ajax.php?courseid=' + cid;
             
@@ -57,47 +49,149 @@ define(['core/ajax', 'core/templates'], function(ajax, templates) {
                 })
                 .then(function(data) {
                     if (data.error) {
-                        container.innerHTML = '<div class="alert alert-danger" role="alert">' + 
-                            self.escapeHtml(data.error) + '</div>';
+                        console.error('AJAX error:', data.error);
                     } else if (data.success && data.data) {
+                        // Convert insights to text format for PDF
+                        var pedagogicalText = '';
+                        if (data.data.pedagogical) {
+                            if (data.data.pedagogical.heading) {
+                                pedagogicalText += data.data.pedagogical.heading + '\n\n';
+                            }
+                            if (data.data.pedagogical.paragraphs) {
+                                pedagogicalText += data.data.pedagogical.paragraphs.join('\n\n');
+                            }
+                        }
+                        
+                        var learningTypesText = '';
+                        if (data.data.learning_types) {
+                            if (data.data.learning_types.heading) {
+                                learningTypesText += data.data.learning_types.heading + '\n\n';
+                            }
+                            if (data.data.learning_types.paragraphs) {
+                                learningTypesText += data.data.learning_types.paragraphs.join('\n\n');
+                            }
+                        }
+                        
+                        var improvementsText = '';
+                        if (data.data.improvements) {
+                            if (data.data.improvements.summary) {
+                                improvementsText += data.data.improvements.summary + '\n\n';
+                            }
+                            if (data.data.improvements.suggestions) {
+                                improvementsText += data.data.improvements.suggestions.join('\n');
+                            }
+                        }
+                        
                         // Store report data for PDF generation
                         reportData = {
-                            pedagogical: data.data.pedagogical || '',
-                            learning_types: data.data.learning_types || '',
-                            activities: data.data.activities || '',
-                            improvements: data.data.improvements || '',
-                            chart_data: data.data.chart_data || null
+                            pedagogical: pedagogicalText,
+                            learning_types: learningTypesText,
+                            improvements: improvementsText,
+                            chart_data: data.data.chart_data || chartData
                         };
                         
-                        // Render the template with the returned data
-                        require(['core/templates'], function(templates) {
-                            templates.render('aiplacement_modgen/exploration_insights', data.data)
-                                .then(function(html) {
-                                    container.innerHTML = html;
-                                    console.log('Chart data:', data.data.chart_data);
-                                    // Render the learning types chart if data is available
-                                    if (data.data.chart_data && data.data.chart_data.hasActivities) {
-                                        console.log('Rendering chart with data:', data.data.chart_data);
-                                        self.renderLearningTypesChart(data.data.chart_data);
-                                    }
-                                    
-                                    // Enable download button now that data is loaded
-                                    self.enableDownloadButton(cid);
-                                })
-                                .catch(function(error) {
-                                    console.error('Template render error:', error);
-                                    container.innerHTML = '<div class="alert alert-danger" role="alert">Failed to render template.</div>';
-                                });
-                        });
+                        // Render pedagogical section
+                        if (data.data.pedagogical) {
+                            var pedSection = document.getElementById('insights-pedagogical');
+                            if (pedSection) {
+                                document.getElementById('ped-heading').textContent = data.data.pedagogical.heading || '';
+                                var pedContent = document.getElementById('ped-content');
+                                pedContent.innerHTML = '';
+                                if (data.data.pedagogical.paragraphs) {
+                                    data.data.pedagogical.paragraphs.forEach(function(para) {
+                                        var p = document.createElement('p');
+                                        p.textContent = para;
+                                        pedContent.appendChild(p);
+                                    });
+                                }
+                                pedSection.style.display = 'block';
+                            }
+                        }
+                        
+                        // Render learning types section
+                        if (data.data.learning_types) {
+                            var ltSection = document.getElementById('insights-learning-types');
+                            if (ltSection) {
+                                document.getElementById('lt-heading').textContent = data.data.learning_types.heading || '';
+                                var ltContent = document.getElementById('lt-content');
+                                ltContent.innerHTML = '';
+                                if (data.data.learning_types.paragraphs) {
+                                    data.data.learning_types.paragraphs.forEach(function(para) {
+                                        var p = document.createElement('p');
+                                        p.textContent = para;
+                                        ltContent.appendChild(p);
+                                    });
+                                }
+                                ltSection.style.display = 'block';
+                            }
+                        }
+                        
+                        // Render improvements section
+                        if (data.data.improvements) {
+                            var impSection = document.getElementById('insights-improvements');
+                            if (impSection) {
+                                var impSummary = document.getElementById('imp-summary');
+                                impSummary.innerHTML = '';
+                                if (data.data.improvements.summary) {
+                                    var p = document.createElement('p');
+                                    p.textContent = data.data.improvements.summary;
+                                    impSummary.appendChild(p);
+                                }
+                                
+                                var impList = document.getElementById('imp-list');
+                                impList.innerHTML = '';
+                                if (data.data.improvements.suggestions) {
+                                    data.data.improvements.suggestions.forEach(function(suggestion) {
+                                        var li = document.createElement('li');
+                                        li.textContent = suggestion;
+                                        impList.appendChild(li);
+                                    });
+                                }
+                                impSection.style.display = 'block';
+                            }
+                        }
+                        
+                        // Hide spinner and show content
+                        var spinner = document.getElementById('insights-loading');
+                        var contentWrapper = document.getElementById('content-wrapper');
+                        if (spinner) {
+                            spinner.style.display = 'none';
+                        }
+                        if (contentWrapper) {
+                            contentWrapper.style.display = 'block';
+                        }
+                        
+                        // Render chart after all insights are loaded
+                        if (chartData && chartData.hasActivities) {
+                            setTimeout(function() {
+                                self.renderLearningTypesChart(chartData);
+                            }, 100);
+                        }
+                        
+                        // Enable download button
+                        self.enableDownloadButton(cid);
                     } else {
                         console.error('Unexpected response format:', data);
-                        container.innerHTML = '<div class="alert alert-warning" role="alert">Unexpected response format.</div>';
+                        var spinner = document.getElementById('insights-loading');
+                        var contentWrapper = document.getElementById('content-wrapper');
+                        if (spinner) {
+                            spinner.style.display = 'none';
+                        }
+                        if (contentWrapper) {
+                            contentWrapper.style.display = 'block';
+                        }
                     }
                 })
                 .catch(function(error) {
                     console.error('AJAX error:', error);
-                    container.innerHTML = '<div class="alert alert-danger" role="alert">' +
-                        'Failed to load module insights: ' + self.escapeHtml(error.toString()) + '</div>';
+                    var spinner = document.getElementById('insights-loading');
+                    var contentWrapper = document.getElementById('content-wrapper');
+                    if (spinner) {
+                        spinner.style.display = 'none';
+                    }
+                    if (contentWrapper) {
+                        contentWrapper.style.display = 'block';
+                    }
                 });
         },
 

@@ -58,6 +58,7 @@ $moduledata = build_moduledata($course, $modinfo, $sections);
 
 // Calculate activity counts from moduledata
 $activity_counts = [];
+$total_activities = 0;
 foreach ($moduledata['sections'] as $section) {
     if (!empty($section['activities'])) {
         foreach ($section['activities'] as $activity) {
@@ -66,6 +67,7 @@ foreach ($moduledata['sections'] as $section) {
                 $activity_counts[$modname] = 0;
             }
             $activity_counts[$modname]++;
+            $total_activities++;
         }
     }
 }
@@ -73,12 +75,14 @@ foreach ($moduledata['sections'] as $section) {
 // Sort by count descending
 arsort($activity_counts);
 
-// Format for template
+// Format for template - include learning type for each activity type
 $activity_summary = [];
 foreach ($activity_counts as $modname => $count) {
+    $learning_type = get_activity_learning_type($modname);
     $activity_summary[] = [
         'name' => ucfirst($modname),
         'count' => $count,
+        'learning_type' => $learning_type,
     ];
 }
 
@@ -89,6 +93,7 @@ $chartdata = generate_learning_types_chart_data($moduledata);
 $templatedata = [
     'loadingmessage' => get_string('exploreloading', 'aiplacement_modgen'),
     'activity_summary' => $activity_summary,
+    'total_activities' => $total_activities,
     'chart_data' => $chartdata,
 ];
 
@@ -96,9 +101,52 @@ $templatedata = [
 echo $OUTPUT->render_from_template('aiplacement_modgen/explore', $templatedata);
 
 // Load the AJAX module to fetch insights
-$PAGE->requires->js_call_amd('aiplacement_modgen/explore', 'init', [$courseid, $chartdata]);
+$PAGE->requires->js_call_amd('aiplacement_modgen/explore', 'init', [$courseid, $chartdata, $activity_summary]);
 
 echo $OUTPUT->footer();
+
+/**
+ * Get the learning type for an activity module type.
+ * Single source of truth for activity type to learning type mapping.
+ *
+ * @param string $modname The module name (e.g., 'assign', 'quiz')
+ * @return string The learning type (Narrative, Dialogic, Adaptive, Interactive, or Productive)
+ */
+function get_activity_learning_type(string $modname): string {
+    $modname = strtolower($modname);
+    
+    // Map activity types to Laurillard's learning types
+    $activity_learning_type_map = [
+        // Narrative/Expository - lectures, explanations, resources
+        'page' => 'Narrative',
+        'book' => 'Narrative',
+        'resource' => 'Narrative',
+        'label' => 'Narrative',
+        'url' => 'Narrative',
+        
+        // Dialogic - discussions, conversations
+        'forum' => 'Dialogic',
+        'chat' => 'Dialogic',
+        
+        // Adaptive - feedback, adaptive learning
+        'lesson' => 'Adaptive',
+        'feedback' => 'Adaptive',
+        
+        // Interactive - simulations, scenarios, interactions
+        'choice' => 'Interactive',
+        'survey' => 'Interactive',
+        'workshop' => 'Interactive',
+        'hsuforum' => 'Interactive',
+        
+        // Productive - creation, problem-solving, assignments
+        'assign' => 'Productive',
+        'quiz' => 'Productive',
+        'scorm' => 'Productive',
+        'bigbluebuttonbn' => 'Productive',
+    ];
+    
+    return $activity_learning_type_map[$modname] ?? 'Productive';
+}
 
 /**
  * Build module data structure from course sections and activities.
@@ -154,36 +202,6 @@ function build_moduledata(stdClass $course, course_modinfo $modinfo, array $sect
  * @return array Chart data for pie chart
  */
 function generate_learning_types_chart_data(array $moduledata): array {
-    // Map activity types to Laurillard's learning types
-    $activity_learning_type_map = [
-        // Narrative/Expository - lectures, explanations, resources
-        'page' => 'Narrative',
-        'book' => 'Narrative',
-        'resource' => 'Narrative',
-        'label' => 'Narrative',
-        'url' => 'Narrative',
-        
-        // Dialogic - discussions, conversations
-        'forum' => 'Dialogic',
-        'chat' => 'Dialogic',
-        
-        // Adaptive - feedback, adaptive learning
-        'lesson' => 'Adaptive',
-        'feedback' => 'Adaptive',
-        
-        // Interactive - simulations, scenarios, interactions
-        'choice' => 'Interactive',
-        'survey' => 'Interactive',
-        'workshop' => 'Interactive',
-        'hsuforum' => 'Interactive',
-        
-        // Productive - creation, problem-solving, assignments
-        'assign' => 'Productive',
-        'quiz' => 'Productive',
-        'scorm' => 'Productive',
-        'bigbluebuttonbn' => 'Productive',
-    ];
-    
     $learning_type_counts = [
         'Narrative' => 0,
         'Dialogic' => 0,
@@ -192,13 +210,12 @@ function generate_learning_types_chart_data(array $moduledata): array {
         'Productive' => 0,
     ];
     
-    // Count activities by learning type
+    // Count activities by learning type using single source of truth
     if (!empty($moduledata['sections'])) {
         foreach ($moduledata['sections'] as $section) {
             if (!empty($section['activities'])) {
                 foreach ($section['activities'] as $activity) {
-                    $modname = strtolower($activity['modname']);
-                    $learning_type = $activity_learning_type_map[$modname] ?? 'Productive';
+                    $learning_type = get_activity_learning_type($activity['modname']);
                     $learning_type_counts[$learning_type]++;
                 }
             }

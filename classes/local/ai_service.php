@@ -668,6 +668,7 @@ class ai_service {
 
         try {
             if (!class_exists('\\core_ai\\manager') || !class_exists('\\core_ai\\aiactions\\generate_text')) {
+                error_log('AI classes not available for analyze_module');
                 return '';
             }
 
@@ -677,6 +678,7 @@ class ai_service {
 
             $aimanager = new \core_ai\manager();
             if (!$aimanager->get_user_policy_status($USER->id)) {
+                error_log('User has not accepted AI policy - analyze_module');
                 return '';
             }
 
@@ -689,12 +691,18 @@ class ai_service {
             $response = $aimanager->process_action($action);
             $data = $response->get_response_data();
             $text = $data['generatedtext'] ?? ($data['generatedcontent'] ?? '');
+            
+            error_log('AI response data keys: ' . implode(', ', array_keys($data)));
+            error_log('AI response text length: ' . (is_string($text) ? strlen($text) : 'NOT A STRING'));
+            
             if (is_string($text)) {
                 return trim($text);
             }
+            error_log('AI response text is not a string, type: ' . gettype($text));
             return '';
         } catch (\Throwable $e) {
             error_log('AI analysis error: ' . $e->getMessage());
+            error_log('AI analysis error stack: ' . $e->getTraceAsString());
             return '';
         }
     }

@@ -57,6 +57,15 @@ try {
     // Generate learning types chart data
     $chartdata = generate_learning_types_chart($insights['moduledata']);
     
+    // Generate section activity chart data
+    $sectionchartdata = generate_section_activity_chart($insights['moduledata']);
+    
+    // Debug logging
+    error_log('Section chart data: ' . json_encode($sectionchartdata));
+    
+    // Generate workload analysis
+    $workload_analysis = generate_workload_analysis($insights['moduledata']);
+    
     // Generate quick summary for card display
     $summary = generate_quick_summary($insights);
     
@@ -68,11 +77,20 @@ try {
         'improvements' => $insights['insights']['improvements'],
         'summary' => $summary,
         'chart_data' => $chartdata,
+        'section_chart_data' => $sectionchartdata,
+        'workload_analysis' => $workload_analysis,
         'debug' => [
             'moduledata' => $insights['moduledata'],
             'debug_json' => json_encode($insights['moduledata'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
         ],
     ];
+    
+    // Debug logging
+    error_log('Template data keys: ' . implode(', ', array_keys($templatedata)));
+    error_log('Complete response: ' . json_encode([
+        'success' => true,
+        'data' => $templatedata,
+    ]) );
     
     // Return the data for client-side template rendering
         echo json_encode([
@@ -404,6 +422,127 @@ function generate_learning_types_chart(array $moduledata): array {
             return $colors[$type];
         }, array_keys($learning_type_counts)),
         'hasActivities' => array_sum($learning_type_counts) > 0,
+    ];
+}
+
+/**
+ * Generate section/topic activity count chart data.
+ *
+ * @param array $moduledata The module structure data
+ * @return array Chart data in chart.js format
+ */
+function generate_section_activity_chart(array $moduledata): array {
+    $section_counts = [];
+    
+    // Count activities per section
+    if (!empty($moduledata['sections'])) {
+        foreach ($moduledata['sections'] as $section) {
+            $section_name = $section['title'] ?? 'Untitled Section';
+            $activity_count = count($section['activities'] ?? []);
+            $section_counts[$section_name] = $activity_count;
+        }
+    }
+    
+    // Color gradient for bars
+    $colors = 'rgba(52, 152, 219, 0.8)'; // Professional blue
+    $borderColor = 'rgba(52, 152, 219, 1)';
+    
+    return [
+        'labels' => array_keys($section_counts),
+        'data' => array_values($section_counts),
+        'backgroundColor' => $colors,
+        'borderColor' => $borderColor,
+        'hasActivities' => count($section_counts) > 0,
+    ];
+}
+
+/**
+ * Generate AI analysis of student workload based on activity distribution per section.
+ *
+ * @param array $moduledata The module structure data
+ * @return array Analysis with heading and paragraphs
+ */
+function generate_workload_analysis(array $moduledata): array {
+    // Build activity distribution summary
+    $section_activities = [];
+    $activity_type_counts = [];
+    
+    if (!empty($moduledata['sections'])) {
+        foreach ($moduledata['sections'] as $section) {
+            $section_name = $section['title'] ?? 'Untitled Section';
+            $activities = $section['activities'] ?? [];
+            
+            if (!empty($activities)) {
+                $activity_names = [];
+                foreach ($activities as $activity) {
+                    $activity_names[] = $activity['name'];
+                    $modname = strtolower($activity['modname']);
+                    $activity_type_counts[$modname] = ($activity_type_counts[$modname] ?? 0) + 1;
+                }
+                $section_activities[$section_name] = [
+                    'count' => count($activities),
+                    'names' => $activity_names,
+                ];
+            }
+        }
+    }
+    
+    // Build activity type summary
+    $activity_descriptions = [
+        'assign' => 'Assignment',
+        'quiz' => 'Quiz',
+        'forum' => 'Forum discussion',
+        'lesson' => 'Lesson/interactive content',
+        'book' => 'Book/reading material',
+        'page' => 'Page/content page',
+        'resource' => 'Resource file',
+        'chat' => 'Chat session',
+        'choice' => 'Choice/poll',
+        'feedback' => 'Feedback/survey',
+        'workshop' => 'Workshop',
+        'label' => 'Label/text',
+        'url' => 'External URL',
+        'scorm' => 'SCORM package',
+        'bigbluebuttonbn' => 'BigBlueButton session',
+    ];
+    
+    $type_summary = [];
+    foreach ($activity_type_counts as $type => $count) {
+        $description = $activity_descriptions[$type] ?? ucfirst($type);
+        $type_summary[] = "$count x $description";
+    }
+    
+    // Create prompt for AI analysis
+    $prompt = "Analyze the student workload distribution for an online module. " .
+        "Acknowledge that actual workload depends on many unknown factors like assignment complexity, " .
+        "quiz difficulty, discussion expectations, and video length. However, provide pedagogical insights " .
+        "based on the activity distribution pattern below.\n\n" .
+        "ACTIVITY DISTRIBUTION BY WEEK/TOPIC:\n";
+    
+    foreach ($section_activities as $section => $data) {
+        $prompt .= "\n$section: " . $data['count'] . " activities\n";
+        $prompt .= "  - " . implode("\n  - ", array_slice($data['names'], 0, 10));
+        if (count($data['names']) > 10) {
+            $prompt .= "\n  - ... and " . (count($data['names']) - 10) . " more";
+        }
+    }
+    
+    $prompt .= "\n\nACTIVITY TYPES USED:\n" . implode("\n", $type_summary) . "\n\n" .
+        "Based on this distribution, provide a brief pedagogical analysis of student workload. Include:\n" .
+        "1. Observations about workload distribution consistency across weeks/topics\n" .
+        "2. Balance or imbalance in activity types (e.g., heavy on quizzes vs assignments)\n" .
+        "3. Pedagogical implications for learner engagement and retention\n" .
+        "4. Any notable patterns that might affect student experience\n\n" .
+        "Keep the analysis concise (2-3 paragraphs) and practical.";
+    
+    $analysis_text = get_ai_analysis($prompt);
+    
+    // Parse response into structured format
+    $paragraphs = array_filter(array_map('trim', explode("\n\n", $analysis_text)));
+    
+    return [
+        'heading' => 'Student Workload Analysis',
+        'paragraphs' => $paragraphs,
     ];
 }
 

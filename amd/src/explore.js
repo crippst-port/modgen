@@ -48,6 +48,10 @@ define(['core/ajax', 'core/templates'], function(ajax, templates) {
                     return response.json();
                 })
                 .then(function(data) {
+                    console.log('AJAX response received:', data);
+                    if (data.data) {
+                        console.log('Response data keys:', Object.keys(data.data));
+                    }
                     if (data.error) {
                         console.error('AJAX error:', data.error);
                     } else if (data.success && data.data) {
@@ -123,6 +127,21 @@ define(['core/ajax', 'core/templates'], function(ajax, templates) {
                                 });
                         }
                         
+                        // Render workload analysis template
+                        if (data.data.workload_analysis) {
+                            templates.renderForPromise('aiplacement_modgen/workload_analysis', data.data.workload_analysis)
+                                .then(function(result) {
+                                    var workloadDiv = document.getElementById('insights-workload-analysis');
+                                    if (workloadDiv) {
+                                        workloadDiv.innerHTML = result.html;
+                                    }
+                                    return;
+                                })
+                                .catch(function(err) {
+                                    console.error('Error rendering workload analysis template:', err);
+                                });
+                        }
+                        
                         // Render learning types section
                         if (data.data.learning_types) {
                             var ltSection = document.getElementById('insights-learning-types');
@@ -181,6 +200,16 @@ define(['core/ajax', 'core/templates'], function(ajax, templates) {
                             setTimeout(function() {
                                 self.renderLearningTypesChart(chartData);
                             }, 100);
+                        }
+                        
+                        // Render section activity chart if data available
+                        if (data.data.section_chart_data && data.data.section_chart_data.hasActivities) {
+                            console.log('Section chart data available:', data.data.section_chart_data);
+                            setTimeout(function() {
+                                self.renderSectionActivityChart(data.data.section_chart_data);
+                            }, 500);
+                        } else {
+                            console.warn('Section chart data not available or no activities:', data.data.section_chart_data);
                         }
                         
                         // Enable download button
@@ -273,6 +302,81 @@ define(['core/ajax', 'core/templates'], function(ajax, templates) {
                         console.log('Chart rendered successfully');
                     } catch (e) {
                         console.error('Chart rendering error:', e);
+                    }
+                }, 100);
+            });
+        },
+
+        /**
+         * Render the section activity bar chart using Chart.js.
+         *
+         * @param {object} chartData The chart data object with labels and data
+         */
+        renderSectionActivityChart: function(chartData) {
+            console.log('renderSectionActivityChart called with:', chartData);
+            var self = this;
+            require(['jquery', 'core/chartjs'], function($, chartjs) {
+                // Use a timeout to ensure the canvas is in the DOM
+                setTimeout(function() {
+                    var canvas = document.getElementById('section-activity-chart');
+                    console.log('Section activity chart canvas element:', canvas);
+                    if (!canvas) {
+                        console.error('Section chart canvas not found');
+                        return;
+                    }
+
+                    var ctx = canvas.getContext('2d');
+                    if (!ctx) {
+                        console.error('Could not get section chart context');
+                        return;
+                    }
+
+                    var config = {
+                        type: 'bar',
+                        data: {
+                            labels: chartData.labels,
+                            datasets: [
+                                {
+                                    label: 'Activities',
+                                    data: chartData.data,
+                                    backgroundColor: chartData.backgroundColor,
+                                    borderColor: chartData.borderColor,
+                                    borderWidth: 1,
+                                }
+                            ]
+                        },
+                        options: {
+                            responsive: true,
+                            maintainAspectRatio: false,
+                            indexAxis: 'y',
+                            plugins: {
+                                legend: {
+                                    display: false,
+                                },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function(context) {
+                                            return 'Activities: ' + context.parsed.x;
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: {
+                                    beginAtZero: true,
+                                    ticks: {
+                                        stepSize: 1,
+                                    }
+                                }
+                            }
+                        }
+                    };
+
+                    try {
+                        var chart = new Chart(ctx, config);
+                        console.log('Section activity chart rendered successfully');
+                    } catch (e) {
+                        console.error('Section chart rendering error:', e);
                     }
                 }, 100);
             });

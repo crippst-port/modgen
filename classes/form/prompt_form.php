@@ -54,7 +54,12 @@ class aiplacement_modgen_prompt_form extends moodleform {
         $mform->addElement('advcheckbox', 'includeaboutsubsections', get_string('includeaboutsubsections', 'aiplacement_modgen'));
         $mform->setDefault('includeaboutsubsections', 0);
         $mform->setType('includeaboutsubsections', PARAM_BOOL);
+        $mform->addElement('advcheckbox', 'createsuggestedactivities', get_string('createsuggestedactivities', 'aiplacement_modgen'));
+        $mform->addHelpButton('createsuggestedactivities', 'createsuggestedactivities', 'aiplacement_modgen');
+        $mform->setDefault('createsuggestedactivities', 1);
+        $mform->setType('createsuggestedactivities', PARAM_BOOL);
         $mform->addElement('hidden', 'id');
+
         $mform->setType('id', PARAM_INT);
         $mform->addElement('submit', 'submitbutton', get_string('submit', 'aiplacement_modgen'));
     }

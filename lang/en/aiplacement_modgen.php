@@ -158,7 +158,7 @@ $string['contentfile'] = 'Upload document';
 $string['contentfile_help'] = 'Select a document file (.doc, .docx, or .odt) to extract content from. The content will be parsed into chapters for the activity.';
 $string['selectactivitytype'] = 'Activity type';
 $string['activityintro'] = 'Activity description';
-$string['generatetablabel'] = 'Generate from template';
+$string['generatetablabel'] = 'Generate module template';
 $string['uploadtablabel'] = 'Activity from file';
 
 // File upload workflow settings
@@ -166,3 +166,7 @@ $string['fileuploadheading'] = 'File Upload Workflow';
 $string['fileuploadheading_desc'] = 'Configure the file upload workflow that allows users to create activities from uploaded documents.';
 $string['enablefileupload'] = 'Enable file upload workflow';
 $string['enablefileupload_desc'] = 'When enabled, users will see an "Activity from file" tab in the Module Assistant where they can upload documents to create book activities.';
+
+// Activity creation toggle
+$string['createsuggestedactivities'] = 'Create suggested activities';
+$string['createsuggestedactivities_help'] = 'When enabled, the generator will create activity shells as suggestions for your content. These are empty placeholder activities without content, ready for you to fill in with your own materials. When disabled, only section headings and descriptions will be created.';

@@ -135,9 +135,9 @@ function aiplacement_modgen_output_response(string $bodyhtml, array $footeractio
  * @param string $name Subsection name.
  * @param string $summaryhtml Pre-formatted HTML summary to store in the delegated section.
  * @param bool $needscacherefresh Reference flag toggled when the course cache needs rebuilding.
- * @return int|null Newly created course module id or null on failure.
+ * @return array|null Array with 'cmid' and 'delegatedsectionid' keys, or null on failure.
  */
-function local_aiplacement_modgen_create_subsection(stdClass $course, int $sectionnum, string $name, string $summaryhtml, bool &$needscacherefresh): ?int {
+function local_aiplacement_modgen_create_subsection(stdClass $course, int $sectionnum, string $name, string $summaryhtml, bool &$needscacherefresh): ?array {
     global $DB;
 
     $moduleinfo = new stdClass();
@@ -158,12 +158,18 @@ function local_aiplacement_modgen_create_subsection(stdClass $course, int $secti
         $cmid = (int)$cm;
     }
 
-    if (!empty($cmid) && $summaryhtml !== '') {
-        $cmrecord = get_coursemodule_from_id('subsection', $cmid, $course->id, false, IGNORE_MISSING);
-        if ($cmrecord) {
-            $manager = \mod_subsection\manager::create_from_coursemodule($cmrecord);
-            $delegatedsection = $manager->get_delegated_section_info();
-            if ($delegatedsection) {
+    if (empty($cmid)) {
+        return null;
+    }
+
+    $delegatedsectionid = null;
+    $cmrecord = get_coursemodule_from_id('subsection', $cmid, $course->id, false, IGNORE_MISSING);
+    if ($cmrecord) {
+        $manager = \mod_subsection\manager::create_from_coursemodule($cmrecord);
+        $delegatedsection = $manager->get_delegated_section_info();
+        if ($delegatedsection) {
+            $delegatedsectionid = $delegatedsection->id;
+            if ($summaryhtml !== '') {
                 $sectionrecord = $DB->get_record('course_sections', ['id' => $delegatedsection->id]);
                 if ($sectionrecord) {
                     $sectionrecord->summary = $summaryhtml;
@@ -176,7 +182,10 @@ function local_aiplacement_modgen_create_subsection(stdClass $course, int $secti
         }
     }
 
-    return $cmid ?: null;
+    return [
+        'cmid' => $cmid,
+        'delegatedsectionid' => $delegatedsectionid,
+    ];
 }
 
 /**
@@ -393,6 +402,10 @@ class aiplacement_modgen_prompt_form extends moodleform {
         $mform->setType('prompt', PARAM_TEXT);
         $mform->addRule('prompt', null, 'required', null, 'client');
         $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
+        $mform->addElement('advcheckbox', 'createsuggestedactivities', get_string('createsuggestedactivities', 'aiplacement_modgen'));
+        $mform->addHelpButton('createsuggestedactivities', 'createsuggestedactivities', 'aiplacement_modgen');
+        $mform->setType('createsuggestedactivities', PARAM_BOOL);
+        $mform->setDefault('createsuggestedactivities', 1);
         
         // Add warning about processing time
         $mform->addElement('static', 'processingwarning', '', 
@@ -423,6 +436,8 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->setType('includeaboutassessments', PARAM_BOOL);
         $mform->addElement('hidden', 'includeaboutlearning', $this->_customdata['includeaboutlearning']);
         $mform->setType('includeaboutlearning', PARAM_BOOL);
+        $mform->addElement('hidden', 'createsuggestedactivities', $this->_customdata['createsuggestedactivities']);
+        $mform->setType('createsuggestedactivities', PARAM_BOOL);
         $mform->addElement('hidden', 'generatedsummary', $this->_customdata['generatedsummary']);
         $mform->setType('generatedsummary', PARAM_RAW);
         if (isset($this->_customdata['curriculum_template'])) {
@@ -516,6 +531,7 @@ $approvedtypeparam = optional_param('moduletype', 'weekly', PARAM_ALPHA);
 $keepweeklabelsparam = optional_param('keepweeklabels', 0, PARAM_BOOL);
 $includeaboutassessmentsparam = optional_param('includeaboutassessments', 0, PARAM_BOOL);
 $includeaboutlearningparam = optional_param('includeaboutlearning', 0, PARAM_BOOL);
+$createsuggestedactivitiesparam = optional_param('createsuggestedactivities', 1, PARAM_BOOL);
 $generatedsummaryparam = optional_param('generatedsummary', '', PARAM_RAW);
 $curriculumtemplateparam = optional_param('curriculum_template', '', PARAM_TEXT);
 if ($approvedjsonparam !== null) {
@@ -526,6 +542,7 @@ if ($approvedjsonparam !== null) {
         'keepweeklabels' => $keepweeklabelsparam,
         'includeaboutassessments' => $includeaboutassessmentsparam,
         'includeaboutlearning' => $includeaboutlearningparam,
+        'createsuggestedactivities' => $createsuggestedactivitiesparam,
         'generatedsummary' => $generatedsummaryparam,
         'curriculum_template' => $curriculumtemplateparam,
         'embedded' => $embedded ? 1 : 0,
@@ -557,16 +574,16 @@ if ($approveform && ($adata = $approveform->get_data())) {
 
     if ($includeaboutassessments) {
         $assessmentname = get_string('aboutassessments', 'aiplacement_modgen');
-        $assessmentcmid = local_aiplacement_modgen_create_subsection($course, 0, $assessmentname, '', $needscacherefresh);
-        if (!empty($assessmentcmid)) {
+        $assessmentresult = local_aiplacement_modgen_create_subsection($course, 0, $assessmentname, '', $needscacherefresh);
+        if (!empty($assessmentresult) && !empty($assessmentresult['cmid'])) {
             $results[] = get_string('subsectioncreated', 'aiplacement_modgen', $assessmentname);
             $aboutassessmentsadded = true;
         }
     }
     if ($includeaboutlearning) {
         $learningname = get_string('aboutlearningoutcomes', 'aiplacement_modgen');
-        $learningcmid = local_aiplacement_modgen_create_subsection($course, 0, $learningname, '', $needscacherefresh);
-        if (!empty($learningcmid)) {
+        $learningresult = local_aiplacement_modgen_create_subsection($course, 0, $learningname, '', $needscacherefresh);
+        if (!empty($learningresult) && !empty($learningresult['cmid'])) {
             $results[] = get_string('subsectioncreated', 'aiplacement_modgen', $learningname);
             $aboutlearningadded = true;
         }
@@ -627,17 +644,27 @@ if ($approveform && ($adata = $approveform->get_data())) {
                         $subsectionsummary = format_text($weeksummary, FORMAT_HTML, ['context' => $context]);
                     }
 
-                    $cmid = local_aiplacement_modgen_create_subsection($course, $sectionnum, $weektitle, $subsectionsummary, $needscacherefresh);
-                    if (!empty($cmid)) {
+                    $subsectionresult = local_aiplacement_modgen_create_subsection($course, $sectionnum, $weektitle, $subsectionsummary, $needscacherefresh);
+                    $delegatedsectionnum = null;
+                    if (!empty($subsectionresult) && !empty($subsectionresult['cmid'])) {
                         $results[] = get_string('subsectioncreated', 'aiplacement_modgen', $weektitle);
+                        
+                        // Convert delegated section ID to section number for activity creation
+                        if (!empty($subsectionresult['delegatedsectionid'])) {
+                            $delegatedsectionrec = $DB->get_record('course_sections', ['id' => $subsectionresult['delegatedsectionid']]);
+                            if ($delegatedsectionrec) {
+                                $delegatedsectionnum = $delegatedsectionrec->section;
+                            }
+                        }
                     }
 
-                    // Process activities within this week
+                    // Process activities within this week - place them in the subsection's delegated section
                     if (!empty($week['activities']) && is_array($week['activities'])) {
+                        $activitysectionnum = !empty($delegatedsectionnum) ? $delegatedsectionnum : $sectionnum;
                         $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
                             $week['activities'],
                             $course,
-                            $sectionnum
+                            $activitysectionnum
                         );
                         
                         if (!empty($activityoutcome['created'])) {
@@ -916,9 +943,17 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     $keepweeklabels = !empty($pdata->keepweeklabels);
     $includeaboutassessments = !empty($pdata->includeaboutassessments);
     $includeaboutlearning = !empty($pdata->includeaboutlearning);
+    $createsuggestedactivities = !empty($pdata->createsuggestedactivities);
     $curriculum_template = !empty($pdata->curriculum_template) ? $pdata->curriculum_template : '';
     $typeinstruction = get_string('moduletypeinstruction_' . $moduletype, 'aiplacement_modgen');
     $compositeprompt = trim($prompt . "\n\n" . $typeinstruction);
+    
+    // Modify prompt if activities should not be created
+    if (!$createsuggestedactivities) {
+        $compositeprompt .= "\n\nIMPORTANT: Do NOT include an 'activities' array in your response. " .
+            "Create section headings and summaries only. The sections should be structured with titles and descriptions, " .
+            "but do not suggest any activities, quizzes, or resources. This allows the user to add their own content.";
+    }
     
     // Generate module with or without template
     error_log('DEBUG: $pdata->curriculum_template exists: ' . (isset($pdata->curriculum_template) ? 'YES' : 'NO'));
@@ -1002,6 +1037,7 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
         'keepweeklabels' => $keepweeklabels ? 1 : 0,
         'includeaboutassessments' => $includeaboutassessments ? 1 : 0,
         'includeaboutlearning' => $includeaboutlearning ? 1 : 0,
+        'createsuggestedactivities' => $createsuggestedactivities ? 1 : 0,
         'generatedsummary' => $summarytext,
         'curriculum_template' => $curriculum_template,
         'embedded' => $embedded ? 1 : 0,

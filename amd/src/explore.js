@@ -112,6 +112,9 @@ define(['core/templates'], function(templates) {
             // Store course ID for later use
             currentCourseId = courseId;
 
+            // Enable refresh button
+            this.enableRefreshButton(courseId);
+
             // Load insights from the server
             this.loadInsights(courseId);
         },
@@ -129,10 +132,14 @@ define(['core/templates'], function(templates) {
          * 7. Show the content and hide loading spinner
          *
          * @param {Number} courseId - The course ID
+         * @param {Boolean} refresh - Force refresh from AI (bypass cache)
          */
-        loadInsights: function(courseId) {
+        loadInsights: function(courseId, refresh) {
             var self = this;
             var ajaxUrl = M.cfg.wwwroot + '/ai/placement/modgen/ajax/explore_ajax.php?courseid=' + courseId;
+            if (refresh) {
+                ajaxUrl += '&refresh=1';
+            }
 
             // Fetch data from server
             fetch(ajaxUrl)
@@ -537,6 +544,39 @@ define(['core/templates'], function(templates) {
                 .catch(function(error) {
                     alert('Error downloading PDF: ' + error.message);
                 });
+        },
+
+        /**
+         * Refresh insights by forcing new AI analysis and clearing cache.
+         * This will re-call the AI service and save new data.
+         *
+         * @param {Number} courseId - The course ID
+         */
+        refreshInsights: function(courseId) {
+            // Show loading spinner
+            setElementDisplay('insights-loading', 'block');
+            setElementDisplay('content-wrapper', 'none');
+
+            // Load insights with refresh flag set to 1
+            this.loadInsights(courseId, true);
+        },
+
+        /**
+         * Attach click handler to refresh button if it exists.
+         * Enables users to manually refresh insights.
+         *
+         * @param {Number} courseId - The course ID
+         */
+        enableRefreshButton: function(courseId) {
+            var self = this;
+            var refreshBtn = getElement('refresh-insights-btn');
+
+            if (refreshBtn) {
+                refreshBtn.addEventListener('click', function() {
+                    self.refreshInsights(courseId);
+                });
+            }
         }
     };
 });
+

@@ -1,266 +1,348 @@
 /**
- * Module exploration - fetch insights via AJAX.
+ * Module exploration - Fetch AI insights and display module analysis.
+ *
+ * OVERVIEW:
+ * This module handles the "Explore" page which displays AI-generated insights about
+ * a course module. It fetches data from the server, processes it, renders it to the page,
+ * and provides functionality for generating PDF reports.
+ *
+ * KEY FUNCTIONS:
+ * - init(): Initialize the module and load insights
+ * - loadInsights(): Fetch insights from the server via AJAX
+ * - renderInsights(): Display insights in various page sections
+ * - renderCharts(): Display interactive charts using Chart.js
+ * - downloadReport(): Generate and download PDF reports
+ *
+ * ARCHITECTURE:
+ * The module follows a functional pattern where:
+ * 1. init() is called when the page loads
+ * 2. loadInsights() fetches data from the server
+ * 3. Data is processed and rendered to the DOM
+ * 4. Charts are rendered after a short delay to ensure DOM is ready
+ * 5. Download functionality is enabled
  *
  * @module     aiplacement_modgen/explore
  * @copyright  2025 Tom Cripps <tom.cripps@port.ac.uk>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-define(['core/ajax', 'core/templates'], function(ajax, templates) {
+define(['core/templates'], function(templates) {
     'use strict';
 
+    // ============================================================================
+    // MODULE CONFIGURATION AND STATE
+    // ============================================================================
+
+    // Store the current course ID for use in event handlers
+    var currentCourseId = null;
+
+    // Store report data for PDF generation
     var reportData = null;
-    var courseid = null;
-    var activitySummary = null;
-    var chartData = null;
+
+    // ============================================================================
+    // PRIVATE HELPER FUNCTIONS
+    // ============================================================================
+
+    /**
+     * Extract text from a section object (heading + paragraphs).
+     * Used when processing pedagogical, learning types, and other sections.
+     *
+     * @param {Object} section - Section object with 'heading' and 'paragraphs' properties
+     * @returns {String} Formatted text with heading on first line, paragraphs separated by double newlines
+     */
+    function extractTextFromSection(section) {
+        if (!section) {
+            return '';
+        }
+
+        var text = '';
+
+        // Add heading if present
+        if (section.heading) {
+            text += section.heading + '\n\n';
+        }
+
+        // Add paragraphs if present
+        if (section.paragraphs && Array.isArray(section.paragraphs)) {
+            text += section.paragraphs.join('\n\n');
+        }
+
+        return text;
+    }
+
+    /**
+     * Get a DOM element or return null if not found.
+     * Provides safe access to DOM elements.
+     *
+     * @param {String} id - The element ID
+     * @returns {Element|null} The DOM element or null
+     */
+    function getElement(id) {
+        return document.getElementById(id) || null;
+    }
+
+    /**
+     * Set the display property of an element.
+     * Helper to show or hide elements.
+     *
+     * @param {String} id - The element ID
+     * @param {String} displayValue - 'block', 'none', etc.
+     */
+    function setElementDisplay(id, displayValue) {
+        var el = getElement(id);
+        if (el) {
+            el.style.display = displayValue;
+        }
+    }
+
+    // ============================================================================
+    // PUBLIC API
+    // ============================================================================
 
     return {
         /**
-         * Initialize the exploration insights loader.
+         * Initialize the exploration module.
+         * This is called automatically when the explore.php page loads.
          *
-         * @param {number} cid The course ID
-         * @param {object} chData Chart data passed from explore.php
-         * @param {array} actSummary Activity summary array
+         * @param {Number} courseId - The course ID to load insights for
+         * @param {Object} chartData - Pre-calculated chart data (not used in refactored version)
+         * @param {Array} activitySummary - Pre-calculated activity summary (not used in refactored version)
          */
-        init: function(cid, chData, actSummary) {
-            courseid = cid;
-            activitySummary = actSummary;
-            chartData = chData;
-            
-            // Load insights via AJAX
-            this.loadInsights(cid);
+        init: function(courseId, chartData, activitySummary) {
+            // Store course ID for later use
+            currentCourseId = courseId;
+
+            // Load insights from the server
+            this.loadInsights(courseId);
         },
 
         /**
-         * Fetch insights from the server via AJAX and update the template.
+         * Fetch insights from the AJAX endpoint and render them on the page.
          *
-         * @param {number} cid The course ID
+         * PROCESS:
+         * 1. Construct AJAX URL with course ID
+         * 2. Fetch JSON data from server
+         * 3. Validate response
+         * 4. Extract and process data into sections
+         * 5. Render sections to the DOM
+         * 6. Render interactive charts
+         * 7. Show the content and hide loading spinner
+         *
+         * @param {Number} courseId - The course ID
          */
-        loadInsights: function(cid) {
+        loadInsights: function(courseId) {
             var self = this;
-            var ajaxUrl = M.cfg.wwwroot + '/ai/placement/modgen/ajax/explore_ajax.php?courseid=' + cid;
-            
+            var ajaxUrl = M.cfg.wwwroot + '/ai/placement/modgen/ajax/explore_ajax.php?courseid=' + courseId;
+
+            // Fetch data from server
             fetch(ajaxUrl)
                 .then(function(response) {
+                    // Check HTTP status
                     if (!response.ok) {
                         throw new Error('HTTP error ' + response.status);
                     }
                     return response.json();
                 })
                 .then(function(data) {
-                    console.log('AJAX response received:', data);
-                    if (data.data) {
-                        console.log('Response data keys:', Object.keys(data.data));
+                    // Validate response structure
+                    if (data.error || !data.success || !data.data) {
+                        self.hideLoadingAndShowContent();
+                        return;
                     }
-                    if (data.error) {
-                        console.error('AJAX error:', data.error);
-                    } else if (data.success && data.data) {
-                        // Convert insights to text format for PDF
-                        var pedagogicalText = '';
-                        if (data.data.pedagogical) {
-                            if (data.data.pedagogical.heading) {
-                                pedagogicalText += data.data.pedagogical.heading + '\n\n';
-                            }
-                            if (data.data.pedagogical.paragraphs) {
-                                pedagogicalText += data.data.pedagogical.paragraphs.join('\n\n');
-                            }
-                        }
-                        
-                        var learningTypesText = '';
-                        if (data.data.learning_types) {
-                            if (data.data.learning_types.heading) {
-                                learningTypesText += data.data.learning_types.heading + '\n\n';
-                            }
-                            if (data.data.learning_types.paragraphs) {
-                                learningTypesText += data.data.learning_types.paragraphs.join('\n\n');
-                            }
-                        }
-                        
-                        var improvementsText = '';
-                        if (data.data.improvements) {
-                            if (data.data.improvements.summary) {
-                                improvementsText += data.data.improvements.summary + '\n\n';
-                            }
-                            if (data.data.improvements.suggestions) {
-                                improvementsText += data.data.improvements.suggestions.join('\n');
-                            }
-                        }
-                        
-                        // Store report data for PDF generation
-                        reportData = {
-                            pedagogical: pedagogicalText,
-                            learning_types: learningTypesText,
-                            improvements: improvementsText,
-                            chart_data: data.data.chart_data || chartData
-                        };
-                        
-                        // Render pedagogical section
-                        if (data.data.pedagogical) {
-                            var pedSection = document.getElementById('insights-pedagogical');
-                            if (pedSection) {
-                                document.getElementById('ped-heading').textContent = data.data.pedagogical.heading || '';
-                                var pedContent = document.getElementById('ped-content');
-                                pedContent.innerHTML = '';
-                                if (data.data.pedagogical.paragraphs) {
-                                    data.data.pedagogical.paragraphs.forEach(function(para) {
-                                        var p = document.createElement('p');
-                                        p.textContent = para;
-                                        pedContent.appendChild(p);
-                                    });
-                                }
-                                pedSection.style.display = 'block';
-                            }
-                        }
-                        
-                        // Render summary section using Moodle template rendering
-                        if (data.data.summary) {
-                            templates.renderForPromise('aiplacement_modgen/insights_summary', data.data.summary)
-                                .then(function(result) {
-                                    var summaryDiv = document.getElementById('insights-summary');
-                                    if (summaryDiv) {
-                                        summaryDiv.innerHTML = result.html;
-                                    }
-                                    return;
-                                })
-                                .catch(function(err) {
-                                    console.error('Error rendering summary template:', err);
-                                });
-                        }
-                        
-                        // Render workload analysis template
-                        if (data.data.workload_analysis) {
-                            templates.renderForPromise('aiplacement_modgen/workload_analysis', data.data.workload_analysis)
-                                .then(function(result) {
-                                    var workloadDiv = document.getElementById('insights-workload-analysis');
-                                    if (workloadDiv) {
-                                        workloadDiv.innerHTML = result.html;
-                                    }
-                                    return;
-                                })
-                                .catch(function(err) {
-                                    console.error('Error rendering workload analysis template:', err);
-                                });
-                        }
-                        
-                        // Render learning types section
-                        if (data.data.learning_types) {
-                            var ltSection = document.getElementById('insights-learning-types');
-                            if (ltSection) {
-                                document.getElementById('lt-heading').textContent = data.data.learning_types.heading || '';
-                                var ltContent = document.getElementById('lt-content');
-                                ltContent.innerHTML = '';
-                                if (data.data.learning_types.paragraphs) {
-                                    data.data.learning_types.paragraphs.forEach(function(para) {
-                                        var p = document.createElement('p');
-                                        p.textContent = para;
-                                        ltContent.appendChild(p);
-                                    });
-                                }
-                                ltSection.style.display = 'block';
-                            }
-                        }
-                        
-                        // Render improvements section
-                        if (data.data.improvements) {
-                            var impSection = document.getElementById('insights-improvements');
-                            if (impSection) {
-                                var impSummary = document.getElementById('imp-summary');
-                                impSummary.innerHTML = '';
-                                if (data.data.improvements.summary) {
-                                    var p = document.createElement('p');
-                                    p.textContent = data.data.improvements.summary;
-                                    impSummary.appendChild(p);
-                                }
-                                
-                                var impList = document.getElementById('imp-list');
-                                impList.innerHTML = '';
-                                if (data.data.improvements.suggestions) {
-                                    data.data.improvements.suggestions.forEach(function(suggestion) {
-                                        var li = document.createElement('li');
-                                        li.textContent = suggestion;
-                                        impList.appendChild(li);
-                                    });
-                                }
-                                impSection.style.display = 'block';
-                            }
-                        }
-                        
-                        // Hide spinner and show content
-                        var spinner = document.getElementById('insights-loading');
-                        var contentWrapper = document.getElementById('content-wrapper');
-                        if (spinner) {
-                            spinner.style.display = 'none';
-                        }
-                        if (contentWrapper) {
-                            contentWrapper.style.display = 'block';
-                        }
-                        
-                        // Render chart after all insights are loaded
-                        if (chartData && chartData.hasActivities) {
-                            setTimeout(function() {
-                                self.renderLearningTypesChart(chartData);
-                            }, 100);
-                        }
-                        
-                        // Render section activity chart if data available
-                        if (data.data.section_chart_data && data.data.section_chart_data.hasActivities) {
-                            console.log('Section chart data available:', data.data.section_chart_data);
-                            setTimeout(function() {
-                                self.renderSectionActivityChart(data.data.section_chart_data);
-                            }, 500);
-                        } else {
-                            console.warn('Section chart data not available or no activities:', data.data.section_chart_data);
-                        }
-                        
-                        // Enable download button
-                        self.enableDownloadButton(cid);
-                    } else {
-                        console.error('Unexpected response format:', data);
-                        var spinner = document.getElementById('insights-loading');
-                        var contentWrapper = document.getElementById('content-wrapper');
-                        if (spinner) {
-                            spinner.style.display = 'none';
-                        }
-                        if (contentWrapper) {
-                            contentWrapper.style.display = 'block';
-                        }
-                    }
+
+                    // Process the insights data
+                    self.processInsights(data.data);
+
+                    // Render all sections to the DOM
+                    self.renderAllSections(data.data);
+
+                    // Hide loading spinner and show content
+                    self.hideLoadingAndShowContent();
+
+                    // Render charts (with delay to ensure DOM is ready)
+                    self.renderChartsIfAvailable(data.data);
+
+                    // Enable the PDF download button
+                    self.enableDownloadButton(courseId);
                 })
                 .catch(function(error) {
-                    console.error('AJAX error:', error);
-                    var spinner = document.getElementById('insights-loading');
-                    var contentWrapper = document.getElementById('content-wrapper');
-                    if (spinner) {
-                        spinner.style.display = 'none';
-                    }
-                    if (contentWrapper) {
-                        contentWrapper.style.display = 'block';
-                    }
+                    // On any error, just show the page as-is
+                    self.hideLoadingAndShowContent();
                 });
         },
 
         /**
-         * Render the learning types pie chart using Chart.js.
+         * Process insights data into a format suitable for PDF generation.
+         * Extracts text from each section and stores it in reportData.
          *
-         * @param {object} chartData The chart data
+         * @param {Object} data - The raw insights data from server
+         */
+        processInsights: function(data) {
+            reportData = {
+                pedagogical: extractTextFromSection(data.pedagogical),
+                learningTypes: extractTextFromSection(data.learning_types),
+                improvements: this.extractImprovementsText(data.improvements),
+                chartData: data.chart_data
+            };
+        },
+
+        /**
+         * Extract text from improvements section (different format than other sections).
+         *
+         * @param {Object} improvements - Improvements object with 'summary' and 'suggestions'
+         * @returns {String} Formatted improvements text
+         */
+        extractImprovementsText: function(improvements) {
+            if (!improvements) {
+                return '';
+            }
+
+            var text = '';
+
+            // Add summary if present
+            if (improvements.summary) {
+                text += improvements.summary + '\n\n';
+            }
+
+            // Add suggestions if present
+            if (improvements.suggestions && Array.isArray(improvements.suggestions)) {
+                text += improvements.suggestions.join('\n');
+            }
+
+            return text;
+        },
+
+        /**
+         * Render all insight sections to the page.
+         * Handles pedagogical section, summary, workload analysis, etc.
+         *
+         * @param {Object} data - The insights data
+         */
+        renderAllSections: function(data) {
+            // Render pedagogical section (custom rendering)
+            if (data.pedagogical) {
+                this.renderPedagogicalSection(data.pedagogical);
+            }
+
+            // Render summary section (using Moodle template engine)
+            if (data.summary) {
+                this.renderTemplateSection('aiplacement_modgen/insights_summary', data.summary, 'insights-summary');
+            }
+
+            // Render workload analysis section (using Moodle template engine)
+            if (data.workload_analysis) {
+                this.renderTemplateSection('aiplacement_modgen/workload_analysis', data.workload_analysis, 'insights-workload-analysis');
+            }
+        },
+
+        /**
+         * Render the pedagogical section with heading and paragraphs.
+         * This section is rendered manually rather than using templates.
+         *
+         * @param {Object} pedData - The pedagogical insights object
+         */
+        renderPedagogicalSection: function(pedData) {
+            var section = getElement('insights-pedagogical');
+            if (!section) {
+                return;
+            }
+
+            // Set heading text
+            var headingEl = getElement('ped-heading');
+            if (headingEl) {
+                headingEl.textContent = pedData.heading || '';
+            }
+
+            // Render paragraphs as individual <p> elements
+            var contentEl = getElement('ped-content');
+            if (contentEl && pedData.paragraphs && Array.isArray(pedData.paragraphs)) {
+                contentEl.innerHTML = '';
+                pedData.paragraphs.forEach(function(paragraph) {
+                    var p = document.createElement('p');
+                    p.textContent = paragraph;
+                    contentEl.appendChild(p);
+                });
+            }
+
+            // Make section visible
+            section.style.display = 'block';
+        },
+
+        /**
+         * Render a section using Moodle's template rendering engine.
+         * This is more flexible than manual rendering and allows for complex HTML.
+         *
+         * @param {String} templateName - Name of the template (e.g., 'aiplacement_modgen/insights_summary')
+         * @param {Object} templateData - Data to pass to the template
+         * @param {String} elementId - ID of the DOM element to render into
+         */
+        renderTemplateSection: function(templateName, templateData, elementId) {
+            templates.renderForPromise(templateName, templateData)
+                .then(function(result) {
+                    var element = getElement(elementId);
+                    if (element) {
+                        element.innerHTML = result.html;
+                    }
+                })
+                .catch(function() {
+                    // Template rendering failed - fail silently
+                });
+        },
+
+        /**
+         * Render charts if chart data is available.
+         * Charts are rendered with a delay to ensure DOM elements are ready.
+         *
+         * @param {Object} data - The insights data
+         */
+        renderChartsIfAvailable: function(data) {
+            var self = this;
+
+            // Render learning types pie chart
+            if (data.chart_data && data.chart_data.hasActivities) {
+                setTimeout(function() {
+                    self.renderLearningTypesChart(data.chart_data);
+                }, 100);
+            }
+
+            // Render section activity bar chart
+            if (data.section_chart_data && data.section_chart_data.hasActivities) {
+                setTimeout(function() {
+                    self.renderSectionActivityChart(data.section_chart_data);
+                }, 500);
+            }
+        },
+
+        /**
+         * Hide the loading spinner and show the main content.
+         * This is called after insights are loaded (successfully or not).
+         */
+        hideLoadingAndShowContent: function() {
+            setElementDisplay('insights-loading', 'none');
+            setElementDisplay('content-wrapper', 'block');
+        },
+
+        /**
+         * Render the learning types pie chart using Chart.js.
+         * Shows the distribution of activity types by learning type.
+         *
+         * @param {Object} chartData - Chart configuration object with labels, data, colors
          */
         renderLearningTypesChart: function(chartData) {
-            var self = this;
-            require(['jquery', 'core/chartjs'], function($, chartjs) {
-                // Use a timeout to ensure the canvas is in the DOM
+            require(['jquery', 'core/chartjs'], function() {
+                // Use setTimeout to ensure canvas element is in DOM
                 setTimeout(function() {
-                    var canvas = document.getElementById('learning-types-chart');
+                    var canvas = getElement('learning-types-chart');
                     if (!canvas) {
-                        console.error('Chart canvas not found');
                         return;
                     }
 
                     var ctx = canvas.getContext('2d');
                     if (!ctx) {
-                        console.error('Could not get canvas context');
                         return;
                     }
 
+                    // Configure pie chart
                     var config = {
                         type: 'pie',
                         data: {
@@ -298,10 +380,10 @@ define(['core/ajax', 'core/templates'], function(ajax, templates) {
                     };
 
                     try {
-                        var chart = new Chart(ctx, config);
-                        console.log('Chart rendered successfully');
+                        // eslint-disable-next-line no-undef
+                        new Chart(ctx, config);
                     } catch (e) {
-                        console.error('Chart rendering error:', e);
+                        // Chart rendering failed - fail silently
                     }
                 }, 100);
             });
@@ -309,28 +391,25 @@ define(['core/ajax', 'core/templates'], function(ajax, templates) {
 
         /**
          * Render the section activity bar chart using Chart.js.
+         * Shows the number of activities per course section.
          *
-         * @param {object} chartData The chart data object with labels and data
+         * @param {Object} chartData - Chart configuration object with labels, data, colors
          */
         renderSectionActivityChart: function(chartData) {
-            console.log('renderSectionActivityChart called with:', chartData);
-            var self = this;
-            require(['jquery', 'core/chartjs'], function($, chartjs) {
-                // Use a timeout to ensure the canvas is in the DOM
+            require(['jquery', 'core/chartjs'], function() {
+                // Use setTimeout to ensure canvas element is in DOM
                 setTimeout(function() {
-                    var canvas = document.getElementById('section-activity-chart');
-                    console.log('Section activity chart canvas element:', canvas);
+                    var canvas = getElement('section-activity-chart');
                     if (!canvas) {
-                        console.error('Section chart canvas not found');
                         return;
                     }
 
                     var ctx = canvas.getContext('2d');
                     if (!ctx) {
-                        console.error('Could not get section chart context');
                         return;
                     }
 
+                    // Configure bar chart
                     var config = {
                         type: 'bar',
                         data: {
@@ -373,103 +452,86 @@ define(['core/ajax', 'core/templates'], function(ajax, templates) {
                     };
 
                     try {
-                        var chart = new Chart(ctx, config);
-                        console.log('Section activity chart rendered successfully');
+                        // eslint-disable-next-line no-undef
+                        new Chart(ctx, config);
                     } catch (e) {
-                        console.error('Section chart rendering error:', e);
+                        // Chart rendering failed - fail silently
                     }
                 }, 100);
             });
         },
 
         /**
-         * Enable the download button and attach click handler.
+         * Enable the PDF download button and attach click handler.
+         * The button remains disabled until insights are loaded.
          *
-         * @param {number} cid The course ID
+         * @param {Number} courseId - The course ID for download link
          */
-        enableDownloadButton: function(cid) {
+        enableDownloadButton: function(courseId) {
             var self = this;
-            var downloadBtn = document.getElementById('download-report-btn');
+            var downloadBtn = getElement('download-report-btn');
+
             if (downloadBtn) {
                 downloadBtn.disabled = false;
                 downloadBtn.title = 'Download the module exploration report as PDF';
                 downloadBtn.addEventListener('click', function() {
-                    self.downloadReport(cid);
+                    self.downloadReport(courseId);
                 });
             }
         },
 
         /**
-         * Download the report as PDF.
+         * Download the insights report as a PDF file.
          *
-         * @param {number} cid The course ID
+         * PROCESS:
+         * 1. Check if report data is available
+         * 2. Send POST request with report data to PDF generation endpoint
+         * 3. Receive PDF blob from server
+         * 4. Create temporary download link
+         * 5. Trigger download in browser
+         * 6. Clean up temporary resources
+         *
+         * @param {Number} courseId - The course ID
          */
-        downloadReport: function(cid) {
+        downloadReport: function(courseId) {
             if (!reportData) {
                 alert('Report data is not available. Please wait for the insights to load.');
                 return;
             }
-            
-            // Send request to PDF endpoint
-            fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/download_report_pdf.php?courseid=' + cid, {
+
+            var pdfUrl = M.cfg.wwwroot + '/ai/placement/modgen/ajax/download_report_pdf.php?courseid=' + courseId;
+
+            fetch(pdfUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify(reportData)
             })
-            .then(function(response) {
-                if (!response.ok) {
-                    throw new Error('HTTP error ' + response.status);
-                }
-                return response.blob();
-            })
-            .then(function(blob) {
-                // Create download link
-                var url = window.URL.createObjectURL(blob);
-                var a = document.createElement('a');
-                a.href = url;
-                a.download = 'module_exploration_report.pdf';
-                document.body.appendChild(a);
-                a.click();
-                window.URL.revokeObjectURL(url);
-                document.body.removeChild(a);
-            })
-            .catch(function(error) {
-                console.error('Download error:', error);
-                alert('Error downloading PDF: ' + error.message);
-            });
-        },
+                .then(function(response) {
+                    if (!response.ok) {
+                        throw new Error('HTTP error ' + response.status);
+                    }
+                    return response.blob();
+                })
+                .then(function(blob) {
+                    // Create a temporary download link
+                    var url = window.URL.createObjectURL(blob);
+                    var link = document.createElement('a');
+                    link.href = url;
+                    link.download = 'module_exploration_report.pdf';
 
-        /**
-         * Download the report as PDF (old method - kept for compatibility).
-         *
-         * @param {number} cid The course ID
-         * @param {object} chartData The chart data
-         * @deprecated Use downloadReport instead
-         */
-        downloadReportLegacy: function(cid, chartData) {
-            this.downloadReport(cid);
-        },
+                    // Trigger download
+                    document.body.appendChild(link);
+                    link.click();
 
-        /**
-         * Escape HTML to prevent XSS.
-         *
-         * @param {string} text The text to escape
-         * @returns {string} Escaped HTML
-         */
-        escapeHtml: function(text) {
-            var map = {
-                '&': '&amp;',
-                '<': '&lt;',
-                '>': '&gt;',
-                '"': '&quot;',
-                "'": '&#039;'
-            };
-            return String(text).replace(/[&<>"']/g, function(m) {
-                return map[m];
-            });
+                    // Clean up
+                    window.URL.revokeObjectURL(url);
+                    document.body.removeChild(link);
+                })
+                .catch(function(error) {
+                    alert('Error downloading PDF: ' + error.message);
+                });
         }
     };
 });
-

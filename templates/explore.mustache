@@ -11,13 +11,13 @@
     <div class="row mb-4">
         <div class="col-12">
             <div class="d-flex justify-content-between align-items-center">
-                <h1>EXPLORE</h1>
-                <div class="btn-group">
-                    <button id="refresh-insights-btn" class="btn btn-sm btn-secondary" title="Refresh insights by calling AI (clears cache)">
-                        🔄 Refresh
+                <h2>{{#str}}exploreheading, aiplacement_modgen{{/str}}</h2>
+                <div class="button-bar">
+                    <button id="refresh-insights-btn" class="btn btn-primary" title="{{#str}}refreshinsightshelp, aiplacement_modgen{{/str}}">
+                       <i class="fas fa-sync-alt mr-2"></i> {{#str}}refreshinsights, aiplacement_modgen{{/str}}
                     </button>
-                    <button id="download-report-btn" class="btn btn-sm btn-primary" title="Download report as PDF" disabled>
-                        📥 Download PDF
+                    <button id="download-report-btn" class="btn btn-primary" title="{{#str}}downloadpdfhelp, aiplacement_modgen{{/str}}" disabled>
+                       <i class="fas fa-file-download mr-2"></i> {{#str}}downloadpdf, aiplacement_modgen{{/str}}
                     </button>
                 </div>
             </div>
@@ -28,78 +28,110 @@
     <div id="insights-loading" class="row mb-4">
         <div class="col-12 text-center py-5">
             <div class="spinner-border text-primary" role="status"></div>
-            <p class="mt-3 text-muted">Loading insights...</p>
+            <p class="mt-3 text-muted">{{#str}}loadinginsights, aiplacement_modgen{{/str}}</p>
         </div>
     </div>
 
     <!-- Content Container - Hidden until loaded -->
     <div id="content-wrapper" style="display: none;">
-        <!-- Analysis Summary Section -->
-        <div id="insights-summary">
-            <div class="row mb-4">
-                <div class="col-12">
-                    <!-- Summary card will be rendered here -->
-                </div>
+        <div class="report-content">
+            <!-- Report Menu with Tabs -->
+            <div class="report-menu">
+                <!-- Nav tabs -->
+                <ul class="nav flex-column nav-pills" id="myTab" role="tablist">
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link active" id="home-tab" data-bs-toggle="tab" data-bs-target="#home" type="button" role="tab" aria-controls="home" aria-selected="true">Summary & Headlines</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-controls="profile" aria-selected="false">Activities & Workload</button>
+                    </li>
+                    <li class="nav-item" role="presentation">
+                        <button class="nav-link" id="messages-tab" data-bs-toggle="tab" data-bs-target="#messages" type="button" role="tab" aria-controls="messages" aria-selected="false">Suggested Improvements</button>
+                    </li>
+                </ul>
             </div>
-        </div>
 
-        <!-- Pedagogical Section -->
-        <div id="insights-pedagogical">
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h2 id="ped-heading"></h2>
-                    <div id="ped-content"></div>
-                </div>
-            </div>
-        </div>
+            <!-- Report Body with Tab Content -->
+            <div class="report-body">
+                <!-- Tab panes -->
+                <div class="tab-content">
+                    <!-- Tab 1: Summary & Headlines -->
+                    <div class="tab-pane fade show active" id="home" role="tabpanel" aria-labelledby="home-tab">
+                        <!-- Analysis Summary Section -->
+                        <!-- Pedagogical Section -->
+                        <div id="insights-pedagogical">
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h3 id="ped-heading"></h3>
+                                    <div id="ped-content"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div id="insights-summary">
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <!-- Summary card will be rendered here -->
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
-        <!-- Learning Types Section -->
-        <div id="insights-learning-types">
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h2 id="lt-heading"></h2>
-                    <div id="lt-content"></div>
-                </div>
-            </div>
-        </div>
+                    <!-- Tab 2: Activities & Workload -->
+                    <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab">
+                        
 
-        <!-- Activity Summary Section -->
-        <div class="row mb-4">
-            <div class="col-12 col-lg-6 mb-3 mb-lg-0">
-                <h3>Activity Summary</h3>
-                <p>Total activities: <strong>{{total_activities}}</strong></p>
-                {{#activity_summary}}
-                <div>{{name}}: {{count}} <span style="color: #999; font-size: 0.9em;">({{learning_type}})</span></div>
-                {{/activity_summary}}
-            </div>
-            <div class="col-12 col-lg-6">
-                {{#chart_data.hasActivities}}
-                <div>
-                    <canvas id="learning-types-chart"></canvas>
-                </div>
-                {{/chart_data.hasActivities}}
-            </div>
-        </div>
+                        <!-- Activity Summary Section -->
+                        <div class="row mb-4">
+                            <div class="col-12 col-lg-6 mb-3 mb-lg-0">
+                                <h3>{{#str}}activitysummary, aiplacement_modgen{{/str}}</h3>
+                                <p>{{#str}}totalactivities, aiplacement_modgen{{/str}} <strong>{{total_activities}}</strong></p>
+                                {{#activity_summary}}
+                                <div>{{name}}: {{count}} <span style="color: #999; font-size: 0.9em;">({{learning_type}})</span></div>
+                                {{/activity_summary}}
+                            </div>
+                            <div class="col-12 col-lg-6">
+                                {{#chart_data.hasActivities}}
+                                <div>
+                                    <canvas id="learning-types-chart"></canvas>
+                                </div>
+                                {{/chart_data.hasActivities}}
+                            </div>
+                        </div>
 
-        <!-- Section Activity Chart -->
-        <div class="row mb-4">
-            <div class="col-12">
-                <div id="insights-workload-analysis">
-                    <!-- Workload analysis with chart will be rendered here -->
-                </div>
-            </div>
-        </div>
+                        <!-- Section Activity Chart -->
+                        <div class="row mb-4">
+                            <div class="col-12">
+                                <div id="insights-workload-analysis">
+                                    <!-- Workload analysis with chart will be rendered here -->
+                                </div>
+                            </div>
+                        </div>
 
-        <!-- Improvements Section -->
-        <div id="insights-improvements">
-            <div class="row mb-4">
-                <div class="col-12">
-                    <h2>Improvement Suggestions</h2>
-                    <div id="imp-summary"></div>
-                    <ol id="imp-list"></ol>
+                        <!-- Learning Types Section -->
+                        <div id="insights-learning-types">
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h3 id="lt-heading"></h3>
+                                    <div id="lt-content"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tab 3: Suggested Improvements -->
+                    <div class="tab-pane fade" id="messages" role="tabpanel" aria-labelledby="messages-tab">
+                        <!-- Improvements Section -->
+                        <div id="insights-improvements">
+                            <div class="row mb-4">
+                                <div class="col-12">
+                                    <h3>{{#str}}improvementsuggestions, aiplacement_modgen{{/str}}</h3>
+                                    <div id="imp-summary"></div>
+                                    <ol id="imp-list"></ol>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
-</div>
-

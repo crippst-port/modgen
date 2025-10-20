@@ -332,6 +332,53 @@ define(['core/templates'], function(templates) {
         hideLoadingAndShowContent: function() {
             setElementDisplay('insights-loading', 'none');
             setElementDisplay('content-wrapper', 'block');
+
+            // Initialize Bootstrap 5 tabs after content is shown
+            this.initializeTabs();
+        },
+
+        /**
+         * Initialize Bootstrap 5 tabs functionality using vanilla JavaScript.
+         * This manually handles tab switching by managing active/show classes.
+         */
+        initializeTabs: function() {
+            // Get all tab trigger buttons
+            var tabButtons = document.querySelectorAll('#myTab button[data-bs-toggle="tab"]');
+
+            // Add click handler to each tab button
+            tabButtons.forEach(function(button) {
+                button.addEventListener('click', function(event) {
+                    event.preventDefault();
+
+                    // Get target tab pane ID from data-bs-target attribute
+                    var targetId = this.getAttribute('data-bs-target');
+                    if (!targetId) {
+                        return;
+                    }
+
+                    // Remove active/show classes from all buttons and panes
+                    tabButtons.forEach(function(btn) {
+                        btn.classList.remove('active');
+                        btn.setAttribute('aria-selected', 'false');
+                    });
+
+                    // Remove active/show classes from all tab panes
+                    var allPanes = document.querySelectorAll('.tab-pane');
+                    allPanes.forEach(function(pane) {
+                        pane.classList.remove('active', 'show');
+                    });
+
+                    // Add active class to clicked button
+                    this.classList.add('active');
+                    this.setAttribute('aria-selected', 'true');
+
+                    // Add active and show classes to target pane
+                    var targetPane = document.querySelector(targetId);
+                    if (targetPane) {
+                        targetPane.classList.add('active', 'show');
+                    }
+                });
+            });
         },
 
         /**

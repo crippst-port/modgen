@@ -133,3 +133,28 @@
 
 
 
+/* ---EXPLORE REPORT --- */
+
+.button-bar {
+    display: flex;
+    gap: 0.5rem;
+    justify-content: flex-end;
+}
+
+.report-content {
+    display: flex;
+    gap: 2rem;
+}
+
+.report-menu {
+    min-width: fit-content;
+   width: max-content;
+   background-color: #f8f8f8;
+   padding: 1rem;
+   margin-left: -2rem;
+  margin-bottom: -2.5rem;
+}
+
+.report-body {
+    flex-grow: 1;
+}

@@ -214,7 +214,7 @@ define(['core/templates'], function(templates) {
 
         /**
          * Render all insight sections to the page.
-         * Handles pedagogical section, summary, workload analysis, etc.
+         * Handles pedagogical section, summary, workload analysis, improvements, etc.
          *
          * @param {Object} data - The insights data
          */
@@ -232,6 +232,11 @@ define(['core/templates'], function(templates) {
             // Render workload analysis section (using Moodle template engine)
             if (data.workload_analysis) {
                 this.renderTemplateSection('aiplacement_modgen/workload_analysis', data.workload_analysis, 'insights-workload-analysis');
+            }
+
+            // Render improvements section (using Moodle template engine)
+            if (data.improvements) {
+                this.renderTemplateSection('aiplacement_modgen/improvements', data.improvements, 'insights-improvements');
             }
         },
 

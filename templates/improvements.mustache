@@ -1,0 +1,25 @@
+{{!
+    Improvements/Suggestions template - displays AI-generated improvement suggestions.
+    
+    @package     aiplacement_modgen
+    @copyright   2025 Tom Cripps <tom.cripps@port.ac.uk>
+    @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+}}
+
+<div class="improvements-section mb-4">
+    <h2>Improvement Suggestions</h2>
+    
+    {{#summary}}
+    <div class="improvement-summary mb-3">
+        <p>{{summary}}</p>
+    </div>
+    {{/summary}}
+    
+   
+    <ol class="improvement-list">
+        {{#suggestions}}
+        <li>{{.}}</li>
+        {{/suggestions}}
+    </ol>
+  
+</div>

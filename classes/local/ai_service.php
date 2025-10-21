@@ -119,6 +119,17 @@ class ai_service {
                                 'name' => ['type' => 'string'],
                                 'intro' => ['type' => 'string'],
                                 'description' => ['type' => 'string'],
+                                'externalurl' => ['type' => 'string'],
+                                'chapters' => [
+                                    'type' => 'array',
+                                    'items' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'title' => ['type' => 'string'],
+                                            'content' => ['type' => 'string'],
+                                        ],
+                                    ],
+                                ],
                             ],
                         ],
                     ];
@@ -164,6 +175,17 @@ class ai_service {
                                 'name' => ['type' => 'string'],
                                 'intro' => ['type' => 'string'],
                                 'description' => ['type' => 'string'],
+                                'externalurl' => ['type' => 'string'],
+                                'chapters' => [
+                                    'type' => 'array',
+                                    'items' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'title' => ['type' => 'string'],
+                                            'content' => ['type' => 'string'],
+                                        ],
+                                    ],
+                                ],
                             ],
                         ],
                     ];
@@ -196,6 +218,17 @@ class ai_service {
                                 'name' => ['type' => 'string'],
                                 'intro' => ['type' => 'string'],
                                 'description' => ['type' => 'string'],
+                                'externalurl' => ['type' => 'string'],
+                                'chapters' => [
+                                    'type' => 'array',
+                                    'items' => [
+                                        'type' => 'object',
+                                        'properties' => [
+                                            'title' => ['type' => 'string'],
+                                            'content' => ['type' => 'string'],
+                                        ],
+                                    ],
+                                ],
                             ],
                         ],
                     ];

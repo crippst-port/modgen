@@ -115,6 +115,10 @@ $string['bookdescription'] = 'Chapter-based content from uploaded document';
 $string['activitytype_forum'] = 'Forum';
 $string['forumdescription'] = 'Collaborative discussion space for peer interaction and group communication';
 
+// URL activity
+$string['activitytype_url'] = 'External Link';
+$string['urldescription'] = 'Links to external websites, articles, videos, or resources';
+
 $string['aipolicynotaccepted'] = 'You must accept the AI policy before using the Module Assistant.';
 $string['aipolicyacceptance'] = 'AI Policy Acceptance Required';
 $string['acceptaipolicy'] = 'I agree to the terms of AI use in this system';
@@ -178,10 +182,23 @@ $string['activityguidanceinstructions'] = 'ACTIVITY GUIDANCE AND COHERENCE - CRI
 AUDIENCE: All summaries, guidance, and activity descriptions must be written for UK UNIVERSITY STUDENTS. Use appropriate academic language and assume prior tertiary-level education.
 
 ACTIVITY REQUIREMENTS:
-- Each week MUST include AT LEAST ONE activity, but may include more based on pedagogical needs
+- Each week MUST include AT LEAST ONE activity, maximum 5 Moodle activities per week (or as many as the content supports, up to 5)
+- External links and face-to-face activities do not count toward the activity limit and can be included as described below
 - The number and type of activities should be led by the topic complexity and learning outcomes
 - All suggested activities MUST be pedagogically sound and evidence-based
 - Focus on the learning outcome, and naturally reference the activity when it helps clarify the task
+
+EXTERNAL LINKS (URLs):
+- Use external links to direct students to reading materials, reference websites, videos, multimedia content, or context related to other activities
+- External links do NOT count toward the activity limit and can be used liberally to supplement learning
+- Examples: "Review the X article to understand background", "Watch the X video for context before the quiz", "Use the X database for references"
+- Include externalurl field with full URL (e.g., "https://example.com")
+
+FACE-TO-FACE ACTIVITIES:
+- If the module includes face-to-face components, include these as descriptive text in the weekly summary
+- Face-to-face activities do NOT require associated Moodle activities
+- Examples in weekly summary: "Attend the Wednesday 2pm lecture on X topic", "Complete face-to-face group work in lab session", "Present findings in class"
+- Keep descriptions clear about timing, location expectations, and learning purpose
 
 1. IN EACH WEEKLY/SECTION SUMMARY, YOU MUST:
    - Clearly describe what students will learn and do this week
@@ -190,6 +207,8 @@ ACTIVITY REQUIREMENTS:
    - Explain what students will gain or be able to do after engaging with the activities
    - Use natural, conversational language appropriate for university students
    - Reference activities by name when it aids clarity, e.g., "Use the [Activity Name] book to read about X" or "Take the [Activity Name] quiz to check your understanding"
+   - Include any face-to-face activities as natural descriptions of in-class or on-campus activities
+   - Reference external reading links when they provide important context or prerequisites
 
 2. IN EACH ACTIVITY DESCRIPTION, YOU MUST:
    - Expand on and reinforce the learning purposes from the weekly summary
@@ -201,6 +220,7 @@ ACTIVITY REQUIREMENTS:
    - The weekly summary and activity descriptions MUST tell a consistent story
    - Students should understand not just WHAT to do, but WHY they are doing it and what it contributes to their learning
    - Guidance must flow logically from week-level overview to specific activity engagement
+   - External links should be naturally woven in to support the learning narrative
 
 PEDAGOGICAL SOUNDNESS:
 - Activities should align with Bloom\'s taxonomy (remember, understand, apply, analyze, evaluate, create)
@@ -208,20 +228,20 @@ PEDAGOGICAL SOUNDNESS:
 - Ensure activities build progressively toward the learning outcomes
 - Consider diverse learning preferences (visual, auditory, kinesthetic, reading/writing)
 
-EXAMPLE SUMMARY FORMAT: "This week you\'ll explore [Topic] through structured learning. Begin by using the [Name] book to read about [concept], which helps you understand [key idea]. You\'ll then take the [Name] quiz to check your understanding and identify areas for deeper engagement. By working through these elements, you\'ll develop [learning outcome]."
+EXAMPLE SUMMARY FORMAT: "This week you\'ll explore [Topic] through structured learning. Begin by reviewing the [URL Name] article for background context, then use the [Name] book to read about [concept], which helps you understand [key idea]. You\'ll then take the [Name] quiz to check your understanding and identify areas for deeper engagement. Attend the Wednesday lecture on [topic] to discuss applications with peers. By working through these elements, you\'ll develop [learning outcome]."
 
 LANGUAGE GUIDELINES:
 - Write for mature learners; avoid patronising or overly simple language
 - Focus on learning outcomes and intellectual development, but can naturally reference activity names when helpful
 - Use natural phrases like "explore," "investigate," "develop understanding" combined with activity references where appropriate
-- Examples: "Use the X book to...", "Work through the X quiz to...", "Discuss in the X forum how...", "Explore the X resource to...", "Review the X reading to understand..."
+- Examples: "Use the X book to...", "Work through the X quiz to...", "Discuss in the X forum how...", "Review the X link for...", "Explore the X resource to...", "Review the X reading to understand...", "Attend the X lecture to..."
 - Vary your sentence structure and phrasing to maintain engagement
 - Be specific about what students will learn, not just what they\'ll do
 
 IMPORTANT - DO NOT USE LABELS:
 - Never include "label" activity types in your response - they are not learning activities
 - Labels are content display containers, not pedagogical activities
-- All items in the "activities" array must be real learning activities (quiz, book, forum, assignment, etc.)
+- All items in the "activities" array must be real learning activities (quiz, book, forum, url, assignment, etc.)
 - If you need to display important information, use a different activity type or include it in the section summary instead';
 
 // AI prompt configuration

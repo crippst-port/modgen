@@ -65,6 +65,7 @@ This codebase is a Moodle plugin named **Module Generator** (`aiplacement_modgen
 - **Cache Purging**: After JavaScript/template changes, run `php admin/cli/purge_caches.php` to clear caches
 - **Debugging**: Enable Moodle debugging in site admin for error visibility. Check logs for plugin-related issues.
 - **Browser Testing**: Check Network tab (DevTools) for AJAX calls, console for errors, and DOM for rendered content
+- **GIT**: NEVER commit to git. All changes are made directly to working files. The user will handle commits.
 
 ## Project-Specific Notes
 - The plugin is in early development; many features are marked as TODO. Extend settings and functionality following Moodle's best practices.

@@ -290,10 +290,22 @@ class ai_service {
             if (is_string($text)) {
                 // First attempt: direct JSON decode.
                 $jsondecoded = json_decode($text, true);
+                
                 // Second attempt: extract a JSON object/array from the text if provider added commentary.
                 if (!is_array($jsondecoded)) {
-                    if (preg_match('/(\{.*\}|\[.*\])/s', $text, $m)) {
+                    // Try to find JSON wrapped in code blocks or quoted strings
+                    if (preg_match('/```(?:json)?\s*(\{.*\}|\[.*\])\s*```/s', $text, $m)) {
                         $jsondecoded = json_decode($m[1], true);
+                    } elseif (preg_match('/(\{.*\}|\[.*\])/s', $text, $m)) {
+                        $jsondecoded = json_decode($m[1], true);
+                    }
+                }
+                
+                // If still not valid, try double-decoding in case JSON was stringified
+                if (!is_array($jsondecoded) && is_string($text)) {
+                    $doubledecode = json_decode($text, true);
+                    if (is_array($doubledecode) && isset($doubledecode['themes'])) {
+                        $jsondecoded = $doubledecode;
                     }
                 }
             }

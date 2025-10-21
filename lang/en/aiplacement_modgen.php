@@ -111,6 +111,10 @@ $string['curriculumtemplates'] = 'Curriculum templates';
 $string['activitytype_book'] = 'Book';
 $string['bookdescription'] = 'Chapter-based content from uploaded document';
 
+// Forum activity
+$string['activitytype_forum'] = 'Forum';
+$string['forumdescription'] = 'Collaborative discussion space for peer interaction and group communication';
+
 $string['aipolicynotaccepted'] = 'You must accept the AI policy before using the Module Assistant.';
 $string['aipolicyacceptance'] = 'AI Policy Acceptance Required';
 $string['acceptaipolicy'] = 'I agree to the terms of AI use in this system';
@@ -169,6 +173,56 @@ $string['enablefileupload_desc'] = 'When enabled, users will see an "Activity fr
 // Activity creation toggle
 $string['createsuggestedactivities'] = 'Create suggested activities';
 $string['createsuggestedactivities_help'] = 'When enabled, the generator will create activity shells as suggestions for your content. These are empty placeholder activities without content, ready for you to fill in with your own materials. When disabled, only section headings and descriptions will be created.';
+$string['activityguidanceinstructions'] = 'ACTIVITY GUIDANCE AND COHERENCE - CRITICAL REQUIREMENTS:
+
+AUDIENCE: All summaries, guidance, and activity descriptions must be written for UK UNIVERSITY STUDENTS. Use appropriate academic language and assume prior tertiary-level education.
+
+ACTIVITY REQUIREMENTS:
+- Each week MUST include AT LEAST ONE activity, but may include more based on pedagogical needs
+- The number and type of activities should be led by the topic complexity and learning outcomes
+- All suggested activities MUST be pedagogically sound and evidence-based
+- Focus on the learning outcome, and naturally reference the activity when it helps clarify the task
+
+1. IN EACH WEEKLY/SECTION SUMMARY, YOU MUST:
+   - Clearly describe what students will learn and do this week
+   - Explain the LEARNING PURPOSE of each element (what concept or skill it develops)
+   - Provide HOW TO APPROACH guidance (what students should do first, then next, etc.)
+   - Explain what students will gain or be able to do after engaging with the activities
+   - Use natural, conversational language appropriate for university students
+   - Reference activities by name when it aids clarity, e.g., "Use the [Activity Name] book to read about X" or "Take the [Activity Name] quiz to check your understanding"
+
+2. IN EACH ACTIVITY DESCRIPTION, YOU MUST:
+   - Expand on and reinforce the learning purposes from the weekly summary
+   - Provide specific, practical guidance for engaging with the activity
+   - Link back to the learning objectives mentioned in the summary
+   - Make the activity description coherent and naturally flowing from the summary
+
+3. COHERENCE REQUIREMENT:
+   - The weekly summary and activity descriptions MUST tell a consistent story
+   - Students should understand not just WHAT to do, but WHY they are doing it and what it contributes to their learning
+   - Guidance must flow logically from week-level overview to specific activity engagement
+
+PEDAGOGICAL SOUNDNESS:
+- Activities should align with Bloom\'s taxonomy (remember, understand, apply, analyze, evaluate, create)
+- Vary activity types throughout the week to maintain student engagement
+- Ensure activities build progressively toward the learning outcomes
+- Consider diverse learning preferences (visual, auditory, kinesthetic, reading/writing)
+
+EXAMPLE SUMMARY FORMAT: "This week you\'ll explore [Topic] through structured learning. Begin by using the [Name] book to read about [concept], which helps you understand [key idea]. You\'ll then take the [Name] quiz to check your understanding and identify areas for deeper engagement. By working through these elements, you\'ll develop [learning outcome]."
+
+LANGUAGE GUIDELINES:
+- Write for mature learners; avoid patronising or overly simple language
+- Focus on learning outcomes and intellectual development, but can naturally reference activity names when helpful
+- Use natural phrases like "explore," "investigate," "develop understanding" combined with activity references where appropriate
+- Examples: "Use the X book to...", "Work through the X quiz to...", "Discuss in the X forum how...", "Explore the X resource to...", "Review the X reading to understand..."
+- Vary your sentence structure and phrasing to maintain engagement
+- Be specific about what students will learn, not just what they\'ll do
+
+IMPORTANT - DO NOT USE LABELS:
+- Never include "label" activity types in your response - they are not learning activities
+- Labels are content display containers, not pedagogical activities
+- All items in the "activities" array must be real learning activities (quiz, book, forum, assignment, etc.)
+- If you need to display important information, use a different activity type or include it in the section summary instead';
 
 // AI prompt configuration
 $string['aipromptheading'] = 'AI Generation Settings';

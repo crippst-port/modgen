@@ -804,8 +804,12 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     $typeinstruction = get_string('moduletypeinstruction_' . $moduletype, 'aiplacement_modgen');
     $compositeprompt = trim($prompt . "\n\n" . $typeinstruction);
     
-    // Modify prompt if activities should not be created
-    if (!$createsuggestedactivities) {
+    // Add activity guidance instruction if activities are being created
+    if ($createsuggestedactivities) {
+        $activityguidance = get_string('activityguidanceinstructions', 'aiplacement_modgen');
+        $compositeprompt .= "\n\n" . $activityguidance;
+    } else {
+        // Modify prompt if activities should not be created
         $compositeprompt .= "\n\nIMPORTANT: Do NOT include an 'activities' array in your response. " .
             "Create section headings and summaries only. The sections should be structured with titles and descriptions, " .
             "but do not suggest any activities, quizzes, or resources. This allows the user to add their own content.";

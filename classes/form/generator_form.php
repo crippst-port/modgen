@@ -52,6 +52,11 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->setDefault('moduletype', 'weekly');
         $mform->addHelpButton('moduletype', 'moduletype', 'aiplacement_modgen');
         
+        // Format-specific options - keep weekly labels under weekly selector
+        $mform->addElement('advcheckbox', 'keepweeklabels', get_string('keepweeklabels', 'aiplacement_modgen'));
+        $mform->setType('keepweeklabels', PARAM_BOOL);
+        $mform->setDefault('keepweeklabels', 0);
+        
         // Add curriculum template selection if enabled
         if (get_config('aiplacement_modgen', 'enable_templates')) {
             $template_reader = new \aiplacement_modgen\local\template_reader();
@@ -66,21 +71,13 @@ class aiplacement_modgen_generator_form extends moodleform {
             }
         }
         
-        // Format-specific options
-        $mform->addElement('advcheckbox', 'keepweeklabels', get_string('keepweeklabels', 'aiplacement_modgen'));
-        $mform->setType('keepweeklabels', PARAM_BOOL);
-        $mform->setDefault('keepweeklabels', 1);
-        $mform->hideIf('keepweeklabels', 'moduletype', 'neq', 'weekly');
-        
         $mform->addElement('advcheckbox', 'includeaboutassessments', get_string('includeaboutassessments', 'aiplacement_modgen'));
         $mform->setType('includeaboutassessments', PARAM_BOOL);
         $mform->setDefault('includeaboutassessments', 0);
-        $mform->hideIf('includeaboutassessments', 'moduletype', 'neq', 'theme');
         
         $mform->addElement('advcheckbox', 'includeaboutlearning', get_string('includeaboutlearning', 'aiplacement_modgen'));
         $mform->setType('includeaboutlearning', PARAM_BOOL);
         $mform->setDefault('includeaboutlearning', 0);
-        $mform->hideIf('includeaboutlearning', 'moduletype', 'neq', 'theme');
         
         // Main content prompt
         $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), 'rows="4" cols="60"');
@@ -100,5 +97,41 @@ class aiplacement_modgen_generator_form extends moodleform {
             get_string('longquery', 'aiplacement_modgen') . '</div>');
         
         $this->add_action_buttons(false, get_string('submit', 'aiplacement_modgen'));
+        
+        // Add inline script to handle field visibility based on module type
+        $mform->addElement('static', 'jshandler', '', '
+            <script>
+            (function() {
+                function setupFormVisibility() {
+                    const moduleTypeSelect = document.querySelector("select[name=\"moduletype\"]");
+                    if (!moduleTypeSelect) return;
+                    
+                    const updateFieldVisibility = function() {
+                        const isWeekly = moduleTypeSelect.value === "weekly";
+                        
+                        // Find keepweeklabels field by searching form items
+                        const formItems = document.querySelectorAll(".fitem");
+                        formItems.forEach(function(item) {
+                            const label = item.querySelector("label");
+                            if (label && label.textContent.includes("Keep dated headings")) {
+                                item.style.display = isWeekly ? "" : "none";
+                                const checkbox = item.querySelector("input[name=\"keepweeklabels\"]");
+                                if (checkbox && !isWeekly) checkbox.checked = false;
+                            }
+                        });
+                    };
+                    
+                    moduleTypeSelect.addEventListener("change", updateFieldVisibility);
+                    updateFieldVisibility();
+                }
+                
+                if (document.readyState === "loading") {
+                    document.addEventListener("DOMContentLoaded", setupFormVisibility);
+                } else {
+                    setupFormVisibility();
+                }
+            })();
+            </script>
+        ');
     }
 }

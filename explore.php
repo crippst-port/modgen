@@ -182,6 +182,11 @@ function build_moduledata(stdClass $course, course_modinfo $modinfo, array $sect
                     continue;
                 }
                 
+                // Skip subsections - they are layout containers, not activities
+                if ($cm->modname === 'subsection') {
+                    continue;
+                }
+                
                 $sectiondata['activities'][] = [
                     'name' => $cm->name,
                     'modname' => $cm->modname,

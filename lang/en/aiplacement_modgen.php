@@ -281,4 +281,9 @@ $string['activitysummary'] = 'Activity Summary';
 $string['totalactivities'] = 'Total activities:';
 $string['improvementsuggestions'] = 'Improvement Suggestions';
 
+// Validation error strings
+$string['generationfailed'] = 'Generation Failed';
+$string['validationerrorhelp'] = 'The AI response was malformed and cannot be used to create content. This sometimes happens when the AI double-encodes the response or returns an incorrect structure. Please try generating again with the same or modified prompt.';
+$string['tryagain'] = 'Try Again';
+
 

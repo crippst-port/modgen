@@ -46,6 +46,96 @@ class ai_service {
         file_put_contents($logfile, "[$timestamp] $message\n", FILE_APPEND);
     }
     /**
+     * Validate module structure to catch malformed AI responses.
+     *
+     * Checks for common issues like double-encoded JSON in summary fields,
+     * empty or malformed theme/section structures.
+     *
+     * @param array $data The decoded module data
+     * @param string $structure Expected structure type ('theme' or 'weekly')
+     * @return array ['valid' => bool, 'error' => string]
+     */
+    private static function validate_module_structure($data, $structure) {
+        $structure = ($structure === 'theme') ? 'theme' : 'weekly';
+
+        // Check if we have the expected top-level key
+        if ($structure === 'theme' && !isset($data['themes'])) {
+            return ['valid' => false, 'error' => 'Response missing "themes" array'];
+        }
+        if ($structure === 'weekly' && !isset($data['sections'])) {
+            return ['valid' => false, 'error' => 'Response missing "sections" array'];
+        }
+
+        $items = $structure === 'theme' ? ($data['themes'] ?? []) : ($data['sections'] ?? []);
+
+        // Check if array is empty
+        if (empty($items)) {
+            return ['valid' => false, 'error' => 'Response contains no themes/sections'];
+        }
+
+        // Check each theme/section for malformed structure
+        foreach ($items as $idx => $item) {
+            if (!is_array($item)) {
+                return ['valid' => false, 'error' => 'Invalid structure: theme/section is not an array'];
+            }
+
+            // Check for double-encoded JSON in summary field
+            if (isset($item['summary']) && is_string($item['summary'])) {
+                $summary = trim($item['summary']);
+                // If summary starts with { or [, it might be double-encoded JSON
+                if (strlen($summary) > 0 && ($summary[0] === '{' || $summary[0] === '[')) {
+                    $decoded = json_decode($summary, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        // This is double-encoded JSON - the entire structure is in the summary field
+                        return [
+                            'valid' => false,
+                            'error' => 'Malformed response detected: The AI returned the entire structure inside a summary field instead of as proper sections. This happens when the AI double-encodes the JSON. Please try regenerating - the AI needs to return properly structured JSON.'
+                        ];
+                    }
+                }
+            }
+
+            // For theme structure, check weeks
+            if ($structure === 'theme') {
+                if (!isset($item['weeks'])) {
+                    return ['valid' => false, 'error' => 'Theme missing "weeks" array'];
+                }
+                if (!is_array($item['weeks'])) {
+                    return ['valid' => false, 'error' => 'Theme "weeks" is not an array'];
+                }
+
+                // Check each week
+                foreach ($item['weeks'] as $widx => $week) {
+                    if (!is_array($week)) {
+                        return ['valid' => false, 'error' => 'Week structure is not an array'];
+                    }
+
+                    // Check for double-encoded JSON in week summary
+                    if (isset($week['summary']) && is_string($week['summary'])) {
+                        $summary = trim($week['summary']);
+                        if (strlen($summary) > 0 && ($summary[0] === '{' || $summary[0] === '[')) {
+                            $decoded = json_decode($summary, true);
+                            if (json_last_error() === JSON_ERROR_NONE) {
+                                return [
+                                    'valid' => false,
+                                    'error' => 'Malformed response: Week contains double-encoded JSON in summary field. Please regenerate.'
+                                ];
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Check if title exists and is not empty
+            if (!isset($item['title']) || trim($item['title']) === '') {
+                return ['valid' => false, 'error' => 'Theme/section missing title'];
+            }
+        }
+
+        return ['valid' => true, 'error' => ''];
+    }
+
+    /**
      * Recursively normalise AI responses where some fields may be JSON encoded as strings.
      * This walks arrays/objects and attempts to json_decode string values that look like JSON.
      *
@@ -431,14 +521,30 @@ class ai_service {
             }
 
             if (is_array($jsondecoded) && (isset($jsondecoded['sections']) || isset($jsondecoded['themes']) || isset($jsondecoded['activities']))) {
+                // Validate the structure to catch malformed responses
+                $validation = self::validate_module_structure($jsondecoded, $structure);
+
+                if (!$validation['valid']) {
+                    self::debug_log("AI_SERVICE: Structure validation FAILED: " . $validation['error']);
+                    // Return error response that will prevent approval
+                    return [
+                        $structure === 'theme' ? 'themes' : 'sections' => [],
+                        'validation_error' => $validation['error'],
+                        'template' => 'AI error: ' . $validation['error'],
+                        'raw' => $text,
+                        'debugprompt' => $finalprompt,
+                        'debugresponse' => $data
+                    ];
+                }
+
                 // Provider adhered to format. Attach raw text and prompt for visibility.
                 $jsondecoded['raw'] = $text;
                 $jsondecoded['debugprompt'] = $finalprompt;
                 $jsondecoded['debugresponse'] = $data;
-                
+
                 // Debug: Log the final processed JSON
                 self::debug_log("AI_SERVICE: Final processed JSON: " . print_r($jsondecoded, true));
-                
+
                 return $jsondecoded;
             }
 
@@ -615,45 +721,152 @@ class ai_service {
         if (!empty($template_data['template_html'])) {
             self::debug_log('Template HTML found, length: ' . strlen($template_data['template_html']));
             self::debug_log('First 500 chars: ' . substr($template_data['template_html'], 0, 500));
-            
-            $guidance .= "HTML STRUCTURE AND BOOTSTRAP COMPONENTS:\n";
-            $guidance .= "The template uses specific HTML and Bootstrap markup. When generating section summaries,\n";
-            $guidance .= "include similar HTML structure and Bootstrap classes. The template HTML includes:\n\n";
-            
-            // Include actual HTML snippets from template
-            $html_excerpt = substr($template_data['template_html'], 0, 1000);
-            $guidance .= "TEMPLATE HTML EXAMPLES:\n";
+
+            $guidance .= "CRITICAL: EXACT HTML STRUCTURE REPLICATION REQUIRED\n";
+            $guidance .= str_repeat("=", 70) . "\n\n";
+
+            $guidance .= "You MUST copy the HTML structure below EXACTLY for EVERY section you create.\n";
+            $guidance .= "Do NOT simplify, do NOT modify the structure, do NOT change Bootstrap classes.\n";
+            $guidance .= "The ONLY thing you change is the TEXT CONTENT inside the HTML tags.\n";
+            $guidance .= "All divs, classes, structure, and layout MUST be identical to this template.\n\n";
+
+            $guidance .= "TEMPLATE HTML STRUCTURE TO COPY EXACTLY:\n";
+            $guidance .= str_repeat("-", 70) . "\n";
             $guidance .= "```html\n";
-            $guidance .= $html_excerpt;
-            if (strlen($template_data['template_html']) > 1000) {
-                $guidance .= "\n... (additional HTML content)\n";
-            }
-            $guidance .= "```\n\n";
-            
-            // Extract Bootstrap classes for guidance
+
+            // Show the FULL template HTML, not just an excerpt
+            $guidance .= $template_data['template_html'];
+
+            $guidance .= "\n```\n";
+            $guidance .= str_repeat("-", 70) . "\n\n";
+
+            // Extract Bootstrap classes for emphasis
             $bootstrap_classes = self::extract_bootstrap_classes_from_html($template_data['template_html']);
             if (!empty($bootstrap_classes)) {
-                $guidance .= "Bootstrap classes used in template: " . implode(', ', array_slice($bootstrap_classes, 0, 15)) . "\n";
-                $guidance .= "Use these same Bootstrap classes in your generated section summaries.\n\n";
+                $guidance .= "Bootstrap classes in template (MUST use these exact classes):\n";
+                $guidance .= implode(', ', $bootstrap_classes) . "\n\n";
             }
-            
-            $guidance .= "IMPORTANT: Your section summaries MUST include HTML markup matching the template's style.\n";
-            $guidance .= "Structure content with divs using Bootstrap classes like 'container', 'row', 'col-md-6', 'card', etc.\n";
-            $guidance .= "Do not output plain text sections - each section summary MUST be formatted as HTML.\n\n";
+
+            $guidance .= "STEP-BY-STEP INSTRUCTIONS:\n";
+            $guidance .= "1. Copy the ENTIRE HTML structure above character-for-character\n";
+            $guidance .= "2. Keep ALL div tags, classes, and attributes EXACTLY as shown\n";
+            $guidance .= "3. Keep ALL Bootstrap classes EXACTLY as shown (container, row, col-md-*, nav-tabs, etc.)\n";
+            $guidance .= "4. Keep HTML attributes (role, data-toggle, aria-*, style, etc.) EXACTLY as shown\n";
+            $guidance .= "5. CRITICAL: Make HTML 'id' and 'href' attributes UNIQUE for each section/week you create\n";
+            $guidance .= "   - REASON: Multiple sections with identical IDs will cause Bootstrap components to break\n";
+            $guidance .= "   - METHOD: Add a unique suffix to every id and corresponding href value\n";
+            $guidance .= "   - If template has id=\"week1Tabs\", change to: id=\"week2Tabs\", id=\"week3Tabs\", id=\"theme1Tabs\", etc.\n";
+            $guidance .= "   - If template has id=\"pre-tab\", change to: id=\"pre-tab-w2\", id=\"pre-tab-w3\", id=\"pre-tab-t1\", etc.\n";
+            $guidance .= "   - If template has href=\"#pre\", change to: href=\"#pre-w2\", href=\"#pre-w3\", href=\"#pre-t1\", etc.\n";
+            $guidance .= "   - Use week number (w1, w2, w3) or theme number (t1, t2, t3) or section number as suffix\n";
+            $guidance .= "   - EVERY id in a section must have the same suffix pattern for that section\n";
+            $guidance .= "   - Matching href values must use the same suffix (if id=\"pre-w2\" then href=\"#pre-w2\")\n";
+            $guidance .= "6. ONLY change the actual text content between tags to match your new topic\n";
+            $guidance .= "7. If the template has tabs, your output MUST have tabs with the same structure (with unique IDs)\n";
+            $guidance .= "8. If the template has cards, your output MUST have cards with the same structure\n";
+            $guidance .= "9. If the template has badges, your output MUST have badges with the same structure\n";
+            $guidance .= "10. If the template has accordions, your output MUST have accordions (with unique IDs)\n";
+            $guidance .= "11. Maintain the SAME nesting depth and tag hierarchy\n";
+            $guidance .= "12. Every section summary you generate MUST use this EXACT structure with unique IDs\n\n";
+
+            $guidance .= "EXAMPLE 1 - Basic structure:\n";
+            $guidance .= "Template:\n";
+            $guidance .= "<div class='container my-4'>\n";
+            $guidance .= "  <h5>Introduction</h5>\n";
+            $guidance .= "  <p>This week introduces macronutrients...</p>\n";
+            $guidance .= "</div>\n\n";
+            $guidance .= "Your output for Week 2:\n";
+            $guidance .= "<div class='container my-4'>\n";
+            $guidance .= "  <h5>Getting Started</h5>\n";
+            $guidance .= "  <p>This week explores programming basics...</p>\n";
+            $guidance .= "</div>\n\n";
+
+            $guidance .= "EXAMPLE 2 - Tabs with IDs (CRITICAL FOR FUNCTIONALITY):\n";
+            $guidance .= "Template (Week 1):\n";
+            $guidance .= "<ul id=\"week1Tabs\" class=\"nav nav-tabs\" role=\"tablist\">\n";
+            $guidance .= "  <li class=\"nav-item\">\n";
+            $guidance .= "    <a id=\"pre-tab\" class=\"nav-link active\" href=\"#pre\" data-toggle=\"tab\">Pre-session</a>\n";
+            $guidance .= "  </li>\n";
+            $guidance .= "</ul>\n";
+            $guidance .= "<div class=\"tab-content\">\n";
+            $guidance .= "  <div id=\"pre\" class=\"tab-pane active\">Content here</div>\n";
+            $guidance .= "</div>\n\n";
+
+            $guidance .= "Your output for Week 2 (note unique IDs):\n";
+            $guidance .= "<ul id=\"week2Tabs\" class=\"nav nav-tabs\" role=\"tablist\">\n";
+            $guidance .= "  <li class=\"nav-item\">\n";
+            $guidance .= "    <a id=\"pre-tab-w2\" class=\"nav-link active\" href=\"#pre-w2\" data-toggle=\"tab\">Pre-session</a>\n";
+            $guidance .= "  </li>\n";
+            $guidance .= "</ul>\n";
+            $guidance .= "<div class=\"tab-content\">\n";
+            $guidance .= "  <div id=\"pre-w2\" class=\"tab-pane active\">New content here</div>\n";
+            $guidance .= "</div>\n\n";
+
+            $guidance .= "Your output for Theme 1 (note unique IDs with different suffix):\n";
+            $guidance .= "<ul id=\"theme1Tabs\" class=\"nav nav-tabs\" role=\"tablist\">\n";
+            $guidance .= "  <li class=\"nav-item\">\n";
+            $guidance .= "    <a id=\"pre-tab-t1\" class=\"nav-link active\" href=\"#pre-t1\" data-toggle=\"tab\">Pre-session</a>\n";
+            $guidance .= "  </li>\n";
+            $guidance .= "</ul>\n";
+            $guidance .= "<div class=\"tab-content\">\n";
+            $guidance .= "  <div id=\"pre-t1\" class=\"tab-pane active\">Theme content here</div>\n";
+            $guidance .= "</div>\n\n";
+
+            $guidance .= "WRONG - DO NOT copy IDs exactly:\n";
+            $guidance .= "<ul id=\"week1Tabs\">... <!-- WRONG: Same ID as template! -->\n";
+            $guidance .= "  <a href=\"#pre\" ... <!-- WRONG: Same href as template! -->\n\n";
+
+            $guidance .= "FORBIDDEN ACTIONS:\n";
+            $guidance .= "❌ DO NOT simplify the HTML structure\n";
+            $guidance .= "❌ DO NOT remove divs or container elements\n";
+            $guidance .= "❌ DO NOT change Bootstrap class names\n";
+            $guidance .= "❌ DO NOT remove CSS classes\n";
+            $guidance .= "❌ DO NOT copy id and href attributes without making them unique\n";
+            $guidance .= "❌ DO NOT use the same IDs across multiple sections (causes JavaScript conflicts)\n";
+            $guidance .= "❌ DO NOT modify HTML attributes except id/href (role, data-toggle stay the same)\n";
+            $guidance .= "❌ DO NOT create your own structure\n";
+            $guidance .= "❌ DO NOT use plain text without HTML\n";
+            $guidance .= "❌ DO NOT change the layout or visual structure\n\n";
+
+            $guidance .= "REQUIRED ACTIONS:\n";
+            $guidance .= "✓ Copy the HTML structure EXACTLY\n";
+            $guidance .= "✓ Use ALL the same Bootstrap classes\n";
+            $guidance .= "✓ Maintain ALL div containers and wrappers\n";
+            $guidance .= "✓ Make id and href attributes UNIQUE per section (add suffix like -w2, -w3, -t1, -t2)\n";
+            $guidance .= "✓ Keep matching pairs consistent (if id=\"pre-w2\" then href=\"#pre-w2\")\n";
+            $guidance .= "✓ Keep other HTML attributes unchanged (role, data-toggle, aria-*, style)\n";
+            $guidance .= "✓ Only change the text content inside tags\n";
+            $guidance .= "✓ Apply this SAME structure to EVERY section/week\n";
+            $guidance .= "✓ Match the visual layout exactly\n\n";
         }
-        
+
         // Add bootstrap structure if available
         if (!empty($template_data['bootstrap_structure'])) {
-            $guidance .= "BOOTSTRAP STRUCTURE ANALYSIS:\n";
-            $guidance .= "The template's Bootstrap structure: " . (is_array($template_data['bootstrap_structure']) ? implode(', ', $template_data['bootstrap_structure']) : $template_data['bootstrap_structure']) . "\n\n";
+            $guidance .= "BOOTSTRAP COMPONENTS IN TEMPLATE:\n";
+            if (is_array($template_data['bootstrap_structure']) && !empty($template_data['bootstrap_structure']['components'])) {
+                $guidance .= "The template uses these Bootstrap components:\n";
+                foreach ($template_data['bootstrap_structure']['components'] as $component) {
+                    $guidance .= "  - {$component}\n";
+                }
+                $guidance .= "\nYour generated content MUST include these same components with identical structure.\n\n";
+            }
         }
-        
-        $guidance .= "ADAPTATION INSTRUCTIONS:\n";
-        $guidance .= "1. Use the template's structure and organization as your foundation\n";
-        $guidance .= "2. Adapt the content to match the user's request while maintaining the same layout\n";
-        $guidance .= "3. Match the template's activity distribution and types\n";
-        $guidance .= "4. Include similar HTML and Bootstrap markup in section summaries\n";
-        $guidance .= "5. Preserve the pedagogical approach and level of detail from the template\n\n";
+
+        $guidance .= "FINAL REMINDER:\n";
+        $guidance .= "The user expects the generated sections to look VISUALLY IDENTICAL to the template.\n";
+        $guidance .= "This means copying the HTML structure EXACTLY, not just \"similar\" or \"inspired by\".\n";
+        $guidance .= "Think of it as a fill-in-the-blank exercise where you:\n";
+        $guidance .= "  1. Fill in the text content (what the section is about)\n";
+        $guidance .= "  2. Make IDs unique (so Bootstrap components don't conflict)\n";
+        $guidance .= "  3. Keep everything else identical (structure, classes, attributes)\n";
+        $guidance .= "This is NOT creative freedom to design your own layout.\n\n";
+
+        $guidance .= "ID UNIQUENESS CHECK:\n";
+        $guidance .= "Before finalizing each section, verify:\n";
+        $guidance .= "  • Every id attribute has a unique suffix for this section\n";
+        $guidance .= "  • Every href attribute targeting an ID has the matching suffix\n";
+        $guidance .= "  • No two sections have the same ID values\n";
+        $guidance .= "  • Tab/accordion functionality will work (unique IDs prevent conflicts)\n\n";
         
         return $guidance;
     }

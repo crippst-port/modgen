@@ -413,28 +413,38 @@ class template_reader {
      */
     private function get_course_html_structure($courseid, $sectionid = null) {
         global $DB;
-        
-        $modinfo = get_fast_modinfo($courseid);
+
         $html_parts = [];
-        
-        // Get HTML from section summaries
-        foreach ($modinfo->get_section_info_all() as $section) {
-            if ($sectionid && $section->id != $sectionid) {
-                continue;
-            }
-            
-            if ($section->uservisible && !empty($section->summary)) {
-                // Keep the raw HTML from section summary (not stripped)
+
+        // Get HTML directly from section summaries in the database (preserves raw HTML)
+        if ($sectionid) {
+            // Specific section only
+            $section = $DB->get_record('course_sections', ['course' => $courseid, 'id' => $sectionid], 'id,summary');
+            if ($section && !empty($section->summary)) {
                 $html_parts[] = $section->summary;
             }
-        }
-        
-        // Also check for page and label modules that might have structured HTML
-        foreach ($modinfo->get_cms() as $cm) {
-            if ($sectionid && $cm->sectionnum != $sectionid) {
-                continue;
+        } else {
+            // All sections in course
+            $sections = $DB->get_records('course_sections', ['course' => $courseid], 'section', 'id,section,summary');
+            foreach ($sections as $section) {
+                if (!empty($section->summary)) {
+                    // Keep the raw HTML from section summary/description (not stripped)
+                    $html_parts[] = $section->summary;
+                }
             }
-            
+        }
+
+        // Also check for page and label modules that might have structured HTML
+        $modinfo = get_fast_modinfo($courseid);
+        foreach ($modinfo->get_cms() as $cm) {
+            if ($sectionid) {
+                // If specific section requested, check if this module's section matches
+                $cm_section = $DB->get_record('course_modules', ['id' => $cm->id], 'section');
+                if ($cm_section && $cm_section->section != $sectionid) {
+                    continue;
+                }
+            }
+
             if ($cm->uservisible) {
                 // For pages and labels, try to get the actual HTML content
                 if ($cm->modname === 'page') {
@@ -450,9 +460,9 @@ class template_reader {
                 }
             }
         }
-        
+
         // Combine all HTML parts
-        return implode("\n", $html_parts);
+        return implode("\n\n", $html_parts);
     }
 
     /**

@@ -1069,6 +1069,29 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
         error_log('No template selected');
     $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $supportingfiles, $moduletype);
     }
+    // Check if the AI response contains validation errors
+    if (!empty($json['validation_error'])) {
+        // AI returned malformed structure - show error and don't allow approval
+        $errorhtml = html_writer::div(
+            html_writer::tag('h4', get_string('generationfailed', 'aiplacement_modgen'), ['class' => 'text-danger']) .
+            html_writer::div($json['validation_error'], 'alert alert-danger') .
+            html_writer::tag('p', get_string('validationerrorhelp', 'aiplacement_modgen')),
+            'aiplacement-modgen__validation-error'
+        );
+
+        $bodyhtml = html_writer::div($errorhtml, 'aiplacement-modgen__content');
+
+        $footeractions = [[
+            'label' => get_string('tryagain', 'aiplacement_modgen'),
+            'classes' => 'btn btn-primary',
+            'isbutton' => true,
+            'action' => 'aiplacement-modgen-reenter',
+        ]];
+
+        aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
+        exit;
+    }
+
     // Get the final prompt sent to AI for debugging (returned by ai_service).
     $debugprompt = isset($json['debugprompt']) ? $json['debugprompt'] : $prompt;
     $jsonstr = json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);

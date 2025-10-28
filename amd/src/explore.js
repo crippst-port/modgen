@@ -468,46 +468,107 @@ define(['core/templates'], function(templates) {
                         return;
                     }
 
-                    // Configure bar chart
+                    // Find the section with maximum activities for highlighting
+                    var maxActivities = Math.max.apply(null, chartData.data);
+                    var maxIndex = chartData.data.indexOf(maxActivities);
+
+                    // Create point colors - gold for max, teal for others
+                    var pointBackgroundColors = chartData.data.map(function(count, index) {
+                        return index === maxIndex ? 'rgb(255, 193, 7)' : 'rgb(75, 192, 192)';
+                    });
+                    var pointBorderColors = chartData.data.map(function(count, index) {
+                        return index === maxIndex ? 'rgb(255, 152, 0)' : 'rgb(75, 192, 192)';
+                    });
+                    var pointBorderWidths = chartData.data.map(function(count, index) {
+                        return index === maxIndex ? 3 : 1;
+                    });
+
+                    // Configure line chart with highlighting
                     var config = {
-                        type: 'bar',
+                        type: 'line',
                         data: {
                             labels: chartData.labels,
                             datasets: [
                                 {
-                                    label: 'Activities',
+                                    label: 'Activities per Section/Week',
                                     data: chartData.data,
-                                    backgroundColor: chartData.backgroundColor,
-                                    borderColor: chartData.borderColor,
-                                    borderWidth: 1,
+                                    borderColor: 'rgb(75, 192, 192)',
+                                    backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                                    borderWidth: 2,
+                                    fill: true,
+                                    tension: 0.4,
+                                    pointRadius: 6,
+                                    pointBackgroundColor: pointBackgroundColors,
+                                    pointBorderColor: pointBorderColors,
+                                    pointBorderWidth: pointBorderWidths,
                                 }
                             ]
                         },
                         options: {
                             responsive: true,
                             maintainAspectRatio: false,
-                            indexAxis: 'y',
                             plugins: {
                                 legend: {
-                                    display: false,
+                                    display: true,
+                                    position: 'top',
+                                },
+                                title: {
+                                    display: true,
+                                    text: 'Activity Distribution Across Sections/Weeks',
+                                    font: {
+                                        size: 14,
+                                        weight: 'bold'
+                                    }
                                 },
                                 tooltip: {
                                     callbacks: {
                                         label: function(context) {
-                                            return 'Activities: ' + context.parsed.x;
+                                            return 'Activities: ' + context.parsed.y;
                                         }
                                     }
                                 }
                             },
                             scales: {
-                                x: {
+                                y: {
                                     beginAtZero: true,
-                                    ticks: {
-                                        stepSize: 1,
+                                    max: maxActivities + 1,
+                                    title: {
+                                        display: true,
+                                        text: 'Number of Activities'
+                                    }
+                                },
+                                x: {
+                                    title: {
+                                        display: true,
+                                        text: 'Section/Week'
                                     }
                                 }
                             }
-                        }
+                        },
+                        plugins: [{
+                            id: 'highlightMaxSection',
+                            afterDatasetsDraw: function(chart) {
+                                var xAxis = chart.scales.x;
+                                var yAxis = chart.scales.y;
+
+                                if (!xAxis || !yAxis) {
+                                    return;
+                                }
+
+                                // Draw highlight box behind max section
+                                var xPos = xAxis.getPixelForValue(maxIndex);
+                                var width = xAxis.width / chartData.labels.length;
+
+                                ctx.fillStyle = 'rgba(255, 193, 7, 0.2)';
+                                ctx.fillRect(xPos - width / 2, yAxis.top, width, yAxis.height);
+
+                                // Add label for highest section
+                                ctx.fillStyle = 'rgba(255, 152, 0, 1)';
+                                ctx.font = 'bold 12px Arial';
+                                ctx.textAlign = 'center';
+                                ctx.fillText('Highest', xPos, yAxis.top - 15);
+                            }
+                        }]
                     };
 
                     try {
@@ -516,7 +577,7 @@ define(['core/templates'], function(templates) {
                     } catch (e) {
                         // Chart rendering failed - fail silently
                     }
-                }, 100);
+                }, 250);
             });
         },
 

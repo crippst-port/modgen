@@ -132,89 +132,6 @@ try {
     die();
 }
 
-
-// Get course ID
-$courseid = required_param('courseid', PARAM_INT);
-$course = get_course($courseid);
-$context = context_course::instance($course->id);
-
-require_login($course);
-require_capability('moodle/course:view', $context);
-
-// Check if feature is enabled
-if (!get_config('aiplacement_modgen', 'enable_exploration')) {
-    http_response_code(403);
-    echo json_encode(['error' => get_string('explorationdisabled', 'aiplacement_modgen')]);
-    die();
-}
-
-header('Content-Type: application/json; charset=utf-8');
-
-try {
-    // Generate insights
-    $insights = generate_module_insights($course);
-    
-    if ($insights === false) {
-        http_response_code(500);
-        echo json_encode(['success' => false, 'error' => get_string('exploreerror', 'aiplacement_modgen')]);
-        die();
-    }
-    
-    // Generate learning types chart data
-    $chartdata = generate_learning_types_chart($insights['moduledata']);
-    
-    // Generate section activity chart data
-    $sectionchartdata = generate_section_activity_chart($insights['moduledata']);
-    
-    // Debug logging
-    error_log('Section chart data: ' . json_encode($sectionchartdata));
-    
-    // Generate workload analysis
-    $workload_analysis = generate_workload_analysis($insights['moduledata']);
-    
-    // Generate quick summary for card display
-    $summary = generate_quick_summary($insights);
-    
-    // Prepare template data
-    $templatedata = [
-        'pedagogical' => $insights['insights']['pedagogical'],
-        'learning_types' => $insights['insights']['learning_types'],
-        'activities' => $insights['insights']['activities'],
-        'improvements' => $insights['insights']['improvements'],
-        'summary' => $summary,
-        'chart_data' => $chartdata,
-        'section_chart_data' => $sectionchartdata,
-        'workload_analysis' => $workload_analysis,
-        'debug' => [
-            'moduledata' => $insights['moduledata'],
-            'debug_json' => json_encode($insights['moduledata'], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES),
-        ],
-    ];
-    
-    // Debug logging
-    error_log('Template data keys: ' . implode(', ', array_keys($templatedata)));
-    error_log('Complete response: ' . json_encode([
-        'success' => true,
-        'data' => $templatedata,
-    ]) );
-    
-    // Return the data for client-side template rendering
-        echo json_encode([
-            'success' => true,
-            'data' => $templatedata,
-        ]);
-        die();
-} catch (Throwable $e) {
-    error_log('AJAX exploration error: ' . $e->getMessage());
-    error_log('Stack trace: ' . $e->getTraceAsString());
-    http_response_code(500);
-    echo json_encode([
-        'success' => false,
-        'error' => 'Error generating insights: ' . $e->getMessage(),
-    ]);
-    die();
-}
-
 /**
  * Generate AI insights about the module.
  *
@@ -264,6 +181,11 @@ function generate_module_insights(stdClass $course) {
                     
                     // Skip invisible or non-visible items
                     if (!isset($cm) || !$cm->visible || !$cm->uservisible) {
+                        continue;
+                    }
+                    
+                    // Skip subsections - they are layout containers, not activities
+                    if ($cm->modname === 'subsection') {
                         continue;
                     }
                     
@@ -540,11 +462,17 @@ function generate_learning_types_chart(array $moduledata): array {
 function generate_section_activity_chart(array $moduledata): array {
     $section_counts = [];
     
-    // Count activities per section
+    // Count activities per section, excluding sections with no activities
     if (!empty($moduledata['sections'])) {
         foreach ($moduledata['sections'] as $section) {
-            $section_name = $section['title'] ?? 'Untitled Section';
             $activity_count = count($section['activities'] ?? []);
+            
+            // Skip sections with no activities
+            if ($activity_count === 0) {
+                continue;
+            }
+            
+            $section_name = $section['title'] ?? 'Untitled Section';
             $section_counts[$section_name] = $activity_count;
         }
     }

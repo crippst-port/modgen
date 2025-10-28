@@ -462,6 +462,13 @@ if ($approveform && ($adata = $approveform->get_data())) {
             $sectionhtml = '';
             if (trim($summary) !== '') {
                 $sectionhtml = format_text($summary, FORMAT_HTML, ['context' => $context]);
+                // If a curriculum template was used, ensure IDs inside the template HTML are unique
+                if (!empty($adata->curriculum_template)) {
+                    // Ensure the parser class is available
+                    require_once(__DIR__ . '/classes/local/template_structure_parser.php');
+                    // Use the section number as a suffix to guarantee uniqueness within the course
+                    $sectionhtml = \aiplacement_modgen\template_structure_parser::ensure_unique_ids($sectionhtml, 'sec' . $sectionnum);
+                }
             }
 
             $sectionrecord->name = $title;
@@ -497,6 +504,13 @@ if ($approveform && ($adata = $approveform->get_data())) {
                     $subsectionsummary = '';
                     if (trim($weeksummary) !== '') {
                         $subsectionsummary = format_text($weeksummary, FORMAT_HTML, ['context' => $context]);
+                        // If template mode, make ids unique for the subsection too
+                        if (!empty($adata->curriculum_template)) {
+                            require_once(__DIR__ . '/classes/local/template_structure_parser.php');
+                            // Use section number and a delegated suffix to keep uniqueness
+                            $suffix = 'sec' . $sectionnum . '-sub' . (isset($delegatedsectionnum) ? $delegatedsectionnum : '0');
+                            $subsectionsummary = \aiplacement_modgen\template_structure_parser::ensure_unique_ids($subsectionsummary, $suffix);
+                        }
                     }
 
                     $subsectionresult = local_aiplacement_modgen_create_subsection($course, $sectionnum, $weektitle, $subsectionsummary, $needscacherefresh);
@@ -556,6 +570,11 @@ if ($approveform && ($adata = $approveform->get_data())) {
             $summaryhtml = trim(format_text($summary, FORMAT_HTML, ['context' => $context]));
             if ($summaryhtml !== '') {
                 $sectionhtml .= $summaryhtml;
+                // If using a curriculum template, ensure any ids are uniquified
+                if (!empty($adata->curriculum_template)) {
+                    require_once(__DIR__ . '/classes/local/template_structure_parser.php');
+                    $sectionhtml = \aiplacement_modgen\template_structure_parser::ensure_unique_ids($sectionhtml, 'sec' . $sectionnum);
+                }
             }
 
             if (!empty($outline)) {

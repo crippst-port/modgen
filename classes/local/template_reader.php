@@ -77,17 +77,46 @@ class template_reader {
     public function extract_curriculum_template($template_key) {
         $parts = explode('|', $template_key);
         $courseid = (int)$parts[0];
-        $sectionid = isset($parts[1]) ? (int)$parts[1] : null;
+        $rawsection = isset($parts[1]) ? trim($parts[1]) : null;
+        $sectionid = $rawsection !== null && $rawsection !== '' ? (int)$rawsection : null;
         
         if (!$this->validate_template_access($courseid)) {
             throw new \moodle_exception('curriculumnotfound', 'aiplacement_modgen');
         }
         
+        // Normalize section identifier so callers may provide either the DB id
+        // (course_sections.id) or the section number (course_sections.section).
+        global $DB;
+        $resolvedsectionid = null; // DB id
+        $resolvedsectionnum = null; // section number
+        if ($sectionid) {
+            // First, try to find by DB id
+            $record = $DB->get_record('course_sections', ['course' => $courseid, 'id' => $sectionid]);
+            if ($record) {
+                $resolvedsectionid = (int)$record->id;
+                $resolvedsectionnum = (int)$record->section;
+            } else {
+                // If not found by id, try treating supplied value as section number
+                $record2 = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $sectionid]);
+                if ($record2) {
+                    $resolvedsectionid = (int)$record2->id;
+                    $resolvedsectionnum = (int)$record2->section;
+                } else {
+                    // Not found - clear both so callers treat as no section filter
+                    $resolvedsectionid = null;
+                    $resolvedsectionnum = null;
+                }
+            }
+        }
+
         $template = [
             'course_info' => $this->get_course_info($courseid),
-            'structure' => $this->get_course_structure($courseid, $sectionid),
-            'activities' => $this->get_activities_detail($courseid, $sectionid),
-            'template_html' => $this->get_course_html_structure($courseid, $sectionid)
+            // Pass DB id to structure and HTML extraction (these use course_sections.id)
+            'structure' => $this->get_course_structure($courseid, $resolvedsectionid),
+            // Pass section number to activities detail (this method filters by sectionnum)
+            'activities' => $this->get_activities_detail($courseid, $resolvedsectionnum),
+            // Allow HTML extraction to accept either id or section number via robust handling
+            'template_html' => $this->get_course_html_structure($courseid, $resolvedsectionid ?? $resolvedsectionnum)
         ];
         
         return $template;
@@ -320,7 +349,8 @@ class template_reader {
     public function extract_bootstrap_structure($template_key) {
         $parts = explode('|', $template_key);
         $courseid = (int)$parts[0];
-        $sectionid = isset($parts[1]) ? (int)$parts[1] : null;
+        $rawsection = isset($parts[1]) ? trim($parts[1]) : null;
+        $sectionid = $rawsection !== null && $rawsection !== '' ? (int)$rawsection : null;
 
         if (!$this->validate_template_access($courseid)) {
             return ['components' => [], 'description' => ''];
@@ -330,13 +360,19 @@ class template_reader {
         $components = [];
         $description_parts = [];
 
+        // Resolve section id or number (accept either)
+        $resolvedsection = null; // course_sections record or null
         if ($sectionid) {
-            // Specific section
-            $section = $DB->get_record('course_sections', ['course' => $courseid, 'id' => $sectionid]);
-            if ($section) {
-                $components = $this->analyze_html_for_bootstrap($section->summary);
-                $description_parts[] = "Section '{$section->name}' uses: " . implode(', ', $components);
+            $resolvedsection = $DB->get_record('course_sections', ['course' => $courseid, 'id' => $sectionid]);
+            if (!$resolvedsection) {
+                // try as section number
+                $resolvedsection = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $sectionid]);
             }
+        }
+
+        if ($resolvedsection) {
+            $components = $this->analyze_html_for_bootstrap($resolvedsection->summary);
+            $description_parts[] = isset($resolvedsection->name) ? ("Section '{$resolvedsection->name}' uses: " . implode(', ', $components)) : ("Section {$resolvedsection->section} uses: " . implode(', ', $components));
         } else {
             // All sections in course
             $sections = $DB->get_records('course_sections', ['course' => $courseid], 'section');
@@ -417,11 +453,19 @@ class template_reader {
         $html_parts = [];
 
         // Get HTML directly from section summaries in the database (preserves raw HTML)
+        // Accept either a DB id or a section number. Try to resolve to a course_sections record.
+        $resolvedsection = null;
         if ($sectionid) {
-            // Specific section only
-            $section = $DB->get_record('course_sections', ['course' => $courseid, 'id' => $sectionid], 'id,summary');
-            if ($section && !empty($section->summary)) {
-                $html_parts[] = $section->summary;
+            $resolvedsection = $DB->get_record('course_sections', ['course' => $courseid, 'id' => $sectionid], 'id,section,summary');
+            if (!$resolvedsection) {
+                // try as section number
+                $resolvedsection = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $sectionid], 'id,section,summary');
+            }
+        }
+
+        if ($resolvedsection) {
+            if (!empty($resolvedsection->summary)) {
+                $html_parts[] = $resolvedsection->summary;
             }
         } else {
             // All sections in course
@@ -440,8 +484,16 @@ class template_reader {
             if ($sectionid) {
                 // If specific section requested, check if this module's section matches
                 $cm_section = $DB->get_record('course_modules', ['id' => $cm->id], 'section');
-                if ($cm_section && $cm_section->section != $sectionid) {
-                    continue;
+                // If we resolved a course_sections record above, compare using its section number
+                if ($resolvedsection) {
+                    if ($cm_section && $cm_section->section != $resolvedsection->section) {
+                        continue;
+                    }
+                } else {
+                    // fallback: compare directly to provided value (may be a section number)
+                    if ($cm_section && $cm_section->section != $sectionid) {
+                        continue;
+                    }
                 }
             }
 

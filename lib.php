@@ -61,6 +61,18 @@ function aiplacement_modgen_extend_navigation_course($navigation, $course, $cont
             'aiplacement_modgen_explore'
         );
     }
+
+    // Add a direct generator page link into the course navigation (visible to users with capability).
+    if (has_capability('local/aiplacement_modgen:use', $context)) {
+        $genurl = new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $course->id, 'standalone' => 1]);
+        $navigation->add(
+            get_string('launchgenerator', 'aiplacement_modgen'),
+            $genurl,
+            navigation_node::TYPE_SETTING,
+            null,
+            'aiplacement_modgen_generator'
+        );
+    }
 }
 
 

@@ -90,6 +90,8 @@ $string['uploadtablabel'] = 'Upload Content';
 // File upload and content import
 $string['contentfile'] = 'Upload document file';
 $string['contentfiledescription'] = 'Upload a Word document or OpenDocument file to extract content and create activities.';
+$string['supportingfiles'] = 'Supporting documents';
+$string['supportingfiles_help'] = 'Upload up to 5 supporting documents (for example: .docx, .odt, .txt, or .html). These files will be used as additional context by the Module Assistant when generating module structure and content. Content may be extracted from the files and included in the AI prompt. Maximum 10MB per file.';
 $string['selectactivitytype'] = 'What activity would you like to create?';
 $string['unsupportedfiletype'] = 'File type "{$a}" is not supported. Please upload a .docx, .doc, or .odt file.';
 $string['conversionfailed'] = 'Could not convert "{$a}" to HTML. Falling back to plain text extraction.';

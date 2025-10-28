@@ -348,7 +348,24 @@ class ai_service {
                 self::debug_log('No template data provided to generate_module');
             }
 
-            $finalprompt = $roleinstruction . "\n\nUser requirements:\n" . trim($prompt) . "\n\n" . $template_guidance . "\n\n" . $formatinstruction;
+            // Incorporate supporting documents (if any) into the prompt so the AI can use them as context.
+            $documents_text = '';
+            if (!empty($documents) && is_array($documents)) {
+                $documents_text .= "\n\nSUPPORTING DOCUMENTS:\n";
+                foreach ($documents as $doc) {
+                    $dname = isset($doc['filename']) ? $doc['filename'] : 'unnamed';
+                    $dmime = isset($doc['mimetype']) ? $doc['mimetype'] : '';
+                    $dcontent = isset($doc['content']) ? $doc['content'] : '';
+                    // Truncate extremely large document content to keep prompt reasonable.
+                    if (is_string($dcontent) && strlen($dcontent) > 150000) {
+                        $dcontent = substr($dcontent, 0, 150000) . "\n...[truncated]";
+                    }
+                    $documents_text .= "--- DOCUMENT: {$dname} ({$dmime}) ---\n";
+                    $documents_text .= trim((string)$dcontent) . "\n\n";
+                }
+            }
+
+            $finalprompt = $roleinstruction . "\n\nUser requirements:\n" . trim($prompt) . "\n\n" . $template_guidance . $documents_text . "\n\n" . $formatinstruction;
 
             // Debug: Log the prompt being sent to AI
             self::debug_log("AI_SERVICE: Final prompt length: " . strlen($finalprompt));

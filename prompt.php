@@ -686,7 +686,22 @@ if ($approveform && ($adata = $approveform->get_data())) {
 $promptform = new aiplacement_modgen_generator_form(null, [
     'courseid' => $courseid,
     'embedded' => $embedded ? 1 : 0,
+    'contextid' => context_course::instance((int)$courseid)->id,
 ]);
+
+// If requested, render the generator form as a standalone page (not inside the modal).
+$standalone = optional_param('standalone', 0, PARAM_BOOL);
+if (!$ajax && $standalone) {
+    $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['courseid' => $courseid, 'standalone' => 1]));
+    $PAGE->set_title(get_string('modgenmodalheading', 'aiplacement_modgen'));
+    $PAGE->set_heading(get_string('modgenmodalheading', 'aiplacement_modgen'));
+
+    echo $OUTPUT->header();
+    echo html_writer::div('<h2>' . get_string('launchgenerator', 'aiplacement_modgen') . '</h2>', 'aiplacement-modgen__page-heading');
+    $promptform->display();
+    echo $OUTPUT->footer();
+    exit;
+}
 
 // Upload form handling.
 $uploadform = new aiplacement_modgen_upload_form(null, [
@@ -814,6 +829,182 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
             "Create section headings and summaries only. The sections should be structured with titles and descriptions, " .
             "but do not suggest any activities, quizzes, or resources. This allows the user to add their own content.";
     }
+
+    // Gather supporting files (if any) from the filemanager draft area and try to extract readable text
+    $supportingfiles = [];
+    // First, check for direct file uploads from a simple <input type="file" multiple> fallback
+    if (!empty($_FILES['supportingfiles_files']) && !empty($_FILES['supportingfiles_files']['tmp_name'])) {
+        $ff = $_FILES['supportingfiles_files'];
+        for ($i = 0; $i < count($ff['tmp_name']); $i++) {
+            if (empty($ff['tmp_name'][$i]) || !is_uploaded_file($ff['tmp_name'][$i])) {
+                continue;
+            }
+            $filename = $ff['name'][$i] ?? ('file' . $i);
+            $mimetype = $ff['type'][$i] ?? '';
+            $content = file_get_contents($ff['tmp_name'][$i]);
+
+            // reuse extraction logic below by creating a temporary file-like array
+            $extracted = '';
+            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+            if (in_array($ext, ['txt', 'md', 'html', 'htm'])) {
+                $extracted = is_string($content) ? $content : '';
+            } elseif ($ext === 'docx') {
+                $tmp = tempnam(sys_get_temp_dir(), 'modgen_docx_');
+                file_put_contents($tmp, $content);
+                $zip = new ZipArchive();
+                if ($zip->open($tmp) === true) {
+                    $index = $zip->locateName('word/document.xml');
+                    if ($index !== false) {
+                        $xml = $zip->getFromIndex($index);
+                        $xml = preg_replace('/<w:p[^>]*>/', "\n", $xml);
+                        $xml = preg_replace('/<br \/>/', "\n", $xml);
+                        $extracted = strip_tags($xml);
+                    }
+                    $zip->close();
+                }
+                @unlink($tmp);
+            } elseif ($ext === 'odt') {
+                $tmp = tempnam(sys_get_temp_dir(), 'modgen_odt_');
+                file_put_contents($tmp, $content);
+                $zip = new ZipArchive();
+                if ($zip->open($tmp) === true) {
+                    $index = $zip->locateName('content.xml');
+                    if ($index !== false) {
+                        $xml = $zip->getFromIndex($index);
+                        $xml = preg_replace('/<text:p[^>]*>/', "\n", $xml);
+                        $extracted = strip_tags($xml);
+                    }
+                    $zip->close();
+                }
+                @unlink($tmp);
+            } elseif (strpos($mimetype, 'text/') === 0 || strpos($mimetype, 'application/xml') === 0 || strpos($mimetype, 'application/json') === 0) {
+                $extracted = is_string($content) ? $content : '';
+            } elseif ($ext === 'pdf' || $mimetype === 'application/pdf') {
+                // Try to extract text from PDF using pdftotext if available on the server.
+                $tmp = tempnam(sys_get_temp_dir(), 'modgen_pdf_');
+                file_put_contents($tmp, $content);
+                $extracted = '';
+                if (function_exists('shell_exec')) {
+                    $pdftotext = trim(shell_exec('which pdftotext 2>/dev/null'));
+                    if (!empty($pdftotext)) {
+                        // Use -layout to preserve basic structure and output to stdout (-)
+                        $cmd = escapeshellcmd($pdftotext) . ' -layout ' . escapeshellarg($tmp) . ' - 2>/dev/null';
+                        $out = shell_exec($cmd);
+                        if (is_string($out) && trim($out) !== '') {
+                            $extracted = $out;
+                        }
+                    }
+                }
+                @unlink($tmp);
+                if ($extracted === '') {
+                    // Fallback placeholder so AI knows the PDF was provided.
+                    $extracted = '[PDF FILE: ' . $filename . ' (' . $mimetype . '); base64_preview=' . substr(base64_encode($content), 0, 1024) . ']';
+                }
+            } else {
+                $extracted = '[BINARY FILE: ' . $filename . ' (' . $mimetype . '); base64_preview=' . substr(base64_encode($content), 0, 1024) . ']';
+            }
+
+            if (is_string($extracted) && strlen($extracted) > 100000) {
+                $extracted = substr($extracted, 0, 100000) . "\n...[truncated]";
+            }
+
+            $supportingfiles[] = [
+                'filename' => $filename,
+                'mimetype' => $mimetype,
+                'content' => $extracted,
+            ];
+        }
+    }
+
+    if (!empty($pdata->supportingfiles)) {
+        $draftitemid = $pdata->supportingfiles;
+        $usercontext = context_user::instance($USER->id);
+        $fs = get_file_storage();
+        $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
+        foreach ($files as $f) {
+            if ($f->is_directory()) {
+                continue;
+            }
+            $filename = $f->get_filename();
+            $mimetype = $f->get_mimetype();
+            $content = $f->get_content();
+
+            $extracted = '';
+            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
+
+            // Try simple text extraction for common document types
+            if (in_array($ext, ['txt', 'md', 'html', 'htm'])) {
+                $extracted = is_string($content) ? $content : ''; 
+            } elseif ($ext === 'docx') {
+                // attempt to extract from docx
+                $tmp = tempnam(sys_get_temp_dir(), 'modgen_docx_');
+                file_put_contents($tmp, $content);
+                $zip = new ZipArchive();
+                if ($zip->open($tmp) === true) {
+                    $index = $zip->locateName('word/document.xml');
+                    if ($index !== false) {
+                        $xml = $zip->getFromIndex($index);
+                        // strip tags and convert common tags to newlines for readability
+                        $xml = preg_replace('/<w:p[^>]*>/', "\n", $xml);
+                        $xml = preg_replace('/<br \/>/', "\n", $xml);
+                        $extracted = strip_tags($xml);
+                    }
+                    $zip->close();
+                }
+                @unlink($tmp);
+            } elseif ($ext === 'odt') {
+                $tmp = tempnam(sys_get_temp_dir(), 'modgen_odt_');
+                file_put_contents($tmp, $content);
+                $zip = new ZipArchive();
+                if ($zip->open($tmp) === true) {
+                    $index = $zip->locateName('content.xml');
+                    if ($index !== false) {
+                        $xml = $zip->getFromIndex($index);
+                        $xml = preg_replace('/<text:p[^>]*>/', "\n", $xml);
+                        $extracted = strip_tags($xml);
+                    }
+                    $zip->close();
+                }
+                @unlink($tmp);
+            } elseif (strpos($mimetype, 'text/') === 0 || strpos($mimetype, 'application/xml') === 0 || strpos($mimetype, 'application/json') === 0) {
+                $extracted = is_string($content) ? $content : '';
+            } elseif ($ext === 'pdf' || $mimetype === 'application/pdf') {
+                // Try to extract text from PDF using pdftotext if available on the server.
+                $tmp = tempnam(sys_get_temp_dir(), 'modgen_pdf_');
+                file_put_contents($tmp, $content);
+                $extracted = '';
+                if (function_exists('shell_exec')) {
+                    $pdftotext = trim(shell_exec('which pdftotext 2>/dev/null'));
+                    if (!empty($pdftotext)) {
+                        $cmd = escapeshellcmd($pdftotext) . ' -layout ' . escapeshellarg($tmp) . ' - 2>/dev/null';
+                        $out = shell_exec($cmd);
+                        if (is_string($out) && trim($out) !== '') {
+                            $extracted = $out;
+                        }
+                    }
+                }
+                @unlink($tmp);
+                if ($extracted === '') {
+                    $extracted = '[PDF FILE: ' . $filename . ' (' . $mimetype . '); base64_preview=' . substr(base64_encode($content), 0, 1024) . ']';
+                }
+            } else {
+                // Fallback: include a small base64 summary so AI knows the file exists.
+                $extracted = '[BINARY FILE: ' . $filename . ' (' . $mimetype . '); base64_preview=' . substr(base64_encode($content), 0, 1024) . ']';
+            }
+
+            // Truncate large extracted content to a reasonable size (e.g., 100k chars)
+            if (is_string($extracted) && strlen($extracted) > 100000) {
+                $extracted = substr($extracted, 0, 100000) . "\n...[truncated]";
+            }
+
+            $supportingfiles[] = [
+                'filename' => $filename,
+                'mimetype' => $mimetype,
+                'content' => $extracted,
+            ];
+        }
+    }
     
     // Generate module with or without template
     error_log('DEBUG: $pdata->curriculum_template exists: ' . (isset($pdata->curriculum_template) ? 'YES' : 'NO'));
@@ -867,7 +1058,7 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
             }
             
             error_log('Calling generate_module_with_template with template data');
-            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, [], $moduletype);
+            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, $supportingfiles, $moduletype);
         } catch (Exception $e) {
             // Fall back to normal generation if template fails
             error_log('Template generation EXCEPTION: ' . $e->getMessage());
@@ -876,7 +1067,7 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
         }
     } else {
         error_log('No template selected');
-        $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype);
+    $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $supportingfiles, $moduletype);
     }
     // Get the final prompt sent to AI for debugging (returned by ai_service).
     $debugprompt = isset($json['debugprompt']) ? $json['debugprompt'] : $prompt;

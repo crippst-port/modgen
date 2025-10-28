@@ -22,6 +22,7 @@
  */
 
 define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(ModalEvents, ModgenModal, Str) {
+    // eslint-disable-next-line no-unused-vars
     /**
      * Create the floating action button element.
      *
@@ -254,6 +255,22 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
                     }
                     if (!formData.has('sesskey') && typeof M !== 'undefined' && M.cfg && M.cfg.sesskey) {
                         formData.append('sesskey', M.cfg.sesskey);
+                    }
+                    // Debug: log FormData keys and file entries to help diagnose submission issues
+                    try {
+                        const entries = [];
+                        for (const pair of formData.entries()) {
+                            if (pair[1] instanceof File) {
+                                entries.push({ key: pair[0], filename: pair[1].name, size: pair[1].size });
+                            } else {
+                                entries.push({ key: pair[0], value: (typeof pair[1] === 'string' ? pair[1].slice(0, 200) : String(pair[1])) });
+                            }
+                        }
+                        // eslint-disable-next-line no-console
+                        console.debug('Module Generator form submit FormData entries:', entries);
+                    } catch (e) {
+                        // eslint-disable-next-line no-console
+                        console.warn('Failed to inspect FormData for debugging', e);
                     }
                     loadContent(params, formData);
                 });

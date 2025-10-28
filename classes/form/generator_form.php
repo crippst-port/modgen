@@ -25,6 +25,7 @@
 
 defined('MOODLE_INTERNAL') || die();
 require_once($CFG->libdir . '/formslib.php');
+require_once($CFG->libdir . '/filelib.php');
 
 /**
  * Form for generating module structure and content.
@@ -47,6 +48,7 @@ class aiplacement_modgen_generator_form extends moodleform {
             'weekly' => get_string('moduletype_weekly', 'aiplacement_modgen'),
             'theme' => get_string('moduletype_theme', 'aiplacement_modgen'),
         ];
+        // (supporting files field moved further down, above the main prompt)
         $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
         $mform->setType('moduletype', PARAM_ALPHA);
         $mform->setDefault('moduletype', 'weekly');
@@ -85,6 +87,18 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->addRule('prompt', null, 'required', null, 'client');
         $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
         
+        // File upload for supporting documents (optional) — placed above the "create suggested activities" option
+        $returntypes = defined('FILE_INTERNAL') ? FILE_INTERNAL : 2;
+        $fileoptions = [
+            'subdirs' => 0,
+            'maxbytes' => 10485760, // 10MB per file
+            'maxfiles' => 5,
+            'accepted_types' => '*',
+            'return_types' => $returntypes,
+        ];
+        $mform->addElement('filemanager', 'supportingfiles', get_string('supportingfiles', 'aiplacement_modgen'), null, $fileoptions);
+        $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
+
         // Generation options
         $mform->addElement('advcheckbox', 'createsuggestedactivities', get_string('createsuggestedactivities', 'aiplacement_modgen'));
         $mform->addHelpButton('createsuggestedactivities', 'createsuggestedactivities', 'aiplacement_modgen');
@@ -133,5 +147,15 @@ class aiplacement_modgen_generator_form extends moodleform {
             })();
             </script>
         ');
+    }
+
+    public function definition_after_data() {
+        global $USER;
+        parent::definition_after_data();
+        // Prepare draft area for supporting files if context provided.
+        $draftitemid = file_get_submitted_draft_itemid('supportingfiles');
+        $contextid = !empty($this->_customdata['contextid']) ? $this->_customdata['contextid'] : context_user::instance($USER->id)->id;
+        file_prepare_draft_area($draftitemid, $contextid, 'aiplacement_modgen', 'supportingfiles', 0, array('subdirs'=>0,'maxbytes'=>10485760,'maxfiles'=>5));
+        $this->_form->setDefault('supportingfiles', $draftitemid);
     }
 }

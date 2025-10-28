@@ -45,6 +45,65 @@ class ai_service {
         $timestamp = date('Y-m-d H:i:s');
         file_put_contents($logfile, "[$timestamp] $message\n", FILE_APPEND);
     }
+    /**
+     * Recursively normalise AI responses where some fields may be JSON encoded as strings.
+     * This walks arrays/objects and attempts to json_decode string values that look like JSON.
+     *
+     * @param mixed $value
+     * @return mixed
+     */
+    private static function normalize_ai_response($value) {
+        // If it's an array, walk each element.
+        if (is_array($value)) {
+            $out = [];
+            foreach ($value as $k => $v) {
+                $out[$k] = self::normalize_ai_response($v);
+            }
+            return $out;
+        }
+
+        // If it's a string that looks like JSON, try to decode it.
+        if (is_string($value)) {
+            $trim = trim($value);
+            if ($trim === '') {
+                return $value;
+            }
+
+            // Fast check: starts with { or [ -> likely JSON
+            if (($trim[0] === '{') || ($trim[0] === '[')) {
+                $decoded = json_decode($trim, true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    // Recursively normalise decoded payload
+                    return self::normalize_ai_response($decoded);
+                }
+            }
+
+            // Try unescaping common escapes (e.g. when AI returns a JSON string inside a JSON field)
+            $unescaped = stripslashes($trim);
+            if ($unescaped !== $trim) {
+                if ((isset($unescaped[0]) && ($unescaped[0] === '{' || $unescaped[0] === '['))) {
+                    $decoded = json_decode($unescaped, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        return self::normalize_ai_response($decoded);
+                    }
+                }
+            }
+
+            // As a last resort, try to extract a JSON blob from within larger text
+            if (preg_match('/(\{.*\}|\[.*\])/s', $trim, $m)) {
+                $decoded = json_decode($m[1], true);
+                if (json_last_error() === JSON_ERROR_NONE) {
+                    return self::normalize_ai_response($decoded);
+                }
+            }
+
+            // Nothing to decode
+            return $value;
+        }
+
+        // Scalars other than strings left unchanged
+        return $value;
+    }
     public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null) {
         global $USER, $COURSE;
         
@@ -340,6 +399,17 @@ class ai_service {
                     if (is_array($doubledecode) && isset($doubledecode['themes'])) {
                         $jsondecoded = $doubledecode;
                     }
+                }
+            }
+
+            // Attempt to normalise nested/stringified JSON that may be embedded in string fields.
+            if (is_array($jsondecoded)) {
+                $before = $jsondecoded;
+                $jsondecoded = self::normalize_ai_response($jsondecoded);
+                // Log if normalisation changed the structure in a meaningful way.
+                if (serialize($before) !== serialize($jsondecoded)) {
+                    self::debug_log("AI_SERVICE: Normalised AI JSON structure; differences detected.");
+                    self::debug_log("AI_SERVICE: Normalised JSON: " . print_r($jsondecoded, true));
                 }
             }
 

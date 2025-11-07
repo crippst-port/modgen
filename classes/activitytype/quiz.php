@@ -71,6 +71,9 @@ class quiz implements activity_type {
             $moduleinfo->questionsperpage = 1;
             $moduleinfo->navmethod = 'free';
             $moduleinfo->grade = 10;
+            $moduleinfo->timeopen = 0;  // No time restriction
+            $moduleinfo->timeclose = 0;  // No time restriction
+            $moduleinfo->questiondecimalpoints = -1;  // Default decimal points
             
             // Required fields that quiz_process_options expects
             $moduleinfo->quizpassword = ''; // Gets converted to password by quiz_process_options

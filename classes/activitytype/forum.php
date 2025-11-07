@@ -101,6 +101,7 @@ class forum implements activity_type {
         $moduleinfo->scale = 0;  // No rating
         $moduleinfo->canposttomygroups = 0;  // Post to all groups accessible to user
         $moduleinfo->cmidnumber = '';  // No custom ID number
+        $moduleinfo->grade_forum = 0;  // No grading by default
 
         error_log('FORUM: Module info prepared: ' . print_r($moduleinfo, true));
 

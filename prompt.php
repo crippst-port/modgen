@@ -414,12 +414,20 @@ if ($approveform && ($adata = $approveform->get_data())) {
     // Create weekly sections from approved JSON.
     $json = json_decode($adata->approvedjson, true);
     $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'weekly';
-    $keepweeklabels = $moduletype === 'weekly' && !empty($adata->keepweeklabels);
+    $keepweeklabels = ($moduletype === 'weekly' || $moduletype === 'connected_weekly') && !empty($adata->keepweeklabels);
     $includeaboutassessments = !empty($adata->includeaboutassessments);
     $includeaboutlearning = !empty($adata->includeaboutlearning);
 
     // Update course format based on module type.
-    $courseformat = ($moduletype === 'theme') ? 'topics' : 'weeks';
+    // Connected formats require flexsections plugin to be installed
+    if ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme') {
+        // For Connected formats, use flexsections course format
+        $courseformat = 'flexsections';
+    } else {
+        // For standard formats, use topics (theme) or weeks (weekly)
+        $courseformat = ($moduletype === 'theme') ? 'topics' : 'weeks';
+    }
+    
     $update = new stdClass();
     $update->id = $courseid;
     $update->format = $courseformat;
@@ -449,7 +457,7 @@ if ($approveform && ($adata = $approveform->get_data())) {
             $aboutlearningadded = true;
         }
     }
-    if ($moduletype === 'theme' && !empty($json['themes']) && is_array($json['themes'])) {
+    if (($moduletype === 'theme' || $moduletype === 'connected_theme') && !empty($json['themes']) && is_array($json['themes'])) {
         $modinfo = get_fast_modinfo($courseid);
         $existingsections = $modinfo->get_section_info_all();
         $sectionnum = empty($existingsections) ? 1 : max(array_keys($existingsections)) + 1;

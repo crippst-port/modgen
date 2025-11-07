@@ -48,6 +48,15 @@ class aiplacement_modgen_generator_form extends moodleform {
             'weekly' => get_string('moduletype_weekly', 'aiplacement_modgen'),
             'theme' => get_string('moduletype_theme', 'aiplacement_modgen'),
         ];
+        
+        // Add Connected Curriculum format options if flexsections is installed
+        $pluginmanager = core_plugin_manager::instance();
+        $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
+        if (!empty($flexsectionsplugin)) {
+            $moduletypeoptions['connected_weekly'] = get_string('moduletype_connected_weekly', 'aiplacement_modgen');
+            $moduletypeoptions['connected_theme'] = get_string('moduletype_connected_theme', 'aiplacement_modgen');
+        }
+        
         // (supporting files field moved further down, above the main prompt)
         $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
         $mform->setType('moduletype', PARAM_ALPHA);
@@ -58,6 +67,10 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->addElement('advcheckbox', 'keepweeklabels', get_string('keepweeklabels', 'aiplacement_modgen'));
         $mform->setType('keepweeklabels', PARAM_BOOL);
         $mform->setDefault('keepweeklabels', 0);
+        
+        // Show keepweeklabels only when weekly or connected_weekly is selected
+        $mform->hideIf('keepweeklabels', 'moduletype', 'eq', 'theme');
+        $mform->hideIf('keepweeklabels', 'moduletype', 'eq', 'connected_theme');
         
         // Add curriculum template selection if enabled
         if (get_config('aiplacement_modgen', 'enable_templates')) {
@@ -111,42 +124,6 @@ class aiplacement_modgen_generator_form extends moodleform {
             get_string('longquery', 'aiplacement_modgen') . '</div>');
         
         $this->add_action_buttons(false, get_string('submit', 'aiplacement_modgen'));
-        
-        // Add inline script to handle field visibility based on module type
-        $mform->addElement('static', 'jshandler', '', '
-            <script>
-            (function() {
-                function setupFormVisibility() {
-                    const moduleTypeSelect = document.querySelector("select[name=\"moduletype\"]");
-                    if (!moduleTypeSelect) return;
-                    
-                    const updateFieldVisibility = function() {
-                        const isWeekly = moduleTypeSelect.value === "weekly";
-                        
-                        // Find keepweeklabels field by searching form items
-                        const formItems = document.querySelectorAll(".fitem");
-                        formItems.forEach(function(item) {
-                            const label = item.querySelector("label");
-                            if (label && label.textContent.includes("Keep dated headings")) {
-                                item.style.display = isWeekly ? "" : "none";
-                                const checkbox = item.querySelector("input[name=\"keepweeklabels\"]");
-                                if (checkbox && !isWeekly) checkbox.checked = false;
-                            }
-                        });
-                    };
-                    
-                    moduleTypeSelect.addEventListener("change", updateFieldVisibility);
-                    updateFieldVisibility();
-                }
-                
-                if (document.readyState === "loading") {
-                    document.addEventListener("DOMContentLoaded", setupFormVisibility);
-                } else {
-                    setupFormVisibility();
-                }
-            })();
-            </script>
-        ');
     }
 
     public function definition_after_data() {

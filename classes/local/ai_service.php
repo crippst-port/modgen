@@ -224,7 +224,14 @@ class ai_service {
             }
 
             // Compose an instruction-rich prompt with strict JSON schema requirements.
-            $structure = ($structure === 'theme') ? 'theme' : 'weekly';
+            // Normalize format types: connected_weekly -> weekly, connected_theme -> theme
+            $normalizedStructure = $structure;
+            if ($structure === 'connected_weekly') {
+                $normalizedStructure = 'weekly';
+            } elseif ($structure === 'connected_theme') {
+                $normalizedStructure = 'theme';
+            }
+            $structure = ($normalizedStructure === 'theme') ? 'theme' : 'weekly';
             
             // Start with fixed JSON schema requirements
             $jsonrequirements = "The JSON structure you return must represent a Moodle module for the user's requirements, not just generic activities.\n" .

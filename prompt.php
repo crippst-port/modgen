@@ -1159,13 +1159,13 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
             } else {
             }
             
-            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, $supportingfiles, $moduletype);
+            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, $supportingfiles, $moduletype, $courseid);
         } catch (Exception $e) {
             // Fall back to normal generation if template fails
-            $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype);
+            $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype, null, $courseid);
         }
     } else {
-    $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $supportingfiles, $moduletype);
+    $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $supportingfiles, $moduletype, null, $courseid);
     }
     // Check if the AI response contains validation errors
     if (empty($json)) {

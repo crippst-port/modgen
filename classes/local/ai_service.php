@@ -351,7 +351,50 @@ class ai_service {
         return $data;
     }
 
-    public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null) {
+    /**
+     * Generate formatted week dates based on course start date.
+     * Each week is 7 days from the course start date.
+     * 
+     * @param int $weeknumber The week number (1-based)
+     * @param int $courseid Optional course ID to get start date from. Uses COURSE global if not provided.
+     * @return string Formatted date range for the week (e.g., "Jan 6 - Jan 12, 2025")
+     */
+    private static function get_week_date_range($weeknumber, $courseid = null) {
+        global $COURSE;
+        
+        // Get course object if courseid provided
+        if (!empty($courseid)) {
+            $course = get_course($courseid);
+        } else {
+            $course = $COURSE;
+        }
+        
+        // Get course start date
+        $startdate = !empty($course->startdate) ? $course->startdate : time();
+        
+        // Calculate week start date (Monday of week number)
+        // Week 1 starts on the course start date
+        $weekstartdate = $startdate + (($weeknumber - 1) * 7 * 24 * 60 * 60);
+        $weekenddate = $weekstartdate + (6 * 24 * 60 * 60); // 6 days later = Sunday
+        
+        // Format as "Mon Date - Mon Date" (e.g., "Jan 6 - 12")
+        $startformatted = userdate($weekstartdate, '%b %d', 99999);
+        $endformatted = userdate($weekenddate, '%d', 99999);
+        
+        return "{$startformatted} - {$endformatted}";
+    }
+
+    /**
+     * Generate module structure and content using AI.
+     * 
+     * @param string $prompt User's input requirements
+     * @param array $documents Supporting documents/files
+     * @param string $structure Module structure type (weekly/theme)
+     * @param array $template_data Optional template data
+     * @param int $courseid Optional course ID for week date calculations
+     * @return array Module structure JSON
+     */
+    public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null, $courseid = null) {
         global $USER, $COURSE;
         
         // Integrate with Moodle AI Subsystem Manager using generate_text action.
@@ -483,6 +526,28 @@ class ai_service {
                 }
                 $formatinstruction .= "\nUse ONLY these activity types. Do not invent new ones.";
             }
+
+            // Add week date guidance if courseid is provided
+            $weekdateguidance = '';
+            if (!empty($courseid)) {
+                // Generate example dates for first few weeks
+                $exampledate1 = self::get_week_date_range(1, $courseid);
+                $exampledate2 = self::get_week_date_range(2, $courseid);
+                $exampledate3 = self::get_week_date_range(3, $courseid);
+                
+                $weekdateguidance = "\n\nWEEK DATES (Based on Course Start Date):\n" .
+                    "The course has a start date set in Moodle. Each week is 7 days from the previous week.\n" .
+                    "Include the week date range in each week's title using this format:\n" .
+                    "Instead of: \"Week 1\"\n" .
+                    "Use: \"Week 1 ({$exampledate1})\"\n" .
+                    "Then: \"Week 2 ({$exampledate2})\"\n" .
+                    "Then: \"Week 3 ({$exampledate3})\"\n" .
+                    "And so on for each subsequent week.\n" .
+                    "IMPORTANT: Use the exact date format shown above (e.g., \"Jan 6 - Jan 12, 2025\").\n" .
+                    "IMPORTANT: Each week is exactly 7 days after the previous week.\n";
+            }
+            
+            $formatinstruction .= $weekdateguidance;
 
 
             // Add template guidance if template data is provided
@@ -696,8 +761,8 @@ class ai_service {
      * @param string $structure Module structure
      * @return array Response from AI service
      */
-    public static function generate_module_with_template($prompt, $template_data, $documents = [], $structure = 'weekly') {
-        return self::generate_module($prompt, $documents, $structure, $template_data);
+    public static function generate_module_with_template($prompt, $template_data, $documents = [], $structure = 'weekly', $courseid = null) {
+        return self::generate_module($prompt, $documents, $structure, $template_data, $courseid);
     }
 
     /**

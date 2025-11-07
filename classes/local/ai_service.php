@@ -43,6 +43,34 @@ class ai_service {
      * @param string $structure Expected structure type ('theme' or 'weekly')
      * @return array ['valid' => bool, 'error' => string]
      */
+    /**
+     * Extract requested theme count from user prompt if specified.
+     * Looks for patterns like "X themes", "X themed sections", "divide into X themes", etc.
+     * 
+     * @param string $prompt User's input prompt
+     * @param string $structure The structure type (theme or weekly)
+     * @return int|null The requested theme count, or null if not specified
+     */
+    private static function extract_requested_theme_count($prompt, $structure) {
+        // Only applicable for theme-based structures
+        if ($structure !== 'theme') {
+            return null;
+        }
+        
+        // Look for patterns like:
+        // "5 themes", "5-themed", "divide into 5 themes", "create 5 themes"
+        // "5 themed sections", "using 5 themes", "total of 5 themes"
+        if (preg_match('/(\d+)\s*(?:themes?|themed\s+sections?|theme\s+groups?)/i', $prompt, $matches)) {
+            $count = intval($matches[1]);
+            // Reasonable range: between 2 and 12 themes
+            if ($count >= 2 && $count <= 12) {
+                return $count;
+            }
+        }
+        
+        return null;
+    }
+
     private static function validate_module_structure($data, $structure) {
         $structure = ($structure === 'theme') ? 'theme' : 'weekly';
 
@@ -376,14 +404,38 @@ class ai_service {
 
             // Add file parsing and theme instructions only for theme structure
             if ($structure === 'theme') {
-                $roleinstruction .= "GENERATE COMPLETE THEMED STRUCTURE:\n" .
-                    "- Parse the ENTIRE file and extract ALL topics and sections\n" .
-                    "- Group related content into 3-5 coherent themes\n" .
-                    "- For each theme, create weeks covering all subtopics\n" .
-                    "- For each week, create presession/session/postsession activities\n" .
-                    "- Do NOT skip any content - include everything from the curriculum file\n" .
-                    "- Each theme summary: 2-3 sentence introduction for students\n" .
-                    "- Each week summary: brief overview of that week's learning\n\n";
+                // Check if user specified a requested theme count
+                $requestedthemecount = self::extract_requested_theme_count($prompt, $structure);
+                
+                if (!empty($requestedthemecount)) {
+                    // User specified a specific number of themes - use that as the OVERRIDE
+                    $roleinstruction .= "GENERATE COMPLETE THEMED STRUCTURE:\n" .
+                        "*** USER HAS SPECIFIED: Create EXACTLY {$requestedthemecount} themes ***\n" .
+                        "This is a REQUIREMENT - do NOT deviate. Use {$requestedthemecount} themes, not more or fewer.\n\n" .
+                        "STEP 1: Parse the ENTIRE file and list EVERY single topic and subtopic\n" .
+                        "STEP 2: Divide all topics into EXACTLY {$requestedthemecount} coherent theme groups\n" .
+                        "STEP 3: Ensure ALL topics are covered - each topic goes into exactly one theme\n" .
+                        "STEP 4: For each of the {$requestedthemecount} themes, create weeks (typically 2-4 weeks per theme) covering all subtopics\n" .
+                        "STEP 5: For each week, create presession/session/postsession activities\n" .
+                        "STEP 6: Verify ALL topics from the file are included in your {$requestedthemecount} themes\n" .
+                        "CRITICAL: Generate EXACTLY {$requestedthemecount} themes - this overrides any other guidance\n" .
+                        "CRITICAL: Every topic from the file MUST appear in at least one week of one theme\n" .
+                        "- Each theme summary: 2-3 sentence introduction for students\n" .
+                        "- Each week summary: brief overview of that week's learning\n\n";
+                } else {
+                    // No specific count requested - use flexible guidance
+                    $roleinstruction .= "GENERATE COMPLETE THEMED STRUCTURE:\n" .
+                        "STEP 1: Parse the ENTIRE file and list EVERY single topic and subtopic\n" .
+                        "STEP 2: Count all topics to determine theme count (typically 3-6 themes needed to cover all topics)\n" .
+                        "STEP 3: Group ALL topics into coherent themes - ensure NO topic is left out\n" .
+                        "STEP 4: For each theme, create weeks (typically 2-4 weeks per theme) covering all subtopics\n" .
+                        "STEP 5: For each week, create presession/session/postsession activities\n" .
+                        "STEP 6: Verify ALL topics from the file are included in your themes\n" .
+                        "CRITICAL: Do NOT skip any content - include every topic from the curriculum file\n" .
+                        "CRITICAL: Every topic from the file MUST appear in at least one week of one theme\n" .
+                        "- Each theme summary: 2-3 sentence introduction for students\n" .
+                        "- Each week summary: brief overview of that week's learning\n\n";
+                }
             } else {
                 $roleinstruction .= "GENERATE COMPLETE WEEKLY STRUCTURE:\n" .
                     "- Parse the ENTIRE file and extract ALL topics and sections\n" .
@@ -410,8 +462,10 @@ class ai_service {
                     "    }}\n" .
                     "  ]}\n" .
                     "]}\n" .
-                    "IMPORTANT: Repeat this structure for EVERY theme and week in the curriculum.\n" .
-                    "IMPORTANT: Include ALL weeks from all themes - do not truncate.\n";
+                    "IMPORTANT: Generate ALL themes needed to cover ALL topics in the curriculum.\n" .
+                    "IMPORTANT: Each theme must have multiple weeks (at least 2-3 weeks minimum).\n" .
+                    "IMPORTANT: Include EVERY topic from the file - do not skip or leave out any content.\n" .
+                    "IMPORTANT: Do not truncate - continue until all themes and all weeks are complete.\n";
             } else {
                 $formatinstruction = "JSON OUTPUT STRUCTURE (Weekly):\n" .
                     "{\"sections\": [\n" .
@@ -474,10 +528,24 @@ class ai_service {
                 $documents_text . "\n" .
                 "User requirements:\n" . trim($prompt) . "\n\n" .
                 $template_guidance . "\n" .
-                $formatinstruction . "\n\n" .
-                "FINAL REMINDER: Generate the COMPLETE module. Include EVERY topic from the file above.\n" .
-                "Do NOT stop early, do NOT truncate, do NOT omit content.\n" .
-                "Return ONLY JSON - no other text.\n";
+                $formatinstruction . "\n\n";
+            
+            // Add structure-specific final reminder
+            if ($structure === 'theme') {
+                $finalprompt .= "FINAL REMINDER - THEME STRUCTURE:\n" .
+                    "- Generate the COMPLETE module with ALL themes needed\n" .
+                    "- Include EVERY topic and subtopic from the file above\n" .
+                    "- Each theme MUST contain multiple weeks (at least 2-3 weeks per theme)\n" .
+                    "- Every topic from the curriculum file MUST appear in at least one week\n" .
+                    "- Do NOT stop early, do NOT truncate, do NOT omit content\n" .
+                    "- Return ONLY JSON - no other text.\n";
+            } else {
+                $finalprompt .= "FINAL REMINDER - WEEKLY STRUCTURE:\n" .
+                    "- Generate the COMPLETE module with all weeks\n" .
+                    "- Include EVERY topic from the file above\n" .
+                    "- Do NOT stop early, do NOT truncate, do NOT omit content\n" .
+                    "- Return ONLY JSON - no other text.\n";
+            }
 
             // Instantiate the generate_text action with required parameters.
             $action = new \core_ai\aiactions\generate_text(

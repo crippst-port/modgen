@@ -237,6 +237,92 @@ class ai_service {
         
         return $result;
     }
+
+    /**
+     * Convert a weekly structure (sections) into a themed structure (themes).
+     * 
+     * Groups sections into themes by analyzing section titles for pedagogical coherence.
+     * Creates wrapper themes and nests the sections as weeks within each theme.
+     *
+     * @param array $data The response data with 'sections' array
+     * @return array The converted data with 'themes' array, or original if no sections found
+     */
+    private static function convert_sections_to_themes($data) {
+        // If already has themes or no sections, return as-is
+        if (!isset($data['sections']) || !is_array($data['sections'])) {
+            return $data;
+        }
+
+        $sections = $data['sections'];
+        if (empty($sections)) {
+            return $data;
+        }
+
+        // Group sections into themes based on pedagogical similarity
+        // Strategy: Look for section titles that suggest thematic boundaries
+        // Keywords that might start a new theme: "Module", "Unit", "Theme", "Section", "Part"
+        $themes = [];
+        $currentTheme = null;
+
+        foreach ($sections as $section) {
+            $title = $section['title'] ?? 'Untitled';
+            
+            // Check if this section should start a new theme
+            // (titles containing "Theme", "Unit", "Module" suggest a new thematic grouping)
+            $lowerTitle = strtolower($title);
+            $isThemeStarter = preg_match('/^(theme|unit|module|part|section)\s+\d+|^(week|session)\s+\d+/i', $title);
+            
+            if (empty($themes) || $isThemeStarter) {
+                // Start a new theme
+                $themeName = preg_match('/^(theme|unit|module)\s+(\d+)/i', $title, $m) 
+                    ? ucfirst($m[1]) . ' ' . $m[2]
+                    : (preg_match('/^part\s+(\w+)/i', $title, $m2) ? 'Part: ' . $m2[1] : $title);
+                
+                $currentTheme = [
+                    'title' => $themeName,
+                    'summary' => $section['summary'] ?? '',
+                    'weeks' => [],
+                ];
+                $themes[] = $currentTheme;
+                $themeIdx = count($themes) - 1;
+            } else {
+                $themeIdx = count($themes) - 1;
+            }
+
+            // Convert section into week structure
+            $week = [
+                'title' => $title,
+                'summary' => $section['summary'] ?? '',
+            ];
+
+            // If section has outline, convert to activities structure
+            if (isset($section['outline']) && is_array($section['outline'])) {
+                $week['sessions'] = [
+                    'session' => [
+                        'title' => 'Main Session',
+                        'summary' => implode("\n", $section['outline']),
+                        'activities' => $section['activities'] ?? [],
+                    ],
+                ];
+            } elseif (isset($section['activities']) && is_array($section['activities'])) {
+                $week['sessions'] = [
+                    'session' => [
+                        'title' => 'Main Session',
+                        'summary' => '',
+                        'activities' => $section['activities'],
+                    ],
+                ];
+            }
+
+            $themes[$themeIdx]['weeks'][] = $week;
+        }
+
+        // Return converted structure
+        $data['themes'] = $themes;
+        unset($data['sections']);
+        return $data;
+    }
+
     public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null) {
         global $USER, $COURSE;
         
@@ -261,7 +347,7 @@ class ai_service {
                 ];
             }
 
-            // Compose an instruction-rich prompt with strict JSON schema requirements.
+            // Compose instruction-rich prompt with strict JSON schema requirements.
             // Normalize format types: connected_weekly -> weekly, connected_theme -> theme
             $normalizedStructure = $structure;
             if ($structure === 'connected_weekly') {
@@ -271,195 +357,56 @@ class ai_service {
             }
             $structure = ($normalizedStructure === 'theme') ? 'theme' : 'weekly';
             
-            // Start with fixed JSON schema requirements
-            $jsonrequirements = "The JSON structure you return must represent a Moodle module for the user's requirements, not just generic activities.\n" .
-                "Return ONLY valid JSON matching the schema below. Do not include any commentary or code fences.\n\n" .
-                "CRITICAL - JSON FORMAT REQUIREMENTS:\n" .
-                "- Return the JSON object DIRECTLY as the top-level response\n" .
-                "- Do NOT wrap the JSON in any outer structure\n" .
-                "- Do NOT place the JSON inside any field value or summary\n" .
-                "- Do NOT escape or encode the JSON as a string\n" .
-                "- The response must be parseable as JSON with a single json_decode() call\n" .
-                "- Top-level must contain either 'themes' or 'sections' array, not nested inside any field\n" .
-                "Example CORRECT: {\"themes\": [{\"title\": \"...\", ...}]}\n" .
-                "Example INCORRECT (do not do this): {\"response\": \"{\\\"themes\\\"...}\"} or {\"data\": \"{\n  \\\"themes\\\":...}\"}";
-
-            
             // Get the configurable pedagogical guidance from admin settings
             $pedagogicalguidance = get_config('aiplacement_modgen', 'baseprompt');
             if (empty($pedagogicalguidance)) {
                 // Fallback to default if not configured
-                $pedagogicalguidance = "You are an expert Moodle learning content designer at a UK higher education institution.\n" .
-                    "Your task is to design a Moodle module for the user's input, using activities and resources appropriate for UK HE.\n" .
-                    "Design learning activities aligned with UK HE standards, inclusive pedagogy, and clear learning outcomes.";
+                $pedagogicalguidance = "You are an expert Moodle learning content designer at a UK higher education institution designing a Moodle module for the user's input using activities appropriate for UK HE.";
             }
             
-            // Combine pedagogical guidance with JSON requirements
-            $roleinstruction = $pedagogicalguidance . "\n\n" . $jsonrequirements . "\n\n" .
-                "FILE STRUCTURE PARSING INSTRUCTION (when an uploaded file is provided):\n" .
-                "If the user has uploaded a file containing a course/module structure:\n" .
-                "1. Read and parse the ENTIRE file content completely\n" .
-                "2. Identify ALL sections, subsections, and topics in the file (do not skip any)\n" .
-                "3. Preserve the exact hierarchy and names from the file\n" .
-                "4. Convert the complete structure into the JSON schema format\n" .
-                "5. Include EVERY section and topic from the file - do not omit any\n" .
-                "6. Use the file structure as the authoritative source - it SUPERSEDES any conflicting guidance\n" .
-                "7. Generate summaries and activities for each section based on its context\n" .
-                "8. Return JSON that represents the complete file structure in its entirety\n" .
-                "\nCRITICAL: When a file structure is provided, create it completely - do not create partial structures.";
+            // Build compact roleinstruction without redundancy
+            $roleinstruction = $pedagogicalguidance . "\n\n" .
+                "CRITICAL - Return ONLY valid JSON. No commentary, code fences, or wrapping.\n" .
+                "Return the JSON object DIRECTLY as the top-level response.\n" .
+                "IMPORTANT: Do NOT include any example data or placeholder text like 'Week X', 'Theme Name', '...', 'Overview', etc.\n" .
+                "Every field MUST contain actual content from the curriculum provided, NEVER from format examples.\n" .
+                "Top-level must contain either 'themes' or 'sections' array.\n" .
+                "Example structure ONLY (do not copy this data): {\"themes\": [{\"title\": \"REAL THEME\", \"summary\": \"REAL SUMMARY\", \"weeks\": [...]}]}\n\n";
+
+            // Add file parsing and theme instructions only for theme structure
+            if ($structure === 'theme') {
+                $roleinstruction .= "TASK: Generate complete themed module structure with ALL themes and weeks from the file.\n" .
+                    "- Read and parse the ENTIRE file content - identify ALL sections and topics\n" .
+                    "- Group related sections into coherent themes\n" .
+                    "- For each theme, create weeks with presession/session/postsession activities\n" .
+                    "- GENERATE COMPLETE STRUCTURE: Do NOT stop early or omit any content\n" .
+                    "- Each theme needs a 2-3 sentence introduction for students\n\n";
+            } else {
+                $roleinstruction .= "TASK: Generate complete weekly module structure with ALL weeks from the file.\n" .
+                    "- Read and parse the ENTIRE file content - identify ALL sections and topics\n" .
+                    "- Create a section (week) for each major topic\n" .
+                    "- Include outline array and activities for each section\n" .
+                    "- GENERATE COMPLETE STRUCTURE: Do NOT stop early or omit any content\n\n";
+            }
 
 
             $activitymetadata = registry::get_supported_activity_metadata();
             $supportedactivitytypes = array_keys($activitymetadata);
 
-            // Debug: Log what activity types are available
-            
-
+            // Build concise format instructions - minimal example, repeat pattern for all content
             if ($structure === 'theme') {
-                $activityobject = [
-                    'type' => 'object',
-                    'required' => ['type', 'name'],
-                    'properties' => [
-                        'type' => [
-                            'type' => 'string',
-                            'enum' => $supportedactivitytypes,
-                        ],
-                        'name' => ['type' => 'string'],
-                        'intro' => ['type' => 'string'],
-                        'description' => ['type' => 'string'],
-                        'externalurl' => ['type' => 'string'],
-                        'chapters' => [
-                            'type' => 'array',
-                            'items' => [
-                                'type' => 'object',
-                                'properties' => [
-                                    'title' => ['type' => 'string'],
-                                    'content' => ['type' => 'string'],
-                                ],
-                            ],
-                        ],
-                    ],
-                ];
-
-                $sessionobject = [
-                    'type' => 'object',
-                    'properties' => [
-                        'title' => ['type' => 'string'],
-                        'summary' => ['type' => 'string'],
-                        'activities' => [
-                            'type' => 'array',
-                            'items' => $activityobject,
-                        ],
-                    ],
-                ];
-
-                $weekproperties = [
-                    'title' => ['type' => 'string'],
-                    'summary' => ['type' => 'string'],
-                    'sessions' => [
-                        'type' => 'object',
-                        'properties' => [
-                            'presession' => $sessionobject,
-                            'session' => $sessionobject,
-                            'postsession' => $sessionobject,
-                        ],
-                    ],
-                ];
-
-                $schemaspec = [
-                    'type' => 'object',
-                    'required' => ['themes'],
-                    'properties' => [
-                        'themes' => [
-                            'type' => 'array',
-                            'items' => [
-                                'type' => 'object',
-                                'required' => ['title', 'summary', 'weeks'],
-                                'properties' => [
-                                    'title' => ['type' => 'string'],
-                                    'summary' => ['type' => 'string'],
-                                    'weeks' => [
-                                        'type' => 'array',
-                                        'items' => [
-                                            'type' => 'object',
-                                            'required' => ['title', 'summary'],
-                                            'properties' => $weekproperties,
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
-                        'template' => ['type' => 'string'],
-                    ],
-                ];
-
-                $formatinstruction = "Schema: " . json_encode($schemaspec) . "\n" .
-                    "Output rules: Return a compact JSON object which validates against the schema.\n" .
-                    "Each theme includes a 'title', a 'summary', and a 'weeks' array.\n" .
-                    "Each week contains a 'title' and 'summary' for the week overview (generic delivery guidance), plus a 'sessions' object.\n" .
-                    "Within each week's 'sessions', there are three subsections: 'presession', 'session', and 'postsession'.\n" .
-                    "Each session subsection can have its own 'title', 'summary', and 'activities' array.\n" .
-                    "Audience: UK university students. Use British English.\n\n" .
-                    "⚠️ IMPORTANT: Return the JSON object DIRECTLY. Do NOT place it inside any field or wrap it as a string value.";
+                $formatinstruction = "JSON RESPONSE FORMAT:\n" .
+                    "{\"themes\": [{\"title\": \"Theme Title\", \"summary\": \"Theme Summary\", \"weeks\": [{\"title\": \"Week Title\", \"summary\": \"Week Summary\", \"sessions\": {\"presession\": {\"activities\": [...]}, \"session\": {\"activities\": [...]}, \"postsession\": {\"activities\": [...]}}}]}]}\n" .
+                    "Repeat the theme and week structure for each theme/week in the curriculum.\n" .
+                    "Repeat the session pattern (presession/session/postsession) for each week.\n" .
+                    "Each activity object: {\"type\": \"quiz|forum|url|book\", \"name\": \"Activity Name\"} plus type-specific fields.\n" .
+                    "Compact JSON, no extra whitespace.";
             } else {
-                $sectionproperties = [
-                    'title' => ['type' => 'string'],
-                    'summary' => ['type' => 'string'],
-                    'outline' => [
-                        'type' => 'array',
-                        'items' => ['type' => 'string'],
-                    ],
-                ];
-                if (!empty($supportedactivitytypes)) {
-                    $sectionproperties['activities'] = [
-                        'type' => 'array',
-                        'items' => [
-                            'type' => 'object',
-                            'required' => ['type', 'name'],
-                            'properties' => [
-                                'type' => [
-                                    'type' => 'string',
-                                    'enum' => $supportedactivitytypes,
-                                ],
-                                'name' => ['type' => 'string'],
-                                'intro' => ['type' => 'string'],
-                                'description' => ['type' => 'string'],
-                                'externalurl' => ['type' => 'string'],
-                                'chapters' => [
-                                    'type' => 'array',
-                                    'items' => [
-                                        'type' => 'object',
-                                        'properties' => [
-                                            'title' => ['type' => 'string'],
-                                            'content' => ['type' => 'string'],
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ];
-                }
-
-                $schemaspec = [
-                    'type' => 'object',
-                    'required' => ['sections'],
-                    'properties' => [
-                        'sections' => [
-                            'type' => 'array',
-                            'items' => [
-                                'type' => 'object',
-                                'required' => ['title', 'summary', 'outline'],
-                                'properties' => $sectionproperties,
-                            ],
-                        ],
-                        'template' => ['type' => 'string'],
-                    ],
-                ];
-                $formatinstruction = "Schema: " . json_encode($schemaspec) . "\n" .
-                    "Output rules: Return a compact JSON object which validates against the schema.\n" .
-                    "Each section is a teaching week with a 'title', a narrative 'summary', and an 'outline' array of key activities/resources.\n" .
-                    "Audience: UK university students. Use British English.\n\n" .
-                    "⚠️ IMPORTANT: Return the JSON object DIRECTLY. Do NOT place it inside any field or wrap it as a string value.";
+                $formatinstruction = "JSON RESPONSE FORMAT:\n" .
+                    "{\"sections\": [{\"title\": \"Week Title\", \"summary\": \"Week Summary\", \"outline\": [\"key point 1\", \"key point 2\"], \"activities\": [{\"type\": \"quiz|forum|url|book\", \"name\": \"Activity Name\"}]}]}\n" .
+                    "Repeat the section structure for each week in the curriculum.\n" .
+                    "Each activity object: {\"type\": \"quiz|forum|url|book\", \"name\": \"Activity Name\"} plus type-specific fields.\n" .
+                    "Compact JSON, no extra whitespace.";
             }
 
             if (!empty($activitymetadata)) {
@@ -490,24 +437,21 @@ class ai_service {
             } else {
             }
 
-            // Incorporate supporting documents (if any) into the prompt so the AI can use them as context.
+            // Incorporate supporting documents with aggressive truncation
             $documents_text = '';
             if (!empty($documents) && is_array($documents)) {
-                $documents_text .= "\n\nSUPPORTING DOCUMENTS:\n";
+                $documents_text .= "\nFILE CONTENT:\n";
                 foreach ($documents as $doc) {
                     $dname = isset($doc['filename']) ? $doc['filename'] : 'unnamed';
-                    $dmime = isset($doc['mimetype']) ? $doc['mimetype'] : '';
                     $dcontent = isset($doc['content']) ? $doc['content'] : '';
-                    // Truncate extremely large document content to keep prompt reasonable.
-                    if (is_string($dcontent) && strlen($dcontent) > 150000) {
-                        $dcontent = substr($dcontent, 0, 150000) . "\n...[truncated]";
+                    // Aggressive truncation: 80k chars max per document to keep prompt lean
+                    if (is_string($dcontent) && strlen($dcontent) > 80000) {
+                        $dcontent = substr($dcontent, 0, 80000) . "\n[file truncated]";
                     }
-                    $documents_text .= "--- DOCUMENT: {$dname} ({$dmime}) ---\n";
+                    $documents_text .= "--- {$dname} ---\n";
                     $documents_text .= trim((string)$dcontent) . "\n\n";
                 }
             }
-
-            // Supporting files are now incorporated into the prompt as needed.
 
             if (empty($roleinstruction) || empty($formatinstruction)) {
                 return [
@@ -516,7 +460,7 @@ class ai_service {
                 ];
             }
 
-            $finalprompt = $roleinstruction . "\n\nUser requirements:\n" . trim($prompt) . "\n\n" . $template_guidance . $documents_text . "\n\n" . $formatinstruction;
+            $finalprompt = $roleinstruction . "\n\n" . $documents_text . "\nUser requirements:\n" . trim($prompt) . "\n\n" . $template_guidance . "\n\n" . $formatinstruction;
 
             // Instantiate the generate_text action with required parameters.
             $action = new \core_ai\aiactions\generate_text(
@@ -594,6 +538,11 @@ class ai_service {
             }
 
             if (is_array($jsondecoded) && (isset($jsondecoded['sections']) || isset($jsondecoded['themes']) || isset($jsondecoded['activities']))) {
+                // If theme structure is requested but we have sections, attempt conversion
+                if ($structure === 'theme' && isset($jsondecoded['sections']) && !isset($jsondecoded['themes'])) {
+                    $jsondecoded = self::convert_sections_to_themes($jsondecoded);
+                }
+
                 // Validate the structure to catch malformed responses
                 $validation = self::validate_module_structure($jsondecoded, $structure);
 
@@ -618,7 +567,22 @@ class ai_service {
             }
 
             // Debug: JSON decode failed or invalid structure
-            // Fallback mapping: wrap generated text into a label.
+            // For theme structure, attempt to convert sections to themes before falling back
+            if ($structure === 'theme' && is_array($jsondecoded) && isset($jsondecoded['sections'])) {
+                $jsondecoded = self::convert_sections_to_themes($jsondecoded);
+                
+                // Validate the converted structure
+                $validation = self::validate_module_structure($jsondecoded, $structure);
+                if ($validation['valid']) {
+                    $jsondecoded['raw'] = $text;
+                    $jsondecoded['debugprompt'] = $finalprompt;
+                    $jsondecoded['debugresponse'] = $data;
+                    return $jsondecoded;
+                }
+            }
+
+            // Last resort: wrap generated text into a label
+            // For theme structure, still wrap as themes but note this is fallback
             $revised = $data['revisedprompt'] ?? '';
             return [
                 $structure === 'theme' ? 'themes' : 'sections' => [
@@ -635,61 +599,6 @@ class ai_service {
                 'activities' => [],
                 'template' => 'AI error: ' . $e->getMessage()
             ];
-        }
-    }
-
-    /**
-     * Produce a concise human-readable summary of the generated module structure.
-     *
-     * @param array $moduledata The decoded JSON returned by the AI generator.
-     * @param string $structure Either 'weekly' or 'theme'.
-     * @return string Summary text or empty string if unavailable.
-     */
-    public static function summarise_module(array $moduledata, string $structure = 'weekly'): string {
-        global $USER, $COURSE;
-
-        try {
-            if (!class_exists('\\core_ai\\manager') || !class_exists('\\core_ai\\aiactions\\generate_text')) {
-                return '';
-            }
-
-            $contextid = !empty($COURSE->id)
-                ? \context_course::instance($COURSE->id)->id
-                : \context_system::instance()->id;
-
-            $aimanager = new \core_ai\manager();
-            if (!$aimanager->get_user_policy_status($USER->id)) {
-                return '';
-            }
-
-            $structure = ($structure === 'theme') ? 'theme' : 'weekly';
-            $jsonpayload = json_encode($moduledata, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-            if ($jsonpayload === false) {
-                return '';
-            }
-
-            $instruction = "You are an instructional designer generating a concise summary of a Moodle module plan.\n" .
-                "Summarise what will be created in no more than 80 words, focusing on learner experience and structure.\n" .
-                "Refer to the module as a '{$structure}' style offering.\n" .
-                "Do not use bullet points or markdown headings. Respond with plain sentences.";
-
-            $prompt = $instruction . "\n\nModule plan JSON:\n" . $jsonpayload;
-
-            $action = new \core_ai\aiactions\generate_text(
-                $contextid,
-                $USER->id,
-                $prompt
-            );
-
-            $response = $aimanager->process_action($action);
-            $data = $response->get_response_data();
-            $text = $data['generatedtext'] ?? ($data['generatedcontent'] ?? '');
-            if (is_string($text)) {
-                return trim($text);
-            }
-            return '';
-        } catch (\Throwable $e) {
-            return '';
         }
     }
 

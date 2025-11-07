@@ -862,41 +862,12 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
                 redirect(new moodle_url('/course/view.php', ['id' => $courseid]));
             }
         } catch (Exception $e) {
-            error_log('Upload form error: ' . $e->getMessage());
             if ($ajax) {
                 aiplacement_modgen_send_ajax_response($e->getMessage(), '', false);
             }
         }
     }
 }if ($pdata = $promptform->get_data()) {
-    // Debug: Log all form data received
-    error_log('=== PROMPT FORM SUBMITTED ===');
-    error_log('All pdata properties: ' . print_r((array)$pdata, true));
-    error_log('curriculum_template in pdata: ' . (isset($pdata->curriculum_template) ? 'YES' : 'NO'));
-    if (isset($pdata->curriculum_template)) {
-        error_log('curriculum_template value: "' . $pdata->curriculum_template . '"');
-        error_log('curriculum_template is empty: ' . (empty($pdata->curriculum_template) ? 'YES' : 'NO'));
-    }
-    error_log('=== END FORM DEBUG ===');
-    
-    // Visual debug display (appears on page if ?debug=1 is in URL)
-    if (isset($_GET['debug'])) {
-        echo '<div style="background: #fff3cd; border: 2px solid #ffc107; padding: 15px; margin: 20px 0; font-family: monospace; font-size: 12px; border-radius: 4px;">';
-        echo '<strong style="color: #ff6b00;">⚠️ DEBUG MODE: Form Submission</strong><br>';
-        echo 'curriculum_template isset: <strong>' . (isset($pdata->curriculum_template) ? 'YES' : 'NO') . '</strong><br>';
-        echo 'curriculum_template value: <code style="background: white; padding: 2px 4px;">"' . htmlspecialchars((string)($pdata->curriculum_template ?? '')) . '"</code><br>';
-        echo 'curriculum_template empty: <strong>' . (empty($pdata->curriculum_template) ? 'YES' : 'NO') . '</strong><br>';
-        echo 'All form fields: ';
-        $fields = [];
-        foreach ((array)$pdata as $key => $val) {
-            if (!is_object($val) && !is_array($val)) {
-                $fields[] = "$key=" . substr((string)$val, 0, 20);
-            }
-        }
-        echo implode(', ', $fields) . '<br>';
-        echo '</div>';
-    }
-    
     $prompt = $pdata->prompt;
     $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
     $keepweeklabels = !empty($pdata->keepweeklabels);
@@ -976,6 +947,18 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
 
             if (in_array($ext, ['txt', 'md', 'html', 'htm'])) {
                 $extracted = is_string($content) ? $content : '';
+            } elseif ($ext === 'rtf' || $mimetype === 'application/rtf' || $mimetype === 'text/rtf') {
+                // Extract text from RTF by stripping RTF formatting codes
+                $extracted = is_string($content) ? $content : '';
+                // Remove RTF header and formatting commands
+                $extracted = preg_replace('/\{\\\?[^}]*\}/', '', $extracted);  // Remove \*\ blocks
+                $extracted = preg_replace('/\\\\[a-z]+\d*\s?/', '', $extracted);  // Remove control words like \f0, \fs30
+                $extracted = preg_replace('/\\\\["\047][0-9a-f]{2}/', '', $extracted);  // Remove hex chars
+                $extracted = preg_replace('/[{}]/', '', $extracted);  // Remove braces
+                $extracted = preg_replace('/\s+/', ' ', $extracted);  // Collapse whitespace
+                $extracted = trim($extracted);
+                // Clean up any remaining escaped characters (RTF em-dash and quote)
+                $extracted = str_replace(['\\\'97', '\\\'92'], ['-', '\''], $extracted);
             } elseif ($ext === 'docx') {
                 $tmp = tempnam(sys_get_temp_dir(), 'modgen_docx_');
                 file_put_contents($tmp, $content);
@@ -1062,7 +1045,19 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
 
             // Try simple text extraction for common document types
             if (in_array($ext, ['txt', 'md', 'html', 'htm'])) {
-                $extracted = is_string($content) ? $content : ''; 
+                $extracted = is_string($content) ? $content : '';
+            } elseif ($ext === 'rtf' || $mimetype === 'application/rtf' || $mimetype === 'text/rtf') {
+                // Extract text from RTF by stripping RTF formatting codes
+                $extracted = is_string($content) ? $content : '';
+                // Remove RTF header and formatting commands
+                $extracted = preg_replace('/\{\\\?[^}]*\}/', '', $extracted);  // Remove \*\ blocks
+                $extracted = preg_replace('/\\\\[a-z]+\d*\s?/', '', $extracted);  // Remove control words like \f0, \fs30
+                $extracted = preg_replace('/\\\\["\047][0-9a-f]{2}/', '', $extracted);  // Remove hex chars
+                $extracted = preg_replace('/[{}]/', '', $extracted);  // Remove braces
+                $extracted = preg_replace('/\s+/', ' ', $extracted);  // Collapse whitespace
+                $extracted = trim($extracted);
+                // Clean up any remaining escaped characters (RTF em-dash and quote)
+                $extracted = str_replace(['\\\'97', '\\\'92'], ['-', '\''], $extracted);
             } elseif ($ext === 'docx') {
                 // attempt to extract from docx
                 $tmp = tempnam(sys_get_temp_dir(), 'modgen_docx_');
@@ -1134,16 +1129,10 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     }
     
     // Generate module with or without template
-    error_log('DEBUG: $pdata->curriculum_template exists: ' . (isset($pdata->curriculum_template) ? 'YES' : 'NO'));
-    error_log('DEBUG: $pdata->curriculum_template value: ' . var_export($pdata->curriculum_template, true));
-    error_log('DEBUG: $curriculum_template after assignment: ' . var_export($curriculum_template, true));
-    error_log('Checking curriculum_template: empty=' . (empty($curriculum_template) ? '1' : '0') . ', value=' . var_export($curriculum_template, true));
     if (!empty($curriculum_template)) {
-        error_log('Template selected: ' . $curriculum_template);
         try {
             $template_reader = new \aiplacement_modgen\local\template_reader();
             $template_data = $template_reader->extract_curriculum_template($curriculum_template);
-            error_log('Template data extracted, keys: ' . implode(', ', array_keys($template_data)));
             
             // Validate template data has content
             $data_summary = [];
@@ -1156,26 +1145,14 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
                     $data_summary[$key] = gettype($value);
                 }
             }
-            error_log('Template data summary: ' . json_encode($data_summary));
             
             // Extract Bootstrap structure from the template
             $bootstrap_structure = $template_reader->extract_bootstrap_structure($curriculum_template);
-            error_log('Extracted bootstrap structure: ' . print_r($bootstrap_structure, true));
             $template_data['bootstrap_structure'] = $bootstrap_structure;
-            
-            // Log template HTML extraction
-            if (!empty($template_data['template_html'])) {
-                error_log('Template HTML extracted, length: ' . strlen($template_data['template_html']));
-                error_log('First 500 chars of template HTML: ' . substr($template_data['template_html'], 0, 500));
-            } else {
-                error_log('No template HTML extracted');
-            }
             
             // Validate structure and activities are not empty
             if (empty($template_data['structure'])) {
-                error_log('WARNING: Template has no structure/sections');
             } else {
-                error_log('Template structure count: ' . count($template_data['structure']));
             }
             
             if (empty($template_data['activities'])) {
@@ -1260,10 +1237,9 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     if ($jsonstr === false) {
         $jsonstr = print_r($json, true);
     }
-    $summarytext = \aiplacement_modgen\ai_service::summarise_module($json, $moduletype);
-    if ($summarytext === '') {
-        $summarytext = aiplacement_modgen_generate_fallback_summary($json, $moduletype);
-    }
+    // For fresh generation (start from scratch), skip re-encoding module data for summary
+    // Just use a simple generated fallback summary instead
+    $summarytext = aiplacement_modgen_generate_fallback_summary($json, $moduletype);
     $summaryformatted = $summarytext !== '' ? nl2br(s($summarytext)) : '';
 
     $approveform = new aiplacement_modgen_approve_form(null, [

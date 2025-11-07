@@ -66,6 +66,11 @@ class book implements activity_type {
 
         $intro = trim($activitydata->intro ?? '');
         $chapters = $activitydata->chapters ?? [];
+        
+        // Ensure chapters is an array (might be string from JSON)
+        if (!is_array($chapters)) {
+            $chapters = [];
+        }
 
         error_log('BOOK: Chapters count: ' . count($chapters));
 

@@ -1,9 +1,28 @@
 # Copilot Instructions for AI Agents
 
 ## Project Overview
-This codebase is a Moodle plugin named **Module Generator** (`aiplacement_modgen`). It is designed to be installed in a Moodle instance under `ai/placement/modgen`. The plugin is currently in alpha maturity and under active development.
+**Module Generator** (`aiplacement_modgen`) is a Moodle plugin integrating with Moodle's core AI subsystem to generate course structures and analyze existing modules. Install path: `ai/placement/modgen`. Alpha version 0.2.0.
 
-**Current Focus:** The Explore page displays AI-generated insights about course modules, with features for viewing pedagogical insights, learning type analysis, workload analysis, interactive charts, and PDF report generation.
+**⚠️ CRITICAL: Always consult [Moodle Developer Documentation](https://moodledev.io) as the authoritative source for plugin development, APIs, and best practices. This project follows standard Moodle conventions unless explicitly noted below.**
+
+## Architecture: Three Core Flows
+
+**1. Module Generation** (`prompt.php` → `ai_service.php` → `registry.php`)
+- User prompt → `ai_service::generate_module()` → Moodle `core_ai\manager::process_action()`
+- AI returns JSON with strict schema → `registry::create_activities()` dispatches to handler classes
+- Activity handlers auto-discovered via filesystem scan of `classes/activitytype/*.php`
+- Template mode includes HTML structure in AI prompt for visual consistency
+
+**2. Module Exploration** (`explore.php` + caching system)
+- Cached insights: `explore_cache::get($courseid)` → <500ms database lookup
+- Cache miss: 5-10s AI analysis → saved to `aiplacement_modgen_cache` table
+- Frontend: `explore.js` orchestrates fetch → process → Chart.js render (with setTimeout delays)
+- User refresh button forces new AI analysis and updates cache
+
+**3. Activity Registry** (plugin architecture)
+- Discovers handlers by scanning `classes/activitytype/*.php` for `activity_type` interface implementations
+- Each handler: `get_type()`, `get_prompt_description()` (sent to AI), `create()` (uses Moodle's `create_module()`)
+- No registration needed - add file, implement interface, auto-discovered on next request
 
 ## Key Files & Structure
 
@@ -29,126 +48,153 @@ This codebase is a Moodle plugin named **Module Generator** (`aiplacement_modgen
   - `docs/EXPLORE_REFACTORING.md`: Migration guide and statistics
   - Legacy debug/test files also stored here
 
+## Critical Workflows
+
+**Build & Deploy:**
+```bash
+npm install              # One-time: installs Grunt + plugins
+npm run build            # Minify amd/src/*.js → amd/build/*.min.js
+php admin/cli/upgrade.php        # Apply DB schema changes
+php admin/cli/purge_caches.php   # Clear after JS/template changes
+```
+**Always commit both** `amd/src/` and `amd/build/` files. Grunt watch mode: `npm run watch`.
+
+**Debugging:**
+- AI responses: `/tmp/modgen_debug.log` (temporary, see `ai_service.php`)
+- AJAX: Browser Network tab → `explore_ajax.php` → verify `success: true` in JSON
+- Charts: Add `setTimeout(..., 200)` if canvas elements not ready (DOM race condition)
+- Activity creation: Check debug logs in `/tmp/modgen_debug.log` from `registry::create_activities()`
+
 ## Development Patterns
 
-### PHP & Moodle Conventions
-- **Moodle Plugin Conventions**: Follow [Moodle plugin development docs](https://moodledev.io/docs/apis/core/plugins) for file structure, naming, and API usage.
-- **Settings**: Use `admin_settingpage` and `$ADMIN->fulltree` in `settings.php` for configuration. See [Admin settings API](https://docs.moodle.org/dev/Admin_settings).
-- **Language Strings**: Define all user-facing text in `lang/en/aiplacement_modgen.php` using `$string` array.
-- **Versioning**: Update `version.php` for every release. Bump `$plugin->version` and `$plugin->release` as needed.
+### PHP Conventions (Standard Moodle)
+Follow [Moodle Coding Style](https://moodledev.io/general/development/policies/codingstyle) and [Plugin Development](https://moodledev.io/docs/apis/plugintypes) guidelines.
 
-### JavaScript (AMD Modules)
-- **Module Architecture**: Use functional patterns with clear separation of concerns (fetch → process → render)
-- **Code Organization**: Structure as:
-  1. Module overview comment (JSDoc with purpose, key functions, architecture)
-  2. Configuration and state (module-level variables)
-  3. Private helper functions (prefixed with `// PRIVATE` comment)
-  4. Public API (returned object with public methods)
-- **Documentation**: Every function should have JSDoc comments including purpose, parameters with types, return values, and usage notes
-- **DOM Access**: Use helper functions like `getElement(id)` for safe DOM queries; always check null
-- **Naming**: Use camelCase for functions/variables, never snake_case
-- **Error Handling**: Use `.catch()` chains for fetch requests; fail gracefully without breaking page
-- **Timing**: Use `setTimeout()` for DOM stability when rendering charts (100-500ms delays prevent race conditions)
-- **Templates**: Use Moodle's `templates.renderForPromise()` for complex HTML rendering; prefer over manual DOM creation
+- **Language Strings**: All user text in `lang/en/aiplacement_modgen.php`, never hardcoded ([String API](https://moodledev.io/docs/apis/subsystems/string))
+- **Database Access**: Use Moodle DML ([Data Manipulation API](https://moodledev.io/docs/apis/core/dml))
+- **Capabilities**: Check permissions via `require_capability()` ([Access API](https://moodledev.io/docs/apis/subsystems/access))
+- **Form Handling**: Extend `moodleform` for all forms ([Forms API](https://moodledev.io/docs/apis/subsystems/form))
 
-## Code Quality
-- **Linting**: JavaScript files are linted with ESLint. Use camelCase naming and eliminate console.log statements.
-- **Reduce Errors**: Aim for minimal linting errors; address naming conventions and unused parameters
-- **Comments**: Add inline comments explaining complex logic, especially in loops, conditionals, and async operations
-- **Refactoring**: When functions exceed 50 lines or handle multiple concerns, break them into smaller focused functions
-- **Testing**: After code changes, manually test in browser: check Network tab for AJAX calls, browser console for errors
-- **Documentation**: When creating new features, document them in `docs/` folder with reference guides
+### PHP Conventions (Project-Specific)
+**🔸 Deviations from standard Moodle patterns:**
 
-## Workflows
-- **Installation**: Install via Moodle's plugin interface or manually by copying files and running `php admin/cli/upgrade.php`.
-- **Upgrades**: After code changes, always run the Moodle upgrade script to apply database or config changes.
-- **Cache Purging**: After JavaScript/template changes, run `php admin/cli/purge_caches.php` to clear caches
-- **Debugging**: Enable Moodle debugging in site admin for error visibility. Check logs for plugin-related issues.
-- **Browser Testing**: Check Network tab (DevTools) for AJAX calls, console for errors, and DOM for rendered content
-- **GIT**: NEVER commit to git. All changes are made directly to working files. The user will handle commits.
+- **AI Integration**: Always use `core_ai\manager` + `aiactions\generate_text`, never direct API calls ([AI Subsystem](https://moodledev.io/docs/apis/subsystems/ai))
+- **AI Prompts**: Include JSON schema in prompt text (see `ai_service.php:80-150` for pattern)
+- **JSON Normalization**: AI sometimes double-encodes responses → `normalize_ai_response()` handles recursively (project-specific workaround)
+- **Debug Logging**: Uses `/tmp/modgen_debug.log` for AI debugging (⚠️ non-standard, temporary - should use [Moodle debugging](https://moodledev.io/general/development/tools/debugging))
 
-## Project-Specific Notes
-- The plugin is in early development; many features are marked as TODO. Extend settings and functionality following Moodle's best practices.
-- All code must be GPL v3 or later.
-- Use the provided language file for all new strings.
-- **Documentation Folder**: All new documentation, guides, debug files, and test scripts should go in `docs/` folder to keep main directory clean
-- **Known Issues**:
-  - Refresh button AMD module initialization may require debugging (check browser Network tab and PHP logs)
-  - Chart rendering requires DOM stability delays (setTimeout 100-500ms) to prevent race conditions
-- **Best Practices for New Features**:
-  1. Create new code with comprehensive comments and JSDoc
-  2. Place all documentation/guides in `docs/` folder
-  3. Test thoroughly in browser DevTools (Network tab for AJAX, Console for errors)
-  4. Keep functions focused and under 50 lines where possible
-  5. Use helper functions to eliminate code duplication
-  6. Always handle errors gracefully (try/catch, .catch() chains)
+### JavaScript (AMD Modules - Standard Moodle)
+Follow [JavaScript Modules](https://moodledev.io/docs/guides/javascript/modules) and [AMD](https://moodledev.io/docs/guides/javascript/modules/amd) guidelines.
 
-## Explore Page (Recent Refactoring)
+- **Module Format**: AMD modules via `define()` ([JavaScript Guide](https://moodledev.io/docs/guides/javascript))
+- **Templates**: Use `templates.renderForPromise('aiplacement_modgen/template', data)` ([Templates](https://moodledev.io/docs/guides/templates))
+- **Naming**: camelCase for variables/functions ([JS Coding Style](https://moodledev.io/general/development/policies/codingstyle/javascript))
+- **Error Handling**: `.catch()` chains on all fetch calls, log via `core/log`
+- **Minification**: Use Grunt to build `amd/build/*.min.js` from `amd/src/*.js` ([Grunt Guide](https://moodledev.io/general/development/tools/nodejs#grunt))
 
-### Overview
-The Explore page displays AI-generated insights with interactive charts and PDF download functionality. The main JavaScript module (`explore.js`) was refactored to improve maintainability and code quality.
+### JavaScript (Project-Specific)
+**🔸 Deviations/additions:**
 
-### Architecture
-- **init()**: Initializes the module and triggers data loading
-- **loadInsights()**: Orchestrates the entire flow (fetch → process → render → cleanup)
-- **processInsights()**: Extracts text data for PDF generation
-- **renderAllSections()**: Coordinates rendering of all page sections
-- **renderCharts()**: Renders interactive Chart.js visualizations
-- **downloadReport()**: Generates and downloads PDF reports
+- **Chart Timing**: Charts need DOM stability - wrap in `setTimeout(() => new Chart(...), 200)` (⚠️ workaround for race conditions)
+- **Structure**: JSDoc header → module state → private helpers → public API object (enhanced documentation pattern)
 
-### Key Improvements (Recent Refactoring)
-- Reduced linting errors: 74 → 29 (60.8% reduction)
-- Function complexity: 36 → 4 (main orchestrator function)
-- Added 100+ lines of JSDoc and inline comments
-- Broke 150-line monolithic function into 12 focused functions
-- Separated concerns: fetching vs processing vs rendering
+## Project-Specific Patterns
 
-### DOM Elements Expected
-The explore.js module expects these HTML IDs in the template:
-- `insights-pedagogical` / `ped-heading` / `ped-content`: Pedagogical insights section
-- `insights-summary`: Summary section (template-based)
-- `insights-workload-analysis`: Workload analysis section
-- `learning-types-chart` / `section-activity-chart`: Chart canvases
-- `insights-loading`: Loading spinner
-- `content-wrapper`: Main content wrapper
-- `download-report-btn`: PDF download button
+**Adding New Activity Type:**
+1. Create `classes/activitytype/{type}.php` implementing `activity_type` interface
+2. Implement `create($activitydata, $course, $sectionnumber, $options)` using `create_module($moduleinfo)` ([Course API](https://moodledev.io/docs/apis/core/course))
+3. Registry auto-discovers on next request (🔸 filesystem scan, no manual registration - deviates from typical plugin registration)
+4. AI automatically includes new type in schema via `registry::get_supported_activity_metadata()`
 
-### Data Flow
-1. AJAX endpoint (`explore_ajax.php`) returns insights JSON
-2. JavaScript processes and stores data
-3. Templates render static content
-4. Charts render with delays for DOM stability
-5. User can download PDF with processed data
+**Template-Based Generation** (advanced):
+- Pass `$template_data` to `generate_module()` → AI prompt includes actual HTML + Bootstrap classes
+- Section summaries become HTML, not plain text → `build_template_prompt_guidance()` in `ai_service.php`
+- Extracts Bootstrap classes from template for visual consistency
 
-### Debugging Tips
-- Check Network tab for AJAX calls to `explore_ajax.php`
-- Verify response has `success: true` and `data` object
-- Check canvas elements exist in DOM before chart rendering
-- Use browser console to verify `reportData` exists before PDF download
-- Look for DOM element IDs if sections not displaying
+**Moodle Integration Points (Standard):**
+- `lib.php::aiplacement_modgen_extend_navigation_course()` → Injects FAB button via AMD ([Navigation API](https://moodledev.io/docs/apis/subsystems/navigation))
+- `placement.php` registers with core AI subsystem ([AI Subsystem](https://moodledev.io/docs/apis/subsystems/ai))
+- Requires user acceptance of AI policy via `$aimanager->get_user_policy_status()`
+- Uses `require_login()` and `require_capability()` for access control ([Access API](https://moodledev.io/docs/apis/subsystems/access))
 
-## Example: Adding a Setting
-To add a new admin setting:
+## File Organization Logic (Standard Moodle)
+Follow [Plugin Files](https://moodledev.io/docs/apis/commonfiles) structure:
+
+- `version.php`: Plugin metadata ([Version.php](https://moodledev.io/docs/apis/commonfiles#versionphp))
+- `lib.php`: Standard plugin callbacks ([Lib.php](https://moodledev.io/docs/apis/commonfiles#libphp))
+- `settings.php`: Admin settings ([Settings.php](https://moodledev.io/docs/apis/commonfiles/settings.php))
+- `lang/en/*.php`: Language strings ([Language Files](https://moodledev.io/docs/apis/commonfiles#language-files))
+- `db/`: Database definitions ([Database Files](https://moodledev.io/docs/apis/commonfiles#database-related-files))
+- `classes/`: Autoloaded PSR-4 (`aiplacement_modgen\*`) ([Namespaces](https://moodledev.io/general/development/policies/codingstyle/php#namespaces))
+- `amd/src/` + `amd/build/`: AMD JavaScript source + minified ([JavaScript Modules](https://moodledev.io/docs/guides/javascript/modules))
+- `templates/`: Mustache templates ([Templates](https://moodledev.io/docs/guides/templates))
+
+**🔸 Project-specific additions:**
+- `classes/local/`: Internal services (not external API)
+- `classes/activitytype/`: Plugin system for activity handlers (auto-discovered)
+- `docs/`: ALL documentation, debug scripts, guides (⚠️ non-standard, keeps root clean)
+- `ajax/`: AJAX endpoints (🔸 should use web services API - see [Web Services](https://moodledev.io/docs/apis/subsystems/external))
+
+## Critical Rules (Moodle Requirements)
+- **GPL v3+ license** - All code must be compatible ([License](https://moodledev.io/general/development/policies/license))
+- **All strings in lang file** - `lang/en/aiplacement_modgen.php`, never hardcode ([String API](https://moodledev.io/docs/apis/subsystems/string))
+- **Commit minified JS** - Both src/ and build/ files required ([JavaScript Guide](https://moodledev.io/docs/guides/javascript/modules#building-javascript-modules))
+- **Follow coding style** - PHPDoc, indentation, naming ([Coding Style](https://moodledev.io/general/development/policies/codingstyle))
+- **Security first** - Always validate input, escape output ([Security](https://moodledev.io/docs/security))
+
+**🔸 Project-specific rules:**
+- **Never commit to git** - User handles all commits
+- **Documentation in docs/** - Keep root directory clean (non-standard location)
+
+## Code Examples
+
+**AI Service Integration Pattern:**
 ```php
-if ($ADMIN->fulltree) {
-    $settings->add(new admin_setting_configtext(
-        'aiplacement_modgen/example',
-        new lang_string('example', 'aiplacement_modgen'),
-        'Description of the setting.',
-        'defaultvalue'
-    ));
+// classes/local/ai_service.php - Always use Moodle AI subsystem
+$action = new \core_ai\aiactions\generate_text($contextid, $userid, $prompt);
+$response = $aimanager->process_action($action);
+$text = $response->get_response_data()['generatedtext'];
+// Include JSON schema in $prompt text for structured responses
+```
+
+**Activity Handler Implementation:**
+```php
+// classes/activitytype/example.php
+class example implements activity_type {
+    public static function get_type(): string { return 'example'; }
+    public static function get_prompt_description(): string { 
+        return 'Description sent to AI about this activity type'; 
+    }
+    public function create(stdClass $data, stdClass $course, int $section, array $opts): ?array {
+        $moduleinfo = (object)['course' => $course->id, 'modulename' => 'example', ...];
+        $cm = create_module($moduleinfo); // Moodle core function
+        return ['cmid' => $cm->coursemodule, 'message' => "Created: {$data->name}"];
+    }
 }
 ```
 
-## Documentation References
-When working on the Explore feature, refer to:
-- `docs/EXPLORE_QUICK_REFERENCE.md`: Quick API reference and function guide
-- `docs/EXPLORE_BEFORE_AFTER.md`: Visual comparison of refactoring improvements
-- `docs/EXPLORE_REFACTORING.md`: Detailed migration guide and code statistics
+## Key Documentation
 
-## References
-- [Moodle Plugin Development Docs](https://moodledev.io/docs/apis/core/plugins)
-- [Admin Settings API](https://docs.moodle.org/dev/Admin_settings)
+### Moodle Official Documentation (ALWAYS CHECK FIRST)
+- **[Moodle Developer Docs](https://moodledev.io)** - Primary reference for ALL development
+- **[Plugin Development](https://moodledev.io/docs/apis/plugintypes)** - Plugin types and structure
+- **[Coding Style](https://moodledev.io/general/development/policies/codingstyle)** - PHP, JavaScript, CSS standards
+- **[API Reference](https://moodledev.io/docs/apis)** - Core APIs and subsystems
+- **[JavaScript Guide](https://moodledev.io/docs/guides/javascript)** - AMD modules, templates, AJAX
+- **[Database Schema](https://moodledev.io/docs/apis/core/dml)** - DML and database conventions
+- **[Security Best Practices](https://moodledev.io/docs/security)** - Input validation, XSS prevention
+- **[Testing](https://moodledev.io/general/development/tools/phpunit)** - PHPUnit and Behat testing
 
----
-**Update this file as the plugin evolves.**
+### Project-Specific Documentation
+- `docs/EXPLORE_QUICK_REFERENCE.md`: explore.js API reference
+- `docs/CACHING_SYSTEM.md`: Cache architecture + performance
+- `docs/GRUNT_SETUP.md`: Build system details
+- `docs/*_ACTIVITY_HANDLER.md`: Activity type implementation patterns
+
+### When Moodle Docs Conflict with Project Code
+**🔸 Flag deviations immediately** and document why:
+- Temporary workaround pending proper implementation?
+- Performance optimization for specific use case?
+- Alpha-stage code that needs refactoring?
+
+**Prefer Moodle standard approaches** - deviate only when absolutely necessary and document the reason.

@@ -366,27 +366,32 @@ class ai_service {
             
             // Build compact roleinstruction without redundancy
             $roleinstruction = $pedagogicalguidance . "\n\n" .
-                "CRITICAL - Return ONLY valid JSON. No commentary, code fences, or wrapping.\n" .
-                "Return the JSON object DIRECTLY as the top-level response.\n" .
-                "IMPORTANT: Do NOT include any example data or placeholder text like 'Week X', 'Theme Name', '...', 'Overview', etc.\n" .
-                "Every field MUST contain actual content from the curriculum provided, NEVER from format examples.\n" .
-                "Top-level must contain either 'themes' or 'sections' array.\n" .
-                "Example structure ONLY (do not copy this data): {\"themes\": [{\"title\": \"REAL THEME\", \"summary\": \"REAL SUMMARY\", \"weeks\": [...]}]}\n\n";
+                "CRITICAL REQUIREMENTS:\n" .
+                "1. Return ONLY valid JSON. No commentary, code blocks, or wrapping.\n" .
+                "2. Generate the COMPLETE module structure from the curriculum file.\n" .
+                "3. Do NOT omit, truncate, or stop early - include ALL content from the file.\n" .
+                "4. Do NOT include example data or placeholder text like 'Week X', 'Theme Name', or '...'.\n" .
+                "5. Every field MUST contain actual content from the curriculum.\n" .
+                "6. Return as pure JSON object at the top level: {\"themes\": [...]} OR {\"sections\": [...]}\n\n";
 
             // Add file parsing and theme instructions only for theme structure
             if ($structure === 'theme') {
-                $roleinstruction .= "TASK: Generate complete themed module structure with ALL themes and weeks from the file.\n" .
-                    "- Read and parse the ENTIRE file content - identify ALL sections and topics\n" .
-                    "- Group related sections into coherent themes\n" .
-                    "- For each theme, create weeks with presession/session/postsession activities\n" .
-                    "- GENERATE COMPLETE STRUCTURE: Do NOT stop early or omit any content\n" .
-                    "- Each theme needs a 2-3 sentence introduction for students\n\n";
+                $roleinstruction .= "GENERATE COMPLETE THEMED STRUCTURE:\n" .
+                    "- Parse the ENTIRE file and extract ALL topics and sections\n" .
+                    "- Group related content into 3-5 coherent themes\n" .
+                    "- For each theme, create weeks covering all subtopics\n" .
+                    "- For each week, create presession/session/postsession activities\n" .
+                    "- Do NOT skip any content - include everything from the curriculum file\n" .
+                    "- Each theme summary: 2-3 sentence introduction for students\n" .
+                    "- Each week summary: brief overview of that week's learning\n\n";
             } else {
-                $roleinstruction .= "TASK: Generate complete weekly module structure with ALL weeks from the file.\n" .
-                    "- Read and parse the ENTIRE file content - identify ALL sections and topics\n" .
-                    "- Create a section (week) for each major topic\n" .
-                    "- Include outline array and activities for each section\n" .
-                    "- GENERATE COMPLETE STRUCTURE: Do NOT stop early or omit any content\n\n";
+                $roleinstruction .= "GENERATE COMPLETE WEEKLY STRUCTURE:\n" .
+                    "- Parse the ENTIRE file and extract ALL topics and sections\n" .
+                    "- Create one week/section for each major topic in the file\n" .
+                    "- For each week, include outline array with key points\n" .
+                    "- Add activities relevant to that week\n" .
+                    "- Do NOT skip any content - include everything from the curriculum file\n" .
+                    "- Each section summary: overview of that week's content\n\n";
             }
 
 
@@ -395,32 +400,36 @@ class ai_service {
 
             // Build concise format instructions - minimal example, repeat pattern for all content
             if ($structure === 'theme') {
-                $formatinstruction = "JSON RESPONSE FORMAT:\n" .
-                    "{\"themes\": [{\"title\": \"Theme Title\", \"summary\": \"Theme Summary\", \"weeks\": [{\"title\": \"Week Title\", \"summary\": \"Week Summary\", \"sessions\": {\"presession\": {\"activities\": [...]}, \"session\": {\"activities\": [...]}, \"postsession\": {\"activities\": [...]}}}]}]}\n" .
-                    "Repeat the theme and week structure for each theme/week in the curriculum.\n" .
-                    "Repeat the session pattern (presession/session/postsession) for each week.\n" .
-                    "Each activity object: {\"type\": \"quiz|forum|url|book\", \"name\": \"Activity Name\"} plus type-specific fields.\n" .
-                    "Compact JSON, no extra whitespace.";
+                $formatinstruction = "JSON OUTPUT STRUCTURE (Theme-Based):\n" .
+                    "{\"themes\": [\n" .
+                    "  {\"title\": \"Theme Name\", \"summary\": \"2-3 sentences\", \"weeks\": [\n" .
+                    "    {\"title\": \"Week N\", \"summary\": \"Overview\", \"sessions\": {\n" .
+                    "      \"presession\": {\"activities\": [{\"type\": \"url\", \"name\": \"Activity\"}]},\n" .
+                    "      \"session\": {\"activities\": [{\"type\": \"quiz\", \"name\": \"Activity\"}]},\n" .
+                    "      \"postsession\": {\"activities\": [{\"type\": \"forum\", \"name\": \"Activity\"}]}\n" .
+                    "    }}\n" .
+                    "  ]}\n" .
+                    "]}\n" .
+                    "IMPORTANT: Repeat this structure for EVERY theme and week in the curriculum.\n" .
+                    "IMPORTANT: Include ALL weeks from all themes - do not truncate.\n";
             } else {
-                $formatinstruction = "JSON RESPONSE FORMAT:\n" .
-                    "{\"sections\": [{\"title\": \"Week Title\", \"summary\": \"Week Summary\", \"outline\": [\"key point 1\", \"key point 2\"], \"activities\": [{\"type\": \"quiz|forum|url|book\", \"name\": \"Activity Name\"}]}]}\n" .
-                    "Repeat the section structure for each week in the curriculum.\n" .
-                    "Each activity object: {\"type\": \"quiz|forum|url|book\", \"name\": \"Activity Name\"} plus type-specific fields.\n" .
-                    "Compact JSON, no extra whitespace.";
+                $formatinstruction = "JSON OUTPUT STRUCTURE (Weekly):\n" .
+                    "{\"sections\": [\n" .
+                    "  {\"title\": \"Week N\", \"summary\": \"Overview\", \"outline\": [\"key 1\", \"key 2\"], \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity\"}]}\n" .
+                    "]}\n" .
+                    "IMPORTANT: Repeat this structure for EVERY week in the curriculum.\n" .
+                    "IMPORTANT: Include ALL weeks - do not truncate.\n";
             }
 
             if (!empty($activitymetadata)) {
-                $activitylines = [];
+                $formatinstruction .= "\nSupported activity types:\n";
                 foreach ($activitymetadata as $type => $metadata) {
                     $label = get_string($metadata['stringid'], 'aiplacement_modgen');
-                    $activitylines[] = "- {$type}: {$metadata['description']} (Moodle {$label}).";
+                    $formatinstruction .= "  - {$type}: {$metadata['description']}\n";
                 }
-                $formatinstruction .= "\nWhen listing activities, use the optional 'activities' array and only choose from the supported types below:\n" .
-                    implode("\n", $activitylines) .
-                    "\nDo not invent new activity types beyond this list.";
-            } else {
-                $formatinstruction .= "\nDo not include an 'activities' array because no supported activity types are available.";
+                $formatinstruction .= "\nUse ONLY these activity types. Do not invent new ones.";
             }
+
 
             // Add template guidance if template data is provided
             $template_guidance = '';
@@ -460,7 +469,15 @@ class ai_service {
                 ];
             }
 
-            $finalprompt = $roleinstruction . "\n\n" . $documents_text . "\nUser requirements:\n" . trim($prompt) . "\n\n" . $template_guidance . "\n\n" . $formatinstruction;
+            // Build final prompt with emphasis on completeness
+            $finalprompt = $roleinstruction . "\n\n" . 
+                $documents_text . "\n" .
+                "User requirements:\n" . trim($prompt) . "\n\n" .
+                $template_guidance . "\n" .
+                $formatinstruction . "\n\n" .
+                "FINAL REMINDER: Generate the COMPLETE module. Include EVERY topic from the file above.\n" .
+                "Do NOT stop early, do NOT truncate, do NOT omit content.\n" .
+                "Return ONLY JSON - no other text.\n";
 
             // Instantiate the generate_text action with required parameters.
             $action = new \core_ai\aiactions\generate_text(

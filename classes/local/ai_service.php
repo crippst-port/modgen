@@ -32,19 +32,7 @@ require_once(__DIR__ . '/../activitytype/registry.php');
 defined('MOODLE_INTERNAL') || die();
 
 class ai_service {
-    /**
-     * Log debug information to a web-accessible location
-     */
-    private static function debug_log($message) {
-        global $CFG;
-        $logdir = $CFG->dataroot . '/modgen_logs';
-        if (!is_dir($logdir)) {
-            mkdir($logdir, 0777, true);
-        }
-        $logfile = $logdir . '/debug.log';
-        $timestamp = date('Y-m-d H:i:s');
-        file_put_contents($logfile, "[$timestamp] $message\n", FILE_APPEND);
-    }
+
     /**
      * Validate module structure to catch malformed AI responses.
      *
@@ -134,7 +122,6 @@ class ai_service {
                     foreach ($out as $key => $item) {
                         // If we have a structure wrapped (e.g., {theme: {themes: [...]}}), unwrap it
                         if (is_array($item) && (isset($item['themes']) || isset($item['sections']))) {
-                            self::debug_log("AI_SERVICE: Detected wrapped structure (Pattern 1), unwrapping...");
                             return $item;
                         }
                     }
@@ -153,7 +140,6 @@ class ai_service {
                             $decoded = json_decode($summary, true);
                             if (json_last_error() === JSON_ERROR_NONE && 
                                 (isset($decoded['themes']) || isset($decoded['sections']))) {
-                                self::debug_log("AI_SERVICE: Detected structure wrapped in first item's summary (Pattern 2a), unwrapping...");
                                 return self::normalize_ai_response($decoded, false);
                             }
                             
@@ -163,7 +149,6 @@ class ai_service {
                                 $decoded = json_decode($unescaped, true);
                                 if (json_last_error() === JSON_ERROR_NONE && 
                                     (isset($decoded['themes']) || isset($decoded['sections']))) {
-                                    self::debug_log("AI_SERVICE: Detected structure wrapped in first item's summary with escaped characters (Pattern 2b), unwrapping...");
                                     return self::normalize_ai_response($decoded, false);
                                 }
                             }
@@ -255,11 +240,6 @@ class ai_service {
     public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null) {
         global $USER, $COURSE;
         
-        // Log whether template_data was passed
-        self::debug_log('=== generate_module called ===');
-        self::debug_log('template_data is ' . (empty($template_data) ? 'EMPTY/NULL' : 'PRESENT'));
-        self::debug_log('template_data type: ' . gettype($template_data));
-        
         // Integrate with Moodle AI Subsystem Manager using generate_text action.
         try {
             if (!class_exists('\\core_ai\\manager') || !class_exists('\\core_ai\\aiactions\\generate_text')) {
@@ -315,14 +295,25 @@ class ai_service {
             }
             
             // Combine pedagogical guidance with JSON requirements
-            $roleinstruction = $pedagogicalguidance . "\n\n" . $jsonrequirements;
+            $roleinstruction = $pedagogicalguidance . "\n\n" . $jsonrequirements . "\n\n" .
+                "FILE STRUCTURE PARSING INSTRUCTION (when an uploaded file is provided):\n" .
+                "If the user has uploaded a file containing a course/module structure:\n" .
+                "1. Read and parse the ENTIRE file content completely\n" .
+                "2. Identify ALL sections, subsections, and topics in the file (do not skip any)\n" .
+                "3. Preserve the exact hierarchy and names from the file\n" .
+                "4. Convert the complete structure into the JSON schema format\n" .
+                "5. Include EVERY section and topic from the file - do not omit any\n" .
+                "6. Use the file structure as the authoritative source - it SUPERSEDES any conflicting guidance\n" .
+                "7. Generate summaries and activities for each section based on its context\n" .
+                "8. Return JSON that represents the complete file structure in its entirety\n" .
+                "\nCRITICAL: When a file structure is provided, create it completely - do not create partial structures.";
+
 
             $activitymetadata = registry::get_supported_activity_metadata();
             $supportedactivitytypes = array_keys($activitymetadata);
 
             // Debug: Log what activity types are available
-            self::debug_log("AI_SERVICE: Activity metadata: " . print_r($activitymetadata, true));
-            self::debug_log("AI_SERVICE: Supported types: " . print_r($supportedactivitytypes, true));
+            
 
             if ($structure === 'theme') {
                 $activityobject = [
@@ -487,13 +478,8 @@ class ai_service {
             // Add template guidance if template data is provided
             $template_guidance = '';
             if (!empty($template_data)) {
-                self::debug_log('Building template guidance...');
-                self::debug_log('Template data keys: ' . implode(', ', array_keys($template_data)));
                 $template_guidance = self::build_template_prompt_guidance($template_data);
-                self::debug_log('Template guidance built, length: ' . strlen($template_guidance));
                 if (strlen($template_guidance) > 0) {
-                    self::debug_log('First 300 chars of guidance: ' . substr($template_guidance, 0, 300));
-                    self::debug_log('FULL TEMPLATE GUIDANCE:\n' . $template_guidance);
                 }
                 
                 // When template is used, update format instruction to require HTML
@@ -502,7 +488,6 @@ class ai_service {
                     "Each 'summary' field must contain formatted HTML, not plain text.\n" .
                     "Example: <div class='card'><div class='card-body'><h5>Content</h5><p>Details here</p></div></div>";
             } else {
-                self::debug_log('No template data provided to generate_module');
             }
 
             // Incorporate supporting documents (if any) into the prompt so the AI can use them as context.
@@ -522,12 +507,16 @@ class ai_service {
                 }
             }
 
-            $finalprompt = $roleinstruction . "\n\nUser requirements:\n" . trim($prompt) . "\n\n" . $template_guidance . $documents_text . "\n\n" . $formatinstruction;
+            // Supporting files are now incorporated into the prompt as needed.
 
-            // Debug: Log the prompt being sent to AI
-            self::debug_log("AI_SERVICE: Final prompt length: " . strlen($finalprompt));
-            self::debug_log("AI_SERVICE: Template guidance included in final prompt: " . (strlen($template_guidance) > 0 ? 'YES' : 'NO'));
-            self::debug_log("AI_SERVICE: Final prompt being sent:\n" . $finalprompt);
+            if (empty($roleinstruction) || empty($formatinstruction)) {
+                return [
+                    'activities' => [],
+                    'template' => 'AI error: Prompt construction failed - missing required prompt components'
+                ];
+            }
+
+            $finalprompt = $roleinstruction . "\n\nUser requirements:\n" . trim($prompt) . "\n\n" . $template_guidance . $documents_text . "\n\n" . $formatinstruction;
 
             // Instantiate the generate_text action with required parameters.
             $action = new \core_ai\aiactions\generate_text(
@@ -543,19 +532,36 @@ class ai_service {
             $response = $aimanager->process_action($action);
             $data = $response->get_response_data();
 
-            // Debug: Log the AI response
-            self::debug_log("AI_SERVICE: AI response data: " . print_r($data, true));
+            // Debug: if response is null or empty, return error
+            if (empty($data)) {
+                return [
+                    'activities' => [],
+                    'template' => 'AI error: The AI service returned an empty response. The service may be unavailable or not configured.'
+                ];
+            }
 
             // Try to decode the provider's generated text as JSON per our schema.
-            $text = $data['generatedtext'] ?? ($data['generatedcontent'] ?? '');
+            // Check multiple possible response keys - generatedcontent takes priority for OpenAI
+            $text = $data['generatedcontent'] ?? ($data['generatedtext'] ?? ($data['text'] ?? ($data['content'] ?? '')));
             
-            // Debug: Log the raw text response
-            self::debug_log("AI_SERVICE: Raw AI text response: " . $text);
+            // If we got no text at all, return error
+            if (empty($text) || !is_string($text)) {
+                return [
+                    'activities' => [],
+                    'template' => 'AI error: The AI service did not return any generated text. Response keys: ' . implode(', ', array_keys($data ?? []))
+                ];
+            }
             
             $jsondecoded = null;
             if (is_string($text)) {
                 // First attempt: direct JSON decode.
                 $jsondecoded = json_decode($text, true);
+                
+                // If decode failed, check why
+                if (!is_array($jsondecoded)) {
+                    $jsonError = json_last_error_msg();
+                    // Don't report every JSON error, just continue to next attempt
+                }
                 
                 // Second attempt: extract a JSON object/array from the text if provider added commentary.
                 if (!is_array($jsondecoded)) {
@@ -579,20 +585,11 @@ class ai_service {
             // Attempt to normalise nested/stringified JSON that may be embedded in string fields.
             if (is_array($jsondecoded)) {
                 $before = $jsondecoded;
-                self::debug_log("AI_SERVICE: Before normalization - top level keys: " . implode(', ', array_keys($jsondecoded)));
-                if (isset($jsondecoded['themes']) && is_array($jsondecoded['themes']) && count($jsondecoded['themes']) > 0) {
-                    $firstTheme = $jsondecoded['themes'][0];
-                    self::debug_log("AI_SERVICE: First theme title: " . ($firstTheme['title'] ?? 'NO TITLE'));
-                    self::debug_log("AI_SERVICE: First theme summary length: " . strlen($firstTheme['summary'] ?? ''));
-                    self::debug_log("AI_SERVICE: First theme summary starts with: " . substr($firstTheme['summary'] ?? '', 0, 50));
-                }
                 
                 $jsondecoded = self::normalize_ai_response($jsondecoded, true);
                 
                 // Log if normalisation changed the structure in a meaningful way.
                 if (serialize($before) !== serialize($jsondecoded)) {
-                    self::debug_log("AI_SERVICE: Normalised AI JSON structure; differences detected.");
-                    self::debug_log("AI_SERVICE: After normalization - top level keys: " . implode(', ', array_keys($jsondecoded)));
                 }
             }
 
@@ -601,7 +598,6 @@ class ai_service {
                 $validation = self::validate_module_structure($jsondecoded, $structure);
 
                 if (!$validation['valid']) {
-                    self::debug_log("AI_SERVICE: Structure validation FAILED: " . $validation['error']);
                     // Return error response that will prevent approval
                     return [
                         $structure === 'theme' ? 'themes' : 'sections' => [],
@@ -618,16 +614,10 @@ class ai_service {
                 $jsondecoded['debugprompt'] = $finalprompt;
                 $jsondecoded['debugresponse'] = $data;
 
-                // Debug: Log the final processed JSON
-                self::debug_log("AI_SERVICE: Final processed JSON: " . print_r($jsondecoded, true));
-
                 return $jsondecoded;
             }
 
             // Debug: JSON decode failed or invalid structure
-            self::debug_log("AI_SERVICE: JSON decode failed or invalid structure. Using fallback.");
-            self::debug_log("AI_SERVICE: jsondecoded: " . print_r($jsondecoded, true));
-
             // Fallback mapping: wrap generated text into a label.
             $revised = $data['revisedprompt'] ?? '';
             return [
@@ -713,12 +703,6 @@ class ai_service {
      * @return array Response from AI service
      */
     public static function generate_module_with_template($prompt, $template_data, $documents = [], $structure = 'weekly') {
-        self::debug_log('=== generate_module_with_template called ===');
-        self::debug_log('template_data type: ' . gettype($template_data));
-        self::debug_log('template_data is empty: ' . (empty($template_data) ? 'YES' : 'NO'));
-        if (is_array($template_data)) {
-            self::debug_log('template_data keys: ' . implode(', ', array_keys($template_data)));
-        }
         return self::generate_module($prompt, $documents, $structure, $template_data);
     }
 
@@ -729,17 +713,11 @@ class ai_service {
      * @return string Guidance about the template
      */
     private static function build_template_prompt_guidance($template_data) {
-        self::debug_log('build_template_prompt_guidance called');
-        self::debug_log('Template data type: ' . gettype($template_data));
         if (is_array($template_data)) {
-            self::debug_log('Template data keys: ' . implode(', ', array_keys($template_data)));
             foreach ($template_data as $key => $value) {
                 if (is_array($value)) {
-                    self::debug_log("  {$key}: array with " . count($value) . " items");
                 } elseif (is_string($value)) {
-                    self::debug_log("  {$key}: string, length " . strlen($value));
                 } else {
-                    self::debug_log("  {$key}: " . gettype($value));
                 }
             }
         }
@@ -793,11 +771,7 @@ class ai_service {
         }
         
         // Add Bootstrap structure guidance if HTML is available
-        self::debug_log('Checking template_html: ' . (!empty($template_data['template_html']) ? 'YES (length: ' . strlen($template_data['template_html']) . ')' : 'NO'));
         if (!empty($template_data['template_html'])) {
-            self::debug_log('Template HTML found, length: ' . strlen($template_data['template_html']));
-            self::debug_log('First 500 chars: ' . substr($template_data['template_html'], 0, 500));
-
             $guidance .= "CRITICAL: EXACT HTML STRUCTURE REPLICATION REQUIRED\n";
             $guidance .= str_repeat("=", 70) . "\n\n";
 

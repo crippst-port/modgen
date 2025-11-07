@@ -925,6 +925,38 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
             "but do not suggest any activities, quizzes, or resources. This allows the user to add their own content.";
     }
 
+    // Extract and include file contents in the prompt if files are provided
+    $filecontent = '';
+    if (!empty($uploadform) && ($filedata = $uploadform->get_data())) {
+        // Get file manager data
+        $usercontext = context_user::instance($USER->id);
+        $files = $filedata->supportingfiles_filemanager ?? $filedata->supportingfiles ?? 0;
+        
+        if (!empty($files)) {
+            $fs = get_file_storage();
+            $contextid = !empty($filedata->contextid) ? $filedata->contextid : $usercontext->id;
+            $storedfiles = $fs->get_area_files($contextid, 'aiplacement_modgen', 'supportingfiles', $files, 'sortorder', false);
+            
+            if (!empty($storedfiles)) {
+                $filecontent = "UPLOADED FILE STRUCTURE:\n\n";
+                foreach ($storedfiles as $file) {
+                    if ($file->is_valid_image()) {
+                        continue; // Skip images
+                    }
+                    $content = $file->get_content();
+                    $filecontent .= "File: {$file->get_filename()}\n";
+                    $filecontent .= "---\n";
+                    $filecontent .= $content;
+                    $filecontent .= "\n---\n\n";
+                }
+            }
+        }
+    }
+
+    if (!empty($filecontent)) {
+        $compositeprompt .= "\n\n" . $filecontent;
+    }
+
     // Gather supporting files (if any) from the filemanager draft area and try to extract readable text
     $supportingfiles = [];
     // First, check for direct file uploads from a simple <input type="file" multiple> fallback
@@ -1147,24 +1179,59 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
             }
             
             if (empty($template_data['activities'])) {
-                error_log('WARNING: Template has no activities');
             } else {
-                error_log('Template activities count: ' . count($template_data['activities']));
             }
             
-            error_log('Calling generate_module_with_template with template data');
             $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, $supportingfiles, $moduletype);
         } catch (Exception $e) {
             // Fall back to normal generation if template fails
-            error_log('Template generation EXCEPTION: ' . $e->getMessage());
-            error_log('Exception trace: ' . $e->getTraceAsString());
             $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype);
         }
     } else {
-        error_log('No template selected');
     $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $supportingfiles, $moduletype);
     }
     // Check if the AI response contains validation errors
+    if (empty($json)) {
+        $errorhtml = html_writer::div(
+            html_writer::tag('h4', 'AI Error', ['class' => 'text-danger']) .
+            html_writer::div('The AI service returned no response. The API may be unavailable or returned an error. Please check the system logs and try again.', 'alert alert-danger') .
+            (isset($json['template']) ? html_writer::div('Details: ' . $json['template'], 'alert alert-warning') : ''),
+            'aiplacement-modgen__validation-error'
+        );
+
+        $bodyhtml = html_writer::div($errorhtml, 'aiplacement-modgen__content');
+
+        $footeractions = [[
+            'label' => get_string('tryagain', 'aiplacement_modgen'),
+            'classes' => 'btn btn-primary',
+            'isbutton' => true,
+            'action' => 'aiplacement-modgen-reenter',
+        ]];
+
+        aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
+        exit;
+    }
+    
+    if (!empty($json['template']) && strpos($json['template'], 'AI error') === 0) {
+        $errorhtml = html_writer::div(
+            html_writer::tag('h4', 'AI Error', ['class' => 'text-danger']) .
+            html_writer::div($json['template'], 'alert alert-danger'),
+            'aiplacement-modgen__validation-error'
+        );
+
+        $bodyhtml = html_writer::div($errorhtml, 'aiplacement-modgen__content');
+
+        $footeractions = [[
+            'label' => get_string('tryagain', 'aiplacement_modgen'),
+            'classes' => 'btn btn-primary',
+            'isbutton' => true,
+            'action' => 'aiplacement-modgen-reenter',
+        ]];
+
+        aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
+        exit;
+    }
+    
     if (!empty($json['validation_error'])) {
         // AI returned malformed structure - show error and don't allow approval
         $errorhtml = html_writer::div(

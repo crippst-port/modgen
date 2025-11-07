@@ -46,7 +46,6 @@ class aiplacement_modgen_generator_form extends moodleform {
         // Add module type selection
         $moduletypeoptions = [
             'weekly' => get_string('moduletype_weekly', 'aiplacement_modgen'),
-            'theme' => get_string('moduletype_theme', 'aiplacement_modgen'),
         ];
         
         // Add Connected Curriculum format options if flexsections is installed
@@ -57,7 +56,10 @@ class aiplacement_modgen_generator_form extends moodleform {
             $moduletypeoptions['connected_theme'] = get_string('moduletype_connected_theme', 'aiplacement_modgen');
         }
         
-        // (supporting files field moved further down, above the main prompt)
+        // === TEMPLATE SETUP SECTION ===
+        $mform->addElement('header', 'templatesettingsheader', get_string('templatesettings', 'aiplacement_modgen'));
+        
+        // Module type selection
         $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
         $mform->setType('moduletype', PARAM_ALPHA);
         $mform->setDefault('moduletype', 'weekly');
@@ -69,7 +71,6 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->setDefault('keepweeklabels', 0);
         
         // Show keepweeklabels only when weekly or connected_weekly is selected
-        $mform->hideIf('keepweeklabels', 'moduletype', 'eq', 'theme');
         $mform->hideIf('keepweeklabels', 'moduletype', 'eq', 'connected_theme');
         
         // Add curriculum template selection if enabled
@@ -86,21 +87,13 @@ class aiplacement_modgen_generator_form extends moodleform {
             }
         }
         
-        $mform->addElement('advcheckbox', 'includeaboutassessments', get_string('includeaboutassessments', 'aiplacement_modgen'));
-        $mform->setType('includeaboutassessments', PARAM_BOOL);
-        $mform->setDefault('includeaboutassessments', 0);
-        
-        $mform->addElement('advcheckbox', 'includeaboutlearning', get_string('includeaboutlearning', 'aiplacement_modgen'));
-        $mform->setType('includeaboutlearning', PARAM_BOOL);
-        $mform->setDefault('includeaboutlearning', 0);
-        
         // Main content prompt
         $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), 'rows="4" cols="60"');
         $mform->setType('prompt', PARAM_TEXT);
         $mform->addRule('prompt', null, 'required', null, 'client');
         $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
         
-        // File upload for supporting documents (optional) — placed above the "create suggested activities" option
+        // File upload for supporting documents (optional)
         $returntypes = defined('FILE_INTERNAL') ? FILE_INTERNAL : 2;
         $fileoptions = [
             'subdirs' => 0,
@@ -112,16 +105,23 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->addElement('filemanager', 'supportingfiles', get_string('supportingfiles', 'aiplacement_modgen'), null, $fileoptions);
         $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
 
+        // === SUGGESTED CONTENT SECTION ===
+        $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
+        
+        // Theme introductions option
+        $mform->addElement('advcheckbox', 'generatethemeintroductions', get_string('generatethemeintroductions', 'aiplacement_modgen'));
+        $mform->addHelpButton('generatethemeintroductions', 'generatethemeintroductions', 'aiplacement_modgen');
+        $mform->setType('generatethemeintroductions', PARAM_BOOL);
+        $mform->setDefault('generatethemeintroductions', 0);
+        
+        // Only show theme introductions option for connected_theme
+        $mform->hideIf('generatethemeintroductions', 'moduletype', 'ne', 'connected_theme');
+        
         // Generation options
         $mform->addElement('advcheckbox', 'createsuggestedactivities', get_string('createsuggestedactivities', 'aiplacement_modgen'));
         $mform->addHelpButton('createsuggestedactivities', 'createsuggestedactivities', 'aiplacement_modgen');
         $mform->setType('createsuggestedactivities', PARAM_BOOL);
         $mform->setDefault('createsuggestedactivities', 1);
-        
-        // Add warning about processing time
-        $mform->addElement('static', 'processingwarning', '', 
-            '<div class="alert alert-info"><i class="fa fa-info-circle"></i> ' . 
-            get_string('longquery', 'aiplacement_modgen') . '</div>');
         
         $this->add_action_buttons(false, get_string('submit', 'aiplacement_modgen'));
     }

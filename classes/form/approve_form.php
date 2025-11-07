@@ -47,10 +47,8 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->setType('moduletype', PARAM_ALPHA);
         $mform->addElement('hidden', 'keepweeklabels', $this->_customdata['keepweeklabels']);
         $mform->setType('keepweeklabels', PARAM_BOOL);
-        $mform->addElement('hidden', 'includeaboutassessments', $this->_customdata['includeaboutassessments']);
-        $mform->setType('includeaboutassessments', PARAM_BOOL);
-        $mform->addElement('hidden', 'includeaboutlearning', $this->_customdata['includeaboutlearning']);
-        $mform->setType('includeaboutlearning', PARAM_BOOL);
+        $mform->addElement('hidden', 'generatethemeintroductions', $this->_customdata['generatethemeintroductions']);
+        $mform->setType('generatethemeintroductions', PARAM_BOOL);
         $mform->addElement('hidden', 'createsuggestedactivities', $this->_customdata['createsuggestedactivities']);
         $mform->setType('createsuggestedactivities', PARAM_BOOL);
         $mform->addElement('hidden', 'generatedsummary', $this->_customdata['generatedsummary']);

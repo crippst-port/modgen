@@ -390,8 +390,7 @@ $approveform = null;
 $approvedjsonparam = optional_param('approvedjson', null, PARAM_RAW);
 $approvedtypeparam = optional_param('moduletype', 'weekly', PARAM_ALPHA);
 $keepweeklabelsparam = optional_param('keepweeklabels', 0, PARAM_BOOL);
-$includeaboutassessmentsparam = optional_param('includeaboutassessments', 0, PARAM_BOOL);
-$includeaboutlearningparam = optional_param('includeaboutlearning', 0, PARAM_BOOL);
+$generatethemeintroductionsparam = optional_param('generatethemeintroductions', 0, PARAM_BOOL);
 $createsuggestedactivitiesparam = optional_param('createsuggestedactivities', 1, PARAM_BOOL);
 $generatedsummaryparam = optional_param('generatedsummary', '', PARAM_RAW);
 $curriculumtemplateparam = optional_param('curriculum_template', '', PARAM_TEXT);
@@ -401,8 +400,7 @@ if ($approvedjsonparam !== null) {
         'approvedjson' => $approvedjsonparam,
         'moduletype' => $approvedtypeparam,
         'keepweeklabels' => $keepweeklabelsparam,
-        'includeaboutassessments' => $includeaboutassessmentsparam,
-        'includeaboutlearning' => $includeaboutlearningparam,
+        'generatethemeintroductions' => $generatethemeintroductionsparam,
         'createsuggestedactivities' => $createsuggestedactivitiesparam,
         'generatedsummary' => $generatedsummaryparam,
         'curriculum_template' => $curriculumtemplateparam,
@@ -415,8 +413,6 @@ if ($approveform && ($adata = $approveform->get_data())) {
     $json = json_decode($adata->approvedjson, true);
     $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'weekly';
     $keepweeklabels = ($moduletype === 'weekly' || $moduletype === 'connected_weekly') && !empty($adata->keepweeklabels);
-    $includeaboutassessments = !empty($adata->includeaboutassessments);
-    $includeaboutlearning = !empty($adata->includeaboutlearning);
 
     // Update course format based on module type.
     // Connected formats require flexsections plugin to be installed
@@ -424,8 +420,8 @@ if ($approveform && ($adata = $approveform->get_data())) {
         // For Connected formats, use flexsections course format
         $courseformat = 'flexsections';
     } else {
-        // For standard formats, use topics (theme) or weeks (weekly)
-        $courseformat = ($moduletype === 'theme') ? 'topics' : 'weeks';
+        // For standard formats, use weeks (weekly)
+        $courseformat = 'weeks';
     }
     
     $update = new stdClass();
@@ -437,27 +433,8 @@ if ($approveform && ($adata = $approveform->get_data())) {
 
     $results = [];
     $needscacherefresh = false;
-    $aboutassessmentsadded = false;
-    $aboutlearningadded = false;
     $activitywarnings = [];
-
-    if ($includeaboutassessments) {
-        $assessmentname = get_string('aboutassessments', 'aiplacement_modgen');
-        $assessmentresult = local_aiplacement_modgen_create_subsection($course, 0, $assessmentname, '', $needscacherefresh);
-        if (!empty($assessmentresult) && !empty($assessmentresult['cmid'])) {
-            $results[] = get_string('subsectioncreated', 'aiplacement_modgen', $assessmentname);
-            $aboutassessmentsadded = true;
-        }
-    }
-    if ($includeaboutlearning) {
-        $learningname = get_string('aboutlearningoutcomes', 'aiplacement_modgen');
-        $learningresult = local_aiplacement_modgen_create_subsection($course, 0, $learningname, '', $needscacherefresh);
-        if (!empty($learningresult) && !empty($learningresult['cmid'])) {
-            $results[] = get_string('subsectioncreated', 'aiplacement_modgen', $learningname);
-            $aboutlearningadded = true;
-        }
-    }
-    if (($moduletype === 'theme' || $moduletype === 'connected_theme') && !empty($json['themes']) && is_array($json['themes'])) {
+    if ($moduletype === 'connected_theme' && !empty($json['themes']) && is_array($json['themes'])) {
         $modinfo = get_fast_modinfo($courseid);
         $existingsections = $modinfo->get_section_info_all();
         $sectionnum = empty($existingsections) ? 1 : max(array_keys($existingsections)) + 1;
@@ -731,6 +708,15 @@ if (!$ajax && $standalone) {
 
     echo $OUTPUT->header();
     echo html_writer::div('<h2>' . get_string('launchgenerator', 'aiplacement_modgen') . '</h2>', 'aiplacement-modgen__page-heading');
+    
+    // Display introduction and warning
+    echo html_writer::div(get_string('generatorintroduction', 'aiplacement_modgen'), 'aiplacement-modgen__introduction');
+    echo html_writer::div(
+        '<div class="alert alert-info"><i class="fa fa-info-circle"></i> ' . 
+        get_string('longquery', 'aiplacement_modgen') . '</div>',
+        'aiplacement-modgen__warning'
+    );
+    
     $promptform->display();
     echo $OUTPUT->footer();
     exit;
@@ -845,12 +831,16 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     $prompt = $pdata->prompt;
     $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
     $keepweeklabels = !empty($pdata->keepweeklabels);
-    $includeaboutassessments = !empty($pdata->includeaboutassessments);
-    $includeaboutlearning = !empty($pdata->includeaboutlearning);
+    $generatethemeintroductions = !empty($pdata->generatethemeintroductions);
     $createsuggestedactivities = !empty($pdata->createsuggestedactivities);
     $curriculum_template = !empty($pdata->curriculum_template) ? $pdata->curriculum_template : '';
     $typeinstruction = get_string('moduletypeinstruction_' . $moduletype, 'aiplacement_modgen');
     $compositeprompt = trim($prompt . "\n\n" . $typeinstruction);
+    
+    // Add theme introductions instruction if enabled and using connected_theme
+    if ($generatethemeintroductions && $moduletype === 'connected_theme') {
+        $compositeprompt .= "\n\nIMPORTANT: For each theme in the themes array, generate a 2-3 sentence introductory paragraph for students. This paragraph should be placed in the 'summary' field of each theme object. The summary should introduce the theme content to students, explaining what they will learn or explore in that themed section.";
+    }
     
     // Add activity guidance instruction if activities are being created
     if ($createsuggestedactivities) {
@@ -1142,8 +1132,7 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
         'approvedjson' => $jsonstr,
         'moduletype' => $moduletype,
         'keepweeklabels' => $keepweeklabels ? 1 : 0,
-        'includeaboutassessments' => $includeaboutassessments ? 1 : 0,
-        'includeaboutlearning' => $includeaboutlearning ? 1 : 0,
+        'generatethemeintroductions' => $generatethemeintroductions ? 1 : 0,
         'createsuggestedactivities' => $createsuggestedactivities ? 1 : 0,
         'generatedsummary' => $summarytext,
         'curriculum_template' => $curriculum_template,

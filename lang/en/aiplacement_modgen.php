@@ -63,11 +63,9 @@ $string['labelcreationerror'] = 'Unable to create the "label" activity automatic
 $string['subsectioncreated'] = 'Subsection created: {$a}';
 $string['moduletype'] = 'Module format';
 $string['moduletype_weekly'] = 'Weekly format';
-$string['moduletype_theme'] = 'Themed format';
 $string['moduletype_connected_weekly'] = 'Connected Weekly';
 $string['moduletype_connected_theme'] = 'Connected Themed';
 $string['moduletypeinstruction_weekly'] = 'Structure the module as sequential weekly teaching sections with clear titles, summaries, and an outline array of 3-5 bullet points describing activities/resources.';
-$string['moduletypeinstruction_theme'] = 'Structure the module into distinct themes. For each theme provide a high-level summary and include an array of weekly entries that detail how the theme is delivered over time.';
 $string['moduletypeinstruction_connected_weekly'] = '[PLACEHOLDER: Connected weekly format instruction - custom prompt to be added]';
 $string['moduletypeinstruction_connected_theme'] = '[PLACEHOLDER: Connected themed format instruction - custom prompt to be added]';
 $string['weeklybreakdown'] = 'Weekly breakdown';
@@ -141,7 +139,16 @@ $string['moduletype_help'] = 'Choose how to structure your module:
 
 **Weekly format**: Creates sequential weekly sections with clear titles and activities for each week of teaching.
 
-**Themed format**: Organizes content into distinct learning themes that may span multiple weeks.';
+**Connected Weekly**: Weekly format enhanced with the Flexible Sections layout to improve organization and usability for the new Connected Curriculum.
+
+**Connected Themed**: Themed format enhanced with the Flexible Sections layout, organizing content into distinct learning themes for improved usability with the new Connected Curriculum.';
+
+// Form section headers
+$string['templatesettings'] = 'Template Setup';
+$string['suggestedcontent'] = 'Suggested Content';
+
+// Generator introduction
+$string['generatorintroduction'] = 'Use the Module Assistant to generate structured course content. Describe what you want your students to learn, and the AI will create a module outline with suggested activities and resources tailored to your needs.';
 
 // Template system strings
 $string['templateheading'] = 'Curriculum Template Configuration';
@@ -183,6 +190,8 @@ $string['enablefileupload_desc'] = 'When enabled, users will see an "Activity fr
 // Activity creation toggle
 $string['createsuggestedactivities'] = 'Create suggested activities';
 $string['createsuggestedactivities_help'] = 'When enabled, the generator will create activity shells as suggestions for your content. These are empty placeholder activities without content, ready for you to fill in with your own materials. When disabled, only section headings and descriptions will be created.';
+$string['generatethemeintroductions'] = 'Generate theme introductions';
+$string['generatethemeintroductions_help'] = 'When enabled, the AI will generate an introductory paragraph for each theme section to introduce students to that theme. These introductions will be placed in the summary/overview of each themed section.';
 $string['activityguidanceinstructions'] = 'ACTIVITY GUIDANCE AND COHERENCE - CRITICAL REQUIREMENTS:
 
 AUDIENCE: All summaries, guidance, and activity descriptions must be written for UK UNIVERSITY STUDENTS. Use appropriate academic language and assume prior tertiary-level education.

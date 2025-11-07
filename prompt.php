@@ -119,11 +119,16 @@ function aiplacement_modgen_render_modal_footer(array $actions, bool $includeclo
  * @param bool $refresh Whether to refresh on close (AJAX only).
  */
 function aiplacement_modgen_output_response(string $bodyhtml, array $footeractions, bool $ajax, string $title, bool $refresh = false): void {
-    global $OUTPUT;
+    global $OUTPUT, $PAGE;
     
     if ($ajax) {
         $footerhtml = aiplacement_modgen_render_modal_footer($footeractions);
         aiplacement_modgen_send_ajax_response($bodyhtml, $footerhtml, $refresh, ['title' => $title]);
+    }
+    
+    // Set up navigation breadcrumb for non-AJAX page requests
+    if (!$ajax && !defined('AJAX_SCRIPT')) {
+        $PAGE->navbar->add($title);
     }
     
     echo $OUTPUT->header();
@@ -342,6 +347,7 @@ if ($embedded) {
 }
 $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', $pageparams));
 $PAGE->set_context($context);
+$PAGE->set_course(get_course($courseid));
 $PAGE->set_title(get_string('pluginname', 'aiplacement_modgen'));
 $PAGE->set_heading(get_string('pluginname', 'aiplacement_modgen'));
 if ($embedded || $ajax) {

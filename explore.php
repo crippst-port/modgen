@@ -49,6 +49,9 @@ $PAGE->set_url(new moodle_url('/ai/placement/modgen/explore.php', ['id' => $cour
 $PAGE->set_title(get_string('exploreheading', 'aiplacement_modgen'));
 $PAGE->set_heading($course->fullname . ' - ' . get_string('exploreheading', 'aiplacement_modgen'));
 
+// Set up navigation breadcrumb to integrate into course
+$PAGE->navbar->add(get_string('exploremenuitem', 'aiplacement_modgen'));
+
 echo $OUTPUT->header();
 
 // Generate module data (single source of truth)

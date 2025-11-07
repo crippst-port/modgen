@@ -391,7 +391,7 @@ $approvedjsonparam = optional_param('approvedjson', null, PARAM_RAW);
 $approvedtypeparam = optional_param('moduletype', 'weekly', PARAM_ALPHA);
 $keepweeklabelsparam = optional_param('keepweeklabels', 0, PARAM_BOOL);
 $generatethemeintroductionsparam = optional_param('generatethemeintroductions', 0, PARAM_BOOL);
-$createsuggestedactivitiesparam = optional_param('createsuggestedactivities', 1, PARAM_BOOL);
+$createsuggestedactivitiesparam = optional_param('createsuggestedactivities', 0, PARAM_BOOL);
 $generatedsummaryparam = optional_param('generatedsummary', '', PARAM_RAW);
 $curriculumtemplateparam = optional_param('curriculum_template', '', PARAM_TEXT);
 if ($approvedjsonparam !== null) {

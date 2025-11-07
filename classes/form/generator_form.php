@@ -115,7 +115,7 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->addElement('advcheckbox', 'generatethemeintroductions', get_string('generatethemeintroductions', 'aiplacement_modgen'));
         $mform->addHelpButton('generatethemeintroductions', 'generatethemeintroductions', 'aiplacement_modgen');
         $mform->setType('generatethemeintroductions', PARAM_BOOL);
-        $mform->setDefault('generatethemeintroductions', 0);
+        $mform->setDefault('generatethemeintroductions', 1);
         
         // Only show theme introductions option for connected_theme
         $mform->hideIf('generatethemeintroductions', 'moduletype', 'ne', 'connected_theme');
@@ -124,7 +124,7 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->addElement('advcheckbox', 'createsuggestedactivities', get_string('createsuggestedactivities', 'aiplacement_modgen'));
         $mform->addHelpButton('createsuggestedactivities', 'createsuggestedactivities', 'aiplacement_modgen');
         $mform->setType('createsuggestedactivities', PARAM_BOOL);
-        $mform->setDefault('createsuggestedactivities', 1);
+        $mform->setDefault('createsuggestedactivities', 0);
         
         $this->add_action_buttons(false, get_string('submit', 'aiplacement_modgen'));
     }

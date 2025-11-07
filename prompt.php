@@ -424,8 +424,6 @@ if ($approvedjsonparam !== null) {
             $courseformat = 'weeks';
         }
         
-        error_log("DEBUG: Setting course format to: $courseformat for course $courseid");
-        
         $update = new stdClass();
         $update->id = $courseid;
         $update->format = $courseformat;
@@ -440,13 +438,6 @@ if ($approvedjsonparam !== null) {
         
         // Get the course format instance
         $courseformat = course_get_format($course);
-        
-        // Debug logging
-        error_log("DEBUG: moduletype = " . var_export($moduletype, true));
-        error_log("DEBUG: json['themes'] = " . var_export(!empty($json['themes']), true));
-        error_log("DEBUG: Full json = " . json_encode($json));
-        error_log("DEBUG: courseformat class = " . get_class($courseformat));
-        error_log("DEBUG: course format = " . $course->format);
         
         if ($moduletype === 'connected_theme' && !empty($json['themes']) && is_array($json['themes'])) {
         // Use flexsections create_new_section for nested section support
@@ -464,10 +455,7 @@ if ($approvedjsonparam !== null) {
             try {
                 $themesectionnum = $courseformat->create_new_section(0, null); // 0 means top level (no parent)
                 $themesectionnums[] = $themesectionnum;
-                
-                error_log("DEBUG: Created theme section with section number: " . var_export($themesectionnum, true));
             } catch (Exception $e) {
-                error_log("ERROR: Failed to create theme section: " . $e->getMessage());
                 $activitywarnings[] = "Failed to create theme section: " . $e->getMessage();
                 continue;
             }
@@ -491,6 +479,10 @@ if ($approvedjsonparam !== null) {
                 'summaryformat' => FORMAT_HTML,
             ]);
             
+            // Set theme section to appear as a link (collapsed = 1 in flexsections)
+            $themesectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $themesectionnum]);
+            $courseformat->update_section_format_options(['id' => $themesectionid, 'collapsed' => 1]);
+            
             $results[] = get_string('sectioncreated', 'aiplacement_modgen', $themetitle);
             
             // Now create nested week subsections under this theme
@@ -506,9 +498,7 @@ if ($approvedjsonparam !== null) {
                     // Create nested week section under the theme
                     try {
                         $weeksectionnum = $courseformat->create_new_section($themesectionnum, null);
-                        error_log("DEBUG: Created week section with section number: " . var_export($weeksectionnum, true) . " under theme " . $themesectionnum);
                     } catch (Exception $e) {
-                        error_log("ERROR: Failed to create week section under theme $themesectionnum: " . $e->getMessage());
                         $activitywarnings[] = "Failed to create week section: " . $e->getMessage();
                         continue;
                     }
@@ -530,6 +520,10 @@ if ($approvedjsonparam !== null) {
                         'summary' => $weeksectionhtml,
                         'summaryformat' => FORMAT_HTML,
                     ]);
+                    
+                    // Set week section to appear as a link (collapsed = 1 in flexsections)
+                    $weeksectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $weeksectionnum]);
+                    $courseformat->update_section_format_options(['id' => $weeksectionid, 'collapsed' => 1]);
                     
                     $results[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
                     
@@ -629,19 +623,6 @@ if ($approvedjsonparam !== null) {
             rebuild_course_cache($courseid, true, true);
         }
 
-        // Build debug information display
-        $debuginfo = [];
-        $debuginfo[] = "moduletype: " . $moduletype;
-        $debuginfo[] = "course->format: " . $course->format;
-        $debuginfo[] = "courseformat class: " . get_class($courseformat);
-        $debuginfo[] = "json themes count: " . (isset($json['themes']) ? count($json['themes']) : 'N/A');
-        $debuginfo[] = "results count: " . count($results);
-        $debugdisplay = html_writer::div(
-            html_writer::tag('pre', implode("\n", $debuginfo), ['style' => 'background: #f0f0f0; padding: 10px; border-radius: 4px; font-size: 12px;']),
-            '',
-            ['style' => 'margin: 20px 0; border: 1px solid #ddd; padding: 10px; background: #fffacd;']
-        );
-
         $resultsdata = [
             'notifications' => [],
             'hasresults' => !empty($results),
@@ -685,7 +666,6 @@ if ($approvedjsonparam !== null) {
         }
 
         $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/generation_results', $resultsdata);
-        $bodyhtml = $debugdisplay . $bodyhtml;
         $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
 
         if ($ajax) {

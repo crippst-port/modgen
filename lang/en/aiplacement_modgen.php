@@ -67,11 +67,32 @@ $string['moduletype_connected_weekly'] = 'Connected Weekly';
 $string['moduletype_connected_theme'] = 'Connected Themed';
 $string['moduletypeinstruction_weekly'] = 'Structure the module as sequential weekly teaching sections with clear titles, summaries, and an outline array of 3-5 bullet points describing activities/resources.';
 $string['moduletypeinstruction_connected_weekly'] = '[PLACEHOLDER: Connected weekly format instruction - custom prompt to be added]';
-$string['moduletypeinstruction_connected_theme'] = '[PLACEHOLDER: Connected themed format instruction - custom prompt to be added]';
+$string['moduletypeinstruction_connected_theme'] = 'Structure the module as themed sections (themes), each containing multiple weeks of teaching. Each week has THREE subsections: "Pre-session", "Session", and "Post-session". 
+
+For THEMES: Provide a title and (if enabled) a brief introduction explaining the theme content.
+
+For WEEKS: Provide a generic, overarching weekly title and summary that introduces the week\'s overall learning outcomes and flow.
+
+For ACTIVITIES: Place activities in the appropriate session subsection:
+- "Pre-session" activities: Preparatory work, background reading, prerequisite materials students should engage with BEFORE the main session (e.g., "Review the X article", "Complete the Y preparation task")
+- "Session" activities: Main learning activities conducted DURING the session time (e.g., "Take the quiz on X", "Participate in the X forum discussion", "Complete the X practical exercise")
+- "Post-session" activities: Consolidation and reflection work AFTER the session (e.g., "Reflect on learning via the X assignment", "Review key concepts in the X book", "Complete the post-session quiz")
+
+Structure each week object with:
+- title: Week name/number
+- summary: Generic overview of the week\'s learning flow and outcomes
+- weeks array containing subsections for each pre/session/post component
+- activities organized within the appropriate session subsection
+
+Important: Each week MUST include at least one activity distributed across the three session types (pre, session, post) as appropriate for the learning design. Ensure activities are logically sequenced and pedagogically sound.';
+
 $string['weeklybreakdown'] = 'Weekly breakdown';
 $string['weeklyoutline'] = 'Weekly outline';
 $string['themefallback'] = 'Theme overview';
 $string['weekfallback'] = 'Weekly focus';
+$string['presession'] = 'Pre-session';
+$string['session'] = 'Session';
+$string['postsession'] = 'Post-session';
 $string['keepweeklabels'] = 'Keep dated headings and insert the subject title as a label';
 $string['includeaboutassessments'] = 'Add "About Assessments" subsection to the first section';
 $string['includeaboutlearning'] = 'Add "About Learning Outcomes" subsection to the first section';

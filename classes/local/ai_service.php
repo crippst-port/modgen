@@ -48,8 +48,8 @@ class ai_service {
     /**
      * Validate module structure to catch malformed AI responses.
      *
-     * Checks for common issues like double-encoded JSON in summary fields,
-     * empty or malformed theme/section structures.
+     * Checks for common issues like empty or malformed theme/section structures.
+     * Note: Double-encoded JSON is now handled in normalize_ai_response() which unwraps it automatically.
      *
      * @param array $data The decoded module data
      * @param string $structure Expected structure type ('theme' or 'weekly')
@@ -79,22 +79,6 @@ class ai_service {
                 return ['valid' => false, 'error' => 'Invalid structure: theme/section is not an array'];
             }
 
-            // Check for double-encoded JSON in summary field
-            if (isset($item['summary']) && is_string($item['summary'])) {
-                $summary = trim($item['summary']);
-                // If summary starts with { or [, it might be double-encoded JSON
-                if (strlen($summary) > 0 && ($summary[0] === '{' || $summary[0] === '[')) {
-                    $decoded = json_decode($summary, true);
-                    if (json_last_error() === JSON_ERROR_NONE) {
-                        // This is double-encoded JSON - the entire structure is in the summary field
-                        return [
-                            'valid' => false,
-                            'error' => 'Malformed response detected: The AI returned the entire structure inside a summary field instead of as proper sections. This happens when the AI double-encodes the JSON. Please try regenerating - the AI needs to return properly structured JSON.'
-                        ];
-                    }
-                }
-            }
-
             // For theme structure, check weeks
             if ($structure === 'theme') {
                 if (!isset($item['weeks'])) {
@@ -108,20 +92,6 @@ class ai_service {
                 foreach ($item['weeks'] as $widx => $week) {
                     if (!is_array($week)) {
                         return ['valid' => false, 'error' => 'Week structure is not an array'];
-                    }
-
-                    // Check for double-encoded JSON in week summary
-                    if (isset($week['summary']) && is_string($week['summary'])) {
-                        $summary = trim($week['summary']);
-                        if (strlen($summary) > 0 && ($summary[0] === '{' || $summary[0] === '[')) {
-                            $decoded = json_decode($summary, true);
-                            if (json_last_error() === JSON_ERROR_NONE) {
-                                return [
-                                    'valid' => false,
-                                    'error' => 'Malformed response: Week contains double-encoded JSON in summary field. Please regenerate.'
-                                ];
-                            }
-                        }
                     }
                 }
             }
@@ -138,17 +108,70 @@ class ai_service {
     /**
      * Recursively normalise AI responses where some fields may be JSON encoded as strings.
      * This walks arrays/objects and attempts to json_decode string values that look like JSON.
+     * 
+     * SPECIAL CASES: 
+     * 1. If the structure is wrapped (first item in themes/sections array contains 
+     *    the actual structure in its summary field), this function unwraps it automatically.
+     * 2. Handles JSON strings with escaped newlines and quotes within field values.
+     * 3. When the entire module structure is nested in a field as a JSON string, extracts it.
      *
      * @param mixed $value
+     * @param bool $isTopLevel Whether this is the top-level call (used for structure extraction)
      * @return mixed
      */
-    private static function normalize_ai_response($value) {
+    private static function normalize_ai_response($value, $isTopLevel = false) {
         // If it's an array, walk each element.
         if (is_array($value)) {
             $out = [];
             foreach ($value as $k => $v) {
-                $out[$k] = self::normalize_ai_response($v);
+                $out[$k] = self::normalize_ai_response($v, false);
             }
+            
+            // Top-level extraction: check for wrapped structure pattern
+            if ($isTopLevel && !empty($out)) {
+                // Pattern 1: Single entry that contains the actual structure
+                if (count($out) === 1) {
+                    foreach ($out as $key => $item) {
+                        // If we have a structure wrapped (e.g., {theme: {themes: [...]}}), unwrap it
+                        if (is_array($item) && (isset($item['themes']) || isset($item['sections']))) {
+                            self::debug_log("AI_SERVICE: Detected wrapped structure (Pattern 1), unwrapping...");
+                            return $item;
+                        }
+                    }
+                }
+                
+                // Pattern 2: themes/sections array where first item's summary contains actual structure
+                if ((isset($out['themes']) || isset($out['sections'])) && is_array($out['themes'] ?? $out['sections'])) {
+                    $itemsArray = $out['themes'] ?? $out['sections'];
+                    $firstItem = $itemsArray[0] ?? null;
+                    
+                    if ($firstItem && is_array($firstItem) && isset($firstItem['summary']) && is_string($firstItem['summary'])) {
+                        $summary = trim($firstItem['summary']);
+                        // Check if the summary contains the full structure (may have escaped newlines/quotes)
+                        if (strlen($summary) > 0 && ($summary[0] === '{' || $summary[0] === '[')) {
+                            // Try direct decode first
+                            $decoded = json_decode($summary, true);
+                            if (json_last_error() === JSON_ERROR_NONE && 
+                                (isset($decoded['themes']) || isset($decoded['sections']))) {
+                                self::debug_log("AI_SERVICE: Detected structure wrapped in first item's summary (Pattern 2a), unwrapping...");
+                                return self::normalize_ai_response($decoded, false);
+                            }
+                            
+                            // Try with common escape patterns: literal \n, \t, \\", etc.
+                            $unescaped = self::unescape_json_string($summary);
+                            if ($unescaped !== $summary) {
+                                $decoded = json_decode($unescaped, true);
+                                if (json_last_error() === JSON_ERROR_NONE && 
+                                    (isset($decoded['themes']) || isset($decoded['sections']))) {
+                                    self::debug_log("AI_SERVICE: Detected structure wrapped in first item's summary with escaped characters (Pattern 2b), unwrapping...");
+                                    return self::normalize_ai_response($decoded, false);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
             return $out;
         }
 
@@ -164,7 +187,16 @@ class ai_service {
                 $decoded = json_decode($trim, true);
                 if (json_last_error() === JSON_ERROR_NONE) {
                     // Recursively normalise decoded payload
-                    return self::normalize_ai_response($decoded);
+                    return self::normalize_ai_response($decoded, false);
+                }
+                
+                // If direct decode failed, try unescaping first
+                $unescaped = self::unescape_json_string($trim);
+                if ($unescaped !== $trim) {
+                    $decoded = json_decode($unescaped, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        return self::normalize_ai_response($decoded, false);
+                    }
                 }
             }
 
@@ -174,7 +206,7 @@ class ai_service {
                 if ((isset($unescaped[0]) && ($unescaped[0] === '{' || $unescaped[0] === '['))) {
                     $decoded = json_decode($unescaped, true);
                     if (json_last_error() === JSON_ERROR_NONE) {
-                        return self::normalize_ai_response($decoded);
+                        return self::normalize_ai_response($decoded, false);
                     }
                 }
             }
@@ -183,7 +215,7 @@ class ai_service {
             if (preg_match('/(\{.*\}|\[.*\])/s', $trim, $m)) {
                 $decoded = json_decode($m[1], true);
                 if (json_last_error() === JSON_ERROR_NONE) {
-                    return self::normalize_ai_response($decoded);
+                    return self::normalize_ai_response($decoded, false);
                 }
             }
 
@@ -193,6 +225,32 @@ class ai_service {
 
         // Scalars other than strings left unchanged
         return $value;
+    }
+
+    /**
+     * Attempt to unescape common JSON escape sequences in string values.
+     * Handles cases like literal \n, \t, \", \\ etc.
+     *
+     * @param string $str The string to unescape
+     * @return string The unescaped string
+     */
+    private static function unescape_json_string($str) {
+        // Handle common escape patterns that might be in the string
+        // but not properly interpreted
+        $replacements = [
+            '\\\\n' => "\n",      // Literal \n -> newline
+            '\\\\t' => "\t",      // Literal \t -> tab
+            '\\\\r' => "\r",      // Literal \r -> carriage return
+            '\\\"' => '"',        // Escaped quote -> quote
+            "\\\\" => "\\",       // Escaped backslash -> backslash
+        ];
+        
+        $result = $str;
+        foreach ($replacements as $pattern => $replacement) {
+            $result = str_replace($pattern, $replacement, $result);
+        }
+        
+        return $result;
     }
     public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null) {
         global $USER, $COURSE;
@@ -235,7 +293,17 @@ class ai_service {
             
             // Start with fixed JSON schema requirements
             $jsonrequirements = "The JSON structure you return must represent a Moodle module for the user's requirements, not just generic activities.\n" .
-                "Return ONLY valid JSON matching the schema below. Do not include any commentary or code fences.";
+                "Return ONLY valid JSON matching the schema below. Do not include any commentary or code fences.\n\n" .
+                "CRITICAL - JSON FORMAT REQUIREMENTS:\n" .
+                "- Return the JSON object DIRECTLY as the top-level response\n" .
+                "- Do NOT wrap the JSON in any outer structure\n" .
+                "- Do NOT place the JSON inside any field value or summary\n" .
+                "- Do NOT escape or encode the JSON as a string\n" .
+                "- The response must be parseable as JSON with a single json_decode() call\n" .
+                "- Top-level must contain either 'themes' or 'sections' array, not nested inside any field\n" .
+                "Example CORRECT: {\"themes\": [{\"title\": \"...\", ...}]}\n" .
+                "Example INCORRECT (do not do this): {\"response\": \"{\\\"themes\\\"...}\"} or {\"data\": \"{\n  \\\"themes\\\":...}\"}";
+
             
             // Get the configurable pedagogical guidance from admin settings
             $pedagogicalguidance = get_config('aiplacement_modgen', 'baseprompt');
@@ -257,39 +325,55 @@ class ai_service {
             self::debug_log("AI_SERVICE: Supported types: " . print_r($supportedactivitytypes, true));
 
             if ($structure === 'theme') {
-                $weekproperties = [
-                    'title' => ['type' => 'string'],
-                    'summary' => ['type' => 'string'],
-                ];
-                if (!empty($supportedactivitytypes)) {
-                    $weekproperties['activities'] = [
-                        'type' => 'array',
-                        'items' => [
-                            'type' => 'object',
-                            'required' => ['type', 'name'],
-                            'properties' => [
-                                'type' => [
-                                    'type' => 'string',
-                                    'enum' => $supportedactivitytypes,
-                                ],
-                                'name' => ['type' => 'string'],
-                                'intro' => ['type' => 'string'],
-                                'description' => ['type' => 'string'],
-                                'externalurl' => ['type' => 'string'],
-                                'chapters' => [
-                                    'type' => 'array',
-                                    'items' => [
-                                        'type' => 'object',
-                                        'properties' => [
-                                            'title' => ['type' => 'string'],
-                                            'content' => ['type' => 'string'],
-                                        ],
-                                    ],
+                $activityobject = [
+                    'type' => 'object',
+                    'required' => ['type', 'name'],
+                    'properties' => [
+                        'type' => [
+                            'type' => 'string',
+                            'enum' => $supportedactivitytypes,
+                        ],
+                        'name' => ['type' => 'string'],
+                        'intro' => ['type' => 'string'],
+                        'description' => ['type' => 'string'],
+                        'externalurl' => ['type' => 'string'],
+                        'chapters' => [
+                            'type' => 'array',
+                            'items' => [
+                                'type' => 'object',
+                                'properties' => [
+                                    'title' => ['type' => 'string'],
+                                    'content' => ['type' => 'string'],
                                 ],
                             ],
                         ],
-                    ];
-                }
+                    ],
+                ];
+
+                $sessionobject = [
+                    'type' => 'object',
+                    'properties' => [
+                        'title' => ['type' => 'string'],
+                        'summary' => ['type' => 'string'],
+                        'activities' => [
+                            'type' => 'array',
+                            'items' => $activityobject,
+                        ],
+                    ],
+                ];
+
+                $weekproperties = [
+                    'title' => ['type' => 'string'],
+                    'summary' => ['type' => 'string'],
+                    'sessions' => [
+                        'type' => 'object',
+                        'properties' => [
+                            'presession' => $sessionobject,
+                            'session' => $sessionobject,
+                            'postsession' => $sessionobject,
+                        ],
+                    ],
+                ];
 
                 $schemaspec = [
                     'type' => 'object',
@@ -317,40 +401,15 @@ class ai_service {
                         'template' => ['type' => 'string'],
                     ],
                 ];
-                if (!empty($supportedactivitytypes)) {
-                    $schemaspec['properties']['themes']['items']['properties']['activities'] = [
-                        'type' => 'array',
-                        'items' => [
-                            'type' => 'object',
-                            'required' => ['type', 'name'],
-                            'properties' => [
-                                'type' => [
-                                    'type' => 'string',
-                                    'enum' => $supportedactivitytypes,
-                                ],
-                                'name' => ['type' => 'string'],
-                                'intro' => ['type' => 'string'],
-                                'description' => ['type' => 'string'],
-                                'externalurl' => ['type' => 'string'],
-                                'chapters' => [
-                                    'type' => 'array',
-                                    'items' => [
-                                        'type' => 'object',
-                                        'properties' => [
-                                            'title' => ['type' => 'string'],
-                                            'content' => ['type' => 'string'],
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ];
-                }
+
                 $formatinstruction = "Schema: " . json_encode($schemaspec) . "\n" .
                     "Output rules: Return a compact JSON object which validates against the schema.\n" .
                     "Each theme includes a 'title', a 'summary', and a 'weeks' array.\n" .
-                    "Each week object contains a 'title' and 'summary' giving practical weekly delivery guidance.\n" .
-                    "Audience: UK university students. Use British English.";
+                    "Each week contains a 'title' and 'summary' for the week overview (generic delivery guidance), plus a 'sessions' object.\n" .
+                    "Within each week's 'sessions', there are three subsections: 'presession', 'session', and 'postsession'.\n" .
+                    "Each session subsection can have its own 'title', 'summary', and 'activities' array.\n" .
+                    "Audience: UK university students. Use British English.\n\n" .
+                    "⚠️ IMPORTANT: Return the JSON object DIRECTLY. Do NOT place it inside any field or wrap it as a string value.";
             } else {
                 $sectionproperties = [
                     'title' => ['type' => 'string'],
@@ -408,7 +467,8 @@ class ai_service {
                 $formatinstruction = "Schema: " . json_encode($schemaspec) . "\n" .
                     "Output rules: Return a compact JSON object which validates against the schema.\n" .
                     "Each section is a teaching week with a 'title', a narrative 'summary', and an 'outline' array of key activities/resources.\n" .
-                    "Audience: UK university students. Use British English.";
+                    "Audience: UK university students. Use British English.\n\n" .
+                    "⚠️ IMPORTANT: Return the JSON object DIRECTLY. Do NOT place it inside any field or wrap it as a string value.";
             }
 
             if (!empty($activitymetadata)) {
@@ -519,11 +579,20 @@ class ai_service {
             // Attempt to normalise nested/stringified JSON that may be embedded in string fields.
             if (is_array($jsondecoded)) {
                 $before = $jsondecoded;
-                $jsondecoded = self::normalize_ai_response($jsondecoded);
+                self::debug_log("AI_SERVICE: Before normalization - top level keys: " . implode(', ', array_keys($jsondecoded)));
+                if (isset($jsondecoded['themes']) && is_array($jsondecoded['themes']) && count($jsondecoded['themes']) > 0) {
+                    $firstTheme = $jsondecoded['themes'][0];
+                    self::debug_log("AI_SERVICE: First theme title: " . ($firstTheme['title'] ?? 'NO TITLE'));
+                    self::debug_log("AI_SERVICE: First theme summary length: " . strlen($firstTheme['summary'] ?? ''));
+                    self::debug_log("AI_SERVICE: First theme summary starts with: " . substr($firstTheme['summary'] ?? '', 0, 50));
+                }
+                
+                $jsondecoded = self::normalize_ai_response($jsondecoded, true);
+                
                 // Log if normalisation changed the structure in a meaningful way.
                 if (serialize($before) !== serialize($jsondecoded)) {
                     self::debug_log("AI_SERVICE: Normalised AI JSON structure; differences detected.");
-                    self::debug_log("AI_SERVICE: Normalised JSON: " . print_r($jsondecoded, true));
+                    self::debug_log("AI_SERVICE: After normalization - top level keys: " . implode(', ', array_keys($jsondecoded)));
                 }
             }
 

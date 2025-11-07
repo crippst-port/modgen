@@ -462,7 +462,9 @@ if ($approvedjsonparam !== null) {
             
             $themetitle = format_string($title, true, ['context' => $context]);
             $sectionhtml = '';
-            if (trim($summary) !== '') {
+            
+            // Only include theme summary if "Generate theme introductions" is checked
+            if (!empty($adata->generatethemeintroductions) && trim($summary) !== '') {
                 $sectionhtml = format_text($summary, FORMAT_HTML, ['context' => $context]);
                 // If a curriculum template was used, ensure IDs inside the template HTML are unique
                 if (!empty($adata->curriculum_template)) {
@@ -527,21 +529,79 @@ if ($approvedjsonparam !== null) {
                     
                     $results[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
                     
-                    // Create activities in the week section
-                    if (!empty($activities) && !empty($adata->createsuggestedactivities)) {
-                        // Import the registry for activity creation
-                        require_once(__DIR__ . '/classes/activitytype/registry.php');
-                        $registry = new \aiplacement_modgen\activitytype\registry();
-                        
-                        foreach ($activities as $activity) {
-                            if (!is_array($activity)) {
-                                continue;
+                    // Create the three session subsections under the week and store their section numbers
+                    $sessiontypes = [
+                        'presession' => get_string('presession', 'aiplacement_modgen'),
+                        'session' => get_string('session', 'aiplacement_modgen'),
+                        'postsession' => get_string('postsession', 'aiplacement_modgen'),
+                    ];
+                    
+                    $sessionsectionmap = []; // Map session type to section number
+                    
+                    foreach ($sessiontypes as $sessionkey => $sessionlabel) {
+                        try {
+                            // Create nested subsection under the week (parent = weeksectionnum)
+                            $sessionsectionnum = $courseformat->create_new_section($weeksectionnum, null);
+                            $sessionsectionmap[$sessionkey] = $sessionsectionnum;
+                            
+                            // Update session section name
+                            $sessionsectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $sessionsectionnum]);
+                            $DB->update_record('course_sections', [
+                                'id' => $sessionsectionid,
+                                'name' => $sessionlabel,
+                            ]);
+                            
+                            // Set session section to NOT appear as a link (collapsed = 0 in flexsections)
+                            $courseformat->update_section_format_options(['id' => $sessionsectionid, 'collapsed' => 0]);
+                            
+                            $results[] = get_string('sectioncreated', 'aiplacement_modgen', $sessionlabel);
+                        } catch (Exception $e) {
+                            $activitywarnings[] = "Failed to create $sessionkey section: " . $e->getMessage();
+                        }
+                    }
+                    
+                    // Create activities in the appropriate session subsections
+                    if (!empty($adata->createsuggestedactivities)) {
+                        // Check if week has nested sessions structure
+                        if (!empty($week['sessions']) && is_array($week['sessions'])) {
+                            // New nested structure: activities are in week['sessions']['presession|session|postsession']['activities']
+                            foreach ($sessiontypes as $sessionkey => $sessionlabel) {
+                                if (!empty($week['sessions'][$sessionkey]) && is_array($week['sessions'][$sessionkey])) {
+                                    $sessiondata = $week['sessions'][$sessionkey];
+                                    $sessionactivities = $sessiondata['activities'] ?? [];
+                                    
+                                    if (!empty($sessionactivities) && is_array($sessionactivities)) {
+                                        $sessionsectionnum = $sessionsectionmap[$sessionkey] ?? null;
+                                        if ($sessionsectionnum !== null) {
+                                            $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
+                                                $sessionactivities,
+                                                $course,
+                                                $sessionsectionnum
+                                            );
+                                            
+                                            if (!empty($activityoutcome['created'])) {
+                                                $results = array_merge($results, $activityoutcome['created']);
+                                            }
+                                            if (!empty($activityoutcome['warnings'])) {
+                                                $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
+                                            }
+                                        }
+                                    }
+                                }
                             }
-                            $activityresult = $registry->create_activity($activity, $weeksectionnum, $context, $course);
-                            if (!empty($activityresult['error'])) {
-                                $activitywarnings[] = $activityresult['error'];
-                            } else if (!empty($activityresult['success'])) {
-                                $results[] = $activityresult['success'];
+                        } else if (!empty($activities) && is_array($activities)) {
+                            // Fallback: Old flat structure where activities are directly in week
+                            $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
+                                $activities,
+                                $course,
+                                $weeksectionnum
+                            );
+                            
+                            if (!empty($activityoutcome['created'])) {
+                                $results = array_merge($results, $activityoutcome['created']);
+                            }
+                            if (!empty($activityoutcome['warnings'])) {
+                                $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
                             }
                         }
                     }
@@ -849,6 +909,9 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     // Add theme introductions instruction if enabled and using connected_theme
     if ($generatethemeintroductions && $moduletype === 'connected_theme') {
         $compositeprompt .= "\n\nIMPORTANT: For each theme in the themes array, generate a 2-3 sentence introductory paragraph for students. This paragraph should be placed in the 'summary' field of each theme object. The summary should introduce the theme content to students, explaining what they will learn or explore in that themed section.";
+    } elseif ($moduletype === 'connected_theme') {
+        // If connected_theme format but NOT generating introductions, tell AI to leave theme summaries empty
+        $compositeprompt .= "\n\nIMPORTANT: Do NOT generate summaries for themes. Leave the 'summary' field EMPTY for each theme object (empty string, not null). Only provide theme titles and the weeks array. This keeps the theme sections as containers without descriptive text.";
     }
     
     // Add activity guidance instruction if activities are being created

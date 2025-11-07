@@ -408,38 +408,51 @@ if ($approvedjsonparam !== null) {
     ]);
 }
 
-if ($approveform && ($adata = $approveform->get_data())) {
-    // Create weekly sections from approved JSON.
-    $json = json_decode($adata->approvedjson, true);
-    $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'weekly';
-    $keepweeklabels = ($moduletype === 'weekly' || $moduletype === 'connected_weekly') && !empty($adata->keepweeklabels);
+    if ($approveform && ($adata = $approveform->get_data())) {
+        // Create weekly sections from approved JSON.
+        $json = json_decode($adata->approvedjson, true);
+        $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'weekly';
+        $keepweeklabels = ($moduletype === 'weekly' || $moduletype === 'connected_weekly') && !empty($adata->keepweeklabels);
+        
+        // Update course format based on module type.
+        // Connected formats require flexsections plugin to be installed
+        if ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme') {
+            // For Connected formats, use flexsections course format
+            $courseformat = 'flexsections';
+        } else {
+            // For standard formats, use weeks (weekly)
+            $courseformat = 'weeks';
+        }
+        
+        error_log("DEBUG: Setting course format to: $courseformat for course $courseid");
+        
+        $update = new stdClass();
+        $update->id = $courseid;
+        $update->format = $courseformat;
+        
+        update_course($update);
+        rebuild_course_cache($courseid, true, true);
+        $course = get_course($courseid);
 
-    // Update course format based on module type.
-    // Connected formats require flexsections plugin to be installed
-    if ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme') {
-        // For Connected formats, use flexsections course format
-        $courseformat = 'flexsections';
-    } else {
-        // For standard formats, use weeks (weekly)
-        $courseformat = 'weeks';
-    }
-    
-    $update = new stdClass();
-    $update->id = $courseid;
-    $update->format = $courseformat;
-    update_course($update);
-    rebuild_course_cache($courseid, true, true);
-    $course = get_course($courseid);
-
-    $results = [];
-    $needscacherefresh = false;
-    $activitywarnings = [];
-    if ($moduletype === 'connected_theme' && !empty($json['themes']) && is_array($json['themes'])) {
-        $modinfo = get_fast_modinfo($courseid);
-        $existingsections = $modinfo->get_section_info_all();
-        $sectionnum = empty($existingsections) ? 1 : max(array_keys($existingsections)) + 1;
-
-        foreach ($json['themes'] as $theme) {
+        $results = [];
+        $needscacherefresh = false;
+        $activitywarnings = [];
+        
+        // Get the course format instance
+        $courseformat = course_get_format($course);
+        
+        // Debug logging
+        error_log("DEBUG: moduletype = " . var_export($moduletype, true));
+        error_log("DEBUG: json['themes'] = " . var_export(!empty($json['themes']), true));
+        error_log("DEBUG: Full json = " . json_encode($json));
+        error_log("DEBUG: courseformat class = " . get_class($courseformat));
+        error_log("DEBUG: course format = " . $course->format);
+        
+        if ($moduletype === 'connected_theme' && !empty($json['themes']) && is_array($json['themes'])) {
+        // Use flexsections create_new_section for nested section support
+        $themesectionnums = [];
+        
+        foreach ($json['themes'] as $themeindex => $theme) {
             if (!is_array($theme)) {
                 continue;
             }
@@ -447,99 +460,101 @@ if ($approveform && ($adata = $approveform->get_data())) {
             $summary = $theme['summary'] ?? '';
             $weeks = !empty($theme['weeks']) && is_array($theme['weeks']) ? $theme['weeks'] : [];
 
-            $section = course_create_section($course, $sectionnum);
-            $sectionrecord = $DB->get_record('course_sections', ['id' => $section->id], '*', MUST_EXIST);
-
+            // Create the parent theme section using flexsections
+            try {
+                $themesectionnum = $courseformat->create_new_section(0, null); // 0 means top level (no parent)
+                $themesectionnums[] = $themesectionnum;
+                
+                error_log("DEBUG: Created theme section with section number: " . var_export($themesectionnum, true));
+            } catch (Exception $e) {
+                error_log("ERROR: Failed to create theme section: " . $e->getMessage());
+                $activitywarnings[] = "Failed to create theme section: " . $e->getMessage();
+                continue;
+            }
+            
+            $themetitle = format_string($title, true, ['context' => $context]);
             $sectionhtml = '';
             if (trim($summary) !== '') {
                 $sectionhtml = format_text($summary, FORMAT_HTML, ['context' => $context]);
                 // If a curriculum template was used, ensure IDs inside the template HTML are unique
                 if (!empty($adata->curriculum_template)) {
-                    // Ensure the parser class is available
                     require_once(__DIR__ . '/classes/local/template_structure_parser.php');
-                    // Use the section number as a suffix to guarantee uniqueness within the course
-                    $sectionhtml = \aiplacement_modgen\template_structure_parser::ensure_unique_ids($sectionhtml, 'sec' . $sectionnum);
+                    $sectionhtml = \aiplacement_modgen\template_structure_parser::ensure_unique_ids($sectionhtml, 'sec' . $themesectionnum);
                 }
             }
-
-            $sectionrecord->name = $title;
-            $sectionrecord->summary = $sectionhtml;
-            $sectionrecord->summaryformat = FORMAT_HTML;
-            $sectionrecord->timemodified = time();
-            $DB->update_record('course_sections', $sectionrecord);
-
-            if (!empty($theme['activities']) && is_array($theme['activities'])) {
-                $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
-                    $theme['activities'],
-                    $course,
-                    $sectionnum
-                );
-                
-                if (!empty($activityoutcome['created'])) {
-                    $results = array_merge($results, $activityoutcome['created']);
-                }
-                if (!empty($activityoutcome['warnings'])) {
-                    $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
-                }
-            }
-
+            
+            // Update the theme section name and summary
+            $DB->update_record('course_sections', [
+                'id' => $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $themesectionnum]),
+                'name' => $themetitle,
+                'summary' => $sectionhtml,
+                'summaryformat' => FORMAT_HTML,
+            ]);
+            
+            $results[] = get_string('sectioncreated', 'aiplacement_modgen', $themetitle);
+            
+            // Now create nested week subsections under this theme
             if (!empty($weeks)) {
-                foreach ($weeks as $week) {
+                foreach ($weeks as $weekindex => $week) {
                     if (!is_array($week)) {
                         continue;
                     }
-                    $weektitle = $week['title'] ?? get_string('weekfallback', 'aiplacement_modgen');
-                    $weeksummary = isset($week['summary']) ? $week['summary'] : '';
-
-                    // Use the generated weekly summary as the subsection description.
-                    $subsectionsummary = '';
+                    $weektitle = $week['title'] ?? get_string('weekfallback', 'aiplacement_modgen') . ' ' . ($weekindex + 1);
+                    $weeksummary = $week['summary'] ?? '';
+                    $activities = !empty($week['activities']) && is_array($week['activities']) ? $week['activities'] : [];
+                    
+                    // Create nested week section under the theme
+                    try {
+                        $weeksectionnum = $courseformat->create_new_section($themesectionnum, null);
+                        error_log("DEBUG: Created week section with section number: " . var_export($weeksectionnum, true) . " under theme " . $themesectionnum);
+                    } catch (Exception $e) {
+                        error_log("ERROR: Failed to create week section under theme $themesectionnum: " . $e->getMessage());
+                        $activitywarnings[] = "Failed to create week section: " . $e->getMessage();
+                        continue;
+                    }
+                    
+                    $weektitle = format_string($weektitle, true, ['context' => $context]);
+                    $weeksectionhtml = '';
                     if (trim($weeksummary) !== '') {
-                        $subsectionsummary = format_text($weeksummary, FORMAT_HTML, ['context' => $context]);
-                        // If template mode, make ids unique for the subsection too
+                        $weeksectionhtml = format_text($weeksummary, FORMAT_HTML, ['context' => $context]);
                         if (!empty($adata->curriculum_template)) {
                             require_once(__DIR__ . '/classes/local/template_structure_parser.php');
-                            // Use section number and a delegated suffix to keep uniqueness
-                            $suffix = 'sec' . $sectionnum . '-sub' . (isset($delegatedsectionnum) ? $delegatedsectionnum : '0');
-                            $subsectionsummary = \aiplacement_modgen\template_structure_parser::ensure_unique_ids($subsectionsummary, $suffix);
+                            $weeksectionhtml = \aiplacement_modgen\template_structure_parser::ensure_unique_ids($weeksectionhtml, 'sec' . $weeksectionnum);
                         }
                     }
-
-                    $subsectionresult = local_aiplacement_modgen_create_subsection($course, $sectionnum, $weektitle, $subsectionsummary, $needscacherefresh);
-                    $delegatedsectionnum = null;
-                    if (!empty($subsectionresult) && !empty($subsectionresult['cmid'])) {
-                        $results[] = get_string('subsectioncreated', 'aiplacement_modgen', $weektitle);
+                    
+                    // Update the week section
+                    $DB->update_record('course_sections', [
+                        'id' => $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $weeksectionnum]),
+                        'name' => $weektitle,
+                        'summary' => $weeksectionhtml,
+                        'summaryformat' => FORMAT_HTML,
+                    ]);
+                    
+                    $results[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
+                    
+                    // Create activities in the week section
+                    if (!empty($activities) && !empty($adata->createsuggestedactivities)) {
+                        // Import the registry for activity creation
+                        require_once(__DIR__ . '/classes/activitytype/registry.php');
+                        $registry = new \aiplacement_modgen\activitytype\registry();
                         
-                        // Convert delegated section ID to section number for activity creation
-                        if (!empty($subsectionresult['delegatedsectionid'])) {
-                            $delegatedsectionrec = $DB->get_record('course_sections', ['id' => $subsectionresult['delegatedsectionid']]);
-                            if ($delegatedsectionrec) {
-                                $delegatedsectionnum = $delegatedsectionrec->section;
+                        foreach ($activities as $activity) {
+                            if (!is_array($activity)) {
+                                continue;
                             }
-                        }
-                    }
-
-                    // Process activities within this week - place them in the subsection's delegated section
-                    if (!empty($week['activities']) && is_array($week['activities'])) {
-                        $activitysectionnum = !empty($delegatedsectionnum) ? $delegatedsectionnum : $sectionnum;
-                        $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
-                            $week['activities'],
-                            $course,
-                            $activitysectionnum
-                        );
-                        
-                        if (!empty($activityoutcome['created'])) {
-                            $results = array_merge($results, $activityoutcome['created']);
-                        }
-                        if (!empty($activityoutcome['warnings'])) {
-                            $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
+                            $activityresult = $registry->create_activity($activity, $weeksectionnum, $context, $course);
+                            if (!empty($activityresult['error'])) {
+                                $activitywarnings[] = $activityresult['error'];
+                            } else if (!empty($activityresult['success'])) {
+                                $results[] = $activityresult['success'];
+                            }
                         }
                     }
                 }
             }
-
-            $results[] = get_string('sectioncreated', 'aiplacement_modgen', $title);
-            $sectionnum++;
         }
+        $needscacherefresh = true;
     } else if (!empty($json['sections']) && is_array($json['sections'])) {
         $modinfo = get_fast_modinfo($courseid);
         $existingsections = $modinfo->get_section_info_all();
@@ -610,87 +625,101 @@ if ($approveform && ($adata = $approveform->get_data())) {
         }
     }
 
-    if ($needscacherefresh) {
-        rebuild_course_cache($courseid, true, true);
-    }
+        if ($needscacherefresh) {
+            rebuild_course_cache($courseid, true, true);
+        }
 
-    $resultsdata = [
-        'notifications' => [],
-        'hasresults' => !empty($results),
-        'results' => array_map(static function(string $text): array {
-            return ['text' => $text];
-        }, $results),
-        'showreturnlinkinbody' => !$ajax,
-    ];
+        // Build debug information display
+        $debuginfo = [];
+        $debuginfo[] = "moduletype: " . $moduletype;
+        $debuginfo[] = "course->format: " . $course->format;
+        $debuginfo[] = "courseformat class: " . get_class($courseformat);
+        $debuginfo[] = "json themes count: " . (isset($json['themes']) ? count($json['themes']) : 'N/A');
+        $debuginfo[] = "results count: " . count($results);
+        $debugdisplay = html_writer::div(
+            html_writer::tag('pre', implode("\n", $debuginfo), ['style' => 'background: #f0f0f0; padding: 10px; border-radius: 4px; font-size: 12px;']),
+            '',
+            ['style' => 'margin: 20px 0; border: 1px solid #ddd; padding: 10px; background: #fffacd;']
+        );
 
-    if (!empty($activitywarnings)) {
-        foreach ($activitywarnings as $warning) {
+        $resultsdata = [
+            'notifications' => [],
+            'hasresults' => !empty($results),
+            'results' => array_map(static function(string $text): array {
+                return ['text' => $text];
+            }, $results),
+            'showreturnlinkinbody' => !$ajax,
+        ];
+
+        if (!empty($activitywarnings)) {
+            foreach ($activitywarnings as $warning) {
+                $resultsdata['notifications'][] = [
+                    'message' => $warning,
+                    'classes' => 'alert alert-warning',
+                ];
+            }
+        }
+
+        if ($embedded) {
+            $resultsdata['returnlink'] = [
+                'url' => '#',
+                'label' => get_string('closemodgenmodal', 'aiplacement_modgen'),
+                'dataaction' => 'aiplacement-modgen-close',
+            ];
+            if (!$ajax) {
+                $PAGE->requires->js_call_amd('aiplacement_modgen/embedded_results', 'init');
+            }
+        } else {
+            $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
+            $resultsdata['returnlink'] = [
+                'url' => $courseurl->out(false),
+                'label' => get_string('returntocourse', 'aiplacement_modgen'),
+            ];
+        }
+
+        if (empty($results)) {
             $resultsdata['notifications'][] = [
-                'message' => $warning,
+                'message' => get_string('nosectionscreated', 'aiplacement_modgen'),
                 'classes' => 'alert alert-warning',
             ];
         }
-    }
 
-    if ($embedded) {
-        $resultsdata['returnlink'] = [
-            'url' => '#',
-            'label' => get_string('closemodgenmodal', 'aiplacement_modgen'),
-            'dataaction' => 'aiplacement-modgen-close',
-        ];
-        if (!$ajax) {
-            $PAGE->requires->js_call_amd('aiplacement_modgen/embedded_results', 'init');
-        }
-    } else {
-        $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
-        $resultsdata['returnlink'] = [
-            'url' => $courseurl->out(false),
-            'label' => get_string('returntocourse', 'aiplacement_modgen'),
-        ];
-    }
+        $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/generation_results', $resultsdata);
+        $bodyhtml = $debugdisplay . $bodyhtml;
+        $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
 
-    if (empty($results)) {
-        $resultsdata['notifications'][] = [
-            'message' => get_string('nosectionscreated', 'aiplacement_modgen'),
-            'classes' => 'alert alert-warning',
-        ];
-    }
+        if ($ajax) {
+            $footeractions = [];
+            if ($embedded) {
+                $footeractions[] = [
+                    'label' => get_string('closemodgenmodal', 'aiplacement_modgen'),
+                    'classes' => 'btn btn-secondary',
+                    'isbutton' => true,
+                    'action' => 'aiplacement-modgen-close',
+                ];
+                $footerhtml = aiplacement_modgen_render_modal_footer($footeractions, false);
+            } else {
+                $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
+                $footeractions[] = [
+                    'label' => get_string('returntocourse', 'aiplacement_modgen'),
+                    'classes' => 'btn btn-primary',
+                    'islink' => true,
+                    'url' => $courseurl->out(false),
+                ];
+                $footerhtml = aiplacement_modgen_render_modal_footer($footeractions);
+            }
 
-    $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/generation_results', $resultsdata);
-    $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
-
-    if ($ajax) {
-        $footeractions = [];
-        if ($embedded) {
-            $footeractions[] = [
-                'label' => get_string('closemodgenmodal', 'aiplacement_modgen'),
-                'classes' => 'btn btn-secondary',
-                'isbutton' => true,
-                'action' => 'aiplacement-modgen-close',
-            ];
-            $footerhtml = aiplacement_modgen_render_modal_footer($footeractions, false);
-        } else {
-            $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
-            $footeractions[] = [
-                'label' => get_string('returntocourse', 'aiplacement_modgen'),
-                'classes' => 'btn btn-primary',
-                'islink' => true,
-                'url' => $courseurl->out(false),
-            ];
-            $footerhtml = aiplacement_modgen_render_modal_footer($footeractions);
+            aiplacement_modgen_send_ajax_response($bodyhtml, $footerhtml, true, [
+                'close' => false,
+                'title' => get_string('pluginname', 'aiplacement_modgen'),
+            ]);
         }
 
-        aiplacement_modgen_send_ajax_response($bodyhtml, $footerhtml, true, [
-            'close' => false,
-            'title' => get_string('pluginname', 'aiplacement_modgen'),
-        ]);
-    }
-
-    echo $OUTPUT->header();
-    echo $bodyhtml;
-    echo $OUTPUT->footer();
-    exit;
-}
+        echo $OUTPUT->header();
+        echo $bodyhtml;
+        echo $OUTPUT->footer();
+        exit;
+    } // Close the if ($approveform && ($adata = $approveform->get_data())) block
 
 // Prompt form handling.
 $promptform = new aiplacement_modgen_generator_form(null, [

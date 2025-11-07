@@ -59,11 +59,14 @@ class aiplacement_modgen_generator_form extends moodleform {
         // === TEMPLATE SETUP SECTION ===
         $mform->addElement('header', 'templatesettingsheader', get_string('templatesettings', 'aiplacement_modgen'));
         
-        // Module type selection
+        // Module type selection - store options as fixed to ensure they're available during form processing
         $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
-        $mform->setType('moduletype', PARAM_ALPHA);
+        $mform->setType('moduletype', PARAM_ALPHANUMEXT);
         $mform->setDefault('moduletype', 'weekly');
         $mform->addHelpButton('moduletype', 'moduletype', 'aiplacement_modgen');
+        
+        // Store the module type options in customdata for validation
+        $this->_moduletypeoptions = $moduletypeoptions;
         
         // Format-specific options - keep weekly labels under weekly selector
         $mform->addElement('advcheckbox', 'keepweeklabels', get_string('keepweeklabels', 'aiplacement_modgen'));
@@ -134,5 +137,42 @@ class aiplacement_modgen_generator_form extends moodleform {
         $contextid = !empty($this->_customdata['contextid']) ? $this->_customdata['contextid'] : context_user::instance($USER->id)->id;
         file_prepare_draft_area($draftitemid, $contextid, 'aiplacement_modgen', 'supportingfiles', 0, array('subdirs'=>0,'maxbytes'=>10485760,'maxfiles'=>5));
         $this->_form->setDefault('supportingfiles', $draftitemid);
+    }
+    
+    public function validation($data, $files) {
+        $errors = parent::validation($data, $files);
+        
+        // Rebuild the moduletype options to match what's in definition()
+        $moduletypeoptions = [
+            'weekly' => get_string('moduletype_weekly', 'aiplacement_modgen'),
+        ];
+        
+        $pluginmanager = core_plugin_manager::instance();
+        $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
+        if (!empty($flexsectionsplugin)) {
+            $moduletypeoptions['connected_weekly'] = get_string('moduletype_connected_weekly', 'aiplacement_modgen');
+            $moduletypeoptions['connected_theme'] = get_string('moduletype_connected_theme', 'aiplacement_modgen');
+        }
+        
+        // Validate moduletype is in the allowed options
+        if (!empty($data['moduletype']) && !isset($moduletypeoptions[$data['moduletype']])) {
+            $errors['moduletype'] = 'Invalid module type selected';
+        }
+        
+        return $errors;
+    }
+    
+    public function get_data($slashed = true) {
+        $data = parent::get_data($slashed);
+        
+        // Manually add the moduletype from POST if it's missing from $data
+        // This handles the case where the select field validation filters it out
+        if (!isset($data->moduletype) || empty($data->moduletype)) {
+            if (!empty($_POST['moduletype'])) {
+                $data->moduletype = $_POST['moduletype'];
+            }
+        }
+        
+        return $data;
     }
 }

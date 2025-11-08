@@ -3,10 +3,10 @@ Divide ALL topics into {THEME_COUNT} coherent theme groups (typically 2-4 weeks 
 - Do NOT generate more or fewer than {THEME_COUNT} themes
 - This overrides any other guidance about theme count (like 'typically 3-6')
 - Theme titles MUST describe the actual content/topic - NEVER use generic names like 'Theme 1', 'Theme 2', 'Module 1', etc.
-- CRITICAL: Each theme must have a descriptive title (e.g., 'Theme: Data Analysis Fundamentals', 'Theme: Cloud Computing Architecture', 'Theme: User Interface Design')
+- CRITICAL: Each theme must have a descriptive title (e.g., 'Data Analysis Fundamentals', 'Cloud Computing Architecture', 'User Interface Design')
 - NEVER output: 'Theme 1', 'Theme 2', 'Theme 3', 'Module 1', 'Part 1', or any generic numbered theme titles
-- Week titles must include topic/concept (e.g., 'Week 1: Data Structures and Types')
+- Week titles must include topic/concept (e.g., 'Data Structures and Types')
 - Verify every topic from source appears in at least one week
 - Theme summary: 2-3 sentence student introduction
-- Week summary: brief overview of learning outcomes
+- Week summary: overview of learning outcomes
 - Distribute activities across pre-session/session/post-session appropriately

@@ -28,8 +28,9 @@ defined('MOODLE_INTERNAL') || die();
 $string['pluginname'] = 'Module Assistant';
 
 $string['existingmodule'] = 'Base on existing module';
+$string['addtemplate'] = 'Add another template';
 $string['createfromscratch'] = 'Create from scratch';
-$string['existingmodule_help'] = 'Optionally select an existing module to use as a template for AI generation. The AI will analyze the structure, activities, and content of the selected module to create similar content for your prompt. Choose "Create from scratch" to generate content without using any existing template.';
+$string['existingmodule_help'] = 'Optionally select one or more existing modules to use as templates for AI generation. The AI will analyze the structure, activities, and content of the selected modules to create similar content for your prompt. Choose "Create from scratch" to generate content without using any existing template. You can add up to 3 templates, and the AI will merge their structures.';
 
 $string['prompt'] = 'What would you like to create for your module?';
 $string['submit'] = 'Submit prompt';
@@ -149,6 +150,10 @@ $string['forumdescription'] = 'Collaborative discussion space for peer interacti
 $string['activitytype_url'] = 'External Link';
 $string['urldescription'] = 'Links to external websites, articles, videos, or resources';
 
+// Assignment activity
+$string['activitytype_assignment'] = 'Assignment';
+$string['assignmentdescription'] = 'Student work submission activity for formative and summative assessments, essays, projects, and reflective tasks';
+
 $string['aipolicynotaccepted'] = 'You must accept the AI policy before using the Module Assistant.';
 $string['aipolicyacceptance'] = 'AI Policy Acceptance Required';
 $string['acceptaipolicy'] = 'I agree to the terms of AI use in this system';
@@ -218,72 +223,47 @@ $string['createsuggestedactivities'] = 'Create suggested activities';
 $string['createsuggestedactivities_help'] = 'When enabled, the generator will create activity shells as suggestions for your content. These are empty placeholder activities without content, ready for you to fill in with your own materials. When disabled, only section headings and descriptions will be created.';
 $string['generatethemeintroductions'] = 'Generate theme introductions';
 $string['generatethemeintroductions_help'] = 'When enabled, the AI will generate an introductory paragraph for each theme section to introduce students to that theme. These introductions will be placed in the summary/overview of each themed section.';
-$string['activityguidanceinstructions'] = 'ACTIVITY GUIDANCE AND COHERENCE - CRITICAL REQUIREMENTS:
+$string['generatesessioninstructions'] = 'Generate session instructions';
+$string['generatesessioninstructions_help'] = 'When enabled, the AI will generate a paragraph for each session/week aimed at students. This explains what the session covers and lists the activities included. Helps students understand their learning path and what to focus on.';
+$string['activityguidanceinstructions'] = 'ACTIVITY GUIDANCE - CORE REQUIREMENTS:
 
-AUDIENCE: All summaries, guidance, and activity descriptions must be written for UK UNIVERSITY STUDENTS. Use appropriate academic language and assume prior tertiary-level education.
+AUDIENCE: Write for UK university students with academic, mature language.
 
-ACTIVITY REQUIREMENTS:
-- Each week MUST include AT LEAST ONE activity, maximum 5 Moodle activities per week (or as many as the content supports, up to 5)
-- External links and face-to-face activities do not count toward the activity limit and can be included as described below
-- The number and type of activities should be led by the topic complexity and learning outcomes
-- All suggested activities MUST be pedagogically sound and evidence-based
-- Focus on the learning outcome, and naturally reference the activity when it helps clarify the task
+ACTIVITY LIMITS:
+- Each week: minimum 1 activity, maximum 5 Moodle activities
+- External links (URLs) and face-to-face do NOT count toward limit
+- Activity selection should match topic complexity and learning outcomes
 
-EXTERNAL LINKS (URLs):
-- Use external links to direct students to reading materials, reference websites, videos, multimedia content, or context related to other activities
-- External links do NOT count toward the activity limit and can be used liberally to supplement learning
-- Examples: "Review the X article to understand background", "Watch the X video for context before the quiz", "Use the X database for references"
-- Include externalurl field with full URL (e.g., "https://example.com")
+WEEKLY SUMMARY (REQUIRED):
+- Clearly describe what students will learn and do
+- Explain the LEARNING PURPOSE (what concept/skill each element develops)
+- Provide HOW TO APPROACH guidance (sequence of activities)
+- Reference activities by name naturally: "Take the [Name] quiz to check your understanding"
+- Include face-to-face activities as descriptions: "Attend the Wednesday 2pm lecture on X"
+- Link external resources to learning context: "Review the X article for background"
 
-FACE-TO-FACE ACTIVITIES:
-- If the module includes face-to-face components, include these as descriptive text in the weekly summary
-- Face-to-face activities do NOT require associated Moodle activities
-- Examples in weekly summary: "Attend the Wednesday 2pm lecture on X topic", "Complete face-to-face group work in lab session", "Present findings in class"
-- Keep descriptions clear about timing, location expectations, and learning purpose
+ACTIVITY DESCRIPTIONS (REQUIRED):
+- Reinforce learning purposes from weekly summary
+- Provide specific, practical guidance
+- Link back to weekly learning objectives
+- Create coherent flow from summary to activity
 
-1. IN EACH WEEKLY/SECTION SUMMARY, YOU MUST:
-   - Clearly describe what students will learn and do this week
-   - Explain the LEARNING PURPOSE of each element (what concept or skill it develops)
-   - Provide HOW TO APPROACH guidance (what students should do first, then next, etc.)
-   - Explain what students will gain or be able to do after engaging with the activities
-   - Use natural, conversational language appropriate for university students
-   - Reference activities by name when it aids clarity, e.g., "Use the [Activity Name] book to read about X" or "Take the [Activity Name] quiz to check your understanding"
-   - Include any face-to-face activities as natural descriptions of in-class or on-campus activities
-   - Reference external reading links when they provide important context or prerequisites
+COHERENCE:
+- Weekly summary and activity descriptions must tell a consistent story
+- Students understand WHY they are doing activities, not just WHAT
+- Activities build progressively toward learning outcomes
+- External links support the learning narrative naturally
 
-2. IN EACH ACTIVITY DESCRIPTION, YOU MUST:
-   - Expand on and reinforce the learning purposes from the weekly summary
-   - Provide specific, practical guidance for engaging with the activity
-   - Link back to the learning objectives mentioned in the summary
-   - Make the activity description coherent and naturally flowing from the summary
+PEDAGOGICAL QUALITY:
+- Align with learning outcomes and Bloom\'s taxonomy
+- Vary activity types to maintain engagement
+- Support diverse learning preferences
 
-3. COHERENCE REQUIREMENT:
-   - The weekly summary and activity descriptions MUST tell a consistent story
-   - Students should understand not just WHAT to do, but WHY they are doing it and what it contributes to their learning
-   - Guidance must flow logically from week-level overview to specific activity engagement
-   - External links should be naturally woven in to support the learning narrative
-
-PEDAGOGICAL SOUNDNESS:
-- Activities should align with Bloom\'s taxonomy (remember, understand, apply, analyze, evaluate, create)
-- Vary activity types throughout the week to maintain student engagement
-- Ensure activities build progressively toward the learning outcomes
-- Consider diverse learning preferences (visual, auditory, kinesthetic, reading/writing)
-
-EXAMPLE SUMMARY FORMAT: "This week you\'ll explore [Topic] through structured learning. Begin by reviewing the [URL Name] article for background context, then use the [Name] book to read about [concept], which helps you understand [key idea]. You\'ll then take the [Name] quiz to check your understanding and identify areas for deeper engagement. Attend the Wednesday lecture on [topic] to discuss applications with peers. By working through these elements, you\'ll develop [learning outcome]."
-
-LANGUAGE GUIDELINES:
-- Write for mature learners; avoid patronising or overly simple language
-- Focus on learning outcomes and intellectual development, but can naturally reference activity names when helpful
-- Use natural phrases like "explore," "investigate," "develop understanding" combined with activity references where appropriate
-- Examples: "Use the X book to...", "Work through the X quiz to...", "Discuss in the X forum how...", "Review the X link for...", "Explore the X resource to...", "Review the X reading to understand...", "Attend the X lecture to..."
-- Vary your sentence structure and phrasing to maintain engagement
-- Be specific about what students will learn, not just what they\'ll do
-
-IMPORTANT - DO NOT USE LABELS:
-- Never include "label" activity types in your response - they are not learning activities
-- Labels are content display containers, not pedagogical activities
-- All items in the "activities" array must be real learning activities (quiz, book, forum, url, assignment, etc.)
-- If you need to display important information, use a different activity type or include it in the section summary instead';
+CRITICAL RULES:
+- Do NOT use "label" activities - labels are display containers, not learning activities
+- All items in "activities" array must be real activities (quiz, book, forum, url, assignment)
+- Display important information in summaries or other activity types instead
+- Be specific about what students will learn (outcomes focus)';
 
 // AI prompt configuration
 $string['aipromptheading'] = 'AI Generation Settings';

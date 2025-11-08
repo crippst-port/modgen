@@ -414,41 +414,46 @@ if ($approvedjsonparam !== null) {
         $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'weekly';
         $keepweeklabels = ($moduletype === 'weekly' || $moduletype === 'connected_weekly') && !empty($adata->keepweeklabels);
         
-        // Update course format based on module type.
-        // Connected formats require flexsections plugin to be installed
-        if ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme') {
-            // Check if flexsections is actually installed
-            $pluginmanager = core_plugin_manager::instance();
-            $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
-            
-            if (!empty($flexsectionsplugin)) {
-                // For Connected formats, use flexsections course format
-                $courseformat = 'flexsections';
+        // Lock the course to prevent concurrent access during build
+        $lockkey = 'aiplacement_modgen_building_' . $courseid;
+        $lock = \core\lock\lock_config::get_lock_factory('aiplacement_modgen')->get_lock($lockkey, 600); // 10 minute timeout
+        
+        try {
+            // Update course format based on module type.
+            // Connected formats require flexsections plugin to be installed
+            if ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme') {
+                // Check if flexsections is actually installed
+                $pluginmanager = core_plugin_manager::instance();
+                $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
+                
+                if (!empty($flexsectionsplugin)) {
+                    // For Connected formats, use flexsections course format
+                    $courseformat = 'flexsections';
+                } else {
+                    // Fallback to weeks if flexsections not available
+                    error_log('flexsections format not installed - falling back to weeks format');
+                    $courseformat = 'weeks';
+                    $moduletype = 'weekly'; // Downgrade to standard weekly
+                }
             } else {
-                // Fallback to weeks if flexsections not available
-                error_log('flexsections format not installed - falling back to weeks format');
+                // For standard formats, use weeks (weekly)
                 $courseformat = 'weeks';
-                $moduletype = 'weekly'; // Downgrade to standard weekly
             }
-        } else {
-            // For standard formats, use weeks (weekly)
-            $courseformat = 'weeks';
-        }
-        
-        $update = new stdClass();
-        $update->id = $courseid;
-        $update->format = $courseformat;
-        
-        update_course($update);
-        rebuild_course_cache($courseid, true, true);
-        $course = get_course($courseid);
+            
+            $update = new stdClass();
+            $update->id = $courseid;
+            $update->format = $courseformat;
+            
+            update_course($update);
+            rebuild_course_cache($courseid, true, true);
+            $course = get_course($courseid);
+            
+            // Re-fetch the course format instance to ensure it reflects the updated format
+            $courseformat = course_get_format($course);
 
-        $results = [];
-        $needscacherefresh = false;
-        $activitywarnings = [];
-        
-        // Get the course format instance
-        $courseformat = course_get_format($course);
+            $results = [];
+            $needscacherefresh = false;
+            $activitywarnings = [];
         
         if ($moduletype === 'connected_theme' && !empty($json['themes']) && is_array($json['themes'])) {
         // Use flexsections create_new_section for nested section support
@@ -465,9 +470,13 @@ if ($approvedjsonparam !== null) {
 
             // Create the parent theme section using flexsections
             try {
-                // Check if method exists before calling it (safety check for non-flexsections formats)
+                // Verify the course format actually supports nested sections
+                $currentcourseformat = $course->format;
+                if ($currentcourseformat !== 'flexsections') {
+                    throw new Exception("Course is using '{$currentcourseformat}' format, not 'flexsections'. Nested sections require the Flexible Sections plugin to be enabled for this course. Please install the flexsections plugin and change the course format to 'Flexible Sections' to use themed modules.");
+                }
                 if (!method_exists($courseformat, 'create_new_section')) {
-                    throw new Exception('Course format does not support nested sections. Flexsections plugin may not be installed.');
+                    throw new Exception('The flexsections course format is not properly supporting nested sections. Please ensure the Flexible Sections plugin is correctly installed and enabled.');
                 }
                 $themesectionnum = $courseformat->create_new_section(0, null); // 0 means top level (no parent)
                 $themesectionnums[] = $themesectionnum;
@@ -517,8 +526,12 @@ if ($approvedjsonparam !== null) {
                     
                     // Create nested week section under the theme
                     try {
+                        $currentcourseformat = $course->format;
+                        if ($currentcourseformat !== 'flexsections') {
+                            throw new Exception("Course is using '{$currentcourseformat}' format, not 'flexsections'. Nested sections require the Flexible Sections plugin.");
+                        }
                         if (!method_exists($courseformat, 'create_new_section')) {
-                            throw new Exception('Course format does not support nested sections. Flexsections plugin may not be installed.');
+                            throw new Exception('The flexsections course format is not properly supporting nested sections.');
                         }
                         $weeksectionnum = $courseformat->create_new_section($themesectionnum, null);
                     } catch (Exception $e) {
@@ -564,18 +577,34 @@ if ($approvedjsonparam !== null) {
                     foreach ($sessiontypes as $sessionkey => $sessionlabel) {
                         try {
                             // Create nested subsection under the week (parent = weeksectionnum)
+                            $currentcourseformat = $course->format;
+                            if ($currentcourseformat !== 'flexsections') {
+                                throw new Exception("Course is using '{$currentcourseformat}' format, not 'flexsections'. Nested sections require the Flexible Sections plugin.");
+                            }
                             if (!method_exists($courseformat, 'create_new_section')) {
-                                throw new Exception('Course format does not support nested sections. Flexsections plugin may not be installed.');
+                                throw new Exception('The flexsections course format is not properly supporting nested sections.');
                             }
                             $sessionsectionnum = $courseformat->create_new_section($weeksectionnum, null);
                             $sessionsectionmap[$sessionkey] = $sessionsectionnum;
                             
-                            // Update session section name
+                            // Update session section name and description
                             $sessionsectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $sessionsectionnum]);
-                            $DB->update_record('course_sections', [
+                            
+                            $sectionupdate = [
                                 'id' => $sessionsectionid,
                                 'name' => $sessionlabel,
-                            ]);
+                            ];
+                            
+                            // If session data has a description field, add it to the update
+                            if (!empty($week['sessions'][$sessionkey]) && is_array($week['sessions'][$sessionkey])) {
+                                $sessiondata = $week['sessions'][$sessionkey];
+                                if (!empty($sessiondata['description'])) {
+                                    $sectionupdate['summary'] = $sessiondata['description'];
+                                    $sectionupdate['summaryformat'] = FORMAT_HTML;
+                                }
+                            }
+                            
+                            $DB->update_record('course_sections', $sectionupdate);
                             
                             // Set session section to NOT appear as a link (collapsed = 0 in flexsections)
                             if (method_exists($courseformat, 'update_section_format_options')) {
@@ -729,7 +758,14 @@ if ($approvedjsonparam !== null) {
             }
         }
 
-        if ($embedded) {
+        } finally {
+            // Always release the lock when done, even if there's an error
+            // Also ensure cache is refreshed one more time for safety
+            rebuild_course_cache($courseid, true, true);
+            if (isset($lock)) {
+                $lock->release();
+            }
+        }        if ($embedded) {
             $resultsdata['returnlink'] = [
                 'url' => '#',
                 'label' => get_string('closemodgenmodal', 'aiplacement_modgen'),
@@ -901,88 +937,123 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
         $prompt = !empty($pdata->prompt) ? trim($pdata->prompt) : '';
         $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
         $curriculum_template = !empty($pdata->curriculum_template) ? $pdata->curriculum_template : '';
-        $existing_module = !empty($pdata->existing_module) ? $pdata->existing_module : 0;
+        
+        // Collect selected modules from multiselect
+        $existing_modules = [];
+        if (!empty($pdata->existing_modules)) {
+            if (is_array($pdata->existing_modules)) {
+                $existing_modules = array_map('intval', array_filter($pdata->existing_modules));
+            } else {
+                $existing_modules = [(int)$pdata->existing_modules];
+            }
+        }
+        $existing_modules = array_unique(array_filter($existing_modules));
+        $existing_module = !empty($existing_modules) ? array_shift($existing_modules) : 0; // Primary module
         
         // Try to extract template data
         $template_data = null;
         $template_data_debug = [];
         
-        if (!empty($curriculum_template) || !empty($existing_module)) {
+        if (!empty($curriculum_template) || !empty($existing_module) || !empty($existing_modules)) {
             try {
                 $template_reader = new \aiplacement_modgen\local\template_reader();
-                $template_source = !empty($existing_module) ? (string)$existing_module : $curriculum_template;
-                $template_data_debug[] = 'Template source: ' . $template_source;
+                $all_templates = [];
                 
-                // First, check if the course exists
-                global $DB;
-                $course_check = $DB->get_record('course', ['id' => (int)$template_source]);
-                if (!$course_check) {
-                    $template_data_debug[] = 'ERROR: Course ID ' . $template_source . ' not found in database';
-                } else {
-                    $template_data_debug[] = 'Course exists: ' . $course_check->fullname;
+                // Collect modules to extract
+                $modules_to_extract = [];
+                if (!empty($existing_module)) {
+                    $modules_to_extract[] = $existing_module;
+                }
+                if (!empty($existing_modules)) {
+                    $modules_to_extract = array_merge($modules_to_extract, $existing_modules);
+                }
+                $modules_to_extract = array_unique(array_filter($modules_to_extract));
+                
+                if (!empty($modules_to_extract)) {
+                    $template_data_debug[] = 'Extracting from ' . count($modules_to_extract) . ' module(s)...';
                     
-                    // Check user access
-                    $course_context = \context_course::instance((int)$template_source);
-                    $has_access = has_capability('moodle/course:view', $course_context);
-                    $template_data_debug[] = 'User has access: ' . ($has_access ? 'YES' : 'NO');
+                    global $DB;
                     
-                    if (!$has_access) {
-                        throw new Exception('You do not have access to this course');
-                    }
-                    
-                    try {
-                        $template_data = $template_reader->extract_curriculum_template($template_source);
-                        $template_data_debug[] = 'Success! Template data extracted.';
-                        $template_data_debug[] = 'Keys: ' . implode(', ', array_keys($template_data ?? []));
-                        
-                        if (!empty($template_data['course_info'])) {
-                            $template_data_debug[] = 'Course: ' . $template_data['course_info']['name'];
-                        }
-                        if (!empty($template_data['structure'])) {
-                            $template_data_debug[] = 'Sections: ' . count($template_data['structure']);
-                        }
-                        if (!empty($template_data['activities'])) {
-                            $template_data_debug[] = 'Activities: ' . count($template_data['activities']);
-                        }
-                    } catch (Throwable $extract_error) {
-                        $template_data_debug[] = 'EXTRACTION ERROR: ' . $extract_error->getMessage();
-                        $template_data_debug[] = 'Error Type: ' . get_class($extract_error);
-                        
-                        // Log the full trace for debugging
-                        error_log("TEMPLATE_DEBUG: Full exception trace: \n" . $extract_error->getTraceAsString());
-                        
-                        // Try to extract via simpler method if JOIN failed
+                    foreach ($modules_to_extract as $idx => $mod_id) {
                         $template_data_debug[] = '';
-                        $template_data_debug[] = 'Attempting fallback extraction method...';
+                        $template_data_debug[] = '=== Module ' . ($idx + 1) . ' (ID: ' . $mod_id . ') ===';
+                        
+                        // Check if course exists
+                        $course_check = $DB->get_record('course', ['id' => (int)$mod_id]);
+                        if (!$course_check) {
+                            $template_data_debug[] = 'ERROR: Course ID ' . $mod_id . ' not found';
+                            continue;
+                        }
+                        
+                        $template_data_debug[] = 'Course: ' . $course_check->fullname;
+                        
+                        // Check access
+                        $course_context = \context_course::instance((int)$mod_id);
+                        $has_access = has_capability('moodle/course:view', $course_context);
+                        $template_data_debug[] = 'Access: ' . ($has_access ? 'YES' : 'NO');
+                        
+                        if (!$has_access) {
+                            $template_data_debug[] = 'Skipped - no access';
+                            continue;
+                        }
                         
                         try {
-                            global $DB;
-                            $courseid_int = (int)$template_source;
-                            $course = $DB->get_record('course', ['id' => $courseid_int]);
-                            if (!$course) {
-                                throw new Exception('Course not found');
+                            $extracted = $template_reader->extract_curriculum_template((string)$mod_id);
+                            $template_data_debug[] = 'Extraction: SUCCESS';
+                            $template_data_debug[] = 'Sections: ' . count($extracted['structure'] ?? []);
+                            $template_data_debug[] = 'Activities: ' . count($extracted['activities'] ?? []);
+                            $all_templates[] = $extracted;
+                        } catch (Throwable $extract_error) {
+                            $template_data_debug[] = 'Extraction FAILED: ' . $extract_error->getMessage();
+                            
+                            // Try fallback
+                            try {
+                                $fallback = [
+                                    'course_info' => [
+                                        'name' => $course_check->fullname,
+                                        'format' => $course_check->format,
+                                        'summary' => strip_tags($course_check->summary ?? '')
+                                    ],
+                                    'structure' => [],
+                                    'activities' => [],
+                                    'template_html' => ''
+                                ];
+                                $template_data_debug[] = 'Fallback: SUCCESS (course info only)';
+                                $all_templates[] = $fallback;
+                            } catch (Throwable $fallback_error) {
+                                $template_data_debug[] = 'Fallback FAILED: ' . $fallback_error->getMessage();
                             }
-                            
-                            // Build minimal template data without complex queries
-                            $template_data = [
-                                'course_info' => [
-                                    'name' => $course->fullname,
-                                    'format' => $course->format,
-                                    'summary' => strip_tags($course->summary ?? '')
-                                ],
-                                'structure' => [],
-                                'activities' => [],
-                                'template_html' => ''
-                            ];
-                            
-                            $template_data_debug[] = 'Fallback SUCCESS - got course info only';
-                            $template_data_debug[] = 'Course: ' . $course->fullname;
-                        } catch (Throwable $fallback_error) {
-                            $template_data_debug[] = 'Fallback FAILED: ' . $fallback_error->getMessage();
-                            $template_data = null;
                         }
                     }
                     
+                    // Merge all templates
+                    if (!empty($all_templates)) {
+                        $template_data_debug[] = '';
+                        $template_data_debug[] = 'Merging ' . count($all_templates) . ' template(s)...';
+                        $template_data = $all_templates[0];
+                        
+                        if (count($all_templates) > 1) {
+                            for ($i = 1; $i < count($all_templates); $i++) {
+                                $other = $all_templates[$i];
+                                if (!empty($other['structure'])) {
+                                    $template_data['structure'] = array_merge($template_data['structure'] ?? [], $other['structure']);
+                                }
+                                if (!empty($other['activities'])) {
+                                    $template_data['activities'] = array_merge($template_data['activities'] ?? [], $other['activities']);
+                                }
+                                if (!empty($other['template_html'])) {
+                                    $template_data['template_html'] .= "\n\n--- Module " . ($i + 1) . " ---\n\n" . $other['template_html'];
+                                }
+                            }
+                        }
+                        $template_data_debug[] = 'Final: ' . count($template_data['structure'] ?? []) . ' sections, ' . count($template_data['activities'] ?? []) . ' activities';
+                    }
+                    
+                } elseif (!empty($curriculum_template)) {
+                    // Use curriculum template
+                    $template_data_debug[] = 'Template source: ' . $curriculum_template;
+                    $template_data = $template_reader->extract_curriculum_template($curriculum_template);
+                    $template_data_debug[] = 'Success! Curriculum template extracted.';
                 }
                 
             } catch (Exception $e) {
@@ -1025,19 +1096,40 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     $keepweeklabels = !empty($pdata->keepweeklabels);
     $generatethemeintroductions = !empty($pdata->generatethemeintroductions);
     $createsuggestedactivities = !empty($pdata->createsuggestedactivities);
+    $generatesessioninstructions = !empty($pdata->generatesessioninstructions);
     $curriculum_template = !empty($pdata->curriculum_template) ? $pdata->curriculum_template : '';
-    $existing_module = !empty($pdata->existing_module) ? $pdata->existing_module : 0;
+    
+    // Collect all selected existing modules from multiselect
+    $existing_modules = [];
+    if (!empty($pdata->existing_modules)) {
+        if (is_array($pdata->existing_modules)) {
+            $existing_modules = array_map('intval', array_filter($pdata->existing_modules));
+        } else {
+            $existing_modules = [(int)$pdata->existing_modules];
+        }
+    }
+    $existing_modules = array_unique(array_filter($existing_modules));
+    $existing_module = !empty($existing_modules) ? array_shift($existing_modules) : 0; // Primary module
     
     $typeinstruction = get_string('moduletypeinstruction_' . $moduletype, 'aiplacement_modgen');
     
     // Build composite prompt - combine user prompt with type instruction
-    // If an existing module is selected, tell the AI to use it as a guide
+    // If existing module(s) are selected, tell the AI to use them as a guide
     if (!empty($prompt)) {
         if (!empty($existing_module)) {
-            // User provided both a prompt AND selected a module - use both
-            $compositeprompt = trim($prompt . "\n\n" . 
-                "You will receive the structure and activities from an existing course as a reference guide. Use this reference structure as a template, but adapt the content and structure based on the user's prompt above.\n\n" .
-                $typeinstruction);
+            // User provided both a prompt AND selected module(s) - use both
+            $modulecount = count($existing_modules) + 1; // +1 for the primary module
+            if ($modulecount > 1) {
+                // Multiple modules: ALL content must be included
+                $multipleinstruction = "You will receive content from $modulecount existing courses. " .
+                    "Include ALL subject matter from every course - adapt and combine to fit the prompt, but use all content.";
+            } else {
+                // Single module: use as template and adapt
+                $multipleinstruction = "You will receive content from an existing course as a reference. " .
+                    "Use it as a template, adapting based on the prompt above.";
+            }
+            
+            $compositeprompt = trim($prompt . "\n\n" . $multipleinstruction . "\n\n" . $typeinstruction);
         } else {
             // User provided a prompt but no module selection
             $compositeprompt = trim($prompt . "\n\n" . $typeinstruction);
@@ -1045,8 +1137,18 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     } else {
         // No user prompt provided
         if (!empty($existing_module)) {
-            // If existing module selected but no prompt, ask AI to translate/adapt it
-            $compositeprompt = "Translate and adapt the existing module structure to the following format:\n\n" . $typeinstruction;
+            // If existing module(s) selected but no prompt, ask AI to translate/adapt them
+            $modulecount = count($existing_modules) + 1;
+            if ($modulecount > 1) {
+                // Multiple modules: merge all into single cohesive structure
+                $multipleinstruction = "Merge content from $modulecount existing courses into a single module. " .
+                    "Include ALL subject matter from every course.";
+            } else {
+                // Single module: translate/adapt
+                $multipleinstruction = "Translate the existing module";
+            }
+            
+            $compositeprompt = trim($multipleinstruction . " following this format:\n\n" . $typeinstruction);
         } else {
             // No prompt and no existing module - just use type instruction
             $compositeprompt = trim($typeinstruction);
@@ -1065,6 +1167,34 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     if ($createsuggestedactivities) {
         $activityguidance = get_string('activityguidanceinstructions', 'aiplacement_modgen');
         $compositeprompt .= "\n\n" . $activityguidance;
+    }
+    
+    // Add session instructions directive if enabled
+    if ($generatesessioninstructions) {
+        $compositeprompt .= "\n\nSESSION INSTRUCTIONS - DETAILED STUDENT GUIDANCE:\n" .
+            "For each session subsection (pre-session, session, post-session), create a 'description' field (5-8 sentences minimum, 150-250 words) with student-facing guidance.\n\n" .
+            "STRUCTURE:\n" .
+            "A. LEARNING CONTEXT (1-2 sentences): What is the phase goal and learning level?\n" .
+            "B. ACTIVITY GUIDANCE (3-4 sentences per activity):\n" .
+            "   - Activity name and purpose\n" .
+            "   - WHY it matters (pedagogical rationale)\n" .
+            "   - HOW to approach (step-by-step)\n" .
+            "   - Key concepts/skills to develop\n" .
+            "   - Time estimate and progression to next activity\n" .
+            "C. LEARNING OUTCOMES (1-2 sentences): What will students achieve?\n" .
+            "D. SUPPORT (optional): Tips for challenging content\n\n" .
+            "LANGUAGE:\n" .
+            "- Write for UK university students (academic tone)\n" .
+            "- Explain WHY activities matter, not just WHAT\n" .
+            "- Reference activities naturally by name\n" .
+            "- Use active voice ('You will develop X by doing Y')\n" .
+            "- Sequence activities logically, building toward learning goals\n\n" .
+            "CRITICAL:\n" .
+            "- Every activity must be mentioned by name and purpose\n" .
+            "- Descriptions must be 5-8 sentences minimum\n" .
+            "- PRE-PHASE: Preparatory/foundational work\n" .
+            "- SESSION PHASE: Core engagement and interaction\n" .
+            "- POST-PHASE: Reflection, consolidation, application";
     }
 
     // Extract and include file contents in the prompt if files are provided
@@ -1308,44 +1438,123 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     // Debug tracking
     $debuglog = [];
     
-    if (!empty($curriculum_template) || !empty($existing_module)) {
+    if (!empty($curriculum_template) || !empty($existing_module) || !empty($existing_modules)) {
         try {
             $template_reader = new \aiplacement_modgen\local\template_reader();
+            $template_data = null;
             
-            // Use existing_module if provided, otherwise use curriculum_template
-            $template_source = !empty($existing_module) ? (string)$existing_module : $curriculum_template;
-            $debuglog[] = 'Template source: ' . $template_source;
-            
-            try {
-                // Try full extraction first
-                $template_data = $template_reader->extract_curriculum_template($template_source);
-                $debuglog[] = 'Full extraction succeeded';
-            } catch (Throwable $e) {
-                // If full extraction fails, try fallback
-                $debuglog[] = 'Full extraction failed: ' . $e->getMessage();
-                $debuglog[] = 'Attempting fallback extraction...';
+            // Extract and merge templates from all selected modules
+            if (!empty($existing_module) || !empty($existing_modules)) {
+                $modules_to_extract = [];
+                
+                // Add primary module (if it was set from multiselect)
+                if (!empty($existing_module)) {
+                    $modules_to_extract[] = $existing_module;
+                }
+                
+                // Add any additional modules from multiselect
+                if (!empty($existing_modules)) {
+                    $modules_to_extract = array_merge($modules_to_extract, $existing_modules);
+                }
+                
+                // Remove duplicates
+                $modules_to_extract = array_unique($modules_to_extract);
+                
+                $debuglog[] = 'Extracting templates from ' . count($modules_to_extract) . ' module(s)';
+                
+                $all_templates = [];
+                
+                // Extract each selected module
+                foreach ($modules_to_extract as $idx => $module_id) {
+                    $template_source = (string)$module_id;
+                    $debuglog[] = 'Module ' . ($idx + 1) . ': ' . $template_source;
+                    
+                    try {
+                        // Try full extraction first
+                        $extracted = $template_reader->extract_curriculum_template($template_source);
+                        $debuglog[] = '  → Full extraction succeeded';
+                        $all_templates[] = $extracted;
+                    } catch (Throwable $e) {
+                        // If full extraction fails, try fallback
+                        $debuglog[] = '  → Full extraction failed: ' . $e->getMessage();
+                        $debuglog[] = '  → Attempting fallback extraction...';
+                        
+                        try {
+                            global $DB;
+                            $courseid_int = (int)$template_source;
+                            $course = $DB->get_record('course', ['id' => $courseid_int]);
+                            if (!$course) {
+                                throw new Exception('Course not found');
+                            }
+                            
+                            $fallback = [
+                                'course_info' => [
+                                    'name' => $course->fullname,
+                                    'format' => $course->format,
+                                    'summary' => strip_tags($course->summary ?? '')
+                                ],
+                                'structure' => [],
+                                'activities' => [],
+                                'template_html' => ''
+                            ];
+                            $debuglog[] = '  → Fallback extraction succeeded';
+                            $all_templates[] = $fallback;
+                        } catch (Exception $fe) {
+                            $debuglog[] = '  → Fallback failed: ' . $fe->getMessage();
+                            throw new Exception('Both full and fallback extraction failed for module ' . $module_id . ': ' . $fe->getMessage());
+                        }
+                    }
+                }
+                
+                // Merge all extracted templates into one
+                if (!empty($all_templates)) {
+                    $template_data = $all_templates[0]; // Start with first template
+                    
+                    if (count($all_templates) > 1) {
+                        $debuglog[] = 'Merging ' . count($all_templates) . ' templates...';
+                        
+                        // Merge structures and activities from additional modules
+                        for ($i = 1; $i < count($all_templates); $i++) {
+                            $other = $all_templates[$i];
+                            
+                            // Merge structures
+                            if (!empty($other['structure']) && is_array($other['structure'])) {
+                                if (!isset($template_data['structure']) || !is_array($template_data['structure'])) {
+                                    $template_data['structure'] = [];
+                                }
+                                $template_data['structure'] = array_merge($template_data['structure'], $other['structure']);
+                            }
+                            
+                            // Merge activities
+                            if (!empty($other['activities']) && is_array($other['activities'])) {
+                                if (!isset($template_data['activities']) || !is_array($template_data['activities'])) {
+                                    $template_data['activities'] = [];
+                                }
+                                $template_data['activities'] = array_merge($template_data['activities'], $other['activities']);
+                            }
+                            
+                            // Append template HTML with separator
+                            if (!empty($other['template_html'])) {
+                                if (empty($template_data['template_html'])) {
+                                    $template_data['template_html'] = '';
+                                }
+                                $template_data['template_html'] .= "\n\n--- Module " . ($i + 1) . " ---\n\n" . $other['template_html'];
+                            }
+                        }
+                        $debuglog[] = 'Merged ' . count($all_templates) . ' templates successfully';
+                    }
+                }
+            } else {
+                // Use curriculum template if no existing module
+                $template_source = $curriculum_template;
+                $debuglog[] = 'Using curriculum template: ' . $template_source;
                 
                 try {
-                    global $DB;
-                    $courseid_int = (int)$template_source;
-                    $course = $DB->get_record('course', ['id' => $courseid_int]);
-                    if (!$course) {
-                        throw new Exception('Course not found');
-                    }
-                    
-                    $template_data = [
-                        'course_info' => [
-                            'name' => $course->fullname,
-                            'format' => $course->format,
-                            'summary' => strip_tags($course->summary ?? '')
-                        ],
-                        'structure' => [],
-                        'activities' => [],
-                        'template_html' => ''
-                    ];
-                    $debuglog[] = 'Fallback extraction succeeded';
-                } catch (Exception $fe) {
-                    throw new Exception('Both full and fallback extraction failed: ' . $fe->getMessage());
+                    $template_data = $template_reader->extract_curriculum_template($template_source);
+                    $debuglog[] = 'Curriculum template extraction succeeded';
+                } catch (Throwable $e) {
+                    $debuglog[] = 'Curriculum template extraction failed: ' . $e->getMessage();
+                    throw $e;
                 }
             }
             
@@ -1373,14 +1582,14 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
             // Don't extract Bootstrap structure - just use the template data as-is
             // The template_data already contains course_info, structure, activities, and template_html
             
-            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, $supportingfiles, $moduletype, $courseid);
+            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, $supportingfiles, $moduletype, $courseid, $createsuggestedactivities, $generatesessioninstructions);
         } catch (Exception $e) {
             // Fall back to normal generation if template fails
             $debuglog[] = 'Template extraction failed: ' . $e->getMessage();
-            $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype, null, $courseid);
+            $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype, null, $courseid, $createsuggestedactivities, $generatesessioninstructions);
         }
     } else {
-    $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $supportingfiles, $moduletype, null, $courseid);
+    $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $supportingfiles, $moduletype, null, $courseid, $createsuggestedactivities, $generatesessioninstructions);
     }
     // Check if the AI response contains validation errors
     if (empty($json)) {

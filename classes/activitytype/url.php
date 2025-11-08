@@ -66,7 +66,8 @@ class url implements activity_type {
         $externalurl = trim($activitydata->externalurl ?? $activitydata->url ?? '');
         
         if ($externalurl === '') {
-            error_log('URL: No externalurl or url field found, returning null');
+            error_log('URL: No externalurl or url field found. Available fields: ' . implode(', ', array_keys((array)$activitydata)));
+            error_log('URL: Activity data: ' . print_r($activitydata, true));
             return null;
         }
 
@@ -114,30 +115,17 @@ class url implements activity_type {
             $cm = \create_module($moduleinfo);
             error_log('URL: create_module succeeded, result: ' . print_r($cm, true));
             
-            if (is_object($cm)) {
-                $urlid = $cm->instance ?? ($cm->id ?? null);
-                $cmid = $cm->coursemodule ?? null;
-            } else if (is_numeric($cm)) {
-                $cmid = (int)$cm;
-                // Get the instance ID from the course module
-                $cmrec = $DB->get_record('course_modules', ['id' => $cmid]);
-                $urlid = $cmrec ? $cmrec->instance : null;
-            } else {
-                error_log('URL: Unexpected create_module return type: ' . gettype($cm));
+            if (!isset($cm->coursemodule) || !isset($cm->instance)) {
+                error_log('URL: Missing coursemodule or instance in result');
                 return null;
             }
 
-            if (empty($cmid) || empty($urlid)) {
-                error_log('URL: Failed to get module IDs');
-                return null;
-            }
-
-            error_log('URL: URL created with ID: ' . $urlid . ', CM ID: ' . $cmid);
+            error_log('URL: URL created with ID: ' . $cm->instance . ', CM ID: ' . $cm->coursemodule);
             error_log('URL: Creation successful');
 
             return [
-                'coursemodule' => $cmid,
-                'instance' => $urlid
+                'coursemodule' => $cm->coursemodule,
+                'instance' => $cm->instance
             ];
         } catch (\Exception $e) {
             error_log('URL: Exception caught: ' . $e->getMessage());

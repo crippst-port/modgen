@@ -1,0 +1,6 @@
+JSON OUTPUT STRUCTURE (Weekly):
+{"sections": [
+  {"title": "Week N", "summary": "Overview", "outline": ["key 1", "key 2"], "activities": [{"type": "quiz", "name": "Activity"}]}
+]}
+IMPORTANT: Repeat this structure for EVERY week in the curriculum.
+IMPORTANT: Include ALL weeks - do not truncate.

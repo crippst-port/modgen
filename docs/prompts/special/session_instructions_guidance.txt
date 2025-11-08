@@ -1,0 +1,27 @@
+SESSION INSTRUCTIONS - DETAILED STUDENT GUIDANCE:
+For each session subsection (pre-session, session, post-session), create a 'description' field (5-8 sentences minimum, 150-250 words) with student-facing guidance.
+
+STRUCTURE:
+A. LEARNING CONTEXT (1-2 sentences): What is the phase goal and learning level?
+B. ACTIVITY GUIDANCE (3-4 sentences per activity):
+   - Activity name and purpose
+   - WHY it matters (pedagogical rationale)
+   - HOW to approach (step-by-step)
+   - Key concepts/skills to develop
+   - Time estimate and progression to next activity
+C. LEARNING OUTCOMES (1-2 sentences): What will students achieve?
+D. SUPPORT (optional): Tips for challenging content
+
+LANGUAGE:
+- Write for UK university students (academic tone)
+- Explain WHY activities matter, not just WHAT
+- Reference activities naturally by name
+- Use active voice ('You will develop X by doing Y')
+- Sequence activities logically, building toward learning goals
+
+CRITICAL:
+- Every activity must be mentioned by name and purpose
+- Descriptions must be 5-8 sentences minimum
+- PRE-PHASE: Preparatory/foundational work
+- SESSION PHASE: Core engagement and interaction
+- POST-PHASE: Reflection, consolidation, application

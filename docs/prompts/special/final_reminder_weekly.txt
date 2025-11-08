@@ -1,0 +1,5 @@
+FINAL REMINDER - WEEKLY STRUCTURE:
+- Generate the COMPLETE module with all weeks
+- Include EVERY topic from the source above
+- Do NOT stop early, do NOT truncate, do NOT omit content
+- Return ONLY JSON - no other text.

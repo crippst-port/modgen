@@ -1,0 +1,14 @@
+JSON OUTPUT STRUCTURE (Theme-Based with Sessions):
+{"themes": [
+  {"title": "Theme Name", "summary": "2-3 sentences", "weeks": [
+    {"title": "Week N", "summary": "Overview", "sessions": {
+      "presession": {"description": "Student instructions for pre-session", "activities": [{"type": "url", "name": "Activity"}]},
+      "session": {"description": "Student instructions for session", "activities": [{"type": "quiz", "name": "Activity"}]},
+      "postsession": {"description": "Student instructions for post-session", "activities": [{"type": "forum", "name": "Activity"}]}
+    }}
+  ]}
+]}
+IMPORTANT: Generate ALL themes needed to cover ALL topics in the curriculum.
+IMPORTANT: Each theme must have multiple weeks (at least 2-3 weeks minimum).
+IMPORTANT: Include EVERY topic from the file - do not skip or leave out any content.
+IMPORTANT: Do not truncate - continue until all themes and all weeks are complete.

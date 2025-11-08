@@ -1,0 +1,130 @@
+<?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Assignment activity handler for creating Moodle assignment modules.
+ *
+ * @package     aiplacement_modgen
+ * @copyright   2025 Tom Cripps <tom.cripps@port.ac.uk>
+ * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+namespace aiplacement_modgen\activitytype;
+
+use stdClass;
+
+defined('MOODLE_INTERNAL') || die();
+
+/**
+ * Creates assignment activities for student work submission.
+ */
+class assignment implements activity_type {
+
+    /** @inheritDoc */
+    public static function get_type(): string {
+        return 'assignment';
+    }
+
+    /** @inheritDoc */
+    public static function get_display_string_id(): string {
+        return 'activitytype_assignment';
+    }
+
+    /** @inheritDoc */
+    public static function get_prompt_description(): string {
+        return 'A Moodle assignment activity where students submit work (files, text, or other formats). Ideal for formative and summative assessments, essays, projects, and reflective tasks.';
+    }
+
+    /** @inheritDoc */
+    public function create(stdClass $activitydata, stdClass $course, int $sectionnumber, array $options = []): ?array {
+        global $CFG, $DB;
+
+        file_put_contents('/tmp/modgen_debug.log', "\n=== ASSIGNMENT CREATE CALLED ===\n", FILE_APPEND);
+        file_put_contents('/tmp/modgen_debug.log', "Activity data: " . print_r($activitydata, true) . "\n", FILE_APPEND);
+        file_put_contents('/tmp/modgen_debug.log', "Course ID: " . $course->id . ", Section: " . $sectionnumber . "\n", FILE_APPEND);
+
+        require_once($CFG->dirroot . '/course/modlib.php');
+        require_once($CFG->dirroot . '/mod/assign/lib.php');
+
+        $name = trim($activitydata->name ?? '');
+
+        if ($name === '') {
+            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Empty name, returning null' . "\n", FILE_APPEND);
+            return null;
+        }
+
+        file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Creating assignment: ' . $name . "\n", FILE_APPEND);
+        file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Course ID: ' . $course->id . ', Section: ' . $sectionnumber . "\n", FILE_APPEND);
+
+        $intro = trim($activitydata->intro ?? '');
+
+        // Create the assignment module using minimal required fields
+        $moduleinfo = new stdClass();
+        $moduleinfo->course = $course->id;
+        $moduleinfo->modulename = 'assign';
+        $moduleinfo->section = $sectionnumber;
+        $moduleinfo->visible = 1;
+        $moduleinfo->name = $name;
+
+        // Assignment intro/description
+        $moduleinfo->introeditor = [
+            'text' => $intro,
+            'format' => 1,
+            'itemid' => 0
+        ];
+
+        // Assignment-specific fields with sensible defaults
+        $moduleinfo->introformat = 1;
+        $moduleinfo->alwaysshowdescription = 1;  // Always show description to students
+        $moduleinfo->submissiondrafts = 1;  // Allow students to save drafts
+        $moduleinfo->sendnotifications = 1;  // Notify teachers of submissions
+        $moduleinfo->sendstudentnotifications = 1;  // Notify students of grading
+        $moduleinfo->duedate = 0;  // No due date by default
+        $moduleinfo->cutoffdate = 0;  // No cutoff date by default
+        $moduleinfo->grade = 100;  // Default grade to 100
+
+        // Submission plugin settings
+        $moduleinfo->assignsubmission_onlinetext_enabled = 1;  // Enable online text submission
+        $moduleinfo->assignsubmission_file_enabled = 1;  // Enable file submission
+        $moduleinfo->assignsubmission_file_maxfiles = 20;  // Allow up to 20 files
+        $moduleinfo->assignsubmission_file_maxsizebytes = 52428800;  // 50MB max file size
+
+        file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Module info prepared' . "\n", FILE_APPEND);
+
+        try {
+            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Calling create_module' . "\n", FILE_APPEND);
+            $cm = create_module($moduleinfo);
+            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: create_module succeeded, result: ' . print_r($cm, true) . "\n", FILE_APPEND);
+
+            if (!isset($cm->coursemodule) || !isset($cm->instance)) {
+                file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Missing coursemodule or instance in result' . "\n", FILE_APPEND);
+                return null;
+            }
+
+            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Assignment created with ID: ' . $cm->instance . ', CM ID: ' . $cm->coursemodule . "\n", FILE_APPEND);
+            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Creation successful' . "\n", FILE_APPEND);
+
+            return [
+                'coursemodule' => $cm->coursemodule,
+                'instance' => $cm->instance
+            ];
+        } catch (\Exception $e) {
+            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Exception caught: ' . $e->getMessage() . "\n", FILE_APPEND);
+            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Trace: ' . $e->getTraceAsString() . "\n", FILE_APPEND);
+            return null;
+        }
+    }
+}

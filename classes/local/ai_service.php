@@ -392,9 +392,11 @@ class ai_service {
      * @param string $structure Module structure type (weekly/theme)
      * @param array $template_data Optional template data
      * @param int $courseid Optional course ID for week date calculations
+     * @param bool $includeactivities Whether to request activities in the response (default: true)
+     * @param bool $includesessions Whether to request session instructions (default: true)
      * @return array Module structure JSON
      */
-    public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null, $courseid = null) {
+    public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null, $courseid = null, $includeactivities = true, $includesessions = true) {
         global $USER, $COURSE;
         
         // Debug: Log template data status
@@ -450,12 +452,11 @@ class ai_service {
             
             $roleinstruction = $pedagogicalguidance . "\n\n" .
                 "CRITICAL REQUIREMENTS:\n" .
-                "1. Return ONLY valid JSON. No commentary, code blocks, or wrapping.\n" .
-                "2. Generate the COMPLETE module structure from " . $source_label . ".\n" .
-                "3. Do NOT omit, truncate, or stop early - include ALL content from " . $source_label . ".\n" .
-                "4. Do NOT include example data or placeholder text like 'Week X', 'Theme Name', or '...'.\n" .
-                "5. Every field MUST contain actual content from the source.\n" .
-                "6. Return as pure JSON object at the top level: {\"themes\": [...]} OR {\"sections\": [...]}\n\n";
+                "1. Return ONLY valid JSON at the top level ({\"themes\": [...]} or {\"sections\": [...]}). No commentary, code blocks, or wrapping.\n" .
+                "2. Include ALL content from " . $source_label . " - do NOT truncate, omit, or use placeholder text.\n" .
+                "3. Every field must contain actual content from the source (no 'Week X', 'Theme Name', '...', etc).\n" .
+                "4. Week and theme titles MUST be descriptive of the content - include the topic/concept being taught. Examples: 'Week 1: Introduction to Cloud Computing' or 'Theme: Data Analysis Fundamentals'. Never use generic titles like 'Week 1' or 'Week 1 (Jan 6-12, 2025)' alone.\n" .
+                "5. Use ONLY the supported activity types provided in the list below. Unsupported types will cause creation to FAIL.\n\n";
 
             // Add file parsing and theme instructions only for theme structure
             if ($structure === 'theme') {
@@ -464,41 +465,37 @@ class ai_service {
                 
                 if (!empty($requestedthemecount)) {
                     // User specified a specific number of themes - use that as the OVERRIDE
-                    $roleinstruction .= "GENERATE COMPLETE THEMED STRUCTURE:\n" .
-                        "*** USER HAS SPECIFIED: Create EXACTLY {$requestedthemecount} themes ***\n" .
-                        "This is a REQUIREMENT - do NOT deviate. Use {$requestedthemecount} themes, not more or fewer.\n\n" .
-                        "STEP 1: Parse the provided source and list EVERY single topic and subtopic\n" .
-                        "STEP 2: Divide all topics into EXACTLY {$requestedthemecount} coherent theme groups\n" .
-                        "STEP 3: Ensure ALL topics are covered - each topic goes into exactly one theme\n" .
-                        "STEP 4: For each of the {$requestedthemecount} themes, create weeks (typically 2-4 weeks per theme) covering all subtopics\n" .
-                        "STEP 5: For each week, create presession/session/postsession activities\n" .
-                        "STEP 6: Verify ALL topics from the source are included in your {$requestedthemecount} themes\n" .
-                        "CRITICAL: Generate EXACTLY {$requestedthemecount} themes - this overrides any other guidance\n" .
-                        "CRITICAL: Every topic from the source MUST appear in at least one week of one theme\n" .
-                        "- Each theme summary: 2-3 sentence introduction for students\n" .
-                        "- Each week summary: brief overview of that week's learning\n\n";
+                    $roleinstruction .= "GENERATE THEMED STRUCTURE:\n" .
+                        "*** USER SPECIFIED: Generate EXACTLY {$requestedthemecount} themes - this is a HARD REQUIREMENT ***\n" .
+                        "Divide ALL topics into {$requestedthemecount} coherent theme groups (typically 2-4 weeks per theme).\n" .
+                        "- Do NOT generate more or fewer than {$requestedthemecount} themes\n" .
+                        "- This overrides any other guidance about theme count (like 'typically 3-6')\n" .
+                        "- Theme titles MUST describe the actual content/topic - NEVER use generic names like 'Theme 1', 'Theme 2', 'Module 1', etc.\n" .
+                        "- CRITICAL: Each theme must have a descriptive title (e.g., 'Theme: Data Analysis Fundamentals', 'Theme: Cloud Computing Architecture', 'Theme: User Interface Design')\n" .
+                        "- NEVER output: 'Theme 1', 'Theme 2', 'Theme 3', 'Module 1', 'Part 1', or any generic numbered theme titles\n" .
+                        "- Week titles must include topic/concept (e.g., 'Week 1: Data Structures and Types')\n" .
+                        "- Verify every topic from source appears in at least one week\n" .
+                        "- Theme summary: 2-3 sentence student introduction\n" .
+                        "- Week summary: brief overview of learning outcomes\n" .
+                        "- Distribute activities across pre-session/session/post-session appropriately\n\n";
                 } else {
                     // No specific count requested - use flexible guidance
-                    $roleinstruction .= "GENERATE COMPLETE THEMED STRUCTURE:\n" .
-                        "STEP 1: Parse the provided source and list EVERY single topic and subtopic\n" .
-                        "STEP 2: Count all topics to determine theme count (typically 3-6 themes needed to cover all topics)\n" .
-                        "STEP 3: Group ALL topics into coherent themes - ensure NO topic is left out\n" .
-                        "STEP 4: For each theme, create weeks (typically 2-4 weeks per theme) covering all subtopics\n" .
-                        "STEP 5: For each week, create presession/session/postsession activities\n" .
-                        "STEP 6: Verify ALL topics from the source are included in your themes\n" .
-                        "CRITICAL: Do NOT skip any content - include every topic from the source\n" .
-                        "CRITICAL: Every topic from the source MUST appear in at least one week of one theme\n" .
-                        "- Each theme summary: 2-3 sentence introduction for students\n" .
-                        "- Each week summary: brief overview of that week's learning\n\n";
+                    $roleinstruction .= "GENERATE THEMED STRUCTURE:\n" .
+                        "Determine appropriate theme count (typically 3-6) based on source topics. Group all topics into coherent themes (2-4 weeks per theme).\n" .
+                        "- Theme titles MUST describe the actual content/topic - NEVER use generic names like 'Theme 1', 'Theme 2', 'Module 1', etc.\n" .
+                        "- CRITICAL: Each theme must have a descriptive title (e.g., 'Theme: Database Design Principles', 'Theme: Network Security', 'Theme: Software Testing Methodology')\n" .
+                        "- NEVER output: 'Theme 1', 'Theme 2', 'Theme 3', 'Module 1', 'Part 1', or any generic numbered theme titles\n" .
+                        "- Week titles must include topic/concept (e.g., 'Week 2: Normalization and Schema Design')\n" .
+                        "- Verify every topic from source appears in at least one week\n" .
+                        "- Theme summary: 2-3 sentence student introduction\n" .
+                        "- Week summary: brief overview of learning outcomes\n" .
+                        "- Distribute activities across pre-session/session/post-session appropriately\n\n";
                 }
             } else {
-                $roleinstruction .= "GENERATE COMPLETE WEEKLY STRUCTURE:\n" .
-                    "- Parse the provided source and extract ALL topics and sections\n" .
-                    "- Create one week/section for each major topic in the source\n" .
-                    "- For each week, include outline array with key points\n" .
-                    "- Add activities relevant to that week\n" .
-                    "- Do NOT skip any content - include everything from the source\n" .
-                    "- Each section summary: overview of that week's content\n\n";
+                $roleinstruction .= "GENERATE WEEKLY STRUCTURE:\n" .
+                    "Create one section for each major topic. Section titles MUST describe the topic/concept (e.g., 'Week 1: Introduction to Cloud Computing', not 'Week 1').\n" .
+                    "Include outline array with 3-5 key points, relevant activities, and brief summary.\n" .
+                    "Include ALL content from source - do NOT skip any topics.\n\n";
             }
 
 
@@ -507,20 +504,34 @@ class ai_service {
 
             // Build concise format instructions - minimal example, repeat pattern for all content
             if ($structure === 'theme') {
-                $formatinstruction = "JSON OUTPUT STRUCTURE (Theme-Based):\n" .
-                    "{\"themes\": [\n" .
-                    "  {\"title\": \"Theme Name\", \"summary\": \"2-3 sentences\", \"weeks\": [\n" .
-                    "    {\"title\": \"Week N\", \"summary\": \"Overview\", \"sessions\": {\n" .
-                    "      \"presession\": {\"activities\": [{\"type\": \"url\", \"name\": \"Activity\"}]},\n" .
-                    "      \"session\": {\"activities\": [{\"type\": \"quiz\", \"name\": \"Activity\"}]},\n" .
-                    "      \"postsession\": {\"activities\": [{\"type\": \"forum\", \"name\": \"Activity\"}]}\n" .
-                    "    }}\n" .
-                    "  ]}\n" .
-                    "]}\n" .
-                    "IMPORTANT: Generate ALL themes needed to cover ALL topics in the curriculum.\n" .
-                    "IMPORTANT: Each theme must have multiple weeks (at least 2-3 weeks minimum).\n" .
-                    "IMPORTANT: Include EVERY topic from the file - do not skip or leave out any content.\n" .
-                    "IMPORTANT: Do not truncate - continue until all themes and all weeks are complete.\n";
+                if ($includesessions) {
+                    $formatinstruction = "JSON OUTPUT STRUCTURE (Theme-Based):\n" .
+                        "{\"themes\": [\n" .
+                        "  {\"title\": \"Theme Name\", \"summary\": \"2-3 sentences\", \"weeks\": [\n" .
+                        "    {\"title\": \"Week N\", \"summary\": \"Overview\", \"sessions\": {\n" .
+                        "      \"presession\": {\"description\": \"Student instructions for pre-session\", \"activities\": [{\"type\": \"url\", \"name\": \"Activity\"}]},\n" .
+                        "      \"session\": {\"description\": \"Student instructions for session\", \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity\"}]},\n" .
+                        "      \"postsession\": {\"description\": \"Student instructions for post-session\", \"activities\": [{\"type\": \"forum\", \"name\": \"Activity\"}]}\n" .
+                        "    }}\n" .
+                        "  ]}\n" .
+                        "]}\n" .
+                        "IMPORTANT: Generate ALL themes needed to cover ALL topics in the curriculum.\n" .
+                        "IMPORTANT: Each theme must have multiple weeks (at least 2-3 weeks minimum).\n" .
+                        "IMPORTANT: Include EVERY topic from the file - do not skip or leave out any content.\n" .
+                        "IMPORTANT: Do not truncate - continue until all themes and all weeks are complete.\n";
+                } else {
+                    $formatinstruction = "JSON OUTPUT STRUCTURE (Theme-Based):\n" .
+                        "{\"themes\": [\n" .
+                        "  {\"title\": \"Theme Name\", \"summary\": \"2-3 sentences\", \"weeks\": [\n" .
+                        "    {\"title\": \"Week N\", \"summary\": \"Overview\", \"outline\": [\"key point 1\", \"key point 2\"]}\n" .
+                        "  ]}\n" .
+                        "]}\n" .
+                        "IMPORTANT: Generate ALL themes needed to cover ALL topics in the curriculum.\n" .
+                        "IMPORTANT: Each theme must have multiple weeks (at least 2-3 weeks minimum).\n" .
+                        "IMPORTANT: Include EVERY topic from the file - do not skip or leave out any content.\n" .
+                        "IMPORTANT: Do not truncate - continue until all themes and all weeks are complete.\n" .
+                        "IMPORTANT: Do NOT include 'sessions' object or 'activities' arrays. Only include week titles, summaries, and outlines.\n";
+                }
             } else {
                 $formatinstruction = "JSON OUTPUT STRUCTURE (Weekly):\n" .
                     "{\"sections\": [\n" .
@@ -530,13 +541,31 @@ class ai_service {
                     "IMPORTANT: Include ALL weeks - do not truncate.\n";
             }
 
-            if (!empty($activitymetadata)) {
-                $formatinstruction .= "\nSupported activity types:\n";
+            if (!empty($activitymetadata) && $includeactivities) {
+                $formatinstruction .= "\n\nSUPPORTED ACTIVITY TYPES (use ONLY these):\n";
                 foreach ($activitymetadata as $type => $metadata) {
                     $label = get_string($metadata['stringid'], 'aiplacement_modgen');
-                    $formatinstruction .= "  - {$type}: {$metadata['description']}\n";
+                    $formatinstruction .= "- {$type}: {$metadata['description']}\n";
                 }
-                $formatinstruction .= "\nUse ONLY these activity types. Do not invent new ones.";
+                $formatinstruction .= "\nAny unsupported types (resource, scorm, choice, etc.) will cause generation to FAIL. Use closest equivalent if needed.\n";
+                
+                // Add detailed field specifications for each activity type
+                $formatinstruction .= "\nACTIVITY FIELD SPECIFICATIONS:\n" .
+                    "For EACH activity in the activities array, include these fields:\n" .
+                    "- type: (required) The activity type from the list above\n" .
+                    "- name: (required) Descriptive title of the activity\n" .
+                    "- intro: (optional) Description or context for the activity\n" .
+                    "- url: (required for 'url' type only) Full URL starting with http:// or https:// (e.g., \"https://example.com/article\")\n" .
+                    "- chapters: (required for 'book' type only) Array of chapter objects with 'title' and 'content' fields\n" .
+                    "\nEXAMPLE FORMATS:\n" .
+                    "{\"type\": \"url\", \"name\": \"Read Article on Topic X\", \"intro\": \"Background material\", \"url\": \"https://example.com/article\"}\n" .
+                    "{\"type\": \"quiz\", \"name\": \"Knowledge Check\", \"intro\": \"Test your understanding\"}\n" .
+                    "{\"type\": \"forum\", \"name\": \"Discussion: Topic X\", \"intro\": \"Share your thoughts\"}\n" .
+                    "{\"type\": \"book\", \"name\": \"Learning Guide\", \"chapters\": [{\"title\": \"Chapter 1\", \"content\": \"...\"}, {\"title\": \"Chapter 2\", \"content\": \"...\"}]}\n" .
+                    "{\"type\": \"label\", \"name\": \"Important Note\", \"intro\": \"Information for students\"}\n";
+            } elseif ($includeactivities === false) {
+                // Explicitly tell AI not to include activities to save tokens
+                $formatinstruction .= "\n\nIMPORTANT: Do NOT include 'activities' arrays in the response. Only include themes/sections with titles and summaries. Omitting activities will save processing tokens.\n";
             }
 
             // Add week date guidance if courseid is provided
@@ -607,13 +636,23 @@ class ai_service {
             
             // Add structure-specific final reminder
             if ($structure === 'theme') {
-                $finalprompt .= "FINAL REMINDER - THEME STRUCTURE:\n" .
+                $finalreminder = "FINAL REMINDER - THEME STRUCTURE:\n" .
                     "- Generate the COMPLETE module with ALL themes needed\n" .
                     "- Include EVERY topic and subtopic from the source above\n" .
                     "- Each theme MUST contain multiple weeks (at least 2-3 weeks per theme)\n" .
                     "- Every topic from the source MUST appear in at least one week\n" .
-                    "- Do NOT stop early, do NOT truncate, do NOT omit content\n" .
-                    "- Return ONLY JSON - no other text.\n";
+                    "- Do NOT stop early, do NOT truncate, do NOT omit content\n";
+                
+                // If a specific theme count was requested, add it to the final reminder as an explicit requirement
+                if (!empty($requestedthemecount)) {
+                    $finalreminder .= "*** CRITICAL: You must generate EXACTLY {$requestedthemecount} themes - no more, no fewer ***\n" .
+                        "- This is a user requirement that must be honored\n" .
+                        "- If you cannot fit all content into {$requestedthemecount} themes, inform the user\n" .
+                        "- Do NOT reduce the theme count or generate a different number\n";
+                }
+                
+                $finalreminder .= "- Return ONLY JSON - no other text.\n";
+                $finalprompt .= $finalreminder;
             } else {
                 $finalprompt .= "FINAL REMINDER - WEEKLY STRUCTURE:\n" .
                     "- Generate the COMPLETE module with all weeks\n" .
@@ -695,6 +734,9 @@ class ai_service {
                 // Log if normalisation changed the structure in a meaningful way.
                 if (serialize($before) !== serialize($jsondecoded)) {
                 }
+                
+                // DEBUG: Log the response to check for session descriptions
+                file_put_contents('/tmp/modgen_ai_response.json', json_encode($jsondecoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), FILE_APPEND);
             }
 
             if (is_array($jsondecoded) && (isset($jsondecoded['sections']) || isset($jsondecoded['themes']) || isset($jsondecoded['activities']))) {
@@ -769,10 +811,12 @@ class ai_service {
      * @param array $template_data Template data structure
      * @param array $documents Supporting documents
      * @param string $structure Module structure
+     * @param bool $includeactivities Whether to request activities (default: true)
+     * @param bool $includesessions Whether to request session instructions (default: true)
      * @return array Response from AI service
      */
-    public static function generate_module_with_template($prompt, $template_data, $documents = [], $structure = 'weekly', $courseid = null) {
-        return self::generate_module($prompt, $documents, $structure, $template_data, $courseid);
+    public static function generate_module_with_template($prompt, $template_data, $documents = [], $structure = 'weekly', $courseid = null, $includeactivities = true, $includesessions = true) {
+        return self::generate_module($prompt, $documents, $structure, $template_data, $courseid, $includeactivities, $includesessions);
     }
 
     /**

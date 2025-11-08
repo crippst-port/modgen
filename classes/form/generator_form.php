@@ -60,11 +60,13 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->addElement('header', 'templatesettingsheader', get_string('templatesettings', 'aiplacement_modgen'));
         
         // Existing module selection - allows user to base generation on existing module structure
+        // Support up to 3 templates via multiselect
         $existingmodules = $this->get_editable_courses();
-        $mform->addElement('select', 'existing_module', get_string('existingmodule', 'aiplacement_modgen'), $existingmodules);
-        $mform->setType('existing_module', PARAM_INT);
-        $mform->setDefault('existing_module', 0);
-        $mform->addHelpButton('existing_module', 'existingmodule', 'aiplacement_modgen');
+        
+        $mform->addElement('select', 'existing_modules', get_string('existingmodule', 'aiplacement_modgen'), $existingmodules, 
+            ['multiple' => 'multiple', 'size' => 4]);
+        $mform->setType('existing_modules', PARAM_INT);
+        $mform->addHelpButton('existing_modules', 'existingmodule', 'aiplacement_modgen');
         
         // Module type selection - store options as fixed to ensure they're available during form processing
         $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
@@ -134,6 +136,12 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->setType('createsuggestedactivities', PARAM_BOOL);
         $mform->setDefault('createsuggestedactivities', 0);
         
+        // Session instructions option
+        $mform->addElement('advcheckbox', 'generatesessioninstructions', get_string('generatesessioninstructions', 'aiplacement_modgen'));
+        $mform->addHelpButton('generatesessioninstructions', 'generatesessioninstructions', 'aiplacement_modgen');
+        $mform->setType('generatesessioninstructions', PARAM_BOOL);
+        $mform->setDefault('generatesessioninstructions', 0);
+        
         // Add both submit button and debug button
         $buttonarray = [];
         $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('submit', 'aiplacement_modgen'));
@@ -175,10 +183,10 @@ class aiplacement_modgen_generator_form extends moodleform {
         // Either prompt, files, or existing module must be provided
         $hasPrompt = !empty(trim($data['prompt'] ?? ''));
         $hasFiles = !empty($data['supportingfiles']);
-        $hasExistingModule = !empty($data['existing_module']);
+        $hasExistingModules = !empty($data['existing_modules']) && is_array($data['existing_modules']) && count(array_filter($data['existing_modules'])) > 0;
         
-        if (!$hasPrompt && !$hasFiles && !$hasExistingModule) {
-            $errors['prompt'] = get_string('promptorrequired', 'aiplacement_modgen', 'Please provide a prompt, upload files, or select an existing module to base this on');
+        if (!$hasPrompt && !$hasFiles && !$hasExistingModules) {
+            $errors['prompt'] = get_string('promptorrequired', 'aiplacement_modgen', 'Please provide a prompt, upload files, or select one or more existing modules to base this on');
         }
         
         return $errors;
@@ -186,6 +194,11 @@ class aiplacement_modgen_generator_form extends moodleform {
     
     public function get_data($slashed = true) {
         $data = parent::get_data($slashed);
+        
+        // Return null if form wasn't submitted (parent returns null)
+        if ($data === null) {
+            return null;
+        }
         
         // Manually add the moduletype from POST if it's missing from $data
         // This handles the case where the select field validation filters it out

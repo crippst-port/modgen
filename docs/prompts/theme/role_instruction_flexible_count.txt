@@ -1,0 +1,10 @@
+GENERATE THEMED STRUCTURE:
+Determine appropriate theme count (typically 3-6) based on source topics. Group all topics into coherent themes (2-4 weeks per theme).
+- Theme titles MUST describe the actual content/topic - NEVER use generic names like 'Theme 1', 'Theme 2', 'Module 1', etc.
+- CRITICAL: Each theme must have a descriptive title (e.g., 'Theme: Database Design Principles', 'Theme: Network Security', 'Theme: Software Testing Methodology')
+- NEVER output: 'Theme 1', 'Theme 2', 'Theme 3', 'Module 1', 'Part 1', or any generic numbered theme titles
+- Week titles must include topic/concept (e.g., 'Week 2: Normalization and Schema Design')
+- Verify every topic from source appears in at least one week
+- Theme summary: 2-3 sentence student introduction
+- Week summary: brief overview of learning outcomes
+- Distribute activities across pre-session/session/post-session appropriately

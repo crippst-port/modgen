@@ -1,0 +1,1 @@
+IMPORTANT: Do NOT include 'activities' arrays in the response. Only include themes/sections with titles and summaries. Omitting activities will save processing tokens.

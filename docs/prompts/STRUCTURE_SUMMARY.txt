@@ -1,0 +1,92 @@
+PROMPT EXTRACTION SUMMARY
+=========================
+
+Total Prompts Extracted: 16 files + 1 README
+
+DIRECTORY BREAKDOWN:
+
+core/ (2 files)
+  - pedagogical_guidance_default.txt: Default AI system role
+  - critical_requirements.txt: 5 core rules for all outputs
+
+theme/ (4 files)  
+  - role_instruction_with_specific_count.txt: When user requests specific theme count
+  - role_instruction_flexible_count.txt: When theme count not specified
+  - format_instruction_with_sessions.txt: JSON structure with pre/session/post-session
+  - format_instruction_without_sessions.txt: JSON structure without sessions
+
+weekly/ (2 files)
+  - role_instruction.txt: Weekly generation guidance
+  - format_instruction.txt: JSON structure for weekly output
+
+activities/ (3 files)
+  - field_specifications.txt: Required fields for each activity type (url, quiz, forum, book, label)
+  - validation_rule.txt: Validation rule for unsupported types
+  - instruction_no_activities.txt: Directive when activities are not being created
+
+special/ (5 files)
+  - session_instructions_guidance.txt: Detailed guidance for student-facing session descriptions
+  - final_reminder_theme.txt: Final reinforcement for theme output completeness
+  - final_reminder_theme_count_requirement.txt: Specific requirement when theme count requested
+  - final_reminder_weekly.txt: Final reinforcement for weekly output
+  - week_dates_guidance.txt: Week date formatting guidance based on course start date
+
+README.md (1 file)
+  - Comprehensive documentation with directory structure, usage flow, file purposes,
+    modification guidelines, template variables, and examples
+
+KEY FEATURES:
+
+✓ All prompts now in ONE PLACE for easy viewing and modification
+✓ Clear file names make purpose obvious (role_instruction_with_specific_count.txt)
+✓ Organized by purpose (core, theme, weekly, activities, special)
+✓ Each file can be viewed/edited independently without touching code
+✓ Template variables preserved ({THEME_COUNT}, {START_DATE}, {END_DATE})
+✓ Comprehensive README documents how prompts are used and when to modify them
+
+HOW TO USE:
+
+View all themes in one place:
+  ls -la docs/prompts/theme/
+
+View all activity-related guidance:
+  cat docs/prompts/activities/*.txt
+
+Edit theme naming rules:
+  vim docs/prompts/theme/role_instruction_*.txt
+  vim docs/prompts/core/critical_requirements.txt
+
+See when/how prompts are used:
+  cat docs/prompts/README.md
+
+Search for specific guidance:
+  grep -r "NEVER use generic" docs/prompts/
+  grep -r "CRITICAL" docs/prompts/
+  grep -r "IMPORTANT" docs/prompts/
+
+NEXT STEPS (OPTIONAL):
+
+The code still uses inline prompt strings in ai_service.php (lines 440-700).
+To load prompts from files instead:
+
+1. Create a function to load prompts:
+   private static function load_prompt($filename) {
+       $path = __DIR__ . '/../../docs/prompts/' . $filename;
+       return file_get_contents($path);
+   }
+
+2. Replace inline strings with:
+   $roleinstruction = self::load_prompt('theme/role_instruction_with_specific_count.txt');
+
+Benefits: Easier to edit without touching PHP code
+Cost: Slight performance overhead from file I/O (negligible since only done once per generation)
+
+CURRENT STATUS:
+
+✓ All prompts extracted to docs/prompts/ directory
+✓ Organized into 5 categories with clear names  
+✓ Comprehensive README created with examples
+✓ All original prompt content preserved exactly
+✓ Code still works as-is (no changes needed to ai_service.php to function)
+✓ Ready for easy review and modification
+

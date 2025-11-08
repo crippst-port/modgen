@@ -1,0 +1,1 @@
+Any unsupported types (resource, scorm, choice, etc.) will cause generation to FAIL. Use closest equivalent if needed.

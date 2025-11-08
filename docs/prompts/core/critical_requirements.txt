@@ -1,0 +1,6 @@
+CRITICAL REQUIREMENTS:
+1. Return ONLY valid JSON at the top level ({"themes": [...]} or {"sections": [...]}). No commentary, code blocks, or wrapping.
+2. Include ALL content from the curriculum file - do NOT truncate, omit, or use placeholder text.
+3. Every field must contain actual content from the source (no 'Week X', 'Theme Name', '...', etc).
+4. Week and theme titles MUST be descriptive of the content - include the topic/concept being taught. Examples: 'Week 1: Introduction to Cloud Computing' or 'Theme: Data Analysis Fundamentals'. Never use generic titles like 'Week 1' or 'Week 1 (Jan 6-12, 2025)' alone.
+5. Use ONLY the supported activity types provided in the list below. Unsupported types will cause creation to FAIL.

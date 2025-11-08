@@ -446,7 +446,16 @@ if ($approvedjsonparam !== null) {
             
             update_course($update);
             rebuild_course_cache($courseid, true, true);
-            $course = get_course($courseid);
+            
+            // Force a fresh course object to get updated format
+            // Critical: Must clear cache to ensure we get the new format
+            $course = null;
+            $course = get_course($courseid, true); // Force fresh from DB
+            
+            // Verify format was actually updated before proceeding
+            if ($moduletype === 'connected_theme' && $course->format !== 'flexsections') {
+                throw new Exception("Failed to update course format to 'flexsections'. Current format is '{$course->format}'. Please ensure the Flexible Sections plugin is installed and enabled before using themed modules.");
+            }
             
             // Re-fetch the course format instance to ensure it reflects the updated format
             $courseformat = course_get_format($course);
@@ -470,11 +479,7 @@ if ($approvedjsonparam !== null) {
 
             // Create the parent theme section using flexsections
             try {
-                // Verify the course format actually supports nested sections
-                $currentcourseformat = $course->format;
-                if ($currentcourseformat !== 'flexsections') {
-                    throw new Exception("Course is using '{$currentcourseformat}' format, not 'flexsections'. Nested sections require the Flexible Sections plugin to be enabled for this course. Please install the flexsections plugin and change the course format to 'Flexible Sections' to use themed modules.");
-                }
+                // Verify the courseformat instance has the required method
                 if (!method_exists($courseformat, 'create_new_section')) {
                     throw new Exception('The flexsections course format is not properly supporting nested sections. Please ensure the Flexible Sections plugin is correctly installed and enabled.');
                 }
@@ -1031,6 +1036,9 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
                         $template_data_debug[] = '';
                         $template_data_debug[] = 'Merging ' . count($all_templates) . ' template(s)...';
                         $template_data = $all_templates[0];
+                        
+                        // Track how many modules are being merged for AI prompt
+                        $template_data['module_count'] = count($all_templates);
                         
                         if (count($all_templates) > 1) {
                             for ($i = 1; $i < count($all_templates); $i++) {

@@ -1,4 +1,0 @@
-*** CRITICAL: You must generate EXACTLY {THEME_COUNT} themes - no more, no fewer ***
-- This is a user requirement that must be honored
-- If you cannot fit all content into {THEME_COUNT} themes, inform the user
-- Do NOT reduce the theme count or generate a different number

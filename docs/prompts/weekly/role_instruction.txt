@@ -1,4 +1,0 @@
-GENERATE WEEKLY STRUCTURE:
-Create one section for each major topic. Section titles MUST describe the topic/concept (e.g., 'Week 1: Introduction to Cloud Computing', not 'Week 1').
-Include outline array with 3-5 key points, relevant activities, and brief summary.
-Include ALL content from source - do NOT skip any topics.

@@ -1,7 +1,0 @@
-FINAL REMINDER - THEME STRUCTURE:
-- Generate the COMPLETE module with ALL themes needed
-- Include EVERY topic and subtopic from the source above
-- Each theme MUST contain multiple weeks (at least 2-3 weeks per theme)
-- Every topic from the source MUST appear in at least one week
-- Do NOT stop early, do NOT truncate, do NOT omit content
-- Return ONLY JSON - no other text.

@@ -417,8 +417,19 @@ if ($approvedjsonparam !== null) {
         // Update course format based on module type.
         // Connected formats require flexsections plugin to be installed
         if ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme') {
-            // For Connected formats, use flexsections course format
-            $courseformat = 'flexsections';
+            // Check if flexsections is actually installed
+            $pluginmanager = core_plugin_manager::instance();
+            $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
+            
+            if (!empty($flexsectionsplugin)) {
+                // For Connected formats, use flexsections course format
+                $courseformat = 'flexsections';
+            } else {
+                // Fallback to weeks if flexsections not available
+                error_log('flexsections format not installed - falling back to weeks format');
+                $courseformat = 'weeks';
+                $moduletype = 'weekly'; // Downgrade to standard weekly
+            }
         } else {
             // For standard formats, use weeks (weekly)
             $courseformat = 'weeks';
@@ -441,6 +452,7 @@ if ($approvedjsonparam !== null) {
         
         if ($moduletype === 'connected_theme' && !empty($json['themes']) && is_array($json['themes'])) {
         // Use flexsections create_new_section for nested section support
+        // (Only called if flexsections is confirmed available above)
         $themesectionnums = [];
         
         foreach ($json['themes'] as $themeindex => $theme) {
@@ -453,6 +465,10 @@ if ($approvedjsonparam !== null) {
 
             // Create the parent theme section using flexsections
             try {
+                // Check if method exists before calling it (safety check for non-flexsections formats)
+                if (!method_exists($courseformat, 'create_new_section')) {
+                    throw new Exception('Course format does not support nested sections. Flexsections plugin may not be installed.');
+                }
                 $themesectionnum = $courseformat->create_new_section(0, null); // 0 means top level (no parent)
                 $themesectionnums[] = $themesectionnum;
             } catch (Exception $e) {
@@ -483,7 +499,9 @@ if ($approvedjsonparam !== null) {
             
             // Set theme section to appear as a link (collapsed = 1 in flexsections)
             $themesectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $themesectionnum]);
-            $courseformat->update_section_format_options(['id' => $themesectionid, 'collapsed' => 1]);
+            if (method_exists($courseformat, 'update_section_format_options')) {
+                $courseformat->update_section_format_options(['id' => $themesectionid, 'collapsed' => 1]);
+            }
             
             $results[] = get_string('sectioncreated', 'aiplacement_modgen', $themetitle);
             
@@ -499,6 +517,9 @@ if ($approvedjsonparam !== null) {
                     
                     // Create nested week section under the theme
                     try {
+                        if (!method_exists($courseformat, 'create_new_section')) {
+                            throw new Exception('Course format does not support nested sections. Flexsections plugin may not be installed.');
+                        }
                         $weeksectionnum = $courseformat->create_new_section($themesectionnum, null);
                     } catch (Exception $e) {
                         $activitywarnings[] = "Failed to create week section: " . $e->getMessage();
@@ -525,7 +546,9 @@ if ($approvedjsonparam !== null) {
                     
                     // Set week section to appear as a link (collapsed = 1 in flexsections)
                     $weeksectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $weeksectionnum]);
-                    $courseformat->update_section_format_options(['id' => $weeksectionid, 'collapsed' => 1]);
+                    if (method_exists($courseformat, 'update_section_format_options')) {
+                        $courseformat->update_section_format_options(['id' => $weeksectionid, 'collapsed' => 1]);
+                    }
                     
                     $results[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
                     
@@ -541,6 +564,9 @@ if ($approvedjsonparam !== null) {
                     foreach ($sessiontypes as $sessionkey => $sessionlabel) {
                         try {
                             // Create nested subsection under the week (parent = weeksectionnum)
+                            if (!method_exists($courseformat, 'create_new_section')) {
+                                throw new Exception('Course format does not support nested sections. Flexsections plugin may not be installed.');
+                            }
                             $sessionsectionnum = $courseformat->create_new_section($weeksectionnum, null);
                             $sessionsectionmap[$sessionkey] = $sessionsectionnum;
                             
@@ -552,7 +578,9 @@ if ($approvedjsonparam !== null) {
                             ]);
                             
                             // Set session section to NOT appear as a link (collapsed = 0 in flexsections)
-                            $courseformat->update_section_format_options(['id' => $sessionsectionid, 'collapsed' => 0]);
+                            if (method_exists($courseformat, 'update_section_format_options')) {
+                                $courseformat->update_section_format_options(['id' => $sessionsectionid, 'collapsed' => 0]);
+                            }
                             
                             $results[] = get_string('sectioncreated', 'aiplacement_modgen', $sessionlabel);
                         } catch (Exception $e) {
@@ -868,14 +896,162 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
         }
     }
 }if ($pdata = $promptform->get_data()) {
-    $prompt = $pdata->prompt;
+    // Check if debug button was clicked
+    if (!empty($pdata->debugbutton)) {
+        $prompt = !empty($pdata->prompt) ? trim($pdata->prompt) : '';
+        $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
+        $curriculum_template = !empty($pdata->curriculum_template) ? $pdata->curriculum_template : '';
+        $existing_module = !empty($pdata->existing_module) ? $pdata->existing_module : 0;
+        
+        // Try to extract template data
+        $template_data = null;
+        $template_data_debug = [];
+        
+        if (!empty($curriculum_template) || !empty($existing_module)) {
+            try {
+                $template_reader = new \aiplacement_modgen\local\template_reader();
+                $template_source = !empty($existing_module) ? (string)$existing_module : $curriculum_template;
+                $template_data_debug[] = 'Template source: ' . $template_source;
+                
+                // First, check if the course exists
+                global $DB;
+                $course_check = $DB->get_record('course', ['id' => (int)$template_source]);
+                if (!$course_check) {
+                    $template_data_debug[] = 'ERROR: Course ID ' . $template_source . ' not found in database';
+                } else {
+                    $template_data_debug[] = 'Course exists: ' . $course_check->fullname;
+                    
+                    // Check user access
+                    $course_context = \context_course::instance((int)$template_source);
+                    $has_access = has_capability('moodle/course:view', $course_context);
+                    $template_data_debug[] = 'User has access: ' . ($has_access ? 'YES' : 'NO');
+                    
+                    if (!$has_access) {
+                        throw new Exception('You do not have access to this course');
+                    }
+                    
+                    try {
+                        $template_data = $template_reader->extract_curriculum_template($template_source);
+                        $template_data_debug[] = 'Success! Template data extracted.';
+                        $template_data_debug[] = 'Keys: ' . implode(', ', array_keys($template_data ?? []));
+                        
+                        if (!empty($template_data['course_info'])) {
+                            $template_data_debug[] = 'Course: ' . $template_data['course_info']['name'];
+                        }
+                        if (!empty($template_data['structure'])) {
+                            $template_data_debug[] = 'Sections: ' . count($template_data['structure']);
+                        }
+                        if (!empty($template_data['activities'])) {
+                            $template_data_debug[] = 'Activities: ' . count($template_data['activities']);
+                        }
+                    } catch (Throwable $extract_error) {
+                        $template_data_debug[] = 'EXTRACTION ERROR: ' . $extract_error->getMessage();
+                        $template_data_debug[] = 'Error Type: ' . get_class($extract_error);
+                        
+                        // Log the full trace for debugging
+                        error_log("TEMPLATE_DEBUG: Full exception trace: \n" . $extract_error->getTraceAsString());
+                        
+                        // Try to extract via simpler method if JOIN failed
+                        $template_data_debug[] = '';
+                        $template_data_debug[] = 'Attempting fallback extraction method...';
+                        
+                        try {
+                            global $DB;
+                            $courseid_int = (int)$template_source;
+                            $course = $DB->get_record('course', ['id' => $courseid_int]);
+                            if (!$course) {
+                                throw new Exception('Course not found');
+                            }
+                            
+                            // Build minimal template data without complex queries
+                            $template_data = [
+                                'course_info' => [
+                                    'name' => $course->fullname,
+                                    'format' => $course->format,
+                                    'summary' => strip_tags($course->summary ?? '')
+                                ],
+                                'structure' => [],
+                                'activities' => [],
+                                'template_html' => ''
+                            ];
+                            
+                            $template_data_debug[] = 'Fallback SUCCESS - got course info only';
+                            $template_data_debug[] = 'Course: ' . $course->fullname;
+                        } catch (Throwable $fallback_error) {
+                            $template_data_debug[] = 'Fallback FAILED: ' . $fallback_error->getMessage();
+                            $template_data = null;
+                        }
+                    }
+                    
+                }
+                
+            } catch (Exception $e) {
+                $template_data_debug[] = 'ERROR: ' . $e->getMessage();
+                error_log("DEBUG BUTTON ERROR: " . $e->getMessage() . "\nStack: " . $e->getTraceAsString());
+                $template_data = null;
+            }
+        } else {
+            $template_data_debug[] = 'No template source selected';
+        }
+        
+        // Display the debug output
+        $html = html_writer::tag('h3', 'DEBUG: Template Data Extraction', ['class' => 'mt-3']);
+        $html .= html_writer::tag('pre', implode("\n", $template_data_debug), [
+            'style' => 'background: #f5f5f5; padding: 15px; border-radius: 3px; font-size: 0.85em; overflow-x: auto; border: 1px solid #ddd;'
+        ]);
+        
+        if ($template_data) {
+            $html .= html_writer::tag('h4', 'Full Template Data (JSON)', ['class' => 'mt-3']);
+            $html .= html_writer::tag('pre', json_encode($template_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), [
+                'style' => 'background: #f5f5f5; padding: 15px; border-radius: 3px; font-size: 0.75em; overflow-x: auto; border: 1px solid #ddd; max-height: 600px; overflow-y: auto;'
+            ]);
+        }
+        
+        $bodyhtml = html_writer::div($html, 'aiplacement-modgen__content p-3');
+        
+        $footeractions = [[
+            'label' => 'Back to form',
+            'classes' => 'btn btn-secondary',
+            'isbutton' => true,
+            'action' => 'aiplacement-modgen-reenter',
+        ]];
+        
+        aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, 'DEBUG: Template Data');
+        exit;
+    }
+    
+    $prompt = !empty($pdata->prompt) ? trim($pdata->prompt) : '';
     $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
     $keepweeklabels = !empty($pdata->keepweeklabels);
     $generatethemeintroductions = !empty($pdata->generatethemeintroductions);
     $createsuggestedactivities = !empty($pdata->createsuggestedactivities);
     $curriculum_template = !empty($pdata->curriculum_template) ? $pdata->curriculum_template : '';
+    $existing_module = !empty($pdata->existing_module) ? $pdata->existing_module : 0;
+    
     $typeinstruction = get_string('moduletypeinstruction_' . $moduletype, 'aiplacement_modgen');
-    $compositeprompt = trim($prompt . "\n\n" . $typeinstruction);
+    
+    // Build composite prompt - combine user prompt with type instruction
+    // If an existing module is selected, tell the AI to use it as a guide
+    if (!empty($prompt)) {
+        if (!empty($existing_module)) {
+            // User provided both a prompt AND selected a module - use both
+            $compositeprompt = trim($prompt . "\n\n" . 
+                "You will receive the structure and activities from an existing course as a reference guide. Use this reference structure as a template, but adapt the content and structure based on the user's prompt above.\n\n" .
+                $typeinstruction);
+        } else {
+            // User provided a prompt but no module selection
+            $compositeprompt = trim($prompt . "\n\n" . $typeinstruction);
+        }
+    } else {
+        // No user prompt provided
+        if (!empty($existing_module)) {
+            // If existing module selected but no prompt, ask AI to translate/adapt it
+            $compositeprompt = "Translate and adapt the existing module structure to the following format:\n\n" . $typeinstruction;
+        } else {
+            // No prompt and no existing module - just use type instruction
+            $compositeprompt = trim($typeinstruction);
+        }
+    }
     
     // Add theme introductions instruction if enabled and using connected_theme
     if ($generatethemeintroductions && $moduletype === 'connected_theme') {
@@ -889,11 +1065,6 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     if ($createsuggestedactivities) {
         $activityguidance = get_string('activityguidanceinstructions', 'aiplacement_modgen');
         $compositeprompt .= "\n\n" . $activityguidance;
-    } else {
-        // Modify prompt if activities should not be created
-        $compositeprompt .= "\n\nIMPORTANT: Do NOT include an 'activities' array in your response. " .
-            "Create section headings and summaries only. The sections should be structured with titles and descriptions, " .
-            "but do not suggest any activities, quizzes, or resources. This allows the user to add their own content.";
     }
 
     // Extract and include file contents in the prompt if files are provided
@@ -1128,11 +1299,63 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
         }
     }
     
+    // If files were actually uploaded but no user prompt, add auto-instruction to use the file
+    if (!empty($supportingfiles) && empty($prompt)) {
+        $compositeprompt .= "\n\nUser has uploaded file(s) without providing a text prompt. Please use the uploaded file content to create the module structure and content.";
+    }
+    
     // Generate module with or without template
-    if (!empty($curriculum_template)) {
+    // Debug tracking
+    $debuglog = [];
+    
+    if (!empty($curriculum_template) || !empty($existing_module)) {
         try {
             $template_reader = new \aiplacement_modgen\local\template_reader();
-            $template_data = $template_reader->extract_curriculum_template($curriculum_template);
+            
+            // Use existing_module if provided, otherwise use curriculum_template
+            $template_source = !empty($existing_module) ? (string)$existing_module : $curriculum_template;
+            $debuglog[] = 'Template source: ' . $template_source;
+            
+            try {
+                // Try full extraction first
+                $template_data = $template_reader->extract_curriculum_template($template_source);
+                $debuglog[] = 'Full extraction succeeded';
+            } catch (Throwable $e) {
+                // If full extraction fails, try fallback
+                $debuglog[] = 'Full extraction failed: ' . $e->getMessage();
+                $debuglog[] = 'Attempting fallback extraction...';
+                
+                try {
+                    global $DB;
+                    $courseid_int = (int)$template_source;
+                    $course = $DB->get_record('course', ['id' => $courseid_int]);
+                    if (!$course) {
+                        throw new Exception('Course not found');
+                    }
+                    
+                    $template_data = [
+                        'course_info' => [
+                            'name' => $course->fullname,
+                            'format' => $course->format,
+                            'summary' => strip_tags($course->summary ?? '')
+                        ],
+                        'structure' => [],
+                        'activities' => [],
+                        'template_html' => ''
+                    ];
+                    $debuglog[] = 'Fallback extraction succeeded';
+                } catch (Exception $fe) {
+                    throw new Exception('Both full and fallback extraction failed: ' . $fe->getMessage());
+                }
+            }
+            
+            // Log what we got
+            $debuglog[] = 'Template data keys: ' . implode(', ', array_keys($template_data ?? []));
+            
+            // Ensure template_data is an array and not empty
+            if (!is_array($template_data) || empty($template_data)) {
+                throw new Exception('Template data extraction returned empty result');
+            }
             
             // Validate template data has content
             $data_summary = [];
@@ -1145,23 +1368,15 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
                     $data_summary[$key] = gettype($value);
                 }
             }
+            $debuglog[] = 'Template data summary: ' . implode(', ', $data_summary);
             
-            // Extract Bootstrap structure from the template
-            $bootstrap_structure = $template_reader->extract_bootstrap_structure($curriculum_template);
-            $template_data['bootstrap_structure'] = $bootstrap_structure;
-            
-            // Validate structure and activities are not empty
-            if (empty($template_data['structure'])) {
-            } else {
-            }
-            
-            if (empty($template_data['activities'])) {
-            } else {
-            }
+            // Don't extract Bootstrap structure - just use the template data as-is
+            // The template_data already contains course_info, structure, activities, and template_html
             
             $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, $supportingfiles, $moduletype, $courseid);
         } catch (Exception $e) {
             // Fall back to normal generation if template fails
+            $debuglog[] = 'Template extraction failed: ' . $e->getMessage();
             $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype, null, $courseid);
         }
     } else {
@@ -1169,10 +1384,20 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     }
     // Check if the AI response contains validation errors
     if (empty($json)) {
+        $debuginfo = '';
+        if (!empty($debuglog)) {
+            $debuginfo = html_writer::div(
+                html_writer::tag('h5', 'Debug Information') .
+                html_writer::tag('pre', implode("\n", $debuglog), ['style' => 'background:#f5f5f5; padding: 10px; border-radius: 3px; font-size: 0.85em; overflow-x: auto;']),
+                'alert alert-info mt-3'
+            );
+        }
+        
         $errorhtml = html_writer::div(
             html_writer::tag('h4', 'AI Error', ['class' => 'text-danger']) .
             html_writer::div('The AI service returned no response. The API may be unavailable or returned an error. Please check the system logs and try again.', 'alert alert-danger') .
-            (isset($json['template']) ? html_writer::div('Details: ' . $json['template'], 'alert alert-warning') : ''),
+            (isset($json['template']) ? html_writer::div('Details: ' . $json['template'], 'alert alert-warning') : '') .
+            $debuginfo,
             'aiplacement-modgen__validation-error'
         );
 
@@ -1190,9 +1415,19 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     }
     
     if (!empty($json['template']) && strpos($json['template'], 'AI error') === 0) {
+        $debuginfo = '';
+        if (!empty($debuglog)) {
+            $debuginfo = html_writer::div(
+                html_writer::tag('h5', 'Debug Information') .
+                html_writer::tag('pre', implode("\n", $debuglog), ['style' => 'background:#f5f5f5; padding: 10px; border-radius: 3px; font-size: 0.85em; overflow-x: auto;']),
+                'alert alert-info mt-3'
+            );
+        }
+        
         $errorhtml = html_writer::div(
             html_writer::tag('h4', 'AI Error', ['class' => 'text-danger']) .
-            html_writer::div($json['template'], 'alert alert-danger'),
+            html_writer::div($json['template'], 'alert alert-danger') .
+            $debuginfo,
             'aiplacement-modgen__validation-error'
         );
 

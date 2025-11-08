@@ -27,8 +27,13 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['pluginname'] = 'Module Assistant';
 
+$string['existingmodule'] = 'Base on existing module';
+$string['createfromscratch'] = 'Create from scratch';
+$string['existingmodule_help'] = 'Optionally select an existing module to use as a template for AI generation. The AI will analyze the structure, activities, and content of the selected module to create similar content for your prompt. Choose "Create from scratch" to generate content without using any existing template.';
+
 $string['prompt'] = 'What would you like to create for your module?';
 $string['submit'] = 'Submit prompt';
+$string['promptorrequired'] = 'Either provide a prompt description OR upload supporting documents (or both). At least one is required to generate module content.';
 
 $string['reviewjson'] = 'Review the generated module JSON below. Approve to create activities.';
 $string['jsonpreview'] = 'JSON preview';

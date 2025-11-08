@@ -397,6 +397,14 @@ class ai_service {
     public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null, $courseid = null) {
         global $USER, $COURSE;
         
+        // Debug: Log template data status
+        error_log('DEBUG: generate_module called with template_data: ' . (empty($template_data) ? 'EMPTY' : 'PRESENT (' . count((array)$template_data) . ' keys)'));
+        if (!empty($template_data) && is_array($template_data)) {
+            error_log('DEBUG: template_data keys: ' . implode(', ', array_keys($template_data)));
+            error_log('DEBUG: template_data[structure] type: ' . gettype($template_data['structure'] ?? null) . ' count: ' . count((array)($template_data['structure'] ?? [])));
+            error_log('DEBUG: template_data[activities] type: ' . gettype($template_data['activities'] ?? null) . ' count: ' . count((array)($template_data['activities'] ?? [])));
+        }
+        
         // Integrate with Moodle AI Subsystem Manager using generate_text action.
         try {
             if (!class_exists('\\core_ai\\manager') || !class_exists('\\core_ai\\aiactions\\generate_text')) {
@@ -436,13 +444,17 @@ class ai_service {
             }
             
             // Build compact roleinstruction without redundancy
+            // Customize based on whether we're working with template data (existing module) or file content
+            $istemplate = !empty($template_data);
+            $source_label = $istemplate ? 'the existing module structure provided' : 'the curriculum file';
+            
             $roleinstruction = $pedagogicalguidance . "\n\n" .
                 "CRITICAL REQUIREMENTS:\n" .
                 "1. Return ONLY valid JSON. No commentary, code blocks, or wrapping.\n" .
-                "2. Generate the COMPLETE module structure from the curriculum file.\n" .
-                "3. Do NOT omit, truncate, or stop early - include ALL content from the file.\n" .
+                "2. Generate the COMPLETE module structure from " . $source_label . ".\n" .
+                "3. Do NOT omit, truncate, or stop early - include ALL content from " . $source_label . ".\n" .
                 "4. Do NOT include example data or placeholder text like 'Week X', 'Theme Name', or '...'.\n" .
-                "5. Every field MUST contain actual content from the curriculum.\n" .
+                "5. Every field MUST contain actual content from the source.\n" .
                 "6. Return as pure JSON object at the top level: {\"themes\": [...]} OR {\"sections\": [...]}\n\n";
 
             // Add file parsing and theme instructions only for theme structure
@@ -455,37 +467,37 @@ class ai_service {
                     $roleinstruction .= "GENERATE COMPLETE THEMED STRUCTURE:\n" .
                         "*** USER HAS SPECIFIED: Create EXACTLY {$requestedthemecount} themes ***\n" .
                         "This is a REQUIREMENT - do NOT deviate. Use {$requestedthemecount} themes, not more or fewer.\n\n" .
-                        "STEP 1: Parse the ENTIRE file and list EVERY single topic and subtopic\n" .
+                        "STEP 1: Parse the provided source and list EVERY single topic and subtopic\n" .
                         "STEP 2: Divide all topics into EXACTLY {$requestedthemecount} coherent theme groups\n" .
                         "STEP 3: Ensure ALL topics are covered - each topic goes into exactly one theme\n" .
                         "STEP 4: For each of the {$requestedthemecount} themes, create weeks (typically 2-4 weeks per theme) covering all subtopics\n" .
                         "STEP 5: For each week, create presession/session/postsession activities\n" .
-                        "STEP 6: Verify ALL topics from the file are included in your {$requestedthemecount} themes\n" .
+                        "STEP 6: Verify ALL topics from the source are included in your {$requestedthemecount} themes\n" .
                         "CRITICAL: Generate EXACTLY {$requestedthemecount} themes - this overrides any other guidance\n" .
-                        "CRITICAL: Every topic from the file MUST appear in at least one week of one theme\n" .
+                        "CRITICAL: Every topic from the source MUST appear in at least one week of one theme\n" .
                         "- Each theme summary: 2-3 sentence introduction for students\n" .
                         "- Each week summary: brief overview of that week's learning\n\n";
                 } else {
                     // No specific count requested - use flexible guidance
                     $roleinstruction .= "GENERATE COMPLETE THEMED STRUCTURE:\n" .
-                        "STEP 1: Parse the ENTIRE file and list EVERY single topic and subtopic\n" .
+                        "STEP 1: Parse the provided source and list EVERY single topic and subtopic\n" .
                         "STEP 2: Count all topics to determine theme count (typically 3-6 themes needed to cover all topics)\n" .
                         "STEP 3: Group ALL topics into coherent themes - ensure NO topic is left out\n" .
                         "STEP 4: For each theme, create weeks (typically 2-4 weeks per theme) covering all subtopics\n" .
                         "STEP 5: For each week, create presession/session/postsession activities\n" .
-                        "STEP 6: Verify ALL topics from the file are included in your themes\n" .
-                        "CRITICAL: Do NOT skip any content - include every topic from the curriculum file\n" .
-                        "CRITICAL: Every topic from the file MUST appear in at least one week of one theme\n" .
+                        "STEP 6: Verify ALL topics from the source are included in your themes\n" .
+                        "CRITICAL: Do NOT skip any content - include every topic from the source\n" .
+                        "CRITICAL: Every topic from the source MUST appear in at least one week of one theme\n" .
                         "- Each theme summary: 2-3 sentence introduction for students\n" .
                         "- Each week summary: brief overview of that week's learning\n\n";
                 }
             } else {
                 $roleinstruction .= "GENERATE COMPLETE WEEKLY STRUCTURE:\n" .
-                    "- Parse the ENTIRE file and extract ALL topics and sections\n" .
-                    "- Create one week/section for each major topic in the file\n" .
+                    "- Parse the provided source and extract ALL topics and sections\n" .
+                    "- Create one week/section for each major topic in the source\n" .
                     "- For each week, include outline array with key points\n" .
                     "- Add activities relevant to that week\n" .
-                    "- Do NOT skip any content - include everything from the curriculum file\n" .
+                    "- Do NOT skip any content - include everything from the source\n" .
                     "- Each section summary: overview of that week's content\n\n";
             }
 
@@ -552,17 +564,15 @@ class ai_service {
 
             // Add template guidance if template data is provided
             $template_guidance = '';
-            if (!empty($template_data)) {
+            if (!empty($template_data) && is_array($template_data)) {
                 $template_guidance = self::build_template_prompt_guidance($template_data);
-                if (strlen($template_guidance) > 0) {
-                }
-                
-                // When template is used, update format instruction to require HTML
-                $formatinstruction .= "\n\nTEMPLATE MODE: Each section summary MUST be valid HTML content.\n" .
-                    "Use HTML markup with Bootstrap 4/5 classes to structure the section summaries.\n" .
-                    "Each 'summary' field must contain formatted HTML, not plain text.\n" .
-                    "Example: <div class='card'><div class='card-body'><h5>Content</h5><p>Details here</p></div></div>";
             } else {
+                // Even if template_data is empty, note that we're supposed to be using template mode
+                if ($template_data === null) {
+                    // No template data at all
+                } else {
+                    $template_guidance = "NOTE: Template mode activated but template_data is empty or invalid.\n";
+                }
             }
 
             // Incorporate supporting documents with aggressive truncation
@@ -599,15 +609,15 @@ class ai_service {
             if ($structure === 'theme') {
                 $finalprompt .= "FINAL REMINDER - THEME STRUCTURE:\n" .
                     "- Generate the COMPLETE module with ALL themes needed\n" .
-                    "- Include EVERY topic and subtopic from the file above\n" .
+                    "- Include EVERY topic and subtopic from the source above\n" .
                     "- Each theme MUST contain multiple weeks (at least 2-3 weeks per theme)\n" .
-                    "- Every topic from the curriculum file MUST appear in at least one week\n" .
+                    "- Every topic from the source MUST appear in at least one week\n" .
                     "- Do NOT stop early, do NOT truncate, do NOT omit content\n" .
                     "- Return ONLY JSON - no other text.\n";
             } else {
                 $finalprompt .= "FINAL REMINDER - WEEKLY STRUCTURE:\n" .
                     "- Generate the COMPLETE module with all weeks\n" .
-                    "- Include EVERY topic from the file above\n" .
+                    "- Include EVERY topic from the source above\n" .
                     "- Do NOT stop early, do NOT truncate, do NOT omit content\n" .
                     "- Return ONLY JSON - no other text.\n";
             }
@@ -768,214 +778,71 @@ class ai_service {
     /**
      * Build guidance text about the template for the AI
      *
-     * @param array $template_data Template data containing structure and HTML
-     * @return string Guidance about the template
+     * @param array $template_data Template data containing structure and activities
+     * @return string Guidance about the template with simplified structure
      */
     private static function build_template_prompt_guidance($template_data) {
-        if (is_array($template_data)) {
-            foreach ($template_data as $key => $value) {
-                if (is_array($value)) {
-                } elseif (is_string($value)) {
-                } else {
-                }
-            }
-        }
-        
         $guidance = "";
         
-        // Add course info guidance
+        // Add course info
         if (!empty($template_data['course_info'])) {
             $course = $template_data['course_info'];
-            $guidance .= "CURRICULUM TEMPLATE INFORMATION:\n";
-            $guidance .= "Template Name: " . (!empty($course['name']) ? $course['name'] : 'Unnamed') . "\n";
-            $guidance .= "Template Format: " . (!empty($course['format']) ? $course['format'] : 'Unknown') . "\n";
+            $guidance .= "EXISTING MODULE INFORMATION:\n";
+            $guidance .= "Module Name: " . (!empty($course['name']) ? $course['name'] : 'Unnamed') . "\n";
+            $guidance .= "Format: " . (!empty($course['format']) ? $course['format'] : 'Unknown') . "\n";
             if (!empty($course['summary'])) {
-                $guidance .= "Template Summary: " . substr($course['summary'], 0, 300) . "\n";
+                $guidance .= "Summary: " . substr($course['summary'], 0, 300) . "\n";
             }
             $guidance .= "\n";
         }
         
-        // Add structure guidance
+        // Add structure details
         if (!empty($template_data['structure']) && is_array($template_data['structure'])) {
-            $guidance .= "TEMPLATE STRUCTURE:\n";
-            $guidance .= "The template is organized into " . count($template_data['structure']) . " sections:\n";
+            $guidance .= "EXISTING SECTION STRUCTURE:\n";
+            $sectioncount = 0;
             foreach ($template_data['structure'] as $section) {
-                $section_name = is_array($section) && !empty($section['name']) ? $section['name'] : 'Unknown Section';
-                $activity_count = is_array($section) && !empty($section['activity_count']) ? $section['activity_count'] : 0;
-                $guidance .= "- {$section_name} ({$activity_count} activities)\n";
+                $sectioncount++;
+                if (is_array($section)) {
+                    $section_name = $section['name'] ?? 'Unnamed Section';
+                    $guidance .= "Section {$sectioncount}: " . $section_name . "\n";
+                    if (!empty($section['activity_count'])) {
+                        $guidance .= "  - Contains " . $section['activity_count'] . " activities\n";
+                    }
+                    if (!empty($section['summary'])) {
+                        $summary_preview = substr($section['summary'], 0, 150);
+                        $guidance .= "  - Summary: " . $summary_preview . (strlen($section['summary']) > 150 ? '...' : '') . "\n";
+                    }
+                }
             }
             $guidance .= "\n";
         }
         
-        // Add activities guidance
+        // Add activities list - these are the ACTUAL activities in the existing module
         if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
-            $guidance .= "TEMPLATE ACTIVITIES:\n";
-            $guidance .= "The template uses the following activity types and patterns:\n";
-            $activity_types = [];
-            $activity_details = [];
+            $guidance .= "EXISTING ACTIVITIES IN MODULE:\n";
             foreach ($template_data['activities'] as $activity) {
                 if (is_array($activity)) {
                     $type = $activity['type'] ?? 'unknown';
-                    $activity_types[$type] = ($activity_types[$type] ?? 0) + 1;
-                    $activity_details[] = "  - " . ($activity['name'] ?? 'Unnamed') . " (type: {$type})";
+                    $name = $activity['name'] ?? 'Unnamed';
+                    $section_name = $activity['section'] ?? 'Unknown Section';
+                    $guidance .= "- [{$type}] " . $name . " (in section: " . $section_name . ")\n";
                 }
             }
-            foreach ($activity_types as $type => $count) {
-                $guidance .= "- {$type}: {$count} instance(s)\n";
-            }
-            if (!empty($activity_details)) {
-                $guidance .= "\nDetailed Activities:\n" . implode("\n", array_slice($activity_details, 0, 15)) . "\n";
-            }
-            $guidance .= "Follow this same activity pattern in your generated module.\n\n";
+            $guidance .= "\n";
         }
         
-        // Add Bootstrap structure guidance if HTML is available
-        if (!empty($template_data['template_html'])) {
-            $guidance .= "CRITICAL: EXACT HTML STRUCTURE REPLICATION REQUIRED\n";
-            $guidance .= str_repeat("=", 70) . "\n\n";
-
-            $guidance .= "You MUST copy the HTML structure below EXACTLY for EVERY section you create.\n";
-            $guidance .= "Do NOT simplify, do NOT modify the structure, do NOT change Bootstrap classes.\n";
-            $guidance .= "The ONLY thing you change is the TEXT CONTENT inside the HTML tags.\n";
-            $guidance .= "All divs, classes, structure, and layout MUST be identical to this template.\n\n";
-
-            $guidance .= "TEMPLATE HTML STRUCTURE TO COPY EXACTLY:\n";
-            $guidance .= str_repeat("-", 70) . "\n";
-            $guidance .= "```html\n";
-
-            // Show the FULL template HTML, not just an excerpt
-            $guidance .= $template_data['template_html'];
-
-            $guidance .= "\n```\n";
-            $guidance .= str_repeat("-", 70) . "\n\n";
-
-            // Extract Bootstrap classes for emphasis
-            $bootstrap_classes = self::extract_bootstrap_classes_from_html($template_data['template_html']);
-            if (!empty($bootstrap_classes)) {
-                $guidance .= "Bootstrap classes in template (MUST use these exact classes):\n";
-                $guidance .= implode(', ', $bootstrap_classes) . "\n\n";
-            }
-
-            $guidance .= "STEP-BY-STEP INSTRUCTIONS:\n";
-            $guidance .= "1. Copy the ENTIRE HTML structure above character-for-character\n";
-            $guidance .= "2. Keep ALL div tags, classes, and attributes EXACTLY as shown\n";
-            $guidance .= "3. Keep ALL Bootstrap classes EXACTLY as shown (container, row, col-md-*, nav-tabs, etc.)\n";
-            $guidance .= "4. Keep HTML attributes (role, data-toggle, aria-*, style, etc.) EXACTLY as shown\n";
-            $guidance .= "5. CRITICAL: Make HTML 'id' and 'href' attributes UNIQUE for each section/week you create\n";
-            $guidance .= "   - REASON: Multiple sections with identical IDs will cause Bootstrap components to break\n";
-            $guidance .= "   - METHOD: Add a unique suffix to every id and corresponding href value\n";
-            $guidance .= "   - If template has id=\"week1Tabs\", change to: id=\"week2Tabs\", id=\"week3Tabs\", id=\"theme1Tabs\", etc.\n";
-            $guidance .= "   - If template has id=\"pre-tab\", change to: id=\"pre-tab-w2\", id=\"pre-tab-w3\", id=\"pre-tab-t1\", etc.\n";
-            $guidance .= "   - If template has href=\"#pre\", change to: href=\"#pre-w2\", href=\"#pre-w3\", href=\"#pre-t1\", etc.\n";
-            $guidance .= "   - Use week number (w1, w2, w3) or theme number (t1, t2, t3) or section number as suffix\n";
-            $guidance .= "   - EVERY id in a section must have the same suffix pattern for that section\n";
-            $guidance .= "   - Matching href values must use the same suffix (if id=\"pre-w2\" then href=\"#pre-w2\")\n";
-            $guidance .= "6. ONLY change the actual text content between tags to match your new topic\n";
-            $guidance .= "7. If the template has tabs, your output MUST have tabs with the same structure (with unique IDs)\n";
-            $guidance .= "8. If the template has cards, your output MUST have cards with the same structure\n";
-            $guidance .= "9. If the template has badges, your output MUST have badges with the same structure\n";
-            $guidance .= "10. If the template has accordions, your output MUST have accordions (with unique IDs)\n";
-            $guidance .= "11. Maintain the SAME nesting depth and tag hierarchy\n";
-            $guidance .= "12. Every section summary you generate MUST use this EXACT structure with unique IDs\n\n";
-
-            $guidance .= "EXAMPLE 1 - Basic structure:\n";
-            $guidance .= "Template:\n";
-            $guidance .= "<div class='container my-4'>\n";
-            $guidance .= "  <h5>Introduction</h5>\n";
-            $guidance .= "  <p>This week introduces macronutrients...</p>\n";
-            $guidance .= "</div>\n\n";
-            $guidance .= "Your output for Week 2:\n";
-            $guidance .= "<div class='container my-4'>\n";
-            $guidance .= "  <h5>Getting Started</h5>\n";
-            $guidance .= "  <p>This week explores programming basics...</p>\n";
-            $guidance .= "</div>\n\n";
-
-            $guidance .= "EXAMPLE 2 - Tabs with IDs (CRITICAL FOR FUNCTIONALITY):\n";
-            $guidance .= "Template (Week 1):\n";
-            $guidance .= "<ul id=\"week1Tabs\" class=\"nav nav-tabs\" role=\"tablist\">\n";
-            $guidance .= "  <li class=\"nav-item\">\n";
-            $guidance .= "    <a id=\"pre-tab\" class=\"nav-link active\" href=\"#pre\" data-toggle=\"tab\">Pre-session</a>\n";
-            $guidance .= "  </li>\n";
-            $guidance .= "</ul>\n";
-            $guidance .= "<div class=\"tab-content\">\n";
-            $guidance .= "  <div id=\"pre\" class=\"tab-pane active\">Content here</div>\n";
-            $guidance .= "</div>\n\n";
-
-            $guidance .= "Your output for Week 2 (note unique IDs):\n";
-            $guidance .= "<ul id=\"week2Tabs\" class=\"nav nav-tabs\" role=\"tablist\">\n";
-            $guidance .= "  <li class=\"nav-item\">\n";
-            $guidance .= "    <a id=\"pre-tab-w2\" class=\"nav-link active\" href=\"#pre-w2\" data-toggle=\"tab\">Pre-session</a>\n";
-            $guidance .= "  </li>\n";
-            $guidance .= "</ul>\n";
-            $guidance .= "<div class=\"tab-content\">\n";
-            $guidance .= "  <div id=\"pre-w2\" class=\"tab-pane active\">New content here</div>\n";
-            $guidance .= "</div>\n\n";
-
-            $guidance .= "Your output for Theme 1 (note unique IDs with different suffix):\n";
-            $guidance .= "<ul id=\"theme1Tabs\" class=\"nav nav-tabs\" role=\"tablist\">\n";
-            $guidance .= "  <li class=\"nav-item\">\n";
-            $guidance .= "    <a id=\"pre-tab-t1\" class=\"nav-link active\" href=\"#pre-t1\" data-toggle=\"tab\">Pre-session</a>\n";
-            $guidance .= "  </li>\n";
-            $guidance .= "</ul>\n";
-            $guidance .= "<div class=\"tab-content\">\n";
-            $guidance .= "  <div id=\"pre-t1\" class=\"tab-pane active\">Theme content here</div>\n";
-            $guidance .= "</div>\n\n";
-
-            $guidance .= "WRONG - DO NOT copy IDs exactly:\n";
-            $guidance .= "<ul id=\"week1Tabs\">... <!-- WRONG: Same ID as template! -->\n";
-            $guidance .= "  <a href=\"#pre\" ... <!-- WRONG: Same href as template! -->\n\n";
-
-            $guidance .= "FORBIDDEN ACTIONS:\n";
-            $guidance .= "❌ DO NOT simplify the HTML structure\n";
-            $guidance .= "❌ DO NOT remove divs or container elements\n";
-            $guidance .= "❌ DO NOT change Bootstrap class names\n";
-            $guidance .= "❌ DO NOT remove CSS classes\n";
-            $guidance .= "❌ DO NOT copy id and href attributes without making them unique\n";
-            $guidance .= "❌ DO NOT use the same IDs across multiple sections (causes JavaScript conflicts)\n";
-            $guidance .= "❌ DO NOT modify HTML attributes except id/href (role, data-toggle stay the same)\n";
-            $guidance .= "❌ DO NOT create your own structure\n";
-            $guidance .= "❌ DO NOT use plain text without HTML\n";
-            $guidance .= "❌ DO NOT change the layout or visual structure\n\n";
-
-            $guidance .= "REQUIRED ACTIONS:\n";
-            $guidance .= "✓ Copy the HTML structure EXACTLY\n";
-            $guidance .= "✓ Use ALL the same Bootstrap classes\n";
-            $guidance .= "✓ Maintain ALL div containers and wrappers\n";
-            $guidance .= "✓ Make id and href attributes UNIQUE per section (add suffix like -w2, -w3, -t1, -t2)\n";
-            $guidance .= "✓ Keep matching pairs consistent (if id=\"pre-w2\" then href=\"#pre-w2\")\n";
-            $guidance .= "✓ Keep other HTML attributes unchanged (role, data-toggle, aria-*, style)\n";
-            $guidance .= "✓ Only change the text content inside tags\n";
-            $guidance .= "✓ Apply this SAME structure to EVERY section/week\n";
-            $guidance .= "✓ Match the visual layout exactly\n\n";
+        // If we have structure or activities, add the translation task
+        if (!empty($template_data['structure']) || !empty($template_data['activities'])) {
+            $guidance .= "TASK: You are analyzing an EXISTING Moodle module structure.\n";
+            $guidance .= "The sections and activities listed above represent the ACTUAL content of the existing module.\n";
+            $guidance .= "Use this content to generate a transformed module structure in the requested format.\n";
+            $guidance .= "Preserve all section titles and activity names - do NOT invent new content.\n";
+            $guidance .= "Base your output entirely on the existing structure provided above.\n";
+        } else {
+            // Fallback if we don't have structure or activities data
+            $guidance .= "NOTE: Template data provided but no section structure or activities found.\n";
+            $guidance .= "Ensure you process the existing module content properly.\n";
         }
-
-        // Add bootstrap structure if available
-        if (!empty($template_data['bootstrap_structure'])) {
-            $guidance .= "BOOTSTRAP COMPONENTS IN TEMPLATE:\n";
-            if (is_array($template_data['bootstrap_structure']) && !empty($template_data['bootstrap_structure']['components'])) {
-                $guidance .= "The template uses these Bootstrap components:\n";
-                foreach ($template_data['bootstrap_structure']['components'] as $component) {
-                    $guidance .= "  - {$component}\n";
-                }
-                $guidance .= "\nYour generated content MUST include these same components with identical structure.\n\n";
-            }
-        }
-
-        $guidance .= "FINAL REMINDER:\n";
-        $guidance .= "The user expects the generated sections to look VISUALLY IDENTICAL to the template.\n";
-        $guidance .= "This means copying the HTML structure EXACTLY, not just \"similar\" or \"inspired by\".\n";
-        $guidance .= "Think of it as a fill-in-the-blank exercise where you:\n";
-        $guidance .= "  1. Fill in the text content (what the section is about)\n";
-        $guidance .= "  2. Make IDs unique (so Bootstrap components don't conflict)\n";
-        $guidance .= "  3. Keep everything else identical (structure, classes, attributes)\n";
-        $guidance .= "This is NOT creative freedom to design your own layout.\n\n";
-
-        $guidance .= "ID UNIQUENESS CHECK:\n";
-        $guidance .= "Before finalizing each section, verify:\n";
-        $guidance .= "  • Every id attribute has a unique suffix for this section\n";
-        $guidance .= "  • Every href attribute targeting an ID has the matching suffix\n";
-        $guidance .= "  • No two sections have the same ID values\n";
-        $guidance .= "  • Tab/accordion functionality will work (unique IDs prevent conflicts)\n\n";
         
         return $guidance;
     }

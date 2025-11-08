@@ -59,6 +59,13 @@ class aiplacement_modgen_generator_form extends moodleform {
         // === TEMPLATE SETUP SECTION ===
         $mform->addElement('header', 'templatesettingsheader', get_string('templatesettings', 'aiplacement_modgen'));
         
+        // Existing module selection - allows user to base generation on existing module structure
+        $existingmodules = $this->get_editable_courses();
+        $mform->addElement('select', 'existing_module', get_string('existingmodule', 'aiplacement_modgen'), $existingmodules);
+        $mform->setType('existing_module', PARAM_INT);
+        $mform->setDefault('existing_module', 0);
+        $mform->addHelpButton('existing_module', 'existingmodule', 'aiplacement_modgen');
+        
         // Module type selection - store options as fixed to ensure they're available during form processing
         $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
         $mform->setType('moduletype', PARAM_ALPHANUMEXT);
@@ -93,7 +100,8 @@ class aiplacement_modgen_generator_form extends moodleform {
         // Main content prompt
         $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), 'rows="4" cols="60"');
         $mform->setType('prompt', PARAM_TEXT);
-        $mform->addRule('prompt', null, 'required', null, 'client');
+        // Prompt is conditionally required - either prompt OR files must be provided
+        // Actual validation is in validation() method
         $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
         
         // File upload for supporting documents (optional)
@@ -126,7 +134,12 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->setType('createsuggestedactivities', PARAM_BOOL);
         $mform->setDefault('createsuggestedactivities', 0);
         
-        $this->add_action_buttons(false, get_string('submit', 'aiplacement_modgen'));
+        // Add both submit button and debug button
+        $buttonarray = [];
+        $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('submit', 'aiplacement_modgen'));
+        $buttonarray[] = $mform->createElement('submit', 'debugbutton', 'DEBUG: Show Template Data');
+        $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);
+        $mform->closeHeaderBefore('buttonar');
     }
 
     public function definition_after_data() {
@@ -159,6 +172,15 @@ class aiplacement_modgen_generator_form extends moodleform {
             $errors['moduletype'] = 'Invalid module type selected';
         }
         
+        // Either prompt, files, or existing module must be provided
+        $hasPrompt = !empty(trim($data['prompt'] ?? ''));
+        $hasFiles = !empty($data['supportingfiles']);
+        $hasExistingModule = !empty($data['existing_module']);
+        
+        if (!$hasPrompt && !$hasFiles && !$hasExistingModule) {
+            $errors['prompt'] = get_string('promptorrequired', 'aiplacement_modgen', 'Please provide a prompt, upload files, or select an existing module to base this on');
+        }
+        
         return $errors;
     }
     
@@ -174,5 +196,35 @@ class aiplacement_modgen_generator_form extends moodleform {
         }
         
         return $data;
+    }
+
+    /**
+     * Get list of courses the user can edit, formatted as options for select dropdown.
+     *
+     * @return array Array with key 0 => "Create from scratch", then courseid => fullname for editable courses
+     */
+    private function get_editable_courses() {
+        global $DB, $USER;
+        
+        $options = [0 => get_string('createfromscratch', 'aiplacement_modgen')];
+        
+        // Get courses where user has course update capability (can edit course)
+        $sql = "SELECT c.id, c.fullname, c.shortname
+                FROM {course} c
+                JOIN {role_assignments} ra ON ra.contextid = (
+                    SELECT id FROM {context} WHERE contextlevel = ? AND instanceid = c.id
+                )
+                WHERE ra.userid = ? AND ra.roleid IN (
+                    SELECT id FROM {role} WHERE archetype IN ('editingteacher', 'teacher', 'manager')
+                )
+                ORDER BY c.fullname ASC";
+        
+        $courses = $DB->get_records_sql($sql, [CONTEXT_COURSE, $USER->id]);
+        
+        foreach ($courses as $course) {
+            $options[$course->id] = $course->fullname . ' (' . $course->shortname . ')';
+        }
+        
+        return $options;
     }
 }

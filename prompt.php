@@ -388,8 +388,7 @@ require_once($CFG->dirroot . '/mod/subsection/classes/manager.php');
 // Attempt approval form first (so refreshes on approval post are handled).
 $approveform = null;
 $approvedjsonparam = optional_param('approvedjson', null, PARAM_RAW);
-$approvedtypeparam = optional_param('moduletype', 'weekly', PARAM_ALPHA);
-$keepweeklabelsparam = optional_param('keepweeklabels', 0, PARAM_BOOL);
+$approvedtypeparam = optional_param('moduletype', 'connected_weekly', PARAM_ALPHA);
 $generatethemeintroductionsparam = optional_param('generatethemeintroductions', 0, PARAM_BOOL);
 $createsuggestedactivitiesparam = optional_param('createsuggestedactivities', 0, PARAM_BOOL);
 $generatedsummaryparam = optional_param('generatedsummary', '', PARAM_RAW);
@@ -399,7 +398,6 @@ if ($approvedjsonparam !== null) {
         'courseid' => $courseid,
         'approvedjson' => $approvedjsonparam,
         'moduletype' => $approvedtypeparam,
-        'keepweeklabels' => $keepweeklabelsparam,
         'generatethemeintroductions' => $generatethemeintroductionsparam,
         'createsuggestedactivities' => $createsuggestedactivitiesparam,
         'generatedsummary' => $generatedsummaryparam,
@@ -411,8 +409,7 @@ if ($approvedjsonparam !== null) {
     if ($approveform && ($adata = $approveform->get_data())) {
         // Create weekly sections from approved JSON.
         $json = json_decode($adata->approvedjson, true);
-        $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'weekly';
-        $keepweeklabels = ($moduletype === 'weekly' || $moduletype === 'connected_weekly') && !empty($adata->keepweeklabels);
+        $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'connected_weekly';
         
         // Lock the course to prevent concurrent access during build
         $lockkey = 'aiplacement_modgen_building_' . $courseid;
@@ -652,9 +649,6 @@ if ($approvedjsonparam !== null) {
             
             $sectionrecord = $DB->get_record('course_sections', ['id' => $section->id], '*', MUST_EXIST);
             $sectionhtml = '';
-            if ($keepweeklabels) {
-                $sectionhtml .= html_writer::tag('h3', s($title));
-            }
             $summaryhtml = trim(format_text($summary, FORMAT_HTML, ['context' => $context]));
             if ($summaryhtml !== '') {
                 $sectionhtml .= $summaryhtml;
@@ -679,9 +673,8 @@ if ($approvedjsonparam !== null) {
                 }
             }
 
-            if (!$keepweeklabels) {
-                $sectionrecord->name = $title;
-            }
+            // Always use section name field for title (modern approach)
+            $sectionrecord->name = $title;
             $sectionrecord->summary = $sectionhtml;
             $sectionrecord->summaryformat = FORMAT_HTML;
             $sectionrecord->timemodified = time();
@@ -1197,8 +1190,7 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     }
     
     $prompt = !empty($pdata->prompt) ? trim($pdata->prompt) : '';
-    $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
-    $keepweeklabels = !empty($pdata->keepweeklabels);
+    $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'connected_weekly';
     $generatethemeintroductions = !empty($pdata->generatethemeintroductions);
     $createsuggestedactivities = !empty($pdata->createsuggestedactivities);
     $generatesessioninstructions = !empty($pdata->generatesessioninstructions);
@@ -1795,7 +1787,6 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
         'courseid' => $courseid,
         'approvedjson' => $jsonstr,
         'moduletype' => $moduletype,
-        'keepweeklabels' => $keepweeklabels ? 1 : 0,
         'generatethemeintroductions' => $generatethemeintroductions ? 1 : 0,
         'createsuggestedactivities' => $createsuggestedactivities ? 1 : 0,
         'generatedsummary' => $summarytext,

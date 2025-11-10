@@ -684,7 +684,7 @@ class ai_service {
                         "- Return ONLY the JSON object. No additional text before or after.\n" .
                         "- NEVER include JSON as a string value in any field\n" .
                         "- Each section.summary must be 2-3 plain sentences (NO JSON inside)\n" .
-                        "- Each section.title must include date range AND descriptive topic: 'Week N (date): Topic Name'\n" .
+                        "- Each section.title must include date range AND descriptive topic: 'date: Topic Name'\n" .
                         "- Each sessions.description must be 5-8 plain sentences (NO JSON inside)\n" .
                         "- All field values must be strings or arrays of objects, NEVER strings containing JSON\n" .
                         "- Sections array MUST contain all sections\n" .
@@ -692,7 +692,7 @@ class ai_service {
                 } else {
                     $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
                         "Your response MUST be ONLY a valid JSON object (no text before/after):\n" .
-                        "{\"sections\": [{\"title\": \"Week N (Oct 18 - 24): Topic\", \"summary\": \"Brief overview\", \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity\"}]}]}\n\n";
+                        "{\"sections\": [{\"title\": \"Oct 18 - 24: Topic\", \"summary\": \"Brief overview\", \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity\"}]}]}\n\n";
                 }
             }
 
@@ -716,7 +716,7 @@ class ai_service {
             $weekdateguidance = '';
             if (!empty($courseid)) {
                 $exampledate1 = self::get_week_date_range(1, $courseid);
-                $weekdateguidance = "\nInclude week dates in titles: \"Week 1 ({$exampledate1})\" instead of just \"Week 1\".\n";
+                $weekdateguidance = "\nInclude week dates in titles: \"{$exampledate1}\" instead of just \"Week 1\".\n";
             }
             
             $formatinstruction .= $weekdateguidance;

@@ -32,7 +32,7 @@ $string['addtemplate'] = 'Add another template';
 $string['createfromscratch'] = 'Create from scratch';
 $string['existingmodule_help'] = 'Optionally select one or more existing modules to use as templates for AI generation. The AI will analyze the structure, activities, and content of the selected modules to create similar content for your prompt. Choose "Create from scratch" to generate content without using any existing template. You can add up to 3 templates, and the AI will merge their structures.';
 
-$string['prompt'] = 'What would you like to create for your module?';
+$string['prompt'] = 'Additional context or requests for the Assistant to use';
 $string['submit'] = 'Submit prompt';
 $string['promptorrequired'] = 'Either provide a prompt description OR upload supporting documents (or both). At least one is required to generate module content.';
 
@@ -106,7 +106,7 @@ $string['aboutassessments'] = 'About Assessments';
 $string['aboutlearningoutcomes'] = 'About Learning Outcomes';
 $string['returntocourse'] = 'Return to course home';
 $string['promptsentheading'] = 'Prompt sent to AI subsystem';
-$string['launchgenerator'] = 'Module Assistant';
+$string['launchgenerator'] = 'Template Generator';
 $string['modgenmodalheading'] = 'Module Assistant';
 $string['modgenfabaria'] = 'Open Module Assistant';
 $string['closemodgenmodal'] = 'Close and return to module';
@@ -167,8 +167,6 @@ $string['longquery'] = 'Long queries may take up to 5 minutes to process.';
 $string['aiprocessingdetail'] = 'AI is analyzing your request and generating module content. This process may take several minutes for complex requests.';
 $string['prompt_help'] = 'Describe what you want to create for your module. Be specific about the topic, learning objectives, and type of activities you want. More detailed prompts will give better results but may take longer to process.';
 $string['moduletype_help'] = 'Choose how to structure your module:
-
-**Weekly format**: Creates sequential weekly sections with clear titles and activities for each week of teaching.
 
 **Connected Weekly**: Weekly format enhanced with the Flexible Sections layout to improve organization and usability for the new Connected Curriculum.
 

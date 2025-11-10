@@ -44,9 +44,7 @@ class aiplacement_modgen_generator_form extends moodleform {
         }
         
         // Add module type selection
-        $moduletypeoptions = [
-            'weekly' => get_string('moduletype_weekly', 'aiplacement_modgen'),
-        ];
+        $moduletypeoptions = [];
         
         // Add Connected Curriculum format options if flexsections is installed
         $pluginmanager = core_plugin_manager::instance();
@@ -71,19 +69,11 @@ class aiplacement_modgen_generator_form extends moodleform {
         // Module type selection - store options as fixed to ensure they're available during form processing
         $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
         $mform->setType('moduletype', PARAM_ALPHANUMEXT);
-        $mform->setDefault('moduletype', 'weekly');
+        $mform->setDefault('moduletype', 'connected_weekly');
         $mform->addHelpButton('moduletype', 'moduletype', 'aiplacement_modgen');
         
         // Store the module type options in customdata for validation
         $this->_moduletypeoptions = $moduletypeoptions;
-        
-        // Format-specific options - keep weekly labels under weekly selector
-        $mform->addElement('advcheckbox', 'keepweeklabels', get_string('keepweeklabels', 'aiplacement_modgen'));
-        $mform->setType('keepweeklabels', PARAM_BOOL);
-        $mform->setDefault('keepweeklabels', 0);
-        
-        // Show keepweeklabels only when weekly or connected_weekly is selected
-        $mform->hideIf('keepweeklabels', 'moduletype', 'eq', 'connected_theme');
         
         // Add curriculum template selection if enabled
         if (get_config('aiplacement_modgen', 'enable_templates')) {

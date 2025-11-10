@@ -93,6 +93,7 @@ class url implements activity_type {
         $moduleinfo->section = $sectionnumber;
         $moduleinfo->visible = 1;
         $moduleinfo->name = $name;
+        $moduleinfo->cmidnumber = '';  // Course module ID number (optional identifier)
         
         // URL intro
         $moduleinfo->introeditor = [

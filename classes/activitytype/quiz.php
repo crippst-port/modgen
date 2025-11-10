@@ -57,6 +57,7 @@ class quiz implements activity_type {
             $moduleinfo->section = $sectionnumber;
             $moduleinfo->visible = 1;
             $moduleinfo->name = $name;
+            $moduleinfo->cmidnumber = ''; // Course module ID number (optional identifier)
             
             // Quiz intro
             $moduleinfo->introeditor = [
@@ -74,6 +75,7 @@ class quiz implements activity_type {
             $moduleinfo->timeopen = 0;  // No time restriction
             $moduleinfo->timeclose = 0;  // No time restriction
             $moduleinfo->questiondecimalpoints = -1;  // Default decimal points
+            $moduleinfo->decimalpoints = 2;  // Decimal points for grades (0-10, or -1 for default)
             
             // Required fields that quiz_process_options expects
             $moduleinfo->quizpassword = ''; // Gets converted to password by quiz_process_options

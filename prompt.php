@@ -1845,6 +1845,25 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     exit;
 }
 
+// Embedded modal: redirect to full generator page via link
+if ($embedded) {
+    $genurl = new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid, 'standalone' => 1]);
+    
+    $contenthtml = html_writer::div(
+        html_writer::tag('p', get_string('modalinaccessible', 'aiplacement_modgen')) .
+        html_writer::tag('p', 
+            html_writer::link($genurl, get_string('launchgenerator', 'aiplacement_modgen'), 
+                ['class' => 'btn btn-primary', 'target' => '_blank'])
+        ),
+        'aiplacement-modgen__modal-redirect'
+    );
+    
+    $bodyhtml = html_writer::div($contenthtml, 'aiplacement-modgen__content');
+    
+    aiplacement_modgen_output_response($bodyhtml, '', $ajax, get_string('pluginname', 'aiplacement_modgen'));
+    exit;
+}
+
 // Default display: tabbed modal with generate and upload forms.
 ob_start();
 $promptform->display();

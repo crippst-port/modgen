@@ -203,33 +203,6 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
         });
     };
 
-    const setupKeepWeekLabelsToggle = (form) => {
-        if (form.dataset.modgenWeekToggle === '1') {
-            return;
-        }
-
-        const moduleselect = form.querySelector('select[name="moduletype"]');
-        const keepweekitem = form.querySelector('#fitem_id_keepweeklabels');
-        if (!moduleselect || !keepweekitem) {
-            return;
-        }
-
-        const checkbox = keepweekitem.querySelector('input[name="keepweeklabels"]');
-
-        const updateVisibility = () => {
-            const isWeekly = moduleselect.value === 'weekly';
-            keepweekitem.style.display = isWeekly ? '' : 'none';
-            keepweekitem.setAttribute('aria-hidden', isWeekly ? 'false' : 'true');
-            if (!isWeekly && checkbox) {
-                checkbox.checked = false;
-            }
-        };
-
-        moduleselect.addEventListener('change', updateVisibility);
-        updateVisibility();
-        form.dataset.modgenWeekToggle = '1';
-    };
-
     const enhanceForms = (params) => {
         if (!modalInstance) {
             return [];
@@ -274,8 +247,6 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
                     }
                     loadContent(params, formData);
                 });
-
-                setupKeepWeekLabelsToggle(form);
             }
 
             bindings.push(...collectSubmitButtons(form));

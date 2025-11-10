@@ -21,22 +21,29 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(ModalEvents, ModgenModal, Str) {
+define([
+    'core/modal_events',
+    'aiplacement_modgen/modal',
+    'core/str',
+    'core/templates'
+], function(ModalEvents, ModgenModal, Str, Templates) {
     // eslint-disable-next-line no-unused-vars
     /**
-     * Create the floating action button element.
+     * Create the floating action button element using a template.
      *
      * @param {Object} params
-     * @returns {HTMLElement}
+     * @returns {Promise<HTMLElement>}
      */
-    const createButton = (params) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.classList.add('btn', 'btn-primary', 'aiplacement-modgen__fab');
-        button.setAttribute('aria-label', params.arialabel);
-        button.setAttribute('aria-haspopup', 'dialog');
-        button.setAttribute('aria-expanded', 'false');
-        button.textContent = params.buttonlabel;
+    const createButton = async(params) => {
+        const context = {
+            arialabel: params.arialabel,
+            buttonlabel: params.buttonlabel,
+        };
+        
+        const {html} = await Templates.renderForPromise('aiplacement_modgen/fab_button', context);
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        const button = temp.firstElementChild;
         document.body.appendChild(button);
         return button;
     };
@@ -500,7 +507,7 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
      *
      * @param {Object} params
      */
-    const init = (params) => {
+    const init = async(params) => {
         if (!params || !params.url) {
             return;
         }
@@ -511,21 +518,26 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
             return;
         }
 
-        const trigger = createButton(params);
+        try {
+            const trigger = await createButton(params);
 
-        trigger.addEventListener('click', (event) => {
-            event.preventDefault();
-            getModal(params, trigger).then((modal) => {
-                modal.show();
-                if (!modal.getBody().html()) {
-                    loadContent(params);
-                }
-            }).catch((error) => {
-                // eslint-disable-next-line no-console
-                console.error('Failed to initialise Module Generator modal', error);
-                trigger.remove();
+            trigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                getModal(params, trigger).then((modal) => {
+                    modal.show();
+                    if (!modal.getBody().html()) {
+                        loadContent(params);
+                    }
+                }).catch((error) => {
+                    // eslint-disable-next-line no-console
+                    console.error('Failed to initialise Module Generator modal', error);
+                    trigger.remove();
+                });
             });
-        });
+        } catch (error) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to create Module Generator FAB', error);
+        }
     };
 
     return {init};

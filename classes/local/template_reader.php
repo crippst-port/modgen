@@ -157,29 +157,14 @@ class template_reader {
                 $activities = [];
             }
             
-            error_log("DEBUG: About to call get_course_html_structure");
-            try {
-                $template_html = $this->get_course_html_structure($courseid, $resolvedsectionid ?? $resolvedsectionnum);
-                error_log("DEBUG: get_course_html_structure completed successfully");
-            } catch (Throwable $e) {
-                error_log("DEBUG: get_course_html_structure threw exception: " . get_class($e) . " - " . $e->getMessage());
-                // Don't fail if HTML extraction fails - it's optional
-                $template_html = '';
-            }
-            
             error_log("DEBUG: Extracted course_info: " . json_encode($course_info));
             error_log("DEBUG: Extracted structure count: " . count($structure) . " sections");
             error_log("DEBUG: Extracted activities count: " . count($activities) . " activities");
-            error_log("DEBUG: Extracted template_html length: " . strlen($template_html) . " chars");
 
             $template = [
                 'course_info' => $course_info,
-                // Pass DB id to structure and HTML extraction (these use course_sections.id)
                 'structure' => $structure,
-                // Pass section number to activities detail (this method filters by sectionnum)
                 'activities' => $activities,
-                // Allow HTML extraction to accept either id or section number via robust handling
-                'template_html' => $template_html
             ];
             
             error_log("DEBUG: Returning template with keys: " . implode(', ', array_keys($template)));
@@ -381,10 +366,20 @@ class template_reader {
                 // Use pre-fetched section name
                 $section_name = $section_lookup[$cm->section] ?? "Section {$cm->section}";
                 
+                // Get the full course module object with name and intro from the module instance table
+                // Use Moodle API to get the proper module details
+                $fullcm = get_coursemodule_from_id($modname, $cm->id);
+                
+                // If we couldn't load the full module object, skip it
+                if (!$fullcm) {
+                    error_log("DEBUG: Could not load full module object for cm->id={$cm->id}, modname={$modname}");
+                    continue;
+                }
+                
                 $activity_data = [
                     'type' => $modname,
-                    'name' => $cm->name,
-                    'intro' => strip_tags($cm->intro ?? ''),
+                    'name' => $fullcm->name ?? "Unknown {$modname}",
+                    'intro' => strip_tags($fullcm->intro ?? ''),
                     'section' => $section_name
                 ];
                 
@@ -514,219 +509,4 @@ class template_reader {
         }
     }
     
-    /**
-     * Extract Bootstrap structure patterns from template sections.
-     * Analyzes section summaries for Bootstrap components (tabs, cards, accordion, etc.)
-     *
-     * @param string $template_key Template key in format "courseid" or "courseid|sectionid"
-     * @return array Array with 'components' and 'description' keys
-     */
-    public function extract_bootstrap_structure($template_key) {
-        $parts = explode('|', $template_key);
-        $courseid = (int)$parts[0];
-        $rawsection = isset($parts[1]) ? trim($parts[1]) : null;
-        $sectionid = $rawsection !== null && $rawsection !== '' ? (int)$rawsection : null;
-
-        if (!$this->validate_template_access($courseid)) {
-            return ['components' => [], 'description' => ''];
-        }
-
-        global $DB;
-        $components = [];
-        $description_parts = [];
-
-        // Resolve section id or number (accept either)
-        $resolvedsection = null; // course_sections record or null
-        if ($sectionid) {
-            $resolvedsection = $DB->get_record('course_sections', ['course' => $courseid, 'id' => $sectionid]);
-            if (!$resolvedsection) {
-                // try as section number
-                $resolvedsection = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $sectionid]);
-            }
-        }
-
-        if ($resolvedsection) {
-            $components = $this->analyze_html_for_bootstrap($resolvedsection->summary);
-            $description_parts[] = isset($resolvedsection->name) ? ("Section '{$resolvedsection->name}' uses: " . implode(', ', $components)) : ("Section {$resolvedsection->section} uses: " . implode(', ', $components));
-        } else {
-            // All sections in course
-            $sections = $DB->get_records('course_sections', ['course' => $courseid], 'section');
-            foreach ($sections as $section) {
-                if (empty($section->summary)) {
-                    continue;
-                }
-                $section_components = $this->analyze_html_for_bootstrap($section->summary);
-                if (!empty($section_components)) {
-                    $components = array_unique(array_merge($components, $section_components));
-                    $description_parts[] = "Section {$section->section}: " . implode(', ', $section_components);
-                }
-            }
-        }
-
-        // Build description
-        $description = "Template structure uses the following Bootstrap components:\n";
-        if (!empty($description_parts)) {
-            $description .= "- " . implode("\n- ", $description_parts);
-        } else {
-            $description .= "- Standard Moodle layout (plain text sections)";
-        }
-
-        return [
-            'components' => array_values(array_unique($components)),
-            'description' => $description,
-        ];
-    }
-
-    /**
-     * Analyze HTML content for Bootstrap component usage.
-     *
-     * @param string $html HTML content to analyze
-     * @return array Array of Bootstrap component names found
-     */
-    private function analyze_html_for_bootstrap($html) {
-        $components = [];
-
-        // Check for specific Bootstrap classes
-        if (preg_match('/nav-tabs|tabs/', $html)) {
-            $components[] = 'Bootstrap tabs';
-        }
-        if (preg_match('/card/', $html)) {
-            $components[] = 'Bootstrap cards';
-        }
-        if (preg_match('/accordion/', $html)) {
-            $components[] = 'Bootstrap accordion';
-        }
-        if (preg_match('/collapse/', $html)) {
-            $components[] = 'Bootstrap collapsible content';
-        }
-        if (preg_match('/btn-group|button-group/', $html)) {
-            $components[] = 'Bootstrap button groups';
-        }
-        if (preg_match('/alert/', $html)) {
-            $components[] = 'Bootstrap alerts';
-        }
-        if (preg_match('/row|col-md|col-lg/', $html)) {
-            $components[] = 'Bootstrap grid layout';
-        }
-        if (preg_match('/badge|pill/', $html)) {
-            $components[] = 'Bootstrap badges/pills';
-        }
-
-        return $components;
-    }
-
-    /**
-     * Get the HTML structure of the course for structure preservation - using direct database queries
-     *
-     * @param int $courseid Course ID
-     * @param int|null $sectionid Specific section ID (optional)
-     * @return string Combined HTML from course sections
-     */
-    private function get_course_html_structure($courseid, $sectionid = null) {
-        global $DB;
-
-        $html_parts = [];
-
-        // Get HTML directly from section summaries in the database (preserves raw HTML)
-        // Accept either a DB id or a section number. Try to resolve to a course_sections record.
-        $resolvedsection = null;
-        if ($sectionid) {
-            $resolvedsection = $DB->get_record('course_sections', ['course' => $courseid, 'id' => $sectionid], 'id,section,summary');
-            if (!$resolvedsection) {
-                // try as section number
-                $resolvedsection = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $sectionid], 'id,section,summary');
-            }
-        }
-
-        if ($resolvedsection) {
-            if (!empty($resolvedsection->summary)) {
-                $html_parts[] = $resolvedsection->summary;
-            }
-        } else {
-            // All sections in course
-            $sections = $DB->get_records('course_sections', ['course' => $courseid], 'section', 'id,section,summary');
-            foreach ($sections as $section) {
-                if (!empty($section->summary)) {
-                    // Keep the raw HTML from section summary/description (not stripped)
-                    $html_parts[] = $section->summary;
-                }
-            }
-        }
-
-        // Also check for page and label modules that might have structured HTML
-        // Use direct database query without JOIN to avoid database errors
-        try {
-            // Get all modules list
-            $modules_list = $DB->get_records('modules', [], '', 'id, name');
-            $module_lookup = [];
-            foreach ($modules_list as $mod) {
-                $module_lookup[$mod->id] = $mod->name;
-            }
-            
-            // Get course modules that are pages or labels
-            $sql = "SELECT cm.id, cm.module, cm.instance, cm.section
-                    FROM {course_modules} cm
-                    WHERE cm.course = ?
-                    ORDER BY cm.section, cm.id";
-            
-            $all_modules = $DB->get_records_sql($sql, [$courseid]);
-            
-            foreach ($all_modules as $cm) {
-                $modname = $module_lookup[$cm->module] ?? '';
-                
-                if ($modname !== 'page' && $modname !== 'label') {
-                    continue;
-                }
-                
-                if ($sectionid !== null && $cm->section != $sectionid) {
-                    continue;
-                }
-
-                // For pages and labels, try to get the actual HTML content
-                if ($modname === 'page') {
-                    $page_html = $this->extract_page_html($cm->instance);
-                    if (!empty($page_html)) {
-                        $html_parts[] = $page_html;
-                    }
-                } elseif ($modname === 'label') {
-                    $label_html = $this->extract_label_html($cm->instance);
-                    if (!empty($label_html)) {
-                        $html_parts[] = $label_html;
-                    }
-                }
-            }
-        } catch (Exception $e) {
-            // If HTML structure extraction fails, just continue without it
-            error_log("DEBUG: Non-critical error in get_course_html_structure: " . $e->getMessage());
-        }
-
-        // Combine all HTML parts
-        return implode("\n\n", $html_parts);
-    }
-
-    /**
-     * Extract raw HTML content from a page module instance
-     *
-     * @param int $pageid Page ID
-     * @return string Page HTML content
-     */
-    private function extract_page_html($pageid) {
-        global $DB;
-        
-        $page = $DB->get_record('page', ['id' => $pageid], 'content');
-        return $page ? $page->content : '';
-    }
-
-    /**
-     * Extract raw HTML content from a label module instance
-     *
-     * @param int $labelid Label ID
-     * @return string Label HTML content
-     */
-    private function extract_label_html($labelid) {
-        global $DB;
-        
-        $label = $DB->get_record('label', ['id' => $labelid], 'intro');
-        return $label ? $label->intro : '';
-    }
 }

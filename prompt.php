@@ -388,8 +388,7 @@ require_once($CFG->dirroot . '/mod/subsection/classes/manager.php');
 // Attempt approval form first (so refreshes on approval post are handled).
 $approveform = null;
 $approvedjsonparam = optional_param('approvedjson', null, PARAM_RAW);
-$approvedtypeparam = optional_param('moduletype', 'weekly', PARAM_ALPHA);
-$keepweeklabelsparam = optional_param('keepweeklabels', 0, PARAM_BOOL);
+$approvedtypeparam = optional_param('moduletype', 'connected_weekly', PARAM_ALPHA);
 $generatethemeintroductionsparam = optional_param('generatethemeintroductions', 0, PARAM_BOOL);
 $createsuggestedactivitiesparam = optional_param('createsuggestedactivities', 0, PARAM_BOOL);
 $generatedsummaryparam = optional_param('generatedsummary', '', PARAM_RAW);
@@ -399,7 +398,6 @@ if ($approvedjsonparam !== null) {
         'courseid' => $courseid,
         'approvedjson' => $approvedjsonparam,
         'moduletype' => $approvedtypeparam,
-        'keepweeklabels' => $keepweeklabelsparam,
         'generatethemeintroductions' => $generatethemeintroductionsparam,
         'createsuggestedactivities' => $createsuggestedactivitiesparam,
         'generatedsummary' => $generatedsummaryparam,
@@ -411,50 +409,47 @@ if ($approvedjsonparam !== null) {
     if ($approveform && ($adata = $approveform->get_data())) {
         // Create weekly sections from approved JSON.
         $json = json_decode($adata->approvedjson, true);
-        $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'weekly';
-        $keepweeklabels = ($moduletype === 'weekly' || $moduletype === 'connected_weekly') && !empty($adata->keepweeklabels);
+        $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'connected_weekly';
         
         // Lock the course to prevent concurrent access during build
         $lockkey = 'aiplacement_modgen_building_' . $courseid;
         $lock = \core\lock\lock_config::get_lock_factory('aiplacement_modgen')->get_lock($lockkey, 600); // 10 minute timeout
         
         try {
-            // Update course format based on module type.
-            // Connected formats require flexsections plugin to be installed
-            if ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme') {
-                // Check if flexsections is actually installed
-                $pluginmanager = core_plugin_manager::instance();
-                $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
-                
-                if (!empty($flexsectionsplugin)) {
-                    // For Connected formats, use flexsections course format
-                    $courseformat = 'flexsections';
-                } else {
-                    // Fallback to weeks if flexsections not available
-                    error_log('flexsections format not installed - falling back to weeks format');
-                    $courseformat = 'weeks';
-                    $moduletype = 'weekly'; // Downgrade to standard weekly
-                }
-            } else {
-                // For standard formats, use weeks (weekly)
-                $courseformat = 'weeks';
+            // CRITICAL: Ensure course format is set to flexsections FIRST - both theme and weekly require it
+            // This must happen before ANY section or module creation
+            $pluginmanager = core_plugin_manager::instance();
+            $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
+            
+            if (empty($flexsectionsplugin)) {
+                throw new Exception(
+                    "The Flexible Sections plugin is required for module generation with both theme and weekly structures. " .
+                    "Please ensure the flexsections format plugin is installed and enabled in your Moodle instance."
+                );
             }
             
-            $update = new stdClass();
-            $update->id = $courseid;
-            $update->format = $courseformat;
+            // Get fresh course object to check current format
+            $course = get_course($courseid, true);
             
-            update_course($update);
-            rebuild_course_cache($courseid, true, true);
-            
-            // Force a fresh course object to get updated format
-            // Critical: Must clear cache to ensure we get the new format
-            $course = null;
-            $course = get_course($courseid, true); // Force fresh from DB
-            
-            // Verify format was actually updated before proceeding
-            if ($moduletype === 'connected_theme' && $course->format !== 'flexsections') {
-                throw new Exception("Failed to update course format to 'flexsections'. Current format is '{$course->format}'. Please ensure the Flexible Sections plugin is installed and enabled before using themed modules.");
+            // Update course format to flexsections if not already set
+            if ($course->format !== 'flexsections') {
+                $update = new stdClass();
+                $update->id = $courseid;
+                $update->format = 'flexsections';
+                
+                update_course($update);
+                rebuild_course_cache($courseid, true, true);
+                
+                // Force a fresh course object to get updated format
+                $course = get_course($courseid, true);
+                
+                // Verify format was actually updated
+                if ($course->format !== 'flexsections') {
+                    throw new Exception(
+                        "Failed to update course format to 'flexsections'. Current format is '{$course->format}'. " .
+                        "Please check that the Flexible Sections plugin is properly installed and enabled."
+                    );
+                }
             }
             
             // Re-fetch the course format instance to ensure it reflects the updated format
@@ -570,87 +565,39 @@ if ($approvedjsonparam !== null) {
                     
                     $results[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
                     
-                    // Create the three session subsections under the week and store their section numbers
-                    $sessiontypes = [
-                        'presession' => get_string('presession', 'aiplacement_modgen'),
-                        'session' => get_string('session', 'aiplacement_modgen'),
-                        'postsession' => get_string('postsession', 'aiplacement_modgen'),
-                    ];
-                    
-                    $sessionsectionmap = []; // Map session type to section number
-                    
-                    foreach ($sessiontypes as $sessionkey => $sessionlabel) {
-                        try {
-                            // Create nested subsection under the week (parent = weeksectionnum)
-                            $currentcourseformat = $course->format;
-                            if ($currentcourseformat !== 'flexsections') {
-                                throw new Exception("Course is using '{$currentcourseformat}' format, not 'flexsections'. Nested sections require the Flexible Sections plugin.");
-                            }
-                            if (!method_exists($courseformat, 'create_new_section')) {
-                                throw new Exception('The flexsections course format is not properly supporting nested sections.');
-                            }
-                            $sessionsectionnum = $courseformat->create_new_section($weeksectionnum, null);
-                            $sessionsectionmap[$sessionkey] = $sessionsectionnum;
-                            
-                            // Update session section name and description
-                            $sessionsectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $sessionsectionnum]);
-                            
-                            $sectionupdate = [
-                                'id' => $sessionsectionid,
-                                'name' => $sessionlabel,
-                            ];
-                            
-                            // If session data has a description field, add it to the update
-                            if (!empty($week['sessions'][$sessionkey]) && is_array($week['sessions'][$sessionkey])) {
-                                $sessiondata = $week['sessions'][$sessionkey];
-                                if (!empty($sessiondata['description'])) {
-                                    $sectionupdate['summary'] = $sessiondata['description'];
-                                    $sectionupdate['summaryformat'] = FORMAT_HTML;
-                                }
-                            }
-                            
-                            $DB->update_record('course_sections', $sectionupdate);
-                            
-                            // Set session section to NOT appear as a link (collapsed = 0 in flexsections)
-                            if (method_exists($courseformat, 'update_section_format_options')) {
-                                $courseformat->update_section_format_options(['id' => $sessionsectionid, 'collapsed' => 0]);
-                            }
-                            
+                    // Create the three session subsections using shared helper
+                    try {
+                        $weekSessionData = $week['sessions'] ?? null;
+                        $sessionsectionmap = \aiplacement_modgen\local\session_creator::create_session_subsections(
+                            $courseformat, 
+                            $weeksectionnum, 
+                            $courseid, 
+                            $weekSessionData
+                        );
+                        
+                        $sessiontypes = ['presession' => get_string('presession', 'aiplacement_modgen'),
+                                        'session' => get_string('session', 'aiplacement_modgen'),
+                                        'postsession' => get_string('postsession', 'aiplacement_modgen')];
+                        foreach ($sessiontypes as $sessionlabel) {
                             $results[] = get_string('sectioncreated', 'aiplacement_modgen', $sessionlabel);
-                        } catch (Exception $e) {
-                            $activitywarnings[] = "Failed to create $sessionkey section: " . $e->getMessage();
                         }
+                    } catch (Exception $e) {
+                        $activitywarnings[] = "Failed to create session subsections: " . $e->getMessage();
+                        continue; // Skip to next week
                     }
                     
                     // Create activities in the appropriate session subsections
                     if (!empty($adata->createsuggestedactivities)) {
                         // Check if week has nested sessions structure
                         if (!empty($week['sessions']) && is_array($week['sessions'])) {
-                            // New nested structure: activities are in week['sessions']['presession|session|postsession']['activities']
-                            foreach ($sessiontypes as $sessionkey => $sessionlabel) {
-                                if (!empty($week['sessions'][$sessionkey]) && is_array($week['sessions'][$sessionkey])) {
-                                    $sessiondata = $week['sessions'][$sessionkey];
-                                    $sessionactivities = $sessiondata['activities'] ?? [];
-                                    
-                                    if (!empty($sessionactivities) && is_array($sessionactivities)) {
-                                        $sessionsectionnum = $sessionsectionmap[$sessionkey] ?? null;
-                                        if ($sessionsectionnum !== null) {
-                                            $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
-                                                $sessionactivities,
-                                                $course,
-                                                $sessionsectionnum
-                                            );
-                                            
-                                            if (!empty($activityoutcome['created'])) {
-                                                $results = array_merge($results, $activityoutcome['created']);
-                                            }
-                                            if (!empty($activityoutcome['warnings'])) {
-                                                $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            // Use shared helper to create session activities
+                            \aiplacement_modgen\local\session_creator::create_session_activities(
+                                $week['sessions'],
+                                $sessionsectionmap,
+                                $course,
+                                $results,
+                                $activitywarnings
+                            );
                         } else if (!empty($activities) && is_array($activities)) {
                             // Fallback: Old flat structure where activities are directly in week
                             $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
@@ -683,12 +630,25 @@ if ($approvedjsonparam !== null) {
             $title = $sectiondata['title'] ?? get_string('aigensummary', 'aiplacement_modgen');
             $summary = $sectiondata['summary'] ?? '';
             $outline = !empty($sectiondata['outline']) && is_array($sectiondata['outline']) ? $sectiondata['outline'] : [];
-            $section = course_create_section($course, $sectionnum);
+            
+            // Check if this section has a sessions structure (connected_weekly mode)
+            $hassessions = !empty($sectiondata['sessions']) && is_array($sectiondata['sessions']);
+            
+            // For connected_weekly with sessions, use flexsections create_new_section to support nesting
+            if ($hassessions) {
+                if (!method_exists($courseformat, 'create_new_section')) {
+                    throw new Exception('The flexsections course format is required for connected_weekly mode.');
+                }
+                $actualsectionnum = $courseformat->create_new_section(0, null); // 0 = top level
+                $section = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $actualsectionnum], '*', MUST_EXIST);
+            } else {
+                // For plain weekly, use standard section creation
+                $section = course_create_section($course, $sectionnum);
+                $actualsectionnum = $sectionnum;
+            }
+            
             $sectionrecord = $DB->get_record('course_sections', ['id' => $section->id], '*', MUST_EXIST);
             $sectionhtml = '';
-            if ($keepweeklabels) {
-                $sectionhtml .= html_writer::tag('h3', s($title));
-            }
             $summaryhtml = trim(format_text($summary, FORMAT_HTML, ['context' => $context]));
             if ($summaryhtml !== '') {
                 $sectionhtml .= $summaryhtml;
@@ -713,30 +673,64 @@ if ($approvedjsonparam !== null) {
                 }
             }
 
-            if (!$keepweeklabels) {
-                $sectionrecord->name = $title;
-            }
+            // Always use section name field for title (modern approach)
+            $sectionrecord->name = $title;
             $sectionrecord->summary = $sectionhtml;
             $sectionrecord->summaryformat = FORMAT_HTML;
             $sectionrecord->timemodified = time();
             $DB->update_record('course_sections', $sectionrecord);
-
-            if (!empty($sectiondata['activities']) && is_array($sectiondata['activities'])) {
-                $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
-                    $sectiondata['activities'],
-                    $course,
-                    $sectionnum
-                );
+            
+            // If this section has sessions structure, create subsections and set as link
+            if ($hassessions) {
+                // Set the main section to appear as a link (collapsed = 1 in flexsections)
+                $sectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $actualsectionnum]);
+                if ($sectionid && $courseformat) {
+                    $courseformat->update_section_format_options(['id' => $sectionid, 'collapsed' => 1]);
+                }
                 
-                if (!empty($activityoutcome['created'])) {
-                    $results = array_merge($results, $activityoutcome['created']);
+                // Create subsections using shared helper
+                try {
+                    $sessionsectionmap = \aiplacement_modgen\local\session_creator::create_session_subsections(
+                        $courseformat,
+                        $actualsectionnum,
+                        $courseid,
+                        $sectiondata['sessions']
+                    );
+                    
+                    // Create activities in the appropriate subsections using shared helper
+                    \aiplacement_modgen\local\session_creator::create_session_activities(
+                        $sectiondata['sessions'],
+                        $sessionsectionmap,
+                        $course,
+                        $results,
+                        $activitywarnings
+                    );
+                    
+                    $results[] = get_string('sectioncreated', 'aiplacement_modgen', $title . ' (with subsections)');
+                } catch (Exception $e) {
+                    $activitywarnings[] = "Failed to create session subsections for '{$title}': " . $e->getMessage();
+                    $results[] = get_string('sectioncreated', 'aiplacement_modgen', $title);
                 }
-                if (!empty($activityoutcome['warnings'])) {
-                    $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
+            } else {
+                // Simple weekly section - create activities directly in the section
+                if (!empty($sectiondata['activities']) && is_array($sectiondata['activities'])) {
+                    $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
+                        $sectiondata['activities'],
+                        $course,
+                        $actualsectionnum
+                    );
+                    
+                    if (!empty($activityoutcome['created'])) {
+                        $results = array_merge($results, $activityoutcome['created']);
+                    }
+                    if (!empty($activityoutcome['warnings'])) {
+                        $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
+                    }
                 }
+                
+                $results[] = get_string('sectioncreated', 'aiplacement_modgen', $title);
             }
 
-            $results[] = get_string('sectioncreated', 'aiplacement_modgen', $title);
             $sectionnum++;
         }
     }
@@ -1084,6 +1078,102 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
             $html .= html_writer::tag('pre', json_encode($template_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), [
                 'style' => 'background: #f5f5f5; padding: 15px; border-radius: 3px; font-size: 0.75em; overflow-x: auto; border: 1px solid #ddd; max-height: 600px; overflow-y: auto;'
             ]);
+            
+            // Show the compact structure that gets sent to the AI
+            $html .= html_writer::tag('h4', 'Compact Structure for AI (What the AI Actually Receives)', ['class' => 'mt-3']);
+            $html .= html_writer::tag('p', 'This is the optimized structure that gets included in the AI prompt:', ['class' => 'text-muted']);
+            
+            // Create the compact structure inline to avoid namespace issues
+            $compact_structure = [
+                'source' => !empty($template_data['module_count']) && $template_data['module_count'] > 1 
+                    ? 'multiple_modules' 
+                    : 'single_module',
+                'organizational_pattern' => [
+                    'label_sequence' => [],
+                    'activity_types_used' => [],
+                    'typical_activities_per_section' => 0
+                ],
+                'sections' => []
+            ];
+            
+            // Extract organizational pattern
+            if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
+                $label_sequence = [];
+                $activity_types = [];
+                $section_counts = [];
+                
+                foreach ($template_data['activities'] as $activity) {
+                    $type = $activity['type'] ?? 'unknown';
+                    $section = $activity['section'] ?? 'unknown';
+                    
+                    if (!isset($section_counts[$section])) {
+                        $section_counts[$section] = 0;
+                    }
+                    $section_counts[$section]++;
+                    
+                    if ($type === 'label' && !empty($activity['intro'])) {
+                        if (!in_array($activity['intro'], $label_sequence)) {
+                            $label_sequence[] = $activity['intro'];
+                        }
+                    }
+                    
+                    if (!in_array($type, $activity_types)) {
+                        $activity_types[] = $type;
+                    }
+                }
+                
+                $compact_structure['organizational_pattern']['label_sequence'] = $label_sequence;
+                $compact_structure['organizational_pattern']['activity_types_used'] = $activity_types;
+                
+                if (!empty($section_counts)) {
+                    $compact_structure['organizational_pattern']['typical_activities_per_section'] = 
+                        (int) round(array_sum($section_counts) / count($section_counts));
+                }
+            }
+            
+            // Process sections
+            if (!empty($template_data['structure']) && is_array($template_data['structure'])) {
+                foreach ($template_data['structure'] as $section) {
+                    $section_data = [
+                        'number' => $section['id'] ?? 0,
+                        'title' => $section['name'] ?? 'Untitled',
+                        'content' => []
+                    ];
+                    
+                    if (!empty($section['summary'])) {
+                        $section_data['summary'] = substr($section['summary'], 0, 200);
+                    }
+                    
+                    // Add activities for this section
+                    if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
+                        foreach ($template_data['activities'] as $activity) {
+                            if (isset($activity['section']) && $activity['section'] === $section_data['title']) {
+                                $activity_item = ['type' => $activity['type'] ?? 'unknown'];
+                                
+                                if ($activity['type'] === 'label' && !empty($activity['intro'])) {
+                                    $activity_item['text'] = $activity['intro'];
+                                } else {
+                                    $activity_item['name'] = $activity['name'] ?? 'Untitled';
+                                }
+                                
+                                $section_data['content'][] = $activity_item;
+                            }
+                        }
+                    }
+                    
+                    $compact_structure['sections'][] = $section_data;
+                }
+            }
+            
+            $html .= html_writer::tag('pre', json_encode($compact_structure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), [
+                'style' => 'background: #e8f5e9; padding: 15px; border-radius: 3px; font-size: 0.75em; overflow-x: auto; border: 2px solid #4caf50; max-height: 600px; overflow-y: auto;'
+            ]);
+            
+            // Token estimate
+            $compact_json = json_encode($compact_structure);
+            $estimated_tokens = (int)(strlen($compact_json) / 4);
+            $html .= html_writer::tag('p', "Estimated tokens: ~{$estimated_tokens} (compact) vs ~" . (int)(strlen(json_encode($template_data))/4) . " (full)", 
+                ['class' => 'text-muted mt-2']);
         }
         
         $bodyhtml = html_writer::div($html, 'aiplacement-modgen__content p-3');
@@ -1100,8 +1190,7 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     }
     
     $prompt = !empty($pdata->prompt) ? trim($pdata->prompt) : '';
-    $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
-    $keepweeklabels = !empty($pdata->keepweeklabels);
+    $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'connected_weekly';
     $generatethemeintroductions = !empty($pdata->generatethemeintroductions);
     $createsuggestedactivities = !empty($pdata->createsuggestedactivities);
     $generatesessioninstructions = !empty($pdata->generatesessioninstructions);
@@ -1698,7 +1787,6 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
         'courseid' => $courseid,
         'approvedjson' => $jsonstr,
         'moduletype' => $moduletype,
-        'keepweeklabels' => $keepweeklabels ? 1 : 0,
         'generatethemeintroductions' => $generatethemeintroductions ? 1 : 0,
         'createsuggestedactivities' => $createsuggestedactivities ? 1 : 0,
         'generatedsummary' => $summarytext,
@@ -1754,6 +1842,25 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     ]];
 
     aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
+    exit;
+}
+
+// Embedded modal: redirect to full generator page via link
+if ($embedded) {
+    $genurl = new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid, 'standalone' => 1]);
+    
+    $contenthtml = html_writer::div(
+        html_writer::tag('p', get_string('modalinaccessible', 'aiplacement_modgen')) .
+        html_writer::tag('p', 
+            html_writer::link($genurl, get_string('launchgenerator', 'aiplacement_modgen'), 
+                ['class' => 'btn btn-primary', 'target' => '_blank'])
+        ),
+        'aiplacement-modgen__modal-redirect'
+    );
+    
+    $bodyhtml = html_writer::div($contenthtml, 'aiplacement-modgen__content');
+    
+    aiplacement_modgen_output_response($bodyhtml, '', $ajax, get_string('pluginname', 'aiplacement_modgen'));
     exit;
 }
 

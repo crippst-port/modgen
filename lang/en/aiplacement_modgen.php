@@ -32,7 +32,7 @@ $string['addtemplate'] = 'Add another template';
 $string['createfromscratch'] = 'Create from scratch';
 $string['existingmodule_help'] = 'Optionally select one or more existing modules to use as templates for AI generation. The AI will analyze the structure, activities, and content of the selected modules to create similar content for your prompt. Choose "Create from scratch" to generate content without using any existing template. You can add up to 3 templates, and the AI will merge their structures.';
 
-$string['prompt'] = 'What would you like to create for your module?';
+$string['prompt'] = 'Additional context or requests for the Assistant';
 $string['submit'] = 'Submit prompt';
 $string['promptorrequired'] = 'Either provide a prompt description OR upload supporting documents (or both). At least one is required to generate module content.';
 
@@ -106,10 +106,11 @@ $string['aboutassessments'] = 'About Assessments';
 $string['aboutlearningoutcomes'] = 'About Learning Outcomes';
 $string['returntocourse'] = 'Return to course home';
 $string['promptsentheading'] = 'Prompt sent to AI subsystem';
-$string['launchgenerator'] = 'Module Assistant';
+$string['launchgenerator'] = 'Generate Template';
 $string['modgenmodalheading'] = 'Module Assistant';
 $string['modgenfabaria'] = 'Open Module Assistant';
 $string['closemodgenmodal'] = 'Close and return to module';
+$string['modalinaccessible'] = 'To access the full Module Assistant form, please use the "Generate Template" link from the course navigation menu.';
 $string['missingcourseid'] = 'Course ID is required to use the Module Assistant.';
 
 // Tabbed interface
@@ -168,18 +169,16 @@ $string['aiprocessingdetail'] = 'AI is analyzing your request and generating mod
 $string['prompt_help'] = 'Describe what you want to create for your module. Be specific about the topic, learning objectives, and type of activities you want. More detailed prompts will give better results but may take longer to process.';
 $string['moduletype_help'] = 'Choose how to structure your module:
 
-**Weekly format**: Creates sequential weekly sections with clear titles and activities for each week of teaching.
-
 **Connected Weekly**: Weekly format enhanced with the Flexible Sections layout to improve organization and usability for the new Connected Curriculum.
 
 **Connected Themed**: Themed format enhanced with the Flexible Sections layout, organizing content into distinct learning themes for improved usability with the new Connected Curriculum.';
 
 // Form section headers
 $string['templatesettings'] = 'Template Setup';
-$string['suggestedcontent'] = 'Suggested Content';
+$string['suggestedcontent'] = 'Suggest Content';
 
 // Generator introduction
-$string['generatorintroduction'] = 'Use the Module Assistant to generate structured course content. Describe what you want your students to learn, and the AI will create a module outline with suggested activities and resources tailored to your needs.';
+$string['generatorintroduction'] = 'Use the Module Assistant to generate Themes, weeks and activity sections ready for your content. Select an existing module or modules to base your new template on, choose a new Connected Curriculum template layout and let the AI do the rest. If you\'re modifying an existing module, add some context into the prompt field and the AI will attempt to adapt the content accordingly. Lastly, if you\'d like to generate some suggested content to fill out your module, enable any of the "Suggest Content" options below.';
 
 // Template system strings
 $string['templateheading'] = 'Curriculum Template Configuration';

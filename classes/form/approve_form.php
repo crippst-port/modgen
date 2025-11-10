@@ -49,9 +49,6 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->addElement('hidden', 'moduletype', $this->_customdata['moduletype']);
         $mform->setType('moduletype', PARAM_ALPHANUMEXT);
         $mform->setDefault('moduletype', $this->_customdata['moduletype']);
-        $mform->addElement('hidden', 'keepweeklabels', $this->_customdata['keepweeklabels']);
-        $mform->setType('keepweeklabels', PARAM_BOOL);
-        $mform->setDefault('keepweeklabels', $this->_customdata['keepweeklabels']);
         $mform->addElement('hidden', 'generatethemeintroductions', !empty($this->_customdata['generatethemeintroductions']) ? $this->_customdata['generatethemeintroductions'] : 0);
         $mform->setType('generatethemeintroductions', PARAM_BOOL);
         $mform->setDefault('generatethemeintroductions', !empty($this->_customdata['generatethemeintroductions']) ? $this->_customdata['generatethemeintroductions'] : 0);

@@ -57,6 +57,7 @@ class label implements activity_type {
             $moduleinfo->section = $sectionnumber;
             $moduleinfo->visible = 1;
             $moduleinfo->name = $name;
+            $moduleinfo->cmidnumber = '';  // Course module ID number (optional identifier)
             
             // Label intro - labels use intro as the main content
             $moduleinfo->introeditor = [

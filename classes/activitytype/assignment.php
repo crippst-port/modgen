@@ -78,6 +78,7 @@ class assignment implements activity_type {
         $moduleinfo->section = $sectionnumber;
         $moduleinfo->visible = 1;
         $moduleinfo->name = $name;
+        $moduleinfo->cmidnumber = '';  // Course module ID number (optional identifier)
 
         // Assignment intro/description
         $moduleinfo->introeditor = [
@@ -94,7 +95,22 @@ class assignment implements activity_type {
         $moduleinfo->sendstudentnotifications = 1;  // Notify students of grading
         $moduleinfo->duedate = 0;  // No due date by default
         $moduleinfo->cutoffdate = 0;  // No cutoff date by default
+        $moduleinfo->gradingduedate = 0;  // No grading due date
+        $moduleinfo->allowsubmissionsfromdate = 0;  // Allow submissions immediately
         $moduleinfo->grade = 100;  // Default grade to 100
+        
+        // Submission statement and notifications
+        $moduleinfo->requiresubmissionstatement = 0;  // Don't require submission statement
+        $moduleinfo->sendlatenotifications = 0;  // Don't send late submission notifications
+        
+        // Team submission settings
+        $moduleinfo->teamsubmission = 0;  // Individual submissions (not team)
+        $moduleinfo->requireallteammemberssubmit = 0;  // N/A for individual submissions
+        
+        // Marking settings
+        $moduleinfo->blindmarking = 0;  // Don't use blind marking
+        $moduleinfo->markingworkflow = 0;  // Don't use marking workflow
+        $moduleinfo->markingallocation = 0;  // Don't use marking allocation
 
         // Submission plugin settings
         $moduleinfo->assignsubmission_onlinetext_enabled = 1;  // Enable online text submission

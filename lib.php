@@ -40,7 +40,7 @@ function aiplacement_modgen_extend_navigation_course($navigation, $course, $cont
 
             $params = [
                 'url' => $url->out(false),
-                'buttonlabel' => get_string('launchgenerator', 'aiplacement_modgen'),
+                'buttonlabel' => get_string('modgenmodalheading', 'aiplacement_modgen'),
                 'dialogtitle' => get_string('modgenmodalheading', 'aiplacement_modgen'),
                 'arialabel' => get_string('modgenfabaria', 'aiplacement_modgen'),
             ];

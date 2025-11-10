@@ -831,23 +831,21 @@ $promptform = new aiplacement_modgen_generator_form(null, [
     'contextid' => context_course::instance((int)$courseid)->id,
 ]);
 
-// If requested, render the generator form as a standalone page (not inside the modal).
-$standalone = optional_param('standalone', 0, PARAM_BOOL);
-if (!$ajax && $standalone) {
-    $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['courseid' => $courseid, 'standalone' => 1]));
+// Render the generator form as a standalone page.
+if (!$ajax) {
+    $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid]));
     $PAGE->set_title(get_string('modgenmodalheading', 'aiplacement_modgen'));
     $PAGE->set_heading(get_string('modgenmodalheading', 'aiplacement_modgen'));
 
     echo $OUTPUT->header();
-    echo html_writer::div('<h2>' . get_string('launchgenerator', 'aiplacement_modgen') . '</h2>', 'aiplacement-modgen__page-heading');
     
-    // Display introduction and warning
-    echo html_writer::div(get_string('generatorintroduction', 'aiplacement_modgen'), 'aiplacement-modgen__introduction');
-    echo html_writer::div(
-        '<div class="alert alert-info"><i class="fa fa-info-circle"></i> ' . 
-        get_string('longquery', 'aiplacement_modgen') . '</div>',
-        'aiplacement-modgen__warning'
-    );
+    // Render header template
+    $headerdata = [
+        'heading' => get_string('launchgenerator', 'aiplacement_modgen'),
+        'introduction' => get_string('generatorintroduction', 'aiplacement_modgen'),
+        'warning' => get_string('longquery', 'aiplacement_modgen'),
+    ];
+    echo $OUTPUT->render_from_template('aiplacement_modgen/generator_header', $headerdata);
     
     $promptform->display();
     echo $OUTPUT->footer();
@@ -1860,7 +1858,7 @@ if ($embedded) {
     
     $bodyhtml = html_writer::div($contenthtml, 'aiplacement-modgen__content');
     
-    aiplacement_modgen_output_response($bodyhtml, '', $ajax, get_string('pluginname', 'aiplacement_modgen'));
+    aiplacement_modgen_output_response($bodyhtml, [], $ajax, get_string('pluginname', 'aiplacement_modgen'));
     exit;
 }
 

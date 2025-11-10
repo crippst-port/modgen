@@ -1,0 +1,118 @@
+{{!
+    @template aiplacement_modgen/generator_header
+    @description Header section for the generator page with heading, introduction, and warning.
+}}
+<style>
+.aiplacement-modgen__page-header {
+    
+    padding: 3rem 2rem 1rem 2rem;
+    margin: -1rem -1rem 2rem -1rem;
+    border-radius: 0;
+}
+
+.aiplacement-modgen__page-header-content {
+    margin: 0 auto;
+}
+
+.aiplacement-modgen__page-header h1 {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin: 0 0 0.5rem 0;
+    letter-spacing: -0.5px;
+}
+
+.aiplacement-modgen__page-header .fa-magic {
+    margin-right: 0.75rem;
+}
+
+.aiplacement-modgen__page-header-subtitle {
+    font-size: 1.1rem;
+    margin: 0;
+    opacity: 0.95;
+    font-weight: 300;
+}
+
+.aiplacement-modgen__content-wrapper {
+    display: flex;
+    gap: 2rem;
+    margin: 0 auto;
+    
+}
+
+.aiplacement-modgen__introduction {
+    margin-bottom: 2rem;
+    flex-grow: 1;
+}
+
+.aiplacement-modgen__introduction-box {
+    background: #f8f9fa;
+    border-left: 4px solid #667eea;
+    padding: 1.5rem;
+    border-radius: 0.375rem;
+    line-height: 1.6;
+}
+
+.aiplacement-modgen__warning {
+    margin-bottom: 2rem;
+    flex-shrink: 0;
+}
+
+.aiplacement-modgen__warning-alert {
+    background: linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%);
+    border: 1px solid #bbdefb;
+    border-left: 4px solid #2196f3;
+    border-radius: 0.375rem;
+    padding: 1rem 1.5rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 1rem;
+}
+
+.aiplacement-modgen__warning-icon {
+    color: #2196f3;
+    font-size: 1.25rem;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+}
+
+.aiplacement-modgen__warning-content {
+    color: #1565c0;
+}
+
+.aiplacement-modgen__warning-content strong {
+    display: block;
+}
+
+.aiplacement-modgen__warning-content p {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.95rem;
+}
+</style>
+
+<div class="aiplacement-modgen__page-header">
+    <div class="aiplacement-modgen__page-header-content">
+        <h1>
+            <i class="fa fa-magic"></i>
+            {{heading}}
+        </h1>
+        <p class="aiplacement-modgen__page-header-subtitle">Create your course structure with AI assistance</p>
+    </div>
+</div>
+
+<div class="aiplacement-modgen__content-wrapper">
+    <div class="aiplacement-modgen__introduction">
+        <div class="aiplacement-modgen__introduction-box">
+            {{{introduction}}}
+        </div>
+    </div>
+
+    <div class="aiplacement-modgen__warning">
+        <div class="aiplacement-modgen__warning-alert">
+            <i class="fa fa-info-circle aiplacement-modgen__warning-icon"></i>
+            <div class="aiplacement-modgen__warning-content">
+                <strong>Processing Time</strong>
+                <p>{{warning}}</p>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,12 @@
+{{!
+    Modal link template - simple link to the generator form.
+    
+    Context variables:
+    - generatorurl: URL to the standalone generator form
+}}
+<div class="aiplacement-modgen__modal-link">
+    <p>{{#str}}modalintro,aiplacement_modgen{{/str}}</p>
+    <a href="{{generatorurl}}" class="btn btn-primary" target="_blank">
+        {{#str}}launchgenerator,aiplacement_modgen{{/str}}
+    </a>
+</div>

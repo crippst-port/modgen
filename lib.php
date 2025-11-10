@@ -36,7 +36,7 @@ function aiplacement_modgen_extend_navigation_course($navigation, $course, $cont
     // Module generator - only show in edit mode
     if ($PAGE->user_is_editing()) {
         if (has_capability('local/aiplacement_modgen:use', $context)) {
-            $url = new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $course->id, 'embedded' => 1]);
+            $url = new moodle_url('/ai/placement/modgen/modal.php', ['id' => $course->id]);
 
             $params = [
                 'url' => $url->out(false),

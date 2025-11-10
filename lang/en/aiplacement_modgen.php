@@ -109,6 +109,7 @@ $string['promptsentheading'] = 'Prompt sent to AI subsystem';
 $string['launchgenerator'] = 'Generate Template';
 $string['modgenmodalheading'] = 'Module Assistant';
 $string['modgenfabaria'] = 'Open Module Assistant';
+$string['modalintro'] = 'Click below to open the Module Assistant and generate module content.';
 $string['closemodgenmodal'] = 'Close and return to module';
 $string['modalinaccessible'] = 'To access the full Module Assistant form, please use the "Generate Template" link from the course navigation menu.';
 $string['missingcourseid'] = 'Course ID is required to use the Module Assistant.';

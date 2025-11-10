@@ -1,7 +1,4 @@
 <?php
-if (!defined('AJAX_SCRIPT') && !empty($_REQUEST['ajax'])) {
-    define('AJAX_SCRIPT', true);
-}
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -24,6 +21,10 @@ if (!defined('AJAX_SCRIPT') && !empty($_REQUEST['ajax'])) {
  * @copyright   2025 Tom Cripps <tom.cripps@port.ac.uk>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+
+if (!defined('AJAX_SCRIPT') && !empty($_REQUEST['ajax'])) {
+    define('AJAX_SCRIPT', true);
+}
 
 require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir . '/formslib.php');
@@ -66,10 +67,6 @@ if ($embedded && !$ajax) {
  * @param array $extra Additional response data.
  */
 function aiplacement_modgen_send_ajax_response(string $body, string $footer = '', bool $refresh = false, array $extra = []): void {
-    if (!defined('AJAX_SCRIPT') || !AJAX_SCRIPT) {
-        return;
-    }
-
     $response = array_merge([
         'body' => $body,
         'footer' => $footer,
@@ -824,15 +821,15 @@ if ($approvedjsonparam !== null) {
         exit;
     } // Close the if ($approveform && ($adata = $approveform->get_data())) block
 
-// Prompt form handling.
+// Generator form: Create and display for standalone page access
 $promptform = new aiplacement_modgen_generator_form(null, [
     'courseid' => $courseid,
-    'embedded' => $embedded ? 1 : 0,
+    'embedded' => 0,
     'contextid' => context_course::instance((int)$courseid)->id,
 ]);
 
-// Render the generator form as a standalone page.
-if (!$ajax) {
+// Render the generator form as a standalone page (only if form is not being submitted).
+if (!$promptform->is_submitted()) {
     $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid]));
     $PAGE->set_title(get_string('modgenmodalheading', 'aiplacement_modgen'));
     $PAGE->set_heading(get_string('modgenmodalheading', 'aiplacement_modgen'));
@@ -855,13 +852,10 @@ if (!$ajax) {
 // Upload form handling.
 $uploadform = new aiplacement_modgen_upload_form(null, [
     'courseid' => $courseid,
-    'embedded' => $embedded ? 1 : 0,
+    'embedded' => 0,
 ]);
 
 if ($promptform->is_cancelled() || $uploadform->is_cancelled()) {
-    if ($ajax) {
-        aiplacement_modgen_send_ajax_response('', '', false, ['close' => true]);
-    }
     redirect(new moodle_url('/course/view.php', ['id' => $courseid]));
 }
 
@@ -928,7 +922,9 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
             }
         }
     }
-}if ($pdata = $promptform->get_data()) {
+}
+
+if ($pdata = $promptform->get_data()) {
     // Check if debug button was clicked
     if (!empty($pdata->debugbutton)) {
         $prompt = !empty($pdata->prompt) ? trim($pdata->prompt) : '';
@@ -1843,56 +1839,6 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
     exit;
 }
 
-// Embedded modal: redirect to full generator page via link
-if ($embedded) {
-    $genurl = new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid, 'standalone' => 1]);
-    
-    $contenthtml = html_writer::div(
-        html_writer::tag('p', get_string('modalinaccessible', 'aiplacement_modgen')) .
-        html_writer::tag('p', 
-            html_writer::link($genurl, get_string('launchgenerator', 'aiplacement_modgen'), 
-                ['class' => 'btn btn-primary', 'target' => '_blank'])
-        ),
-        'aiplacement-modgen__modal-redirect'
-    );
-    
-    $bodyhtml = html_writer::div($contenthtml, 'aiplacement-modgen__content');
-    
-    aiplacement_modgen_output_response($bodyhtml, [], $ajax, get_string('pluginname', 'aiplacement_modgen'));
-    exit;
-}
-
-// Default display: tabbed modal with generate and upload forms.
-ob_start();
-$promptform->display();
-$generateformhtml = ob_get_clean();
-
-// Don't render upload form in hidden tab - load it via AJAX instead to avoid filepicker initialization issues
-$uploadformhtml = '';
-$enablefileupload = get_config('aiplacement_modgen', 'enable_fileupload');
-
-// Render tabbed modal
-$tabdata = [
-    'generatecontent' => $generateformhtml,
-    'uploadcontent' => $uploadformhtml,
-    'generatetablabel' => get_string('generatetablabel', 'aiplacement_modgen'),
-    'uploadtablabel' => get_string('uploadtablabel', 'aiplacement_modgen'),
-    'submitbuttontext' => get_string('submit', 'aiplacement_modgen'),
-    'uploadbuttontext' => get_string('uploadandcreate', 'aiplacement_modgen'),
-    'showuploadtab' => $enablefileupload,
-    'courseid' => $courseid,
-    'embedded' => $embedded ? 1 : 0,
-];
-$bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/modal_tabbed', $tabdata);
-$bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
-
-$footeractions = [[
-    'label' => get_string('submit', 'aiplacement_modgen'),
-    'classes' => 'btn btn-primary',
-    'isbutton' => true,
-    'action' => 'aiplacement-modgen-submit',
-    'index' => 0,
-    'hasindex' => true,
-]];
-
-aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
+// If we reach here, something went wrong (form wasn't submitted and wasn't displaying)
+// This shouldn't happen in normal flow
+throw new moodle_exception('errorunexpected', 'aiplacement_modgen');

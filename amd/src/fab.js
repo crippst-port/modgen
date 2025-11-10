@@ -57,12 +57,9 @@ define([
     let footerButtonBindings = [];
     let needsContentReload = true;
 
-    const getModalUrl = (baseUrl, params) => {
+    const getModalUrl = (baseUrl) => {
         const url = new URL(baseUrl, window.location.origin);
         url.searchParams.set('ajax', '1');
-        if (params.embedded) {
-            url.searchParams.set('embedded', '1');
-        }
         if (typeof M !== 'undefined' && M.cfg && M.cfg.sesskey && !url.searchParams.has('sesskey')) {
             url.searchParams.set('sesskey', M.cfg.sesskey);
         }
@@ -355,7 +352,7 @@ define([
 
         setLoadingState();
 
-        const url = getModalUrl(params.url, params);
+        const url = getModalUrl(params.url);
         
         // Create AbortController for timeout handling
         const controller = new AbortController();

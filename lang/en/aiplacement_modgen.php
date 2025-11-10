@@ -32,7 +32,7 @@ $string['addtemplate'] = 'Add another template';
 $string['createfromscratch'] = 'Create from scratch';
 $string['existingmodule_help'] = 'Optionally select one or more existing modules to use as templates for AI generation. The AI will analyze the structure, activities, and content of the selected modules to create similar content for your prompt. Choose "Create from scratch" to generate content without using any existing template. You can add up to 3 templates, and the AI will merge their structures.';
 
-$string['prompt'] = 'Additional context or requests for the Assistant to use';
+$string['prompt'] = 'Additional context or requests for the Assistant';
 $string['submit'] = 'Submit prompt';
 $string['promptorrequired'] = 'Either provide a prompt description OR upload supporting documents (or both). At least one is required to generate module content.';
 
@@ -106,7 +106,7 @@ $string['aboutassessments'] = 'About Assessments';
 $string['aboutlearningoutcomes'] = 'About Learning Outcomes';
 $string['returntocourse'] = 'Return to course home';
 $string['promptsentheading'] = 'Prompt sent to AI subsystem';
-$string['launchgenerator'] = 'Template Generator';
+$string['launchgenerator'] = 'Generate Template';
 $string['modgenmodalheading'] = 'Module Assistant';
 $string['modgenfabaria'] = 'Open Module Assistant';
 $string['closemodgenmodal'] = 'Close and return to module';
@@ -174,10 +174,10 @@ $string['moduletype_help'] = 'Choose how to structure your module:
 
 // Form section headers
 $string['templatesettings'] = 'Template Setup';
-$string['suggestedcontent'] = 'Suggested Content';
+$string['suggestedcontent'] = 'Suggest Content';
 
 // Generator introduction
-$string['generatorintroduction'] = 'Use the Module Assistant to generate structured course content. Describe what you want your students to learn, and the AI will create a module outline with suggested activities and resources tailored to your needs.';
+$string['generatorintroduction'] = 'Use the Module Assistant to generate Themes, weeks and activity sections ready for your content. Select an existing module or modules to base your new template on, choose a new Connected Curriculum template layout and let the AI do the rest. If you\'re modifying an existing module, add some context into the prompt field and the AI will attempt to adapt the content accordingly. Lastly, if you\'d like to generate some suggested content to fill out your module, enable any of the "Suggest Content" options below.';
 
 // Template system strings
 $string['templateheading'] = 'Curriculum Template Configuration';

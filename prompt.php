@@ -419,42 +419,40 @@ if ($approvedjsonparam !== null) {
         $lock = \core\lock\lock_config::get_lock_factory('aiplacement_modgen')->get_lock($lockkey, 600); // 10 minute timeout
         
         try {
-            // Update course format based on module type.
-            // Connected formats require flexsections plugin to be installed
-            if ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme') {
-                // Check if flexsections is actually installed
-                $pluginmanager = core_plugin_manager::instance();
-                $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
-                
-                if (!empty($flexsectionsplugin)) {
-                    // For Connected formats, use flexsections course format
-                    $courseformat = 'flexsections';
-                } else {
-                    // Fallback to weeks if flexsections not available
-                    error_log('flexsections format not installed - falling back to weeks format');
-                    $courseformat = 'weeks';
-                    $moduletype = 'weekly'; // Downgrade to standard weekly
-                }
-            } else {
-                // For standard formats, use weeks (weekly)
-                $courseformat = 'weeks';
+            // CRITICAL: Ensure course format is set to flexsections FIRST - both theme and weekly require it
+            // This must happen before ANY section or module creation
+            $pluginmanager = core_plugin_manager::instance();
+            $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
+            
+            if (empty($flexsectionsplugin)) {
+                throw new Exception(
+                    "The Flexible Sections plugin is required for module generation with both theme and weekly structures. " .
+                    "Please ensure the flexsections format plugin is installed and enabled in your Moodle instance."
+                );
             }
             
-            $update = new stdClass();
-            $update->id = $courseid;
-            $update->format = $courseformat;
+            // Get fresh course object to check current format
+            $course = get_course($courseid, true);
             
-            update_course($update);
-            rebuild_course_cache($courseid, true, true);
-            
-            // Force a fresh course object to get updated format
-            // Critical: Must clear cache to ensure we get the new format
-            $course = null;
-            $course = get_course($courseid, true); // Force fresh from DB
-            
-            // Verify format was actually updated before proceeding
-            if ($moduletype === 'connected_theme' && $course->format !== 'flexsections') {
-                throw new Exception("Failed to update course format to 'flexsections'. Current format is '{$course->format}'. Please ensure the Flexible Sections plugin is installed and enabled before using themed modules.");
+            // Update course format to flexsections if not already set
+            if ($course->format !== 'flexsections') {
+                $update = new stdClass();
+                $update->id = $courseid;
+                $update->format = 'flexsections';
+                
+                update_course($update);
+                rebuild_course_cache($courseid, true, true);
+                
+                // Force a fresh course object to get updated format
+                $course = get_course($courseid, true);
+                
+                // Verify format was actually updated
+                if ($course->format !== 'flexsections') {
+                    throw new Exception(
+                        "Failed to update course format to 'flexsections'. Current format is '{$course->format}'. " .
+                        "Please check that the Flexible Sections plugin is properly installed and enabled."
+                    );
+                }
             }
             
             // Re-fetch the course format instance to ensure it reflects the updated format
@@ -1084,6 +1082,102 @@ if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
             $html .= html_writer::tag('pre', json_encode($template_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), [
                 'style' => 'background: #f5f5f5; padding: 15px; border-radius: 3px; font-size: 0.75em; overflow-x: auto; border: 1px solid #ddd; max-height: 600px; overflow-y: auto;'
             ]);
+            
+            // Show the compact structure that gets sent to the AI
+            $html .= html_writer::tag('h4', 'Compact Structure for AI (What the AI Actually Receives)', ['class' => 'mt-3']);
+            $html .= html_writer::tag('p', 'This is the optimized structure that gets included in the AI prompt:', ['class' => 'text-muted']);
+            
+            // Create the compact structure inline to avoid namespace issues
+            $compact_structure = [
+                'source' => !empty($template_data['module_count']) && $template_data['module_count'] > 1 
+                    ? 'multiple_modules' 
+                    : 'single_module',
+                'organizational_pattern' => [
+                    'label_sequence' => [],
+                    'activity_types_used' => [],
+                    'typical_activities_per_section' => 0
+                ],
+                'sections' => []
+            ];
+            
+            // Extract organizational pattern
+            if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
+                $label_sequence = [];
+                $activity_types = [];
+                $section_counts = [];
+                
+                foreach ($template_data['activities'] as $activity) {
+                    $type = $activity['type'] ?? 'unknown';
+                    $section = $activity['section'] ?? 'unknown';
+                    
+                    if (!isset($section_counts[$section])) {
+                        $section_counts[$section] = 0;
+                    }
+                    $section_counts[$section]++;
+                    
+                    if ($type === 'label' && !empty($activity['intro'])) {
+                        if (!in_array($activity['intro'], $label_sequence)) {
+                            $label_sequence[] = $activity['intro'];
+                        }
+                    }
+                    
+                    if (!in_array($type, $activity_types)) {
+                        $activity_types[] = $type;
+                    }
+                }
+                
+                $compact_structure['organizational_pattern']['label_sequence'] = $label_sequence;
+                $compact_structure['organizational_pattern']['activity_types_used'] = $activity_types;
+                
+                if (!empty($section_counts)) {
+                    $compact_structure['organizational_pattern']['typical_activities_per_section'] = 
+                        (int) round(array_sum($section_counts) / count($section_counts));
+                }
+            }
+            
+            // Process sections
+            if (!empty($template_data['structure']) && is_array($template_data['structure'])) {
+                foreach ($template_data['structure'] as $section) {
+                    $section_data = [
+                        'number' => $section['id'] ?? 0,
+                        'title' => $section['name'] ?? 'Untitled',
+                        'content' => []
+                    ];
+                    
+                    if (!empty($section['summary'])) {
+                        $section_data['summary'] = substr($section['summary'], 0, 200);
+                    }
+                    
+                    // Add activities for this section
+                    if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
+                        foreach ($template_data['activities'] as $activity) {
+                            if (isset($activity['section']) && $activity['section'] === $section_data['title']) {
+                                $activity_item = ['type' => $activity['type'] ?? 'unknown'];
+                                
+                                if ($activity['type'] === 'label' && !empty($activity['intro'])) {
+                                    $activity_item['text'] = $activity['intro'];
+                                } else {
+                                    $activity_item['name'] = $activity['name'] ?? 'Untitled';
+                                }
+                                
+                                $section_data['content'][] = $activity_item;
+                            }
+                        }
+                    }
+                    
+                    $compact_structure['sections'][] = $section_data;
+                }
+            }
+            
+            $html .= html_writer::tag('pre', json_encode($compact_structure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), [
+                'style' => 'background: #e8f5e9; padding: 15px; border-radius: 3px; font-size: 0.75em; overflow-x: auto; border: 2px solid #4caf50; max-height: 600px; overflow-y: auto;'
+            ]);
+            
+            // Token estimate
+            $compact_json = json_encode($compact_structure);
+            $estimated_tokens = (int)(strlen($compact_json) / 4);
+            $html .= html_writer::tag('p', "Estimated tokens: ~{$estimated_tokens} (compact) vs ~" . (int)(strlen(json_encode($template_data))/4) . " (full)", 
+                ['class' => 'text-muted mt-2']);
         }
         
         $bodyhtml = html_writer::div($html, 'aiplacement-modgen__content p-3');

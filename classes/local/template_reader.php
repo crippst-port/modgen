@@ -301,12 +301,12 @@ class template_reader {
     }
     
     /**
-     * Get detailed activity information - using direct database queries instead of get_fast_modinfo
-     * to avoid potential database errors when loading course module info.
+     * Get detailed activity information - optimized for token efficiency.
+     * Extracts label intro text (structure/headings) and activity names/types.
      *
      * @param int $courseid Course ID
      * @param int|null $sectionid Specific section ID (optional, filter by section number)
-     * @return array Activities details
+     * @return array Activities details (labels with intro, others with just name/type)
      */
     private function get_activities_detail($courseid, $sectionid = null) {
         try {
@@ -376,25 +376,20 @@ class template_reader {
                     continue;
                 }
                 
+                // Build activity data efficiently based on type:
+                // - Labels: Extract full intro (these are headings/structure markers)
+                // - Other activities: Just name and type (AI doesn't need full descriptions)
                 $activity_data = [
                     'type' => $modname,
                     'name' => $fullcm->name ?? "Unknown {$modname}",
-                    'intro' => strip_tags($fullcm->intro ?? ''),
                     'section' => $section_name
                 ];
                 
-                // Add module-specific content - skip for now due to database issues
-                // switch ($modname) {
-                //     case 'quiz':
-                //         $activity_data['quiz_details'] = $this->extract_quiz_details($cm->instance);
-                //         break;
-                //     case 'page':
-                //         $activity_data['page_content'] = $this->extract_page_content($cm->instance);
-                //         break;
-                //     case 'label':
-                //         $activity_data['label_content'] = $this->extract_label_content($cm->instance);
-                //         break;
-                // }
+                // Only extract intro content for labels (headings/structure)
+                // For other activities, the name and type is sufficient
+                if ($modname === 'label') {
+                    $activity_data['intro'] = strip_tags($fullcm->intro ?? '');
+                }
                 
                 $activities[] = $activity_data;
             }
@@ -406,107 +401,4 @@ class template_reader {
             throw $e;
         }
     }
-    
-    /**
-     * Extract quiz details including questions.
-     *
-     * @param int $quizid Quiz ID
-     * @return array Quiz details
-     */
-    private function extract_quiz_details($quizid) {
-        global $DB;
-        
-        $quiz = $DB->get_record('quiz', ['id' => $quizid]);
-        if (!$quiz) {
-            return [];
-        }
-        
-        return [
-            'settings' => [
-                'attempts' => $quiz->attempts,
-                'grademethod' => $quiz->grademethod,
-                'preferredbehaviour' => $quiz->preferredbehaviour,
-                'questionsperpage' => $quiz->questionsperpage
-            ],
-            'questions' => $this->get_quiz_questions($quizid)
-        ];
-    }
-    
-    /**
-     * Get quiz questions.
-     *
-     * @param int $quizid Quiz ID
-     * @return array Questions
-     */
-    private function get_quiz_questions($quizid) {
-        global $DB;
-        
-        // Skip quiz questions entirely - they're causing database errors
-        error_log("DEBUG: Skipping quiz question extraction due to previous database errors");
-        return [];
-    }
-    
-    /**
-     * Get multiple choice answers.
-     *
-     * @param int $questionid Question ID
-     * @return array Answers
-     */
-    private function get_multichoice_answers($questionid) {
-        global $DB;
-        
-        try {
-            $answers = $DB->get_records('question_answers', ['question' => $questionid], 'id');
-            $formatted_answers = [];
-            
-            foreach ($answers as $answer) {
-                $formatted_answers[] = [
-                    'text' => strip_tags($answer->answer ?? ''),
-                    'correct' => ($answer->fraction ?? 0) > 0
-                ];
-            }
-            
-            return $formatted_answers;
-        } catch (Throwable $e) {
-            error_log("DEBUG: Error in get_multichoice_answers: " . $e->getMessage());
-            return [];
-        }
-    }
-    
-    /**
-     * Extract page content.
-     *
-     * @param int $pageid Page ID
-     * @return string Page content
-     */
-    private function extract_page_content($pageid) {
-        global $DB;
-        
-        try {
-            $page = $DB->get_record('page', ['id' => $pageid], 'content');
-            return $page ? strip_tags($page->content ?? '') : '';
-        } catch (Throwable $e) {
-            error_log("DEBUG: Error in extract_page_content: " . $e->getMessage());
-            return '';
-        }
-    }
-    
-    /**
-     * Extract label content.
-     *
-     * @param int $labelid Label ID
-     * @return string Label content
-     */
-    private function extract_label_content($labelid) {
-        global $DB;
-        
-        try {
-            $label = $DB->get_record('label', ['id' => $labelid], 'content');
-            return $label ? strip_tags($label->content ?? '') : '';
-        } catch (Throwable $e) {
-            error_log("DEBUG: Error in extract_label_content: " . $e->getMessage());
-            return '';
-        }
-    }
-    
 }

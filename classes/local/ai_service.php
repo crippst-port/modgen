@@ -580,7 +580,8 @@ class ai_service {
                 "2. Include ALL content from " . $source_label . " - nothing can be omitted.\n" .
                 "3. Return ONLY valid JSON - no commentary or code blocks.\n" .
                 "4. Use ONLY supported activity types - unsupported types will FAIL.\n" .
-                "5. TEMPLATE METADATA section describes the 'template' JSON field ONLY - do NOT add this to theme/week summaries.\n\n";
+                "5. TEMPLATE METADATA section describes the 'template' JSON field ONLY - do NOT add this to theme/week summaries.\n" .
+                "6. NEVER include JSON strings inside field values. All fields must contain plain text or arrays, NOT JSON-encoded strings.\n\n";
 
             // Add structure-specific guidance - simplified
             if ($structure === 'theme') {
@@ -592,7 +593,7 @@ class ai_service {
                         "Each theme must have 2-4 weeks. Theme titles must be descriptive (e.g., 'Data Analysis Fundamentals'), never generic ('Theme 1').\n\n";
                 } else {
                     $roleinstruction .= "THEME GENERATION:\n" .
-                        "Generate 3-6 themes based on content. Each theme must have 2-4 weeks.\n" .
+                        "Generate 4-7 themes based on content. Each theme must have 2-4 weeks.\n" .
                         "Theme titles must be descriptive, never generic.\n\n";
                 }
             } else {
@@ -602,18 +603,56 @@ class ai_service {
 
             $activitymetadata = registry::get_supported_activity_metadata();
 
-            // Simplified format instruction with minimal example
+            // Explicit JSON format instruction with detailed structure
             if ($structure === 'theme') {
                 if ($includesessions) {
-                    $formatinstruction = "JSON FORMAT:\n" .
-                        "{\"themes\": [{\"title\": \"Theme Name\", \"summary\": \"2-3 sentences\", \"weeks\": [{\"title\": \"Week N\", \"summary\": \"Brief\", \"sessions\": {\"presession\": {\"description\": \"Instructions\", \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity\"}]}, \"session\": {\"description\": \"...\", \"activities\": [...]}, \"postsession\": {\"description\": \"...\", \"activities\": [...]}}}]}]}\n\n";
+                    $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
+                        "Your response MUST be ONLY a valid JSON object with this exact structure:\n" .
+                        "{\n" .
+                        "  \"themes\": [\n" .
+                        "    {\n" .
+                        "      \"title\": \"Theme Title (descriptive, not generic)\",\n" .
+                        "      \"summary\": \"2-3 sentences introducing the theme topic to students\",\n" .
+                        "      \"weeks\": [\n" .
+                        "        {\n" .
+                        "          \"title\": \"Week 1 (Oct 18 - 24)\",\n" .
+                        "          \"summary\": \"Brief overview of the week's learning outcomes\",\n" .
+                        "          \"sessions\": {\n" .
+                        "            \"presession\": {\n" .
+                        "              \"description\": \"5-8 sentences of student-facing guidance for pre-session preparation\",\n" .
+                        "              \"activities\": [{\"type\": \"forum\", \"name\": \"Activity Name\"}]\n" .
+                        "            },\n" .
+                        "            \"session\": {\n" .
+                        "              \"description\": \"5-8 sentences of student-facing guidance for main session activities\",\n" .
+                        "              \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity Name\"}]\n" .
+                        "            },\n" .
+                        "            \"postsession\": {\n" .
+                        "              \"description\": \"5-8 sentences of student-facing guidance for post-session reflection\",\n" .
+                        "              \"activities\": [{\"type\": \"assignment\", \"name\": \"Activity Name\"}]\n" .
+                        "            }\n" .
+                        "          }\n" .
+                        "        }\n" .
+                        "      ]\n" .
+                        "    }\n" .
+                        "  ]\n" .
+                        "}\n\n" .
+                        "CRITICAL REQUIREMENTS:\n" .
+                        "- Return ONLY the JSON object. No additional text before or after.\n" .
+                        "- NEVER include JSON as a string value in any field (e.g., summary must NOT contain nested JSON)\n" .
+                        "- Each theme.summary must be 2-3 plain sentences (NO JSON inside)\n" .
+                        "- Each sessions.description must be 5-8 plain sentences (NO JSON inside)\n" .
+                        "- All field values must be strings or arrays of objects, NEVER strings containing JSON\n" .
+                        "- Themes array MUST contain all themes\n" .
+                        "- Each theme MUST have a weeks array with complete week structures\n\n";
                 } else {
-                    $formatinstruction = "JSON FORMAT:\n" .
-                        "{\"themes\": [{\"title\": \"Theme Name\", \"summary\": \"2-3 sentences\", \"weeks\": [{\"title\": \"Week N\", \"summary\": \"Brief\", \"outline\": [\"point1\", \"point2\"]}]}]}\n\n";
+                    $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
+                        "Your response MUST be ONLY a valid JSON object (no text before/after):\n" .
+                        "{\"themes\": [{\"title\": \"Theme Name\", \"summary\": \"2-3 sentences\", \"weeks\": [{\"title\": \"Week N (Oct 18 - 24)\", \"summary\": \"Brief overview\"}]}]}\n\n";
                 }
             } else {
-                $formatinstruction = "JSON FORMAT:\n" .
-                    "{\"sections\": [{\"title\": \"Week N\", \"summary\": \"Brief\", \"outline\": [\"point1\", \"point2\"], \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity\"}]}]}\n\n";
+                $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
+                    "Your response MUST be ONLY a valid JSON object (no text before/after):\n" .
+                    "{\"sections\": [{\"title\": \"Week N (Oct 18 - 24)\", \"summary\": \"Brief\", \"outline\": [\"point1\", \"point2\"], \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity\"}]}]}\n\n";
             }
 
             // Add supported activity types only
@@ -639,7 +678,7 @@ class ai_service {
             // Add template guidance if template data is provided
             $template_guidance = '';
             if (!empty($template_data) && is_array($template_data)) {
-                $template_guidance = self::build_template_prompt_guidance($template_data);
+                $template_guidance = self::build_template_prompt_guidance($template_data, $structure);
             }
 
             // Incorporate supporting documents with truncation
@@ -906,27 +945,212 @@ class ai_service {
      * @param array $template_data Template data containing structure and activities
      * @return string Guidance about the template with simplified structure
      */
-    private static function build_template_prompt_guidance($template_data) {
+    /**
+     * Build template guidance for the AI based on extracted module structure.
+     *
+     * @param array $template_data Extracted template data
+     * @param string $structure 'theme' or 'weekly'
+     * @return string Guidance text for AI prompt
+     */
+    private static function build_template_prompt_guidance($template_data, $structure = 'weekly') {
         $guidance = "";
         
         // Detect multiple modules
         $is_multiple = !empty($template_data['module_count']) && $template_data['module_count'] > 1;
         
-        // CRITICAL: This section is ONLY about the "template" field in the JSON output
-        // It is NOT content to include in themes or summaries
-        $guidance .= "\n*** OUTPUT 'template' FIELD ONLY ***\n";
-        $guidance .= "The 'template' field should describe what you used to generate this module:\n";
+        // Create compact structure representation
+        $compact = self::create_compact_template_structure($template_data);
         
+        // Mode-specific instructions
+        if ($structure === 'theme') {
+            // Count the actual weeks in the template
+            $template_week_count = 0;
+            if (!empty($compact['sections']) && is_array($compact['sections'])) {
+                $template_week_count = count($compact['sections']);
+            }
+            
+            // THEME MODE: AI should analyze and reorganize into themes
+            $guidance .= "\n*** TEMPLATE-BASED THEME GENERATION ***\n";
+            $guidance .= "You are converting content into a thematic structure based on this template:\n\n";
+            $guidance .= json_encode($compact, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n\n";
+            $guidance .= "UNDERSTANDING THE TEMPLATE:\n";
+            $guidance .= "- The 'organizational_pattern' shows how content was organized in the original (for context only)\n";
+            $guidance .= "- The 'label_sequence' shows headings like 'Learning Resources', 'Activities', 'Assessment'\n";
+            $guidance .= "- Use these labels to UNDERSTAND what type of content each activity represents\n";
+            $guidance .= "- DO NOT recreate these labels in your output\n\n";
+            
+            if ($template_week_count > 0) {
+                $guidance .= "*** MANDATORY WEEK COUNT ***\n";
+                $guidance .= "The template has EXACTLY {$template_week_count} sections/weeks.\n";
+                $guidance .= "Your output MUST contain EXACTLY {$template_week_count} weeks (no more, no less).\n";
+                $guidance .= "EVERY template section MUST map to EXACTLY ONE output week.\n";
+                $guidance .= "This is NON-NEGOTIABLE. Failure to include all {$template_week_count} weeks is an error.\n\n";
+            }
+            
+            $guidance .= "YOUR TASK:\n";
+            $guidance .= "1. Count the template sections: {$template_week_count} sections = {$template_week_count} output weeks required\n";
+            $guidance .= "2. Group these {$template_week_count} weeks into natural thematic clusters (e.g., 3 themes × 3-4 weeks each, or 5 themes × 2 weeks each)\n";
+            $guidance .= "3. Create descriptive theme titles that reflect each group's content\n";
+            $guidance .= "4. CRITICAL - DIRECT 1-to-1 WEEK MAPPING (NON-NEGOTIABLE):\n";
+            $guidance .= "   - Template section 1 → Output week 1 (within appropriate theme)\n";
+            $guidance .= "   - Template section 2 → Output week 2 (within appropriate theme)\n";
+            $guidance .= "   - Template section N → Output week N (within appropriate theme)\n";
+            $guidance .= "   - TOTAL OUTPUT WEEKS MUST EQUAL {$template_week_count}\n";
+            $guidance .= "   - Each template week's content goes into ONE output week's pre/session/post structure\n";
+            $guidance .= "   - NEVER skip a template week, NEVER combine multiple weeks, NEVER split one week\n";
+            $guidance .= "   - Structure: Theme → Week (with date) → Pre-session/Session/Post-session\n";
+            $guidance .= "5. WEEK TITLES - Preserve original names:\n";
+            $guidance .= "   - Each output week title MUST include BOTH the date AND the original section name\n";
+            $guidance .= "   - Format: \"Week N (date range): Original Section Title\"\n";
+            $guidance .= "   - Example: If template section is \"Introduction to the course\", output title is \"Week 1 (Oct 18 - 24): Introduction to the course\"\n";
+            $guidance .= "   - Example: If template section is \"Fun in the sun\", output title is \"Week 2 (Oct 25 - 31): Fun in the sun\"\n";
+            $guidance .= "   - Use the EXACT original section title from the template - do not modify or paraphrase it\n";
+            $guidance .= "6. Map activities from EACH template week into that week's three subsections:\n";
+            $guidance .= "   - Activities under 'Learning Resources' labels → Pre-session (reading/preparation)\n";
+            $guidance .= "   - Activities under 'Activities' labels → Session (main activities)\n";
+            $guidance .= "   - Activities under 'Assessment' labels → Post-session (assignments/reflection)\n";
+            $guidance .= "7. If session instructions are requested, generate appropriate descriptions for pre/session/post sections\n\n";
+        } else {
+            // WEEKLY/CONNECTED MODE: AI should preserve structure
+            $guidance .= "\n*** TEMPLATE-BASED STRUCTURE PRESERVATION ***\n";
+            $guidance .= "You are recreating content in flexible sections format based on this template:\n\n";
+            $guidance .= json_encode($compact, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n\n";
+            $guidance .= "UNDERSTANDING THE TEMPLATE:\n";
+            $guidance .= "- The 'organizational_pattern' shows the original content organization\n";
+            $guidance .= "- The 'label_sequence' shows headings used to organize activities\n";
+            $guidance .= "- Use these to understand content structure and types\n\n";
+            $guidance .= "YOUR TASK:\n";
+            $guidance .= "1. Preserve the existing section structure (same number and sequence)\n";
+            $guidance .= "2. Keep section titles similar to the template (adjust dates/specifics as needed)\n";
+            $guidance .= "3. Recreate activities in the same sequence and types\n";
+            $guidance .= "4. Use Moodle's flexible sections format for output\n";
+            $guidance .= "5. DO NOT recreate the label headings - output the standard weekly structure\n\n";
+        }
+        
+        // Output field instruction
+        $guidance .= "*** OUTPUT 'template' FIELD ***\n";
         if ($is_multiple) {
             $guidance .= "Set 'template' value to: \"Combining {$template_data['module_count']} existing modules\"\n";
         } else {
             $guidance .= "Set 'template' value to: \"Based on existing module template\"\n";
         }
-        
-        $guidance .= "\nDo NOT include this template metadata in any theme summary or week summary.\n";
-        $guidance .= "Only the themes/sections array should contain the actual course content.\n";
+        $guidance .= "\nDo NOT include this template metadata in theme/section summaries.\n";
         
         return $guidance;
+    }
+    
+    /**
+     * Create compact template structure for AI consumption.
+     *
+     * @param array $template_data Raw extracted template data
+     * @return array Compact structure with organizational patterns
+     */
+    public static function create_compact_template_structure($template_data) {
+        $compact = [
+            'source' => !empty($template_data['module_count']) && $template_data['module_count'] > 1 
+                ? 'multiple_modules' 
+                : 'single_module',
+            'organizational_pattern' => self::extract_organizational_pattern($template_data),
+            'sections' => []
+        ];
+        
+        // Process each section from the structure
+        if (!empty($template_data['structure']) && is_array($template_data['structure'])) {
+            foreach ($template_data['structure'] as $section) {
+                $section_data = [
+                    'number' => $section['id'] ?? 0,
+                    'title' => $section['name'] ?? 'Untitled',
+                    'content' => []
+                ];
+                
+                // Add section summary as initial context if present
+                if (!empty($section['summary'])) {
+                    $section_data['summary'] = substr($section['summary'], 0, 200); // Truncate for tokens
+                }
+                
+                // Find activities for this section
+                if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
+                    foreach ($template_data['activities'] as $activity) {
+                        // Match activities to this section by section name
+                        if (isset($activity['section']) && $activity['section'] === $section_data['title']) {
+                            $activity_item = [
+                                'type' => $activity['type'] ?? 'unknown'
+                            ];
+                            
+                            // For labels, include the intro (these are headings)
+                            if ($activity['type'] === 'label' && !empty($activity['intro'])) {
+                                $activity_item['text'] = $activity['intro'];
+                            } else {
+                                // For other activities, just the name
+                                $activity_item['name'] = $activity['name'] ?? 'Untitled';
+                            }
+                            
+                            $section_data['content'][] = $activity_item;
+                        }
+                    }
+                }
+                
+                $compact['sections'][] = $section_data;
+            }
+        }
+        
+        return $compact;
+    }
+    
+    /**
+     * Extract organizational patterns from template data.
+     *
+     * @param array $template_data Template data
+     * @return array Patterns (label sequence, typical activity count, etc.)
+     */
+    private static function extract_organizational_pattern($template_data) {
+        $pattern = [
+            'label_sequence' => [],
+            'activity_types_used' => [],
+            'typical_activities_per_section' => 0
+        ];
+        
+        if (empty($template_data['activities']) || !is_array($template_data['activities'])) {
+            return $pattern;
+        }
+        
+        $label_sequence = [];
+        $activity_types = [];
+        $section_counts = [];
+        $current_section = null;
+        
+        foreach ($template_data['activities'] as $activity) {
+            $type = $activity['type'] ?? 'unknown';
+            
+            // Track section for counting
+            $section = $activity['section'] ?? 'unknown';
+            if (!isset($section_counts[$section])) {
+                $section_counts[$section] = 0;
+            }
+            $section_counts[$section]++;
+            
+            // Extract label sequence from first occurrence
+            if ($type === 'label' && !empty($activity['intro'])) {
+                if (!in_array($activity['intro'], $label_sequence)) {
+                    $label_sequence[] = $activity['intro'];
+                }
+            }
+            
+            // Track activity types
+            if (!in_array($type, $activity_types)) {
+                $activity_types[] = $type;
+            }
+        }
+        
+        $pattern['label_sequence'] = $label_sequence;
+        $pattern['activity_types_used'] = $activity_types;
+        
+        // Calculate average activities per section
+        if (!empty($section_counts)) {
+            $pattern['typical_activities_per_section'] = (int) round(array_sum($section_counts) / count($section_counts));
+        }
+        
+        return $pattern;
     }
 
     /**

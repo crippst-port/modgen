@@ -568,87 +568,39 @@ if ($approvedjsonparam !== null) {
                     
                     $results[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
                     
-                    // Create the three session subsections under the week and store their section numbers
-                    $sessiontypes = [
-                        'presession' => get_string('presession', 'aiplacement_modgen'),
-                        'session' => get_string('session', 'aiplacement_modgen'),
-                        'postsession' => get_string('postsession', 'aiplacement_modgen'),
-                    ];
-                    
-                    $sessionsectionmap = []; // Map session type to section number
-                    
-                    foreach ($sessiontypes as $sessionkey => $sessionlabel) {
-                        try {
-                            // Create nested subsection under the week (parent = weeksectionnum)
-                            $currentcourseformat = $course->format;
-                            if ($currentcourseformat !== 'flexsections') {
-                                throw new Exception("Course is using '{$currentcourseformat}' format, not 'flexsections'. Nested sections require the Flexible Sections plugin.");
-                            }
-                            if (!method_exists($courseformat, 'create_new_section')) {
-                                throw new Exception('The flexsections course format is not properly supporting nested sections.');
-                            }
-                            $sessionsectionnum = $courseformat->create_new_section($weeksectionnum, null);
-                            $sessionsectionmap[$sessionkey] = $sessionsectionnum;
-                            
-                            // Update session section name and description
-                            $sessionsectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $sessionsectionnum]);
-                            
-                            $sectionupdate = [
-                                'id' => $sessionsectionid,
-                                'name' => $sessionlabel,
-                            ];
-                            
-                            // If session data has a description field, add it to the update
-                            if (!empty($week['sessions'][$sessionkey]) && is_array($week['sessions'][$sessionkey])) {
-                                $sessiondata = $week['sessions'][$sessionkey];
-                                if (!empty($sessiondata['description'])) {
-                                    $sectionupdate['summary'] = $sessiondata['description'];
-                                    $sectionupdate['summaryformat'] = FORMAT_HTML;
-                                }
-                            }
-                            
-                            $DB->update_record('course_sections', $sectionupdate);
-                            
-                            // Set session section to NOT appear as a link (collapsed = 0 in flexsections)
-                            if (method_exists($courseformat, 'update_section_format_options')) {
-                                $courseformat->update_section_format_options(['id' => $sessionsectionid, 'collapsed' => 0]);
-                            }
-                            
+                    // Create the three session subsections using shared helper
+                    try {
+                        $weekSessionData = $week['sessions'] ?? null;
+                        $sessionsectionmap = \aiplacement_modgen\local\session_creator::create_session_subsections(
+                            $courseformat, 
+                            $weeksectionnum, 
+                            $courseid, 
+                            $weekSessionData
+                        );
+                        
+                        $sessiontypes = ['presession' => get_string('presession', 'aiplacement_modgen'),
+                                        'session' => get_string('session', 'aiplacement_modgen'),
+                                        'postsession' => get_string('postsession', 'aiplacement_modgen')];
+                        foreach ($sessiontypes as $sessionlabel) {
                             $results[] = get_string('sectioncreated', 'aiplacement_modgen', $sessionlabel);
-                        } catch (Exception $e) {
-                            $activitywarnings[] = "Failed to create $sessionkey section: " . $e->getMessage();
                         }
+                    } catch (Exception $e) {
+                        $activitywarnings[] = "Failed to create session subsections: " . $e->getMessage();
+                        continue; // Skip to next week
                     }
                     
                     // Create activities in the appropriate session subsections
                     if (!empty($adata->createsuggestedactivities)) {
                         // Check if week has nested sessions structure
                         if (!empty($week['sessions']) && is_array($week['sessions'])) {
-                            // New nested structure: activities are in week['sessions']['presession|session|postsession']['activities']
-                            foreach ($sessiontypes as $sessionkey => $sessionlabel) {
-                                if (!empty($week['sessions'][$sessionkey]) && is_array($week['sessions'][$sessionkey])) {
-                                    $sessiondata = $week['sessions'][$sessionkey];
-                                    $sessionactivities = $sessiondata['activities'] ?? [];
-                                    
-                                    if (!empty($sessionactivities) && is_array($sessionactivities)) {
-                                        $sessionsectionnum = $sessionsectionmap[$sessionkey] ?? null;
-                                        if ($sessionsectionnum !== null) {
-                                            $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
-                                                $sessionactivities,
-                                                $course,
-                                                $sessionsectionnum
-                                            );
-                                            
-                                            if (!empty($activityoutcome['created'])) {
-                                                $results = array_merge($results, $activityoutcome['created']);
-                                            }
-                                            if (!empty($activityoutcome['warnings'])) {
-                                                $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
+                            // Use shared helper to create session activities
+                            \aiplacement_modgen\local\session_creator::create_session_activities(
+                                $week['sessions'],
+                                $sessionsectionmap,
+                                $course,
+                                $results,
+                                $activitywarnings
+                            );
                         } else if (!empty($activities) && is_array($activities)) {
                             // Fallback: Old flat structure where activities are directly in week
                             $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
@@ -681,7 +633,23 @@ if ($approvedjsonparam !== null) {
             $title = $sectiondata['title'] ?? get_string('aigensummary', 'aiplacement_modgen');
             $summary = $sectiondata['summary'] ?? '';
             $outline = !empty($sectiondata['outline']) && is_array($sectiondata['outline']) ? $sectiondata['outline'] : [];
-            $section = course_create_section($course, $sectionnum);
+            
+            // Check if this section has a sessions structure (connected_weekly mode)
+            $hassessions = !empty($sectiondata['sessions']) && is_array($sectiondata['sessions']);
+            
+            // For connected_weekly with sessions, use flexsections create_new_section to support nesting
+            if ($hassessions) {
+                if (!method_exists($courseformat, 'create_new_section')) {
+                    throw new Exception('The flexsections course format is required for connected_weekly mode.');
+                }
+                $actualsectionnum = $courseformat->create_new_section(0, null); // 0 = top level
+                $section = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $actualsectionnum], '*', MUST_EXIST);
+            } else {
+                // For plain weekly, use standard section creation
+                $section = course_create_section($course, $sectionnum);
+                $actualsectionnum = $sectionnum;
+            }
+            
             $sectionrecord = $DB->get_record('course_sections', ['id' => $section->id], '*', MUST_EXIST);
             $sectionhtml = '';
             if ($keepweeklabels) {
@@ -718,23 +686,58 @@ if ($approvedjsonparam !== null) {
             $sectionrecord->summaryformat = FORMAT_HTML;
             $sectionrecord->timemodified = time();
             $DB->update_record('course_sections', $sectionrecord);
-
-            if (!empty($sectiondata['activities']) && is_array($sectiondata['activities'])) {
-                $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
-                    $sectiondata['activities'],
-                    $course,
-                    $sectionnum
-                );
+            
+            // If this section has sessions structure, create subsections and set as link
+            if ($hassessions) {
+                // Set the main section to appear as a link (collapsed = 1 in flexsections)
+                $sectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $actualsectionnum]);
+                if ($sectionid && $courseformat) {
+                    $courseformat->update_section_format_options(['id' => $sectionid, 'collapsed' => 1]);
+                }
                 
-                if (!empty($activityoutcome['created'])) {
-                    $results = array_merge($results, $activityoutcome['created']);
+                // Create subsections using shared helper
+                try {
+                    $sessionsectionmap = \aiplacement_modgen\local\session_creator::create_session_subsections(
+                        $courseformat,
+                        $actualsectionnum,
+                        $courseid,
+                        $sectiondata['sessions']
+                    );
+                    
+                    // Create activities in the appropriate subsections using shared helper
+                    \aiplacement_modgen\local\session_creator::create_session_activities(
+                        $sectiondata['sessions'],
+                        $sessionsectionmap,
+                        $course,
+                        $results,
+                        $activitywarnings
+                    );
+                    
+                    $results[] = get_string('sectioncreated', 'aiplacement_modgen', $title . ' (with subsections)');
+                } catch (Exception $e) {
+                    $activitywarnings[] = "Failed to create session subsections for '{$title}': " . $e->getMessage();
+                    $results[] = get_string('sectioncreated', 'aiplacement_modgen', $title);
                 }
-                if (!empty($activityoutcome['warnings'])) {
-                    $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
+            } else {
+                // Simple weekly section - create activities directly in the section
+                if (!empty($sectiondata['activities']) && is_array($sectiondata['activities'])) {
+                    $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
+                        $sectiondata['activities'],
+                        $course,
+                        $actualsectionnum
+                    );
+                    
+                    if (!empty($activityoutcome['created'])) {
+                        $results = array_merge($results, $activityoutcome['created']);
+                    }
+                    if (!empty($activityoutcome['warnings'])) {
+                        $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
+                    }
                 }
+                
+                $results[] = get_string('sectioncreated', 'aiplacement_modgen', $title);
             }
 
-            $results[] = get_string('sectioncreated', 'aiplacement_modgen', $title);
             $sectionnum++;
         }
     }

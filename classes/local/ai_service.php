@@ -62,8 +62,8 @@ class ai_service {
         // "5 themed sections", "using 5 themes", "total of 5 themes"
         if (preg_match('/(\d+)\s*(?:themes?|themed\s+sections?|theme\s+groups?)/i', $prompt, $matches)) {
             $count = intval($matches[1]);
-            // Reasonable range: between 2 and 12 themes
-            if ($count >= 2 && $count <= 12) {
+            // Reasonable range: between 2 and 20 themes
+            if ($count >= 2 && $count <= 20) {
                 return $count;
             }
         }
@@ -590,11 +590,14 @@ class ai_service {
                 if (!empty($requestedthemecount)) {
                     $roleinstruction .= "THEME GENERATION:\n" .
                         "Generate EXACTLY {$requestedthemecount} themes (non-negotiable).\n" .
-                        "Each theme must have 2-4 weeks. Theme titles must be descriptive (e.g., 'Data Analysis Fundamentals'), never generic ('Theme 1').\n\n";
+                        "Each theme must have 2-4 weeks.\n" .
+                        "Theme titles must be descriptive (e.g., 'Data Analysis Fundamentals'), never generic ('Theme 1').\n" .
+                        "Week titles must include BOTH date range AND descriptive topic (e.g., 'Oct 18 - 24: Introduction to Cloud Computing').\n\n";
                 } else {
                     $roleinstruction .= "THEME GENERATION:\n" .
                         "Generate 4-7 themes based on content. Each theme must have 2-4 weeks.\n" .
-                        "Theme titles must be descriptive, never generic.\n\n";
+                        "Theme titles must be descriptive, never generic.\n" .
+                        "Week titles must include BOTH date range AND descriptive topic (e.g., 'Oct 18 - 24: Introduction to Cloud Computing').\n\n";
                 }
             } else {
                 $roleinstruction .= "WEEKLY GENERATION:\n" .
@@ -615,7 +618,7 @@ class ai_service {
                         "      \"summary\": \"2-3 sentences introducing the theme topic to students\",\n" .
                         "      \"weeks\": [\n" .
                         "        {\n" .
-                        "          \"title\": \"Week 1 (Oct 18 - 24)\",\n" .
+                        "          \"title\": \"Oct 18 - 24: Introduction to Cloud Computing\",\n" .
                         "          \"summary\": \"Brief overview of the week's learning outcomes\",\n" .
                         "          \"sessions\": {\n" .
                         "            \"presession\": {\n" .
@@ -640,6 +643,7 @@ class ai_service {
                         "- Return ONLY the JSON object. No additional text before or after.\n" .
                         "- NEVER include JSON as a string value in any field (e.g., summary must NOT contain nested JSON)\n" .
                         "- Each theme.summary must be 2-3 plain sentences (NO JSON inside)\n" .
+                        "- Each week.title must include date range AND descriptive topic: 'date: Topic Name'\n" .
                         "- Each sessions.description must be 5-8 plain sentences (NO JSON inside)\n" .
                         "- All field values must be strings or arrays of objects, NEVER strings containing JSON\n" .
                         "- Themes array MUST contain all themes\n" .
@@ -650,9 +654,46 @@ class ai_service {
                         "{\"themes\": [{\"title\": \"Theme Name\", \"summary\": \"2-3 sentences\", \"weeks\": [{\"title\": \"Week N (Oct 18 - 24)\", \"summary\": \"Brief overview\"}]}]}\n\n";
                 }
             } else {
-                $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
-                    "Your response MUST be ONLY a valid JSON object (no text before/after):\n" .
-                    "{\"sections\": [{\"title\": \"Week N (Oct 18 - 24)\", \"summary\": \"Brief\", \"outline\": [\"point1\", \"point2\"], \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity\"}]}]}\n\n";
+                // Weekly structure with sessions
+                if ($includesessions) {
+                    $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
+                        "Your response MUST be ONLY a valid JSON object with this exact structure:\n" .
+                        "{\n" .
+                        "  \"sections\": [\n" .
+                        "    {\n" .
+                        "      \"title\": \"Week 1 (Oct 18 - 24): Introduction to Cloud Computing\",\n" .
+                        "      \"summary\": \"Brief overview of the week's learning outcomes\",\n" .
+                        "      \"sessions\": {\n" .
+                        "        \"presession\": {\n" .
+                        "          \"description\": \"5-8 sentences of student-facing guidance for pre-session preparation\",\n" .
+                        "          \"activities\": [{\"type\": \"forum\", \"name\": \"Activity Name\"}]\n" .
+                        "        },\n" .
+                        "        \"session\": {\n" .
+                        "          \"description\": \"5-8 sentences of student-facing guidance for main session activities\",\n" .
+                        "          \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity Name\"}]\n" .
+                        "        },\n" .
+                        "        \"postsession\": {\n" .
+                        "          \"description\": \"5-8 sentences of student-facing guidance for post-session reflection\",\n" .
+                        "          \"activities\": [{\"type\": \"assignment\", \"name\": \"Activity Name\"}]\n" .
+                        "        }\n" .
+                        "      }\n" .
+                        "    }\n" .
+                        "  ]\n" .
+                        "}\n\n" .
+                        "CRITICAL REQUIREMENTS:\n" .
+                        "- Return ONLY the JSON object. No additional text before or after.\n" .
+                        "- NEVER include JSON as a string value in any field\n" .
+                        "- Each section.summary must be 2-3 plain sentences (NO JSON inside)\n" .
+                        "- Each section.title must include date range AND descriptive topic: 'Week N (date): Topic Name'\n" .
+                        "- Each sessions.description must be 5-8 plain sentences (NO JSON inside)\n" .
+                        "- All field values must be strings or arrays of objects, NEVER strings containing JSON\n" .
+                        "- Sections array MUST contain all sections\n" .
+                        "- Each section MUST have a sessions object with presession, session, and postsession\n\n";
+                } else {
+                    $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
+                        "Your response MUST be ONLY a valid JSON object (no text before/after):\n" .
+                        "{\"sections\": [{\"title\": \"Week N (Oct 18 - 24): Topic\", \"summary\": \"Brief overview\", \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity\"}]}]}\n\n";
+                }
             }
 
             // Add supported activity types only
@@ -661,7 +702,12 @@ class ai_service {
                 foreach ($activitymetadata as $type => $metadata) {
                     $formatinstruction .= "- {$type}: {$metadata['description']}\n";
                 }
-                $formatinstruction .= "\nActivity fields: type (required), name (required), intro (optional), url (for url type), chapters (for book type).\n";
+                $formatinstruction .= "\nACTIVITY FIELD REQUIREMENTS:\n";
+                $formatinstruction .= "- ALL activities MUST have: type (required), name (required)\n";
+                $formatinstruction .= "- ALL activities SHOULD have: intro (description text for students)\n";
+                $formatinstruction .= "- URL activities MUST ALSO have: url (the external web address)\n";
+                $formatinstruction .= "  Example URL activity: {\"type\": \"url\", \"name\": \"Course Reading\", \"intro\": \"Read this article\", \"url\": \"https://example.com/article\"}\n";
+                $formatinstruction .= "- BOOK activities can have: chapters (array of chapter objects with title and content)\n";
             } elseif ($includeactivities === false) {
                 $formatinstruction .= "Do NOT include activities - only sections with titles, summaries, and outlines.\n";
             }
@@ -713,10 +759,13 @@ class ai_service {
             // Add completeness enforcement at END (has most weight)
             if ($structure === 'theme') {
                 if (!empty($requestedthemecount)) {
-                    $finalprompt .= "\n*** COMPLETENESS REQUIREMENT ***\n";
-                    $finalprompt .= "Generate EXACTLY {$requestedthemecount} themes with ALL topics covered.\n";
-                    $finalprompt .= "Do NOT stop early. Do NOT truncate. Complete output required.\n";
-                    $finalprompt .= "Return ONLY valid JSON.\n";
+                    $finalprompt .= "\n*** CRITICAL THEME COUNT REQUIREMENT ***\n";
+                    $finalprompt .= "YOU MUST GENERATE EXACTLY {$requestedthemecount} THEMES - NO MORE, NO LESS.\n";
+                    $finalprompt .= "This is MANDATORY and NON-NEGOTIABLE.\n";
+                    $finalprompt .= "Count your themes before returning: if you don't have {$requestedthemecount} themes, you have FAILED.\n";
+                    $finalprompt .= "REQUIRED THEME COUNT: {$requestedthemecount}\n";
+                    $finalprompt .= "Do NOT stop early. Do NOT truncate. Do NOT generate fewer than {$requestedthemecount} themes.\n";
+                    $finalprompt .= "Return ONLY valid JSON with {$requestedthemecount} themes in the themes array.\n";
                 } else {
                     $finalprompt .= "\n*** COMPLETENESS REQUIREMENT ***\n";
                     $finalprompt .= "Generate all themes needed to cover ALL topics and content.\n";
@@ -1011,20 +1060,51 @@ class ai_service {
             $guidance .= "   - Activities under 'Assessment' labels → Post-session (assignments/reflection)\n";
             $guidance .= "7. If session instructions are requested, generate appropriate descriptions for pre/session/post sections\n\n";
         } else {
+            // Count the actual weeks in the template
+            $template_week_count = 0;
+            if (!empty($compact['sections']) && is_array($compact['sections'])) {
+                $template_week_count = count($compact['sections']);
+            }
+            
             // WEEKLY/CONNECTED MODE: AI should preserve structure
-            $guidance .= "\n*** TEMPLATE-BASED STRUCTURE PRESERVATION ***\n";
-            $guidance .= "You are recreating content in flexible sections format based on this template:\n\n";
+            $guidance .= "\n*** TEMPLATE-BASED WEEKLY GENERATION ***\n";
+            $guidance .= "You are recreating content in weekly structure based on this template:\n\n";
             $guidance .= json_encode($compact, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n\n";
             $guidance .= "UNDERSTANDING THE TEMPLATE:\n";
             $guidance .= "- The 'organizational_pattern' shows the original content organization\n";
             $guidance .= "- The 'label_sequence' shows headings used to organize activities\n";
             $guidance .= "- Use these to understand content structure and types\n\n";
+            
+            if ($template_week_count > 0) {
+                $guidance .= "*** MANDATORY SECTION COUNT ***\n";
+                $guidance .= "The template has EXACTLY {$template_week_count} sections.\n";
+                $guidance .= "Your output MUST contain EXACTLY {$template_week_count} sections (no more, no less).\n";
+                $guidance .= "EVERY template section MUST map to EXACTLY ONE output section.\n";
+                $guidance .= "This is NON-NEGOTIABLE. Failure to include all {$template_week_count} sections is an error.\n\n";
+            }
+            
             $guidance .= "YOUR TASK:\n";
-            $guidance .= "1. Preserve the existing section structure (same number and sequence)\n";
-            $guidance .= "2. Keep section titles similar to the template (adjust dates/specifics as needed)\n";
-            $guidance .= "3. Recreate activities in the same sequence and types\n";
-            $guidance .= "4. Use Moodle's flexible sections format for output\n";
-            $guidance .= "5. DO NOT recreate the label headings - output the standard weekly structure\n\n";
+            $guidance .= "1. Count the template sections: {$template_week_count} sections = {$template_week_count} output sections required\n";
+            $guidance .= "2. CRITICAL - DIRECT 1-to-1 SECTION MAPPING (NON-NEGOTIABLE):\n";
+            $guidance .= "   - Template section 1 → Output section 1\n";
+            $guidance .= "   - Template section 2 → Output section 2\n";
+            $guidance .= "   - Template section N → Output section N\n";
+            $guidance .= "   - TOTAL OUTPUT SECTIONS MUST EQUAL {$template_week_count}\n";
+            $guidance .= "   - NEVER skip a template section, NEVER combine multiple sections, NEVER split one section\n";
+            $guidance .= "3. SECTION TITLES - Preserve original names:\n";
+            $guidance .= "   - Each output section title MUST include the original section name\n";
+            $guidance .= "   - Format: \"Week N (date range): Original Section Title\"\n";
+            $guidance .= "   - Example: If template section is \"Introduction to the course\", output title is \"Week 1 (Oct 18 - 24): Introduction to the course\"\n";
+            $guidance .= "   - Example: If template section is \"Fun in the sun\", output title is \"Week 2 (Oct 25 - 31): Fun in the sun\"\n";
+            $guidance .= "   - Use the EXACT original section title from the template - do not modify or paraphrase it\n";
+            $guidance .= "4. SECTION STRUCTURE - Each section has three subsections:\n";
+            $guidance .= "   - Create 'presession', 'session', and 'postsession' subsections for EACH week\n";
+            $guidance .= "   - Map template activities based on their pedagogical purpose:\n";
+            $guidance .= "     * 'Learning Resources' → Pre-session (reading/preparation)\n";
+            $guidance .= "     * 'Activities' → Session (main activities)\n";
+            $guidance .= "     * 'Assessment' → Post-session (assignments/reflection)\n";
+            $guidance .= "5. If session instructions are requested, generate appropriate descriptions for pre/session/post sections\n";
+            $guidance .= "6. Use Moodle's flexible sections format for output\n\n";
         }
         
         // Output field instruction

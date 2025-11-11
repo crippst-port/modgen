@@ -90,14 +90,20 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->addElement('filemanager', 'supportingfiles', get_string('supportingfiles', 'aiplacement_modgen'), null, $fileoptions);
         $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
         
-        // Main content prompt - moved after supporting files
-        $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), 'rows="4" cols="60"');
-        $mform->setType('prompt', PARAM_TEXT);
-        // Prompt is conditionally required - either prompt OR files must be provided
-        // Actual validation is in validation() method
-        $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
+        // Check if AI is enabled
+        $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
+        
+        // Main content prompt - only show if AI is enabled
+        if ($ai_enabled) {
+            $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), 'rows="4" cols="60"');
+            $mform->setType('prompt', PARAM_TEXT);
+            // Prompt is conditionally required - either prompt OR files must be provided
+            // Actual validation is in validation() method
+            $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
+        }
 
-        // === SUGGESTED CONTENT SECTION ===
+        // === SUGGESTED CONTENT SECTION === (only if AI enabled)
+        if ($ai_enabled) {
         $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
         
         // Theme introductions option
@@ -121,6 +127,9 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->setType('generatesessioninstructions', PARAM_BOOL);
         $mform->setDefault('generatesessioninstructions', 0);
         
+        $mform->closeHeaderBefore('buttonar');
+        } // End AI-enabled section
+        
         // Add both submit button and debug button (debug button only if existing modules enabled)
         $buttonarray = [];
         $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('submit', 'aiplacement_modgen'));
@@ -128,7 +137,6 @@ class aiplacement_modgen_generator_form extends moodleform {
             $buttonarray[] = $mform->createElement('submit', 'debugbutton', 'DEBUG: Show Template Data');
         }
         $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);
-        $mform->closeHeaderBefore('buttonar');
     }
 
     public function definition_after_data() {

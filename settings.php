@@ -37,6 +37,20 @@ if ($hassiteconfig) {
 
     // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedIf
     if ($ADMIN->fulltree) {
+        // AI Enable/Disable Setting
+        $settings->add(new admin_setting_heading(
+            'aiplacement_modgen/aienabledheading',
+            new lang_string('aienabledheading', 'aiplacement_modgen'),
+            new lang_string('aienabledheading_desc', 'aiplacement_modgen')
+        ));
+
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_ai',
+            new lang_string('enableai', 'aiplacement_modgen'),
+            new lang_string('enableai_desc', 'aiplacement_modgen'),
+            1
+        ));
+
         // AI Generation Settings
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/aipromptheading',

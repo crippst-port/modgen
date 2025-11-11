@@ -468,8 +468,13 @@ if ($approvedjsonparam !== null) {
             $themetitle = format_string($title, true, ['context' => $context]);
             $sectionhtml = '';
             
-            // Only include theme summary if "Generate theme introductions" is checked
-            if (!empty($adata->generatethemeintroductions) && trim($summary) !== '') {
+            // Check if AI is enabled
+            $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
+            
+            // Include theme summary if: 
+            // - AI is disabled (CSV mode - always use descriptions), OR
+            // - AI is enabled AND "Generate theme introductions" is checked
+            if ((!$ai_enabled || !empty($adata->generatethemeintroductions)) && trim($summary) !== '') {
                 $sectionhtml = format_text($summary, FORMAT_HTML, ['context' => $context]);
             }
             
@@ -1557,14 +1562,76 @@ if ($pdata = $promptform->get_data()) {
             // Don't extract Bootstrap structure - just use the template data as-is
             // The template_data already contains course_info, structure, activities, and template_html
             
+            // Check if AI is enabled - if not, use CSV parsing instead
+            $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
+            if (!$ai_enabled) {
+                // Process uploaded CSV file directly without AI
+                require_once(__DIR__ . '/classes/local/csv_parser.php');
+                
+                // Get the first uploaded file from draft area (should be CSV)
+                $draftitemid = $pdata->supportingfiles;
+                $usercontext = context_user::instance($USER->id);
+                $fs = get_file_storage();
+                $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
+                
+                if (empty($files)) {
+                    throw new Exception('No CSV file uploaded. When AI is disabled, you must upload a CSV file with the module structure.');
+                }
+                
+                $csvfile = array_shift($files);
+                $json = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
+            } else {
+                // Use AI generation
             $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, $supportingfiles, $moduletype, $courseid, $includeactivities, $includesessions);
+            }
         } catch (Exception $e) {
             // Fall back to normal generation if template fails
             $debuglog[] = 'Template extraction failed: ' . $e->getMessage();
+            
+            // Check if AI is enabled
+            $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
+            if (!$ai_enabled) {
+                // Process uploaded CSV file directly without AI
+                require_once(__DIR__ . '/classes/local/csv_parser.php');
+                
+                // Get the first uploaded file from draft area (should be CSV)
+                $draftitemid = $pdata->supportingfiles;
+                $usercontext = context_user::instance($USER->id);
+                $fs = get_file_storage();
+                $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
+                
+                if (empty($files)) {
+                    throw new Exception('No CSV file uploaded. When AI is disabled, you must upload a CSV file with the module structure.');
+                }
+                
+                $csvfile = array_shift($files);
+                $json = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
+            } else {
             $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype, null, $courseid, $includeactivities, $includesessions);
+            }
         }
     } else {
+    // Check if AI is enabled
+    $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
+    if (!$ai_enabled) {
+        // Process uploaded CSV file directly without AI
+        require_once(__DIR__ . '/classes/local/csv_parser.php');
+        
+        // Get the first uploaded file from draft area (should be CSV)
+        $draftitemid = $pdata->supportingfiles;
+        $usercontext = context_user::instance($USER->id);
+        $fs = get_file_storage();
+        $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
+        
+        if (empty($files)) {
+            throw new Exception('No CSV file uploaded. When AI is disabled, you must upload a CSV file with the module structure.');
+        }
+        
+        $csvfile = array_shift($files);
+        $json = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
+    } else {
     $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $supportingfiles, $moduletype, null, $courseid, $includeactivities, $includesessions);
+    }
     }
     // Check if the AI response contains validation errors
     if (empty($json)) {

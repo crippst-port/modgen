@@ -220,6 +220,12 @@ CRITICAL RULES:
 - Display important information in summaries or other activity types instead
 - Be specific about what students will learn (outcomes focus)';
 
+// AI enable/disable setting
+$string['aienabledheading'] = 'AI Integration';
+$string['aienabledheading_desc'] = 'Control whether the plugin uses AI to generate module structures or processes uploaded files directly.';
+$string['enableai'] = 'Enable AI generation';
+$string['enableai_desc'] = 'When enabled, uploaded files are processed exactly as specified, and you can make additional adjustments via the prompt field or base the structure on an existing module template. When disabled, only uploaded CSV files are processed with no AI adjustments available.';
+
 // AI prompt configuration
 $string['aipromptheading'] = 'AI Generation Settings';
 $string['aipromptheading_desc'] = 'Configure the pedagogical guidance and institutional context sent to the AI for module generation. The JSON schema and technical requirements are managed by the system and cannot be modified here.';

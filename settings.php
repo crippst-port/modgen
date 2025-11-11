@@ -90,7 +90,7 @@ if ($hassiteconfig) {
         $settings->add(new admin_setting_configcheckbox(
             'aiplacement_modgen/enable_existing_modules',
             new lang_string('enableexistingmodules', 'aiplacement_modgen'),
-            new lang_string('enableexistingmodules_desc', 'aiplacement_modgen'),
+            new lang_string('enableexistingmodules_desc', 'aiplacement_modgen') . "\n\nNote: AI generation must be enabled for this feature to work.",
             1
         ));
 

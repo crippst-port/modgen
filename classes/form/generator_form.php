@@ -58,8 +58,8 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->addElement('header', 'templatesettingsheader', get_string('templatesettings', 'aiplacement_modgen'));
         
         // Existing module selection - allows user to base generation on existing module structure
-        // Only show if admin has enabled this feature
-        if (get_config('aiplacement_modgen', 'enable_existing_modules')) {
+        // Only show if admin has enabled this feature AND AI is enabled
+        if (get_config('aiplacement_modgen', 'enable_ai') && get_config('aiplacement_modgen', 'enable_existing_modules')) {
             // Support up to 3 templates via multiselect
             $existingmodules = $this->get_editable_courses();
             
@@ -130,10 +130,10 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->closeHeaderBefore('buttonar');
         } // End AI-enabled section
         
-        // Add both submit button and debug button (debug button only if existing modules enabled)
+        // Add both submit button and debug button (debug button only if AI and existing modules enabled)
         $buttonarray = [];
         $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('submit', 'aiplacement_modgen'));
-        if (get_config('aiplacement_modgen', 'enable_existing_modules')) {
+        if (get_config('aiplacement_modgen', 'enable_ai') && get_config('aiplacement_modgen', 'enable_existing_modules')) {
             $buttonarray[] = $mform->createElement('submit', 'debugbutton', 'DEBUG: Show Template Data');
         }
         $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);

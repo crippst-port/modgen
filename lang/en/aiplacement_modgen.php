@@ -165,7 +165,7 @@ $string['templatesettings'] = 'Template Setup';
 $string['suggestedcontent'] = 'Suggest Content';
 
 // Generator introduction
-$string['generatorintroduction'] = 'Use the Module Assistant to generate Themes, weeks and activity sections ready for your content. Select one or more existing modules to base your generation on, choose a Connected Curriculum layout and let the AI do the rest. If you\'re modifying an existing module, add context into the prompt field and the AI will adapt the content accordingly. Enable the "Suggest Content" options below to generate suggested content to fill out your module.';
+$string['generatorintroduction'] = 'Use the Module Generator to create the structure of your Connected Module. Use a Module Layout file to upload and generate your layout.';
 
 // Base on existing module settings
 $string['existingmoduleheading'] = 'Base on Existing Module';

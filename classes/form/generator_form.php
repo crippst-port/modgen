@@ -58,13 +58,16 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->addElement('header', 'templatesettingsheader', get_string('templatesettings', 'aiplacement_modgen'));
         
         // Existing module selection - allows user to base generation on existing module structure
-        // Support up to 3 templates via multiselect
-        $existingmodules = $this->get_editable_courses();
-        
-        $mform->addElement('select', 'existing_modules', get_string('existingmodule', 'aiplacement_modgen'), $existingmodules, 
-            ['multiple' => 'multiple', 'size' => 4]);
-        $mform->setType('existing_modules', PARAM_INT);
-        $mform->addHelpButton('existing_modules', 'existingmodule', 'aiplacement_modgen');
+        // Only show if admin has enabled this feature
+        if (get_config('aiplacement_modgen', 'enable_existing_modules')) {
+            // Support up to 3 templates via multiselect
+            $existingmodules = $this->get_editable_courses();
+            
+            $mform->addElement('select', 'existing_modules', get_string('existingmodule', 'aiplacement_modgen'), $existingmodules, 
+                ['multiple' => 'multiple', 'size' => 4]);
+            $mform->setType('existing_modules', PARAM_INT);
+            $mform->addHelpButton('existing_modules', 'existingmodule', 'aiplacement_modgen');
+        }
         
         // Module type selection - store options as fixed to ensure they're available during form processing
         $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
@@ -75,28 +78,7 @@ class aiplacement_modgen_generator_form extends moodleform {
         // Store the module type options in customdata for validation
         $this->_moduletypeoptions = $moduletypeoptions;
         
-        // Add curriculum template selection if enabled
-        if (get_config('aiplacement_modgen', 'enable_templates')) {
-            $template_reader = new \aiplacement_modgen\local\template_reader();
-            $curriculum_templates = $template_reader->get_curriculum_templates();
-            
-            if (!empty($curriculum_templates)) {
-                $template_options = ['' => get_string('nocurriculum', 'aiplacement_modgen')] + $curriculum_templates;
-                $mform->addElement('select', 'curriculum_template', 
-                    get_string('selectcurriculum', 'aiplacement_modgen'), $template_options);
-                $mform->setType('curriculum_template', PARAM_TEXT);
-                $mform->addHelpButton('curriculum_template', 'curriculumtemplates', 'aiplacement_modgen');
-            }
-        }
-        
-        // Main content prompt
-        $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), 'rows="4" cols="60"');
-        $mform->setType('prompt', PARAM_TEXT);
-        // Prompt is conditionally required - either prompt OR files must be provided
-        // Actual validation is in validation() method
-        $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
-        
-        // File upload for supporting documents (optional)
+        // File upload for supporting documents (optional) - moved before prompt
         $returntypes = defined('FILE_INTERNAL') ? FILE_INTERNAL : 2;
         $fileoptions = [
             'subdirs' => 0,
@@ -107,6 +89,13 @@ class aiplacement_modgen_generator_form extends moodleform {
         ];
         $mform->addElement('filemanager', 'supportingfiles', get_string('supportingfiles', 'aiplacement_modgen'), null, $fileoptions);
         $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
+        
+        // Main content prompt - moved after supporting files
+        $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), 'rows="4" cols="60"');
+        $mform->setType('prompt', PARAM_TEXT);
+        // Prompt is conditionally required - either prompt OR files must be provided
+        // Actual validation is in validation() method
+        $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
 
         // === SUGGESTED CONTENT SECTION ===
         $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
@@ -132,10 +121,12 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->setType('generatesessioninstructions', PARAM_BOOL);
         $mform->setDefault('generatesessioninstructions', 0);
         
-        // Add both submit button and debug button
+        // Add both submit button and debug button (debug button only if existing modules enabled)
         $buttonarray = [];
         $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('submit', 'aiplacement_modgen'));
-        $buttonarray[] = $mform->createElement('submit', 'debugbutton', 'DEBUG: Show Template Data');
+        if (get_config('aiplacement_modgen', 'enable_existing_modules')) {
+            $buttonarray[] = $mform->createElement('submit', 'debugbutton', 'DEBUG: Show Template Data');
+        }
         $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);
         $mform->closeHeaderBefore('buttonar');
     }

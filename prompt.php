@@ -33,12 +33,10 @@ require_login();
 // Include form classes
 require_once(__DIR__ . '/classes/form/generator_form.php');
 require_once(__DIR__ . '/classes/form/approve_form.php');
-require_once(__DIR__ . '/classes/form/upload_form.php');
 
 // Cache configuration values for efficiency
 $pluginconfig = (object)[
     'timeout' => get_config('aiplacement_modgen', 'timeout') ?: 300,
-    'enable_templates' => get_config('aiplacement_modgen', 'enable_templates'),
 ];
 
 // Increase PHP execution time for AI processing
@@ -351,25 +349,6 @@ if ($embedded || $ajax) {
     $PAGE->set_pagelayout('embedded');
 }
 
-// Handle AJAX request for upload form only (to avoid filepicker initialization in hidden elements).
-if ($ajax && optional_param('action', '', PARAM_ALPHA) === 'getuploadform') {
-    require_sesskey();
-    $uploadform = new aiplacement_modgen_upload_form(null, [
-        'courseid' => $courseid,
-        'embedded' => $embedded ? 1 : 0,
-    ]);
-    
-    ob_start();
-    $uploadform->display();
-    $uploadformhtml = ob_get_clean();
-    
-    @header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
-        'form' => $uploadformhtml,
-    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    exit;
-}
-
 // Business logic - use cached config values.
 require_once(__DIR__ . '/classes/local/ai_service.php');
 require_once(__DIR__ . '/classes/activitytype/registry.php');
@@ -389,7 +368,6 @@ $approvedtypeparam = optional_param('moduletype', 'connected_weekly', PARAM_ALPH
 $generatethemeintroductionsparam = optional_param('generatethemeintroductions', 0, PARAM_BOOL);
 $createsuggestedactivitiesparam = optional_param('createsuggestedactivities', 0, PARAM_BOOL);
 $generatedsummaryparam = optional_param('generatedsummary', '', PARAM_RAW);
-$curriculumtemplateparam = optional_param('curriculum_template', '', PARAM_TEXT);
 if ($approvedjsonparam !== null) {
     $approveform = new aiplacement_modgen_approve_form(null, [
         'courseid' => $courseid,
@@ -398,7 +376,6 @@ if ($approvedjsonparam !== null) {
         'generatethemeintroductions' => $generatethemeintroductionsparam,
         'createsuggestedactivities' => $createsuggestedactivitiesparam,
         'generatedsummary' => $generatedsummaryparam,
-        'curriculum_template' => $curriculumtemplateparam,
         'embedded' => $embedded ? 1 : 0,
     ]);
 }
@@ -439,6 +416,12 @@ if ($approvedjsonparam !== null) {
                 
                 // Force a fresh course object to get updated format
                 $course = get_course($courseid, true);
+                
+                // If still not flexsections, try direct database update as fallback
+                if ($course->format !== 'flexsections') {
+                    $DB->set_field('course', 'format', 'flexsections', ['id' => $courseid]);
+                    $course = get_course($courseid, true);
+                }
                 
                 // Verify format was actually updated
                 if ($course->format !== 'flexsections') {
@@ -488,11 +471,6 @@ if ($approvedjsonparam !== null) {
             // Only include theme summary if "Generate theme introductions" is checked
             if (!empty($adata->generatethemeintroductions) && trim($summary) !== '') {
                 $sectionhtml = format_text($summary, FORMAT_HTML, ['context' => $context]);
-                // If a curriculum template was used, ensure IDs inside the template HTML are unique
-                if (!empty($adata->curriculum_template)) {
-                    require_once(__DIR__ . '/classes/local/template_structure_parser.php');
-                    $sectionhtml = \aiplacement_modgen\template_structure_parser::ensure_unique_ids($sectionhtml, 'sec' . $themesectionnum);
-                }
             }
             
             // Update the theme section name and summary
@@ -540,10 +518,6 @@ if ($approvedjsonparam !== null) {
                     $weeksectionhtml = '';
                     if (trim($weeksummary) !== '') {
                         $weeksectionhtml = format_text($weeksummary, FORMAT_HTML, ['context' => $context]);
-                        if (!empty($adata->curriculum_template)) {
-                            require_once(__DIR__ . '/classes/local/template_structure_parser.php');
-                            $weeksectionhtml = \aiplacement_modgen\template_structure_parser::ensure_unique_ids($weeksectionhtml, 'sec' . $weeksectionnum);
-                        }
                     }
                     
                     // Update the week section
@@ -649,11 +623,6 @@ if ($approvedjsonparam !== null) {
             $summaryhtml = trim(format_text($summary, FORMAT_HTML, ['context' => $context]));
             if ($summaryhtml !== '') {
                 $sectionhtml .= $summaryhtml;
-                // If using a curriculum template, ensure any ids are uniquified
-                if (!empty($adata->curriculum_template)) {
-                    require_once(__DIR__ . '/classes/local/template_structure_parser.php');
-                    $sectionhtml = \aiplacement_modgen\template_structure_parser::ensure_unique_ids($sectionhtml, 'sec' . $sectionnum);
-                }
             }
 
             if (!empty($outline)) {
@@ -849,79 +818,8 @@ if (!$promptform->is_submitted()) {
     exit;
 }
 
-// Upload form handling.
-$uploadform = new aiplacement_modgen_upload_form(null, [
-    'courseid' => $courseid,
-    'embedded' => 0,
-]);
-
-if ($promptform->is_cancelled() || $uploadform->is_cancelled()) {
+if ($promptform->is_cancelled()) {
     redirect(new moodle_url('/course/view.php', ['id' => $courseid]));
-}
-
-// Handle upload form submission.
-if (!empty($_FILES['contentfile']) || !empty($_POST['contentfile_itemid'])) {
-    $uploaddata = $uploadform->get_data();
-    if ($uploaddata) {
-        try {
-            $file_processor = new \aiplacement_modgen\local\filehandler\file_processor();
-            $courseid_int = (int) $courseid;
-            $course = get_course($courseid_int);
-            
-            // Get the uploaded file from filepicker draft area
-            $usercontextid = context_user::instance($USER->id)->id;
-            $file_storage = get_file_storage();
-            $files = $file_storage->get_area_files($usercontextid, 'user', 'draft', $uploaddata->contentfile);
-            
-            $file = null;
-            foreach ($files as $f) {
-                if (!$f->is_directory()) {
-                    $file = $f;
-                    break;
-                }
-            }
-            
-            if (!$file) {
-                throw new Exception(get_string('nofileuploadederror', 'aiplacement_modgen'));
-            }
-            
-            // Extract content from the file.
-            $chapters = $file_processor->extract_content_from_file($file, 'html');
-            
-            if (empty($chapters)) {
-                throw new Exception(get_string('nochaptersextractederror', 'aiplacement_modgen'));
-            }
-            
-            // Create the book activity using the registry
-            $activity_data = new stdClass();
-            $activity_data->name = $uploaddata->activityname;
-            $activity_data->intro = $uploaddata->activityintro ?? '';
-            $activity_data->chapters = $chapters;
-            
-            $bookhandler = \aiplacement_modgen\activitytype\registry::get_handler('book');
-            if (!$bookhandler) {
-                throw new Exception('Book activity handler not available');
-            }
-            
-            $book_module = $bookhandler->create(
-                $activity_data,
-                $course,
-                (int) $uploaddata->sectionnumber
-            );
-            
-            $success_message = get_string('bookactivitycreated', 'aiplacement_modgen', $uploaddata->activityname);
-            
-            if ($ajax) {
-                aiplacement_modgen_send_ajax_response('', '', false, ['close' => true, 'success' => $success_message]);
-            } else {
-                redirect(new moodle_url('/course/view.php', ['id' => $courseid]));
-            }
-        } catch (Exception $e) {
-            if ($ajax) {
-                aiplacement_modgen_send_ajax_response($e->getMessage(), '', false);
-            }
-        }
-    }
 }
 
 if ($pdata = $promptform->get_data()) {
@@ -929,7 +827,6 @@ if ($pdata = $promptform->get_data()) {
     if (!empty($pdata->debugbutton)) {
         $prompt = !empty($pdata->prompt) ? trim($pdata->prompt) : '';
         $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
-        $curriculum_template = !empty($pdata->curriculum_template) ? $pdata->curriculum_template : '';
         
         // Collect selected modules from multiselect
         $existing_modules = [];
@@ -947,7 +844,7 @@ if ($pdata = $promptform->get_data()) {
         $template_data = null;
         $template_data_debug = [];
         
-        if (!empty($curriculum_template) || !empty($existing_module) || !empty($existing_modules)) {
+        if (!empty($existing_module) || !empty($existing_modules)) {
             try {
                 $template_reader = new \aiplacement_modgen\local\template_reader();
                 $all_templates = [];
@@ -1045,11 +942,6 @@ if ($pdata = $promptform->get_data()) {
                         $template_data_debug[] = 'Final: ' . count($template_data['structure'] ?? []) . ' sections, ' . count($template_data['activities'] ?? []) . ' activities';
                     }
                     
-                } elseif (!empty($curriculum_template)) {
-                    // Use curriculum template
-                    $template_data_debug[] = 'Template source: ' . $curriculum_template;
-                    $template_data = $template_reader->extract_curriculum_template($curriculum_template);
-                    $template_data_debug[] = 'Success! Curriculum template extracted.';
                 }
                 
             } catch (Exception $e) {
@@ -1188,7 +1080,10 @@ if ($pdata = $promptform->get_data()) {
     $generatethemeintroductions = !empty($pdata->generatethemeintroductions);
     $createsuggestedactivities = !empty($pdata->createsuggestedactivities);
     $generatesessioninstructions = !empty($pdata->generatesessioninstructions);
-    $curriculum_template = !empty($pdata->curriculum_template) ? $pdata->curriculum_template : '';
+    
+    // For connected layouts, ALWAYS generate the sessions structure, but respect activity creation preference
+    $includesessions = $generatesessioninstructions || ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme');
+    $includeactivities = $createsuggestedactivities;
     
     // Collect all selected existing modules from multiselect
     $existing_modules = [];
@@ -1529,7 +1424,7 @@ if ($pdata = $promptform->get_data()) {
     // Debug tracking
     $debuglog = [];
     
-    if (!empty($curriculum_template) || !empty($existing_module) || !empty($existing_modules)) {
+    if (!empty($existing_module) || !empty($existing_modules)) {
         try {
             $template_reader = new \aiplacement_modgen\local\template_reader();
             $template_data = null;
@@ -1636,17 +1531,6 @@ if ($pdata = $promptform->get_data()) {
                     }
                 }
             } else {
-                // Use curriculum template if no existing module
-                $template_source = $curriculum_template;
-                $debuglog[] = 'Using curriculum template: ' . $template_source;
-                
-                try {
-                    $template_data = $template_reader->extract_curriculum_template($template_source);
-                    $debuglog[] = 'Curriculum template extraction succeeded';
-                } catch (Throwable $e) {
-                    $debuglog[] = 'Curriculum template extraction failed: ' . $e->getMessage();
-                    throw $e;
-                }
             }
             
             // Log what we got
@@ -1673,14 +1557,14 @@ if ($pdata = $promptform->get_data()) {
             // Don't extract Bootstrap structure - just use the template data as-is
             // The template_data already contains course_info, structure, activities, and template_html
             
-            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, $supportingfiles, $moduletype, $courseid, $createsuggestedactivities, $generatesessioninstructions);
+            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, $supportingfiles, $moduletype, $courseid, $includeactivities, $includesessions);
         } catch (Exception $e) {
             // Fall back to normal generation if template fails
             $debuglog[] = 'Template extraction failed: ' . $e->getMessage();
-            $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype, null, $courseid, $createsuggestedactivities, $generatesessioninstructions);
+            $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype, null, $courseid, $includeactivities, $includesessions);
         }
     } else {
-    $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $supportingfiles, $moduletype, null, $courseid, $createsuggestedactivities, $generatesessioninstructions);
+    $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $supportingfiles, $moduletype, null, $courseid, $includeactivities, $includesessions);
     }
     // Check if the AI response contains validation errors
     if (empty($json)) {
@@ -1784,7 +1668,6 @@ if ($pdata = $promptform->get_data()) {
         'generatethemeintroductions' => $generatethemeintroductions ? 1 : 0,
         'createsuggestedactivities' => $createsuggestedactivities ? 1 : 0,
         'generatedsummary' => $summarytext,
-        'curriculum_template' => $curriculum_template,
         'embedded' => $embedded ? 1 : 0,
     ]);
 

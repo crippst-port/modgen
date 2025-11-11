@@ -34,7 +34,6 @@ $string['existingmodule_help'] = 'Optionally select one or more existing modules
 
 $string['prompt'] = 'Additional context or requests for the Assistant';
 $string['submit'] = 'Submit prompt';
-$string['promptorrequired'] = 'Either provide a prompt description OR upload supporting documents (or both). At least one is required to generate module content.';
 
 $string['reviewjson'] = 'Review the generated module JSON below. Approve to create activities.';
 $string['jsonpreview'] = 'JSON preview';
@@ -116,29 +115,16 @@ $string['missingcourseid'] = 'Course ID is required to use the Module Assistant.
 
 // Tabbed interface
 $string['generatetablabel'] = 'Generate from Template';
-$string['uploadtablabel'] = 'Upload Content';
 
-// File upload and content import
-$string['contentfile'] = 'Upload document file';
-$string['contentfiledescription'] = 'Upload a Word document or OpenDocument file to extract content and create activities.';
 $string['supportingfiles'] = 'Supporting documents';
 $string['supportingfiles_help'] = 'Upload up to 5 supporting documents (for example: .docx, .odt, .txt, or .html). These files will be used as additional context by the Module Assistant when generating module structure and content. Content may be extracted from the files and included in the AI prompt. Maximum 10MB per file.';
-$string['selectactivitytype'] = 'What activity would you like to create?';
-$string['unsupportedfiletype'] = 'File type "{$a}" is not supported. Please upload a .docx, .doc, or .odt file.';
-$string['conversionfailed'] = 'Could not convert "{$a}" to HTML. Falling back to plain text extraction.';
-$string['fallbacktoplaintext'] = 'File was converted to plain text (formatting was not preserved).';
-$string['couldnotextractcontent'] = 'Could not extract content from "{$a}". Please check the file and try again.';
-$string['bookcreated'] = 'Book activity created: {$a} with {$chapters} chapters.';
-$string['uploadandcreate'] = 'Upload and create activity';
+
 $string['longquery'] = 'This may take a moment while the AI processes your request.';
 $string['connectedcurriculum30'] = '30 credit module';
 $string['connectedcurriculum60'] = '60 credit module';
 $string['connectedcurriculum120'] = '120 credit module';
 $string['connectedcurriculumcredits'] = 'Module type';
 $string['connectedcurriculuminstruction'] = 'Module credit volume: {$a} credit Connected Curriculum module.';
-$string['nocurriculum'] = 'No curriculum template';
-$string['selectcurriculum'] = 'Curriculum template';
-$string['curriculumtemplates'] = 'Curriculum templates';
 
 // Book activity
 $string['activitytype_book'] = 'Book';
@@ -179,44 +165,13 @@ $string['templatesettings'] = 'Template Setup';
 $string['suggestedcontent'] = 'Suggest Content';
 
 // Generator introduction
-$string['generatorintroduction'] = 'Use the Module Assistant to generate Themes, weeks and activity sections ready for your content. Select an existing module or modules to base your new template on, choose a new Connected Curriculum template layout and let the AI do the rest. If you\'re modifying an existing module, add some context into the prompt field and the AI will attempt to adapt the content accordingly. Lastly, if you\'d like to generate some suggested content to fill out your module, enable any of the "Suggest Content" options below.';
+$string['generatorintroduction'] = 'Use the Module Assistant to generate Themes, weeks and activity sections ready for your content. Select one or more existing modules to base your generation on, choose a Connected Curriculum layout and let the AI do the rest. If you\'re modifying an existing module, add context into the prompt field and the AI will adapt the content accordingly. Enable the "Suggest Content" options below to generate suggested content to fill out your module.';
 
-// Template system strings
-$string['templateheading'] = 'Curriculum Template Configuration';
-$string['templateheading_desc'] = 'Configure curriculum modules that can be used as templates for AI generation';
-$string['enabletemplates'] = 'Enable Template System';
-$string['enabletemplates_desc'] = 'Allow users to select predefined modules as templates for AI generation';
-$string['curriculumtemplates'] = 'Curriculum Template Modules';
-$string['curriculumtemplates_desc'] = 'Define curriculum template modules. Format: One per line as "Template Name|Course ID|Section ID (optional)". Example:<br/>
-Basic Mathematics|15<br/>
-Advanced Chemistry|23|2<br/>
-Introduction to Biology|31';
-$string['selectcurriculum'] = 'Select Template';
-$string['nocurriculum'] = 'Create from scratch';
-$string['curriculumnotfound'] = 'Selected curriculum template not found or not accessible';
-$string['invalidcurriculumconfig'] = 'Invalid curriculum template configuration. Please check admin settings.';
-$string['curriculumtemplates_help'] = 'Select an existing module to use as a template for AI generation. The AI will analyze the structure, activities, and content of the selected template to create similar content for your prompt.
-
-Choose "Create from scratch" to generate content without using any existing template.';
-
-// Upload form error messages
-$string['nofileuploadederror'] = 'No file was uploaded. Please select a file to upload.';
-$string['nochaptersextractederror'] = 'Could not extract chapters from the uploaded file. Ensure it is a valid document (.doc, .docx, or .odt).';
-$string['bookactivitycreated'] = 'Book activity "{$a}" has been created successfully with imported chapters.';
-
-// Upload form labels
-$string['contentfile'] = 'Upload document';
-$string['contentfile_help'] = 'Select a document file (.doc, .docx, or .odt) to extract content from. The content will be parsed into chapters for the activity.';
-$string['selectactivitytype'] = 'Activity type';
-$string['activityintro'] = 'Activity description';
-$string['generatetablabel'] = 'Generate module template';
-$string['uploadtablabel'] = 'Activity from file';
-
-// File upload workflow settings
-$string['fileuploadheading'] = 'File Upload Workflow';
-$string['fileuploadheading_desc'] = 'Configure the file upload workflow that allows users to create activities from uploaded documents.';
-$string['enablefileupload'] = 'Enable file upload workflow';
-$string['enablefileupload_desc'] = 'When enabled, users will see an "Activity from file" tab in the Module Assistant where they can upload documents to create book activities.';
+// Base on existing module settings
+$string['existingmoduleheading'] = 'Base on Existing Module';
+$string['existingmoduleheading_desc'] = 'Allow users to select existing modules as the basis for AI generation.';
+$string['enableexistingmodules'] = 'Enable base on existing module';
+$string['enableexistingmodules_desc'] = 'When enabled, users can select one or more existing modules to base their AI generation on. The AI will analyze the structure and activities of the selected modules and use them as a template for the new content.';
 
 // Activity creation toggle
 $string['createsuggestedactivities'] = 'Create suggested activities';

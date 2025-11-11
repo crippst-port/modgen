@@ -32,44 +32,7 @@ defined('MOODLE_INTERNAL') || die();
 class template_reader {
     
     /**
-     * Get available curriculum templates from admin configuration.
-     *
-     * @return array Array of template options for select dropdown
-     */
-    public function get_curriculum_templates() {
-        $templates_config = get_config('aiplacement_modgen', 'curriculum_templates');
-        $templates = [];
-        
-        if (empty($templates_config)) {
-            return $templates;
-        }
-        
-        $lines = explode("\n", $templates_config);
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if (empty($line)) {
-                continue;
-            }
-            
-            $parts = explode('|', $line);
-            if (count($parts) >= 2) {
-                $name = trim($parts[0]);
-                $courseid = (int)trim($parts[1]);
-                $sectionid = isset($parts[2]) ? (int)trim($parts[2]) : null;
-                
-                // Validate course exists and user has access
-                if ($this->validate_template_access($courseid)) {
-                    $key = $courseid . ($sectionid ? '|' . $sectionid : '');
-                    $templates[$key] = $name;
-                }
-            }
-        }
-        
-        return $templates;
-    }
-    
-    /**
-     * Extract template data from a curriculum module.
+     * Extract template data from an existing module.
      *
      * @param string $template_key Template key in format "courseid" or "courseid|sectionid"
      * @return array Template data structure
@@ -234,8 +197,7 @@ class template_reader {
     }
     
     /**
-     * Get course structure (sections) - using direct database queries instead of get_fast_modinfo
-     * to avoid potential database errors when loading course module info.
+     * Get course structure (sections) - using get_fast_modinfo for cached module data.
      *
      * @param int $courseid Course ID
      * @param int|null $sectionid Specific section ID (optional)
@@ -245,50 +207,30 @@ class template_reader {
         try {
             error_log("DEBUG: get_course_structure called with courseid=$courseid, sectionid=$sectionid");
             
-            global $DB;
-            $sections = [];
             $courseid = (int)$courseid;  // Ensure it's an integer
+            $course = get_course($courseid);
             
-            // Query sections directly from database instead of using get_fast_modinfo
-            try {
-                error_log("DEBUG: About to query course_sections for courseid=$courseid");
-                $allsections = $DB->get_records('course_sections', ['course' => $courseid], 'section ASC');
-                error_log("DEBUG: course_sections query succeeded, found " . count($allsections) . " sections");
-            } catch (Throwable $e) {
-                error_log("DEBUG: course_sections query failed: " . get_class($e) . " - " . $e->getMessage());
-                throw new Exception("Failed to query course_sections: " . $e->getMessage());
-            }
+            // Use cached modinfo for performance
+            $modinfo = get_fast_modinfo($course);
+            $sections = [];
             
-            // Pre-count activities per section in one query instead of N queries
-            try {
-                error_log("DEBUG: Pre-fetching activity counts for all sections");
-                $allcms = $DB->get_records('course_modules', ['course' => $courseid], '', 'id, section');
-                $activity_counts = [];
-                foreach ($allcms as $cm) {
-                    if (!isset($activity_counts[$cm->section])) {
-                        $activity_counts[$cm->section] = 0;
-                    }
-                    $activity_counts[$cm->section]++;
-                }
-                error_log("DEBUG: Pre-fetched activity counts for " . count($activity_counts) . " sections");
-            } catch (Throwable $e) {
-                error_log("DEBUG: Failed to pre-fetch activity counts: " . $e->getMessage());
-                $activity_counts = [];
-            }
+            // Get all sections and activity counts from cached modinfo
+            $sectiondata = $modinfo->get_sections();
             
-            foreach ($allsections as $section) {
+            foreach ($sectiondata as $sectionnum => $cmids) {
+                $section = $modinfo->get_section_info($sectionnum);
+                
                 if ($sectionid && $section->id != $sectionid) {
                     continue;
                 }
                 
-                // Use pre-counted activity count
-                $activity_count = $activity_counts[$section->section] ?? 0;
+                error_log("DEBUG: Processing section $sectionnum with " . count($cmids) . " activities");
                 
                 $sections[] = [
                     'id' => $section->id,
-                    'name' => !empty($section->name) ? $section->name : "Section {$section->section}",
+                    'name' => !empty($section->name) ? $section->name : "Section {$sectionnum}",
                     'summary' => strip_tags($section->summary ?? ''),
-                    'activity_count' => $activity_count
+                    'activity_count' => count($cmids)
                 ];
             }
             

@@ -58,11 +58,6 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->addElement('hidden', 'generatedsummary', $this->_customdata['generatedsummary']);
         $mform->setType('generatedsummary', PARAM_RAW);
         $mform->setDefault('generatedsummary', $this->_customdata['generatedsummary']);
-        if (isset($this->_customdata['curriculum_template'])) {
-            $mform->addElement('hidden', 'curriculum_template', $this->_customdata['curriculum_template']);
-            $mform->setType('curriculum_template', PARAM_TEXT);
-            $mform->setDefault('curriculum_template', $this->_customdata['curriculum_template']);
-        }
         $this->add_action_buttons(false, get_string('approveandcreate', 'aiplacement_modgen'));
     }
 }

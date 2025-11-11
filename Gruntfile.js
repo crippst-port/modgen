@@ -27,7 +27,11 @@ module.exports = function(grunt) {
             },
             dist: {
                 files: {
-                    'amd/build/explore.min.js': ['amd/src/explore.js']
+                    'amd/build/explore.min.js': ['amd/src/explore.js'],
+                    'amd/build/embedded_prompt.min.js': ['amd/src/embedded_prompt.js'],
+                    'amd/build/embedded_results.min.js': ['amd/src/embedded_results.js'],
+                    'amd/build/fab.min.js': ['amd/src/fab.js'],
+                    'amd/build/modal.min.js': ['amd/src/modal.js']
                 }
             }
         },

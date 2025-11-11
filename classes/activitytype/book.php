@@ -66,6 +66,11 @@ class book implements activity_type {
 
         $intro = trim($activitydata->intro ?? '');
         $chapters = $activitydata->chapters ?? [];
+        
+        // Ensure chapters is an array (might be string from JSON)
+        if (!is_array($chapters)) {
+            $chapters = [];
+        }
 
         error_log('BOOK: Chapters count: ' . count($chapters));
 
@@ -76,6 +81,7 @@ class book implements activity_type {
         $moduleinfo->section = $sectionnumber;
         $moduleinfo->visible = 1;
         $moduleinfo->name = $name;
+        $moduleinfo->cmidnumber = '';  // Course module ID number (optional identifier)
         
         // Book intro - use same editor format as quiz/label
         $moduleinfo->introeditor = [

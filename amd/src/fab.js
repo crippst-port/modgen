@@ -21,21 +21,29 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(ModalEvents, ModgenModal, Str) {
+define([
+    'core/modal_events',
+    'aiplacement_modgen/modal',
+    'core/str',
+    'core/templates'
+], function(ModalEvents, ModgenModal, Str, Templates) {
+    // eslint-disable-next-line no-unused-vars
     /**
-     * Create the floating action button element.
+     * Create the floating action button element using a template.
      *
      * @param {Object} params
-     * @returns {HTMLElement}
+     * @returns {Promise<HTMLElement>}
      */
-    const createButton = (params) => {
-        const button = document.createElement('button');
-        button.type = 'button';
-        button.classList.add('btn', 'btn-primary', 'aiplacement-modgen__fab');
-        button.setAttribute('aria-label', params.arialabel);
-        button.setAttribute('aria-haspopup', 'dialog');
-        button.setAttribute('aria-expanded', 'false');
-        button.textContent = params.buttonlabel;
+    const createButton = async(params) => {
+        const context = {
+            arialabel: params.arialabel,
+            buttonlabel: params.buttonlabel,
+        };
+        
+        const {html} = await Templates.renderForPromise('aiplacement_modgen/fab_button', context);
+        const temp = document.createElement('div');
+        temp.innerHTML = html;
+        const button = temp.firstElementChild;
         document.body.appendChild(button);
         return button;
     };
@@ -49,12 +57,9 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
     let footerButtonBindings = [];
     let needsContentReload = true;
 
-    const getModalUrl = (baseUrl, params) => {
+    const getModalUrl = (baseUrl) => {
         const url = new URL(baseUrl, window.location.origin);
         url.searchParams.set('ajax', '1');
-        if (params.embedded) {
-            url.searchParams.set('embedded', '1');
-        }
         if (typeof M !== 'undefined' && M.cfg && M.cfg.sesskey && !url.searchParams.has('sesskey')) {
             url.searchParams.set('sesskey', M.cfg.sesskey);
         }
@@ -202,33 +207,6 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
         });
     };
 
-    const setupKeepWeekLabelsToggle = (form) => {
-        if (form.dataset.modgenWeekToggle === '1') {
-            return;
-        }
-
-        const moduleselect = form.querySelector('select[name="moduletype"]');
-        const keepweekitem = form.querySelector('#fitem_id_keepweeklabels');
-        if (!moduleselect || !keepweekitem) {
-            return;
-        }
-
-        const checkbox = keepweekitem.querySelector('input[name="keepweeklabels"]');
-
-        const updateVisibility = () => {
-            const isWeekly = moduleselect.value === 'weekly';
-            keepweekitem.style.display = isWeekly ? '' : 'none';
-            keepweekitem.setAttribute('aria-hidden', isWeekly ? 'false' : 'true');
-            if (!isWeekly && checkbox) {
-                checkbox.checked = false;
-            }
-        };
-
-        moduleselect.addEventListener('change', updateVisibility);
-        updateVisibility();
-        form.dataset.modgenWeekToggle = '1';
-    };
-
     const enhanceForms = (params) => {
         if (!modalInstance) {
             return [];
@@ -255,10 +233,24 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
                     if (!formData.has('sesskey') && typeof M !== 'undefined' && M.cfg && M.cfg.sesskey) {
                         formData.append('sesskey', M.cfg.sesskey);
                     }
+                    // Debug: log FormData keys and file entries to help diagnose submission issues
+                    try {
+                        const entries = [];
+                        for (const pair of formData.entries()) {
+                            if (pair[1] instanceof File) {
+                                entries.push({ key: pair[0], filename: pair[1].name, size: pair[1].size });
+                            } else {
+                                entries.push({ key: pair[0], value: (typeof pair[1] === 'string' ? pair[1].slice(0, 200) : String(pair[1])) });
+                            }
+                        }
+                        // eslint-disable-next-line no-console
+                        console.debug('Module Generator form submit FormData entries:', entries);
+                    } catch (e) {
+                        // eslint-disable-next-line no-console
+                        console.warn('Failed to inspect FormData for debugging', e);
+                    }
                     loadContent(params, formData);
                 });
-
-                setupKeepWeekLabelsToggle(form);
             }
 
             bindings.push(...collectSubmitButtons(form));
@@ -360,7 +352,7 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
 
         setLoadingState();
 
-        const url = getModalUrl(params.url, params);
+        const url = getModalUrl(params.url);
         
         // Create AbortController for timeout handling
         const controller = new AbortController();
@@ -512,7 +504,7 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
      *
      * @param {Object} params
      */
-    const init = (params) => {
+    const init = async(params) => {
         if (!params || !params.url) {
             return;
         }
@@ -523,21 +515,26 @@ define(['core/modal_events', 'aiplacement_modgen/modal', 'core/str'], function(M
             return;
         }
 
-        const trigger = createButton(params);
+        try {
+            const trigger = await createButton(params);
 
-        trigger.addEventListener('click', (event) => {
-            event.preventDefault();
-            getModal(params, trigger).then((modal) => {
-                modal.show();
-                if (!modal.getBody().html()) {
-                    loadContent(params);
-                }
-            }).catch((error) => {
-                // eslint-disable-next-line no-console
-                console.error('Failed to initialise Module Generator modal', error);
-                trigger.remove();
+            trigger.addEventListener('click', (event) => {
+                event.preventDefault();
+                getModal(params, trigger).then((modal) => {
+                    modal.show();
+                    if (!modal.getBody().html()) {
+                        loadContent(params);
+                    }
+                }).catch((error) => {
+                    // eslint-disable-next-line no-console
+                    console.error('Failed to initialise Module Generator modal', error);
+                    trigger.remove();
+                });
             });
-        });
+        } catch (error) {
+            // eslint-disable-next-line no-console
+            console.error('Failed to create Module Generator FAB', error);
+        }
     };
 
     return {init};

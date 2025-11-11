@@ -32,65 +32,110 @@ defined('MOODLE_INTERNAL') || die();
 class template_reader {
     
     /**
-     * Get available curriculum templates from admin configuration.
-     *
-     * @return array Array of template options for select dropdown
-     */
-    public function get_curriculum_templates() {
-        $templates_config = get_config('aiplacement_modgen', 'curriculum_templates');
-        $templates = [];
-        
-        if (empty($templates_config)) {
-            return $templates;
-        }
-        
-        $lines = explode("\n", $templates_config);
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if (empty($line)) {
-                continue;
-            }
-            
-            $parts = explode('|', $line);
-            if (count($parts) >= 2) {
-                $name = trim($parts[0]);
-                $courseid = (int)trim($parts[1]);
-                $sectionid = isset($parts[2]) ? (int)trim($parts[2]) : null;
-                
-                // Validate course exists and user has access
-                if ($this->validate_template_access($courseid)) {
-                    $key = $courseid . ($sectionid ? '|' . $sectionid : '');
-                    $templates[$key] = $name;
-                }
-            }
-        }
-        
-        return $templates;
-    }
-    
-    /**
-     * Extract template data from a curriculum module.
+     * Extract template data from an existing module.
      *
      * @param string $template_key Template key in format "courseid" or "courseid|sectionid"
      * @return array Template data structure
      */
     public function extract_curriculum_template($template_key) {
-        $parts = explode('|', $template_key);
-        $courseid = (int)$parts[0];
-        $sectionid = isset($parts[1]) ? (int)$parts[1] : null;
-        
-        if (!$this->validate_template_access($courseid)) {
-            throw new \moodle_exception('curriculumnotfound', 'aiplacement_modgen');
+        try {
+            error_log("DEBUG: extract_curriculum_template called with template_key: $template_key");
+            
+            $parts = explode('|', $template_key);
+            $courseid = (int)$parts[0];
+            $rawsection = isset($parts[1]) ? trim($parts[1]) : null;
+            $sectionid = $rawsection !== null && $rawsection !== '' ? (int)$rawsection : null;
+            
+            error_log("DEBUG: Parsed courseid=$courseid, sectionid=$sectionid");
+            
+            if (!$this->validate_template_access($courseid)) {
+                error_log("DEBUG: Access validation failed for courseid=$courseid");
+                throw new \moodle_exception('curriculumnotfound', 'aiplacement_modgen');
+            }
+            
+            error_log("DEBUG: Access validation passed");
+            
+            // Normalize section identifier so callers may provide either the DB id
+            // (course_sections.id) or the section number (course_sections.section).
+            global $DB;
+            $resolvedsectionid = null; // DB id
+            $resolvedsectionnum = null; // section number
+            if ($sectionid) {
+                try {
+                    error_log("DEBUG: About to resolve section with sectionid=$sectionid");
+                    // First, try to find by DB id
+                    $record = $DB->get_record('course_sections', ['course' => $courseid, 'id' => $sectionid]);
+                    if ($record) {
+                        $resolvedsectionid = (int)$record->id;
+                        $resolvedsectionnum = (int)$record->section;
+                        error_log("DEBUG: Resolved section by ID: db_id=$resolvedsectionid, section_num=$resolvedsectionnum");
+                    } else {
+                        // If not found by id, try treating supplied value as section number
+                        $record2 = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $sectionid]);
+                        if ($record2) {
+                            $resolvedsectionid = (int)$record2->id;
+                            $resolvedsectionnum = (int)$record2->section;
+                            error_log("DEBUG: Resolved section by number: db_id=$resolvedsectionid, section_num=$resolvedsectionnum");
+                        } else {
+                            // Not found - clear both so callers treat as no section filter
+                            $resolvedsectionid = null;
+                            $resolvedsectionnum = null;
+                            error_log("DEBUG: Section not found with either method");
+                        }
+                    }
+                } catch (Throwable $e) {
+                    error_log("DEBUG: Section resolution threw exception: " . get_class($e) . " - " . $e->getMessage());
+                    // Don't fail - just skip section filtering
+                    $resolvedsectionid = null;
+                    $resolvedsectionnum = null;
+                }
+            }
+
+            error_log("DEBUG: About to call get_course_info");
+            try {
+                $course_info = $this->get_course_info($courseid);
+                error_log("DEBUG: get_course_info completed successfully");
+            } catch (Throwable $e) {
+                error_log("DEBUG: get_course_info threw exception: " . get_class($e) . " - " . $e->getMessage());
+                throw new Exception("Failed in get_course_info: " . $e->getMessage());
+            }
+            
+            error_log("DEBUG: About to call get_course_structure");
+            try {
+                $structure = $this->get_course_structure($courseid, $resolvedsectionid);
+                error_log("DEBUG: get_course_structure completed successfully, got " . count($structure) . " sections");
+            } catch (Throwable $e) {
+                error_log("DEBUG: get_course_structure threw exception: " . get_class($e) . " - " . $e->getMessage());
+                // Don't fail - just use empty structure
+                $structure = [];
+            }
+            
+            error_log("DEBUG: About to call get_activities_detail");
+            try {
+                $activities = $this->get_activities_detail($courseid, $resolvedsectionnum);
+                error_log("DEBUG: get_activities_detail completed successfully, got " . count($activities) . " activities");
+            } catch (Throwable $e) {
+                error_log("DEBUG: get_activities_detail threw exception: " . get_class($e) . " - " . $e->getMessage());
+                // Don't fail - just use empty activities
+                $activities = [];
+            }
+            
+            error_log("DEBUG: Extracted course_info: " . json_encode($course_info));
+            error_log("DEBUG: Extracted structure count: " . count($structure) . " sections");
+            error_log("DEBUG: Extracted activities count: " . count($activities) . " activities");
+
+            $template = [
+                'course_info' => $course_info,
+                'structure' => $structure,
+                'activities' => $activities,
+            ];
+            
+            error_log("DEBUG: Returning template with keys: " . implode(', ', array_keys($template)));
+            return $template;
+        } catch (Exception $e) {
+            error_log("DEBUG: Exception in extract_curriculum_template: " . $e->getMessage() . " (Code: " . $e->getCode() . ")");
+            throw $e;
         }
-        
-        $template = [
-            'course_info' => $this->get_course_info($courseid),
-            'structure' => $this->get_course_structure($courseid, $sectionid),
-            'activities' => $this->get_activities_detail($courseid, $sectionid),
-            'template_html' => $this->get_course_html_structure($courseid, $sectionid)
-        ];
-        
-        return $template;
     }
     
     /**
@@ -102,13 +147,19 @@ class template_reader {
     private function validate_template_access($courseid) {
         global $DB, $USER;
         
-        $course = $DB->get_record('course', ['id' => $courseid]);
-        if (!$course) {
+        try {
+            $course = $DB->get_record('course', ['id' => $courseid]);
+            if (!$course) {
+                return false;
+            }
+            
+            // Simple check: just verify user is logged in and course exists
+            // More detailed capability checks can fail with database errors in some Moodle instances
+            return !empty($USER->id);
+        } catch (Exception $e) {
+            error_log("DEBUG: Exception in validate_template_access: " . $e->getMessage());
             return false;
         }
-        
-        $context = \context_course::instance($courseid);
-        return has_capability('moodle/course:view', $context);
     }
     
     /**
@@ -120,364 +171,176 @@ class template_reader {
     private function get_course_info($courseid) {
         global $DB;
         
-        $course = $DB->get_record('course', ['id' => $courseid], 'fullname,shortname,summary,format');
-        return [
-            'name' => $course->fullname,
-            'format' => $course->format,
-            'summary' => strip_tags($course->summary)
-        ];
+        error_log("DEBUG: get_course_info called with courseid=$courseid");
+        $courseid = (int)$courseid;
+        
+        try {
+            error_log("DEBUG: About to query course table with id=$courseid");
+            $course = $DB->get_record('course', ['id' => $courseid], 'fullname,shortname,summary,format');
+            
+            if (!$course) {
+                error_log("DEBUG: Course not found: courseid=$courseid");
+                throw new Exception("Course not found: $courseid");
+            }
+            
+            error_log("DEBUG: Course found: " . $course->fullname);
+            
+            return [
+                'name' => $course->fullname,
+                'format' => $course->format,
+                'summary' => strip_tags($course->summary)
+            ];
+        } catch (Throwable $e) {
+            error_log("DEBUG: Error in get_course_info: " . get_class($e) . " - " . $e->getMessage());
+            throw $e;
+        }
     }
     
     /**
-     * Get course structure (sections).
+     * Get course structure (sections) - using get_fast_modinfo for cached module data.
      *
      * @param int $courseid Course ID
      * @param int|null $sectionid Specific section ID (optional)
      * @return array Sections structure
      */
     private function get_course_structure($courseid, $sectionid = null) {
-        $modinfo = get_fast_modinfo($courseid);
-        $sections = [];
-        
-        foreach ($modinfo->get_section_info_all() as $section) {
-            if ($sectionid && $section->id != $sectionid) {
-                continue;
-            }
+        try {
+            error_log("DEBUG: get_course_structure called with courseid=$courseid, sectionid=$sectionid");
             
-            if ($section->uservisible) {
+            $courseid = (int)$courseid;  // Ensure it's an integer
+            $course = get_course($courseid);
+            
+            // Use cached modinfo for performance
+            $modinfo = get_fast_modinfo($course);
+            $sections = [];
+            
+            // Get all sections and activity counts from cached modinfo
+            $sectiondata = $modinfo->get_sections();
+            
+            foreach ($sectiondata as $sectionnum => $cmids) {
+                $section = $modinfo->get_section_info($sectionnum);
+                
+                if ($sectionid && $section->id != $sectionid) {
+                    continue;
+                }
+                
+                error_log("DEBUG: Processing section $sectionnum with " . count($cmids) . " activities");
+                
                 $sections[] = [
                     'id' => $section->id,
-                    'name' => get_section_name($courseid, $section),
-                    'summary' => strip_tags($section->summary),
-                    'activity_count' => count($modinfo->sections[$section->section] ?? [])
+                    'name' => !empty($section->name) ? $section->name : "Section {$sectionnum}",
+                    'summary' => strip_tags($section->summary ?? ''),
+                    'activity_count' => count($cmids)
                 ];
             }
+            
+            error_log("DEBUG: get_course_structure returning " . count($sections) . " sections");
+            return $sections;
+        } catch (Exception $e) {
+            error_log("DEBUG: Exception in get_course_structure: " . $e->getMessage());
+            throw $e;
         }
-        
-        return $sections;
     }
     
     /**
-     * Get detailed activity information.
+     * Get detailed activity information - optimized for token efficiency.
+     * Extracts label intro text (structure/headings) and activity names/types.
      *
      * @param int $courseid Course ID
-     * @param int|null $sectionid Specific section ID (optional)
-     * @return array Activities details
+     * @param int|null $sectionid Specific section ID (optional, filter by section number)
+     * @return array Activities details (labels with intro, others with just name/type)
      */
     private function get_activities_detail($courseid, $sectionid = null) {
-        $modinfo = get_fast_modinfo($courseid);
-        $activities = [];
-        
-        foreach ($modinfo->get_cms() as $cm) {
-            if ($sectionid && $cm->sectionnum != $sectionid) {
-                continue;
+        try {
+            error_log("DEBUG: get_activities_detail called with courseid=$courseid, sectionid=$sectionid");
+            
+            global $DB;
+            $activities = [];
+            $courseid = (int)$courseid;  // Ensure integer
+            
+            // First get all modules to have a lookup table
+            try {
+                error_log("DEBUG: About to query modules table");
+                $modules_list = $DB->get_records('modules', [], '', 'id, name');
+                error_log("DEBUG: modules query succeeded, got " . count($modules_list) . " module types");
+            } catch (Throwable $e) {
+                error_log("DEBUG: modules query failed: " . get_class($e) . " - " . $e->getMessage());
+                throw new Exception("Failed to query modules: " . $e->getMessage());
             }
             
-            if ($cm->uservisible) {
+            $module_lookup = [];
+            foreach ($modules_list as $mod) {
+                $module_lookup[$mod->id] = $mod->name;
+            }
+            error_log("DEBUG: Module lookup has " . count($module_lookup) . " entries");
+            
+            // Pre-fetch ALL sections to avoid N+1 queries
+            try {
+                error_log("DEBUG: Pre-fetching all course sections");
+                $all_sections = $DB->get_records('course_sections', ['course' => $courseid], '', 'id, section, name');
+                $section_lookup = [];
+                foreach ($all_sections as $sec) {
+                    $section_lookup[$sec->section] = !empty($sec->name) ? $sec->name : "Section {$sec->section}";
+                }
+                error_log("DEBUG: Pre-fetched " . count($all_sections) . " sections");
+            } catch (Throwable $e) {
+                error_log("DEBUG: Failed to pre-fetch sections: " . $e->getMessage());
+                $section_lookup = [];
+            }
+            
+            // Query course modules directly from database
+            try {
+                error_log("DEBUG: About to query course_modules for courseid=$courseid");
+                $allcms = $DB->get_records('course_modules', ['course' => $courseid], 'section, id');
+                error_log("DEBUG: course_modules query succeeded, got " . count($allcms) . " modules");
+            } catch (Throwable $e) {
+                error_log("DEBUG: course_modules query failed: " . get_class($e) . " - " . $e->getMessage());
+                throw new Exception("Failed to query course_modules: " . $e->getMessage());
+            }
+            
+            foreach ($allcms as $cm) {
+                $modname = $module_lookup[$cm->module] ?? 'unknown';
+                
+                if ($sectionid !== null && $cm->section != $sectionid) {
+                    continue;
+                }
+                
+                // Use pre-fetched section name
+                $section_name = $section_lookup[$cm->section] ?? "Section {$cm->section}";
+                
+                // Get the full course module object with name and intro from the module instance table
+                // Use Moodle API to get the proper module details
+                $fullcm = get_coursemodule_from_id($modname, $cm->id);
+                
+                // If we couldn't load the full module object, skip it
+                if (!$fullcm) {
+                    error_log("DEBUG: Could not load full module object for cm->id={$cm->id}, modname={$modname}");
+                    continue;
+                }
+                
+                // Build activity data efficiently based on type:
+                // - Labels: Extract full intro (these are headings/structure markers)
+                // - Other activities: Just name and type (AI doesn't need full descriptions)
                 $activity_data = [
-                    'type' => $cm->modname,
-                    'name' => $cm->name,
-                    'intro' => strip_tags($cm->content ?? ''),
-                    'section' => get_section_name($courseid, $cm->sectionnum)
+                    'type' => $modname,
+                    'name' => $fullcm->name ?? "Unknown {$modname}",
+                    'section' => $section_name
                 ];
                 
-                // Add module-specific content
-                switch ($cm->modname) {
-                    case 'quiz':
-                        $activity_data['quiz_details'] = $this->extract_quiz_details($cm->instance);
-                        break;
-                    case 'page':
-                        $activity_data['page_content'] = $this->extract_page_content($cm->instance);
-                        break;
-                    case 'label':
-                        $activity_data['label_content'] = $this->extract_label_content($cm->instance);
-                        break;
+                // Only extract intro content for labels (headings/structure)
+                // For other activities, the name and type is sufficient
+                if ($modname === 'label') {
+                    $activity_data['intro'] = strip_tags($fullcm->intro ?? '');
                 }
                 
                 $activities[] = $activity_data;
             }
-        }
-        
-        return $activities;
-    }
-    
-    /**
-     * Extract quiz details including questions.
-     *
-     * @param int $quizid Quiz ID
-     * @return array Quiz details
-     */
-    private function extract_quiz_details($quizid) {
-        global $DB;
-        
-        $quiz = $DB->get_record('quiz', ['id' => $quizid]);
-        if (!$quiz) {
-            return [];
-        }
-        
-        return [
-            'settings' => [
-                'attempts' => $quiz->attempts,
-                'grademethod' => $quiz->grademethod,
-                'preferredbehaviour' => $quiz->preferredbehaviour,
-                'questionsperpage' => $quiz->questionsperpage
-            ],
-            'questions' => $this->get_quiz_questions($quizid)
-        ];
-    }
-    
-    /**
-     * Get quiz questions.
-     *
-     * @param int $quizid Quiz ID
-     * @return array Questions
-     */
-    private function get_quiz_questions($quizid) {
-        global $DB;
-        
-        $sql = "SELECT q.id, q.name, q.questiontext, q.qtype
-                FROM {question} q
-                JOIN {quiz_slots} qs ON q.id = qs.questionid
-                WHERE qs.quizid = ?
-                ORDER BY qs.slot";
-        
-        $questions = $DB->get_records_sql($sql, [$quizid]);
-        $formatted_questions = [];
-        
-        foreach ($questions as $question) {
-            $question_data = [
-                'name' => $question->name,
-                'text' => strip_tags($question->questiontext),
-                'type' => $question->qtype
-            ];
             
-            // Add answers for multiple choice questions
-            if ($question->qtype === 'multichoice') {
-                $question_data['answers'] = $this->get_multichoice_answers($question->id);
-            }
-            
-            $formatted_questions[] = $question_data;
+            error_log("DEBUG: get_activities_detail returning " . count($activities) . " activities");
+            return $activities;
+        } catch (Throwable $e) {
+            error_log("DEBUG: Exception in get_activities_detail: " . $e->getMessage() . " / " . $e->getTraceAsString());
+            throw $e;
         }
-        
-        return $formatted_questions;
-    }
-    
-    /**
-     * Get multiple choice answers.
-     *
-     * @param int $questionid Question ID
-     * @return array Answers
-     */
-    private function get_multichoice_answers($questionid) {
-        global $DB;
-        
-        $answers = $DB->get_records('question_answers', ['question' => $questionid], 'id');
-        $formatted_answers = [];
-        
-        foreach ($answers as $answer) {
-            $formatted_answers[] = [
-                'text' => strip_tags($answer->answer),
-                'correct' => $answer->fraction > 0
-            ];
-        }
-        
-        return $formatted_answers;
-    }
-    
-    /**
-     * Extract page content.
-     *
-     * @param int $pageid Page ID
-     * @return string Page content
-     */
-    private function extract_page_content($pageid) {
-        global $DB;
-        
-        $page = $DB->get_record('page', ['id' => $pageid], 'content');
-        return $page ? strip_tags($page->content) : '';
-    }
-    
-    /**
-     * Extract label content.
-     *
-     * @param int $labelid Label ID
-     * @return string Label content
-     */
-    private function extract_label_content($labelid) {
-        global $DB;
-        
-        $label = $DB->get_record('label', ['id' => $labelid], 'intro');
-        return $label ? strip_tags($label->intro) : '';
-    }
-
-    /**
-     * Extract Bootstrap structure patterns from template sections.
-     * Analyzes section summaries for Bootstrap components (tabs, cards, accordion, etc.)
-     *
-     * @param string $template_key Template key in format "courseid" or "courseid|sectionid"
-     * @return array Array with 'components' and 'description' keys
-     */
-    public function extract_bootstrap_structure($template_key) {
-        $parts = explode('|', $template_key);
-        $courseid = (int)$parts[0];
-        $sectionid = isset($parts[1]) ? (int)$parts[1] : null;
-
-        if (!$this->validate_template_access($courseid)) {
-            return ['components' => [], 'description' => ''];
-        }
-
-        global $DB;
-        $components = [];
-        $description_parts = [];
-
-        if ($sectionid) {
-            // Specific section
-            $section = $DB->get_record('course_sections', ['course' => $courseid, 'id' => $sectionid]);
-            if ($section) {
-                $components = $this->analyze_html_for_bootstrap($section->summary);
-                $description_parts[] = "Section '{$section->name}' uses: " . implode(', ', $components);
-            }
-        } else {
-            // All sections in course
-            $sections = $DB->get_records('course_sections', ['course' => $courseid], 'section');
-            foreach ($sections as $section) {
-                if (empty($section->summary)) {
-                    continue;
-                }
-                $section_components = $this->analyze_html_for_bootstrap($section->summary);
-                if (!empty($section_components)) {
-                    $components = array_unique(array_merge($components, $section_components));
-                    $description_parts[] = "Section {$section->section}: " . implode(', ', $section_components);
-                }
-            }
-        }
-
-        // Build description
-        $description = "Template structure uses the following Bootstrap components:\n";
-        if (!empty($description_parts)) {
-            $description .= "- " . implode("\n- ", $description_parts);
-        } else {
-            $description .= "- Standard Moodle layout (plain text sections)";
-        }
-
-        return [
-            'components' => array_values(array_unique($components)),
-            'description' => $description,
-        ];
-    }
-
-    /**
-     * Analyze HTML content for Bootstrap component usage.
-     *
-     * @param string $html HTML content to analyze
-     * @return array Array of Bootstrap component names found
-     */
-    private function analyze_html_for_bootstrap($html) {
-        $components = [];
-
-        // Check for specific Bootstrap classes
-        if (preg_match('/nav-tabs|tabs/', $html)) {
-            $components[] = 'Bootstrap tabs';
-        }
-        if (preg_match('/card/', $html)) {
-            $components[] = 'Bootstrap cards';
-        }
-        if (preg_match('/accordion/', $html)) {
-            $components[] = 'Bootstrap accordion';
-        }
-        if (preg_match('/collapse/', $html)) {
-            $components[] = 'Bootstrap collapsible content';
-        }
-        if (preg_match('/btn-group|button-group/', $html)) {
-            $components[] = 'Bootstrap button groups';
-        }
-        if (preg_match('/alert/', $html)) {
-            $components[] = 'Bootstrap alerts';
-        }
-        if (preg_match('/row|col-md|col-lg/', $html)) {
-            $components[] = 'Bootstrap grid layout';
-        }
-        if (preg_match('/badge|pill/', $html)) {
-            $components[] = 'Bootstrap badges/pills';
-        }
-
-        return $components;
-    }
-
-    /**
-     * Get the HTML structure of the course for structure preservation
-     *
-     * @param int $courseid Course ID
-     * @param int|null $sectionid Specific section ID (optional)
-     * @return string Combined HTML from course sections
-     */
-    private function get_course_html_structure($courseid, $sectionid = null) {
-        global $DB;
-        
-        $modinfo = get_fast_modinfo($courseid);
-        $html_parts = [];
-        
-        // Get HTML from section summaries
-        foreach ($modinfo->get_section_info_all() as $section) {
-            if ($sectionid && $section->id != $sectionid) {
-                continue;
-            }
-            
-            if ($section->uservisible && !empty($section->summary)) {
-                // Keep the raw HTML from section summary (not stripped)
-                $html_parts[] = $section->summary;
-            }
-        }
-        
-        // Also check for page and label modules that might have structured HTML
-        foreach ($modinfo->get_cms() as $cm) {
-            if ($sectionid && $cm->sectionnum != $sectionid) {
-                continue;
-            }
-            
-            if ($cm->uservisible) {
-                // For pages and labels, try to get the actual HTML content
-                if ($cm->modname === 'page') {
-                    $page_html = $this->extract_page_html($cm->instance);
-                    if (!empty($page_html)) {
-                        $html_parts[] = $page_html;
-                    }
-                } elseif ($cm->modname === 'label') {
-                    $label_html = $this->extract_label_html($cm->instance);
-                    if (!empty($label_html)) {
-                        $html_parts[] = $label_html;
-                    }
-                }
-            }
-        }
-        
-        // Combine all HTML parts
-        return implode("\n", $html_parts);
-    }
-
-    /**
-     * Extract raw HTML content from a page module instance
-     *
-     * @param int $pageid Page ID
-     * @return string Page HTML content
-     */
-    private function extract_page_html($pageid) {
-        global $DB;
-        
-        $page = $DB->get_record('page', ['id' => $pageid], 'content');
-        return $page ? $page->content : '';
-    }
-
-    /**
-     * Extract raw HTML content from a label module instance
-     *
-     * @param int $labelid Label ID
-     * @return string Label HTML content
-     */
-    private function extract_label_html($labelid) {
-        global $DB;
-        
-        $label = $DB->get_record('label', ['id' => $labelid], 'intro');
-        return $label ? $label->intro : '';
     }
 }

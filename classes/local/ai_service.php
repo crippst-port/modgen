@@ -32,33 +32,159 @@ require_once(__DIR__ . '/../activitytype/registry.php');
 defined('MOODLE_INTERNAL') || die();
 
 class ai_service {
+
     /**
-     * Log debug information to a web-accessible location
+     * Validate module structure to catch malformed AI responses.
+     *
+     * Checks for common issues like empty or malformed theme/section structures.
+     * Note: Double-encoded JSON is now handled in normalize_ai_response() which unwraps it automatically.
+     *
+     * @param array $data The decoded module data
+     * @param string $structure Expected structure type ('theme' or 'weekly')
+     * @return array ['valid' => bool, 'error' => string]
      */
-    private static function debug_log($message) {
-        global $CFG;
-        $logdir = $CFG->dataroot . '/modgen_logs';
-        if (!is_dir($logdir)) {
-            mkdir($logdir, 0777, true);
+    /**
+     * Extract requested theme count from user prompt if specified.
+     * Looks for patterns like "X themes", "X themed sections", "divide into X themes", etc.
+     * 
+     * @param string $prompt User's input prompt
+     * @param string $structure The structure type (theme or weekly)
+     * @return int|null The requested theme count, or null if not specified
+     */
+    private static function extract_requested_theme_count($prompt, $structure) {
+        // Only applicable for theme-based structures
+        if ($structure !== 'theme') {
+            return null;
         }
-        $logfile = $logdir . '/debug.log';
-        $timestamp = date('Y-m-d H:i:s');
-        file_put_contents($logfile, "[$timestamp] $message\n", FILE_APPEND);
+        
+        // Look for patterns like:
+        // "5 themes", "5-themed", "divide into 5 themes", "create 5 themes"
+        // "5 themed sections", "using 5 themes", "total of 5 themes"
+        if (preg_match('/(\d+)\s*(?:themes?|themed\s+sections?|theme\s+groups?)/i', $prompt, $matches)) {
+            $count = intval($matches[1]);
+            // Reasonable range: between 2 and 20 themes
+            if ($count >= 2 && $count <= 20) {
+                return $count;
+            }
+        }
+        
+        return null;
     }
+
+    private static function validate_module_structure($data, $structure) {
+        $structure = ($structure === 'theme') ? 'theme' : 'weekly';
+
+        // Check if we have the expected top-level key
+        if ($structure === 'theme' && !isset($data['themes'])) {
+            return ['valid' => false, 'error' => 'Response missing "themes" array'];
+        }
+        if ($structure === 'weekly' && !isset($data['sections'])) {
+            return ['valid' => false, 'error' => 'Response missing "sections" array'];
+        }
+
+        $items = $structure === 'theme' ? ($data['themes'] ?? []) : ($data['sections'] ?? []);
+
+        // Check if array is empty
+        if (empty($items)) {
+            return ['valid' => false, 'error' => 'Response contains no themes/sections'];
+        }
+
+        // Check each theme/section for malformed structure
+        foreach ($items as $idx => $item) {
+            if (!is_array($item)) {
+                return ['valid' => false, 'error' => 'Invalid structure: theme/section is not an array'];
+            }
+
+            // For theme structure, check weeks
+            if ($structure === 'theme') {
+                if (!isset($item['weeks'])) {
+                    return ['valid' => false, 'error' => 'Theme missing "weeks" array'];
+                }
+                if (!is_array($item['weeks'])) {
+                    return ['valid' => false, 'error' => 'Theme "weeks" is not an array'];
+                }
+
+                // Check each week
+                foreach ($item['weeks'] as $widx => $week) {
+                    if (!is_array($week)) {
+                        return ['valid' => false, 'error' => 'Week structure is not an array'];
+                    }
+                }
+            }
+
+            // Check if title exists and is not empty
+            if (!isset($item['title']) || trim($item['title']) === '') {
+                return ['valid' => false, 'error' => 'Theme/section missing title'];
+            }
+        }
+
+        return ['valid' => true, 'error' => ''];
+    }
+
     /**
      * Recursively normalise AI responses where some fields may be JSON encoded as strings.
      * This walks arrays/objects and attempts to json_decode string values that look like JSON.
+     * 
+     * SPECIAL CASES: 
+     * 1. If the structure is wrapped (first item in themes/sections array contains 
+     *    the actual structure in its summary field), this function unwraps it automatically.
+     * 2. Handles JSON strings with escaped newlines and quotes within field values.
+     * 3. When the entire module structure is nested in a field as a JSON string, extracts it.
      *
      * @param mixed $value
+     * @param bool $isTopLevel Whether this is the top-level call (used for structure extraction)
      * @return mixed
      */
-    private static function normalize_ai_response($value) {
+    private static function normalize_ai_response($value, $isTopLevel = false) {
         // If it's an array, walk each element.
         if (is_array($value)) {
             $out = [];
             foreach ($value as $k => $v) {
-                $out[$k] = self::normalize_ai_response($v);
+                $out[$k] = self::normalize_ai_response($v, false);
             }
+            
+            // Top-level extraction: check for wrapped structure pattern
+            if ($isTopLevel && !empty($out)) {
+                // Pattern 1: Single entry that contains the actual structure
+                if (count($out) === 1) {
+                    foreach ($out as $key => $item) {
+                        // If we have a structure wrapped (e.g., {theme: {themes: [...]}}), unwrap it
+                        if (is_array($item) && (isset($item['themes']) || isset($item['sections']))) {
+                            return $item;
+                        }
+                    }
+                }
+                
+                // Pattern 2: themes/sections array where first item's summary contains actual structure
+                if ((isset($out['themes']) || isset($out['sections'])) && is_array($out['themes'] ?? $out['sections'])) {
+                    $itemsArray = $out['themes'] ?? $out['sections'];
+                    $firstItem = $itemsArray[0] ?? null;
+                    
+                    if ($firstItem && is_array($firstItem) && isset($firstItem['summary']) && is_string($firstItem['summary'])) {
+                        $summary = trim($firstItem['summary']);
+                        // Check if the summary contains the full structure (may have escaped newlines/quotes)
+                        if (strlen($summary) > 0 && ($summary[0] === '{' || $summary[0] === '[')) {
+                            // Try direct decode first
+                            $decoded = json_decode($summary, true);
+                            if (json_last_error() === JSON_ERROR_NONE && 
+                                (isset($decoded['themes']) || isset($decoded['sections']))) {
+                                return self::normalize_ai_response($decoded, false);
+                            }
+                            
+                            // Try with common escape patterns: literal \n, \t, \\", etc.
+                            $unescaped = self::unescape_json_string($summary);
+                            if ($unescaped !== $summary) {
+                                $decoded = json_decode($unescaped, true);
+                                if (json_last_error() === JSON_ERROR_NONE && 
+                                    (isset($decoded['themes']) || isset($decoded['sections']))) {
+                                    return self::normalize_ai_response($decoded, false);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
             return $out;
         }
 
@@ -74,7 +200,16 @@ class ai_service {
                 $decoded = json_decode($trim, true);
                 if (json_last_error() === JSON_ERROR_NONE) {
                     // Recursively normalise decoded payload
-                    return self::normalize_ai_response($decoded);
+                    return self::normalize_ai_response($decoded, false);
+                }
+                
+                // If direct decode failed, try unescaping first
+                $unescaped = self::unescape_json_string($trim);
+                if ($unescaped !== $trim) {
+                    $decoded = json_decode($unescaped, true);
+                    if (json_last_error() === JSON_ERROR_NONE) {
+                        return self::normalize_ai_response($decoded, false);
+                    }
                 }
             }
 
@@ -84,7 +219,7 @@ class ai_service {
                 if ((isset($unescaped[0]) && ($unescaped[0] === '{' || $unescaped[0] === '['))) {
                     $decoded = json_decode($unescaped, true);
                     if (json_last_error() === JSON_ERROR_NONE) {
-                        return self::normalize_ai_response($decoded);
+                        return self::normalize_ai_response($decoded, false);
                     }
                 }
             }
@@ -93,7 +228,7 @@ class ai_service {
             if (preg_match('/(\{.*\}|\[.*\])/s', $trim, $m)) {
                 $decoded = json_decode($m[1], true);
                 if (json_last_error() === JSON_ERROR_NONE) {
-                    return self::normalize_ai_response($decoded);
+                    return self::normalize_ai_response($decoded, false);
                 }
             }
 
@@ -104,13 +239,298 @@ class ai_service {
         // Scalars other than strings left unchanged
         return $value;
     }
-    public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null) {
+
+    /**
+     * Extract full module structure that was misplaced in a summary field.
+     * If AI put the entire themes/sections JSON in a theme summary instead of as the main themes array,
+     * detect it, extract it, and use it as the actual content.
+     *
+     * @param array $data The parsed response data
+     * @return array The corrected data
+     */
+    private static function extract_misplaced_content_from_summaries($data) {
+        if (!is_array($data)) {
+            return $data;
+        }
+        
+        // Check if we have themes array
+        if (empty($data['themes']) || !is_array($data['themes'])) {
+            return $data;
+        }
+        
+        // Look through themes for misplaced content
+        foreach ($data['themes'] as $idx => $theme) {
+            if (!is_array($theme) || empty($theme['summary'])) {
+                continue;
+            }
+            
+            $summary = $theme['summary'];
+            
+            // Check if summary is already decoded to an array (from deep_unescape_stringified_json)
+            if (is_array($summary) && (isset($summary['themes']) || isset($summary['sections']))) {
+                // This is misplaced content already decoded!
+                error_log("MISPLACED CONTENT EXTRACTED: Full module structure was in theme[{$idx}].summary (decoded)\n", 3, '/tmp/modgen_token_usage.log');
+                
+                // Use the extracted content as the main data, preserving template field
+                $template_value = $data['template'] ?? "Generated via AI subsystem";
+                $data = $summary;
+                $data['template'] = $template_value;
+                
+                return $data;
+            }
+            
+            // Also check if it's a string containing JSON
+            if (is_string($summary)) {
+                $summary = trim($summary);
+                
+                // Check if summary is a stringified JSON object containing full structure
+                if (strlen($summary) > 100 && 
+                    (strpos($summary, '{"themes"') === 0 || strpos($summary, '{"sections"') === 0) && 
+                    (substr($summary, -1) === '}' || substr($summary, -1) === ']')) {
+                    
+                    // Try to parse it
+                    $parsed = json_decode($summary, true);
+                    if (is_array($parsed) && (isset($parsed['themes']) || isset($parsed['sections']))) {
+                        // This is misplaced content!
+                        error_log("MISPLACED CONTENT EXTRACTED: Full module structure was in theme[{$idx}].summary (string)\n", 3, '/tmp/modgen_token_usage.log');
+                        
+                        // Use the extracted content as the main data, preserving template field
+                        $template_value = $data['template'] ?? "Generated via AI subsystem";
+                        $data = $parsed;
+                        $data['template'] = $template_value;
+                        
+                        return $data;
+                    }
+                }
+            }
+        }
+        
+        return $data;
+    }
+
+    /**
+     * Attempt to unescape common JSON escape sequences in string values.
+     * Handles cases like literal \n, \t, \", \\ etc.
+     *
+     * @param string $str The string to unescape
+     * @return string The unescaped string
+     */
+    private static function unescape_json_string($str) {
+        // Handle common escape patterns that might be in the string
+        // but not properly interpreted
+        $replacements = [
+            '\\\\n' => "\n",      // Literal \n -> newline
+            '\\\\t' => "\t",      // Literal \t -> tab
+            '\\\\r' => "\r",      // Literal \r -> carriage return
+            '\\\"' => '"',        // Escaped quote -> quote
+            "\\\\" => "\\",       // Escaped backslash -> backslash
+            '\\/' => '/',         // Escaped forward slash -> slash
+        ];
+        
+        $result = $str;
+        foreach ($replacements as $pattern => $replacement) {
+            $result = str_replace($pattern, $replacement, $result);
+        }
+        
+        // Also handle cases where we have double-escaped quotes or backslashes
+        // e.g., \\\\" should become \"
+        $result = str_replace('\\\\\\"', '\\"', $result);
+        $result = str_replace('\\\\\\\\', '\\\\', $result);
+        
+        return $result;
+    }
+
+    /**
+     * Recursively scan parsed JSON structure for stringified JSON in string fields.
+     * If a string value looks like JSON, try to parse and decode it.
+     * This handles cases where AI returns: {"themes": [{"summary": "{\"themes\": [...]}"}]}
+     *
+     * @param array $data The parsed JSON structure
+     * @param int $depth Current recursion depth (to prevent infinite loops)
+     * @return array The structure with deeply decoded JSON fields
+     */
+    private static function deep_unescape_stringified_json($data, $depth = 0) {
+        // Prevent infinite recursion
+        if ($depth > 10) {
+            return $data;
+        }
+        
+        if (!is_array($data)) {
+            return $data;
+        }
+        
+        foreach ($data as $key => &$value) {
+            if (is_string($value)) {
+                // Check if string looks like it might be JSON
+                $trimmed = trim($value);
+                if ((strpos($trimmed, '{') === 0 && strrpos($trimmed, '}') === strlen($trimmed) - 1) ||
+                    (strpos($trimmed, '[') === 0 && strrpos($trimmed, ']') === strlen($trimmed) - 1)) {
+                    
+                    // Try to decode as-is first
+                    $decoded = json_decode($trimmed, true);
+                    if (is_array($decoded)) {
+                        // Successfully decoded! Recursively process the decoded content
+                        $value = self::deep_unescape_stringified_json($decoded, $depth + 1);
+                    } else {
+                        // Try unescaping first, then decoding
+                        $unescaped = self::unescape_json_string($trimmed);
+                        if ($unescaped !== $trimmed) {
+                            $decoded = json_decode($unescaped, true);
+                            if (is_array($decoded)) {
+                                $value = self::deep_unescape_stringified_json($decoded, $depth + 1);
+                            }
+                        }
+                    }
+                }
+            } elseif (is_array($value)) {
+                // Recursively process nested arrays
+                $value = self::deep_unescape_stringified_json($value, $depth + 1);
+            }
+        }
+        
+        return $data;
+    }
+
+    /**
+     * Convert a weekly structure (sections) into a themed structure (themes).
+     * 
+     * Groups sections into themes by analyzing section titles for pedagogical coherence.
+     * Creates wrapper themes and nests the sections as weeks within each theme.
+     *
+     * @param array $data The response data with 'sections' array
+     * @return array The converted data with 'themes' array, or original if no sections found
+     */
+    private static function convert_sections_to_themes($data) {
+        // If already has themes or no sections, return as-is
+        if (!isset($data['sections']) || !is_array($data['sections'])) {
+            return $data;
+        }
+
+        $sections = $data['sections'];
+        if (empty($sections)) {
+            return $data;
+        }
+
+        // Group sections into themes based on pedagogical similarity
+        // Strategy: Look for section titles that suggest thematic boundaries
+        // Keywords that might start a new theme: "Module", "Unit", "Theme", "Section", "Part"
+        $themes = [];
+        $currentTheme = null;
+
+        foreach ($sections as $section) {
+            $title = $section['title'] ?? 'Untitled';
+            
+            // Check if this section should start a new theme
+            // (titles containing "Theme", "Unit", "Module" suggest a new thematic grouping)
+            $lowerTitle = strtolower($title);
+            $isThemeStarter = preg_match('/^(theme|unit|module|part|section)\s+\d+|^(week|session)\s+\d+/i', $title);
+            
+            if (empty($themes) || $isThemeStarter) {
+                // Start a new theme
+                $themeName = preg_match('/^(theme|unit|module)\s+(\d+)/i', $title, $m) 
+                    ? ucfirst($m[1]) . ' ' . $m[2]
+                    : (preg_match('/^part\s+(\w+)/i', $title, $m2) ? 'Part: ' . $m2[1] : $title);
+                
+                $currentTheme = [
+                    'title' => $themeName,
+                    'summary' => $section['summary'] ?? '',
+                    'weeks' => [],
+                ];
+                $themes[] = $currentTheme;
+                $themeIdx = count($themes) - 1;
+            } else {
+                $themeIdx = count($themes) - 1;
+            }
+
+            // Convert section into week structure
+            $week = [
+                'title' => $title,
+                'summary' => $section['summary'] ?? '',
+            ];
+
+            // If section has outline, convert to activities structure
+            if (isset($section['outline']) && is_array($section['outline'])) {
+                $week['sessions'] = [
+                    'session' => [
+                        'title' => 'Main Session',
+                        'summary' => implode("\n", $section['outline']),
+                        'activities' => $section['activities'] ?? [],
+                    ],
+                ];
+            } elseif (isset($section['activities']) && is_array($section['activities'])) {
+                $week['sessions'] = [
+                    'session' => [
+                        'title' => 'Main Session',
+                        'summary' => '',
+                        'activities' => $section['activities'],
+                    ],
+                ];
+            }
+
+            $themes[$themeIdx]['weeks'][] = $week;
+        }
+
+        // Return converted structure
+        $data['themes'] = $themes;
+        unset($data['sections']);
+        return $data;
+    }
+
+    /**
+     * Generate formatted week dates based on course start date.
+     * Each week is 7 days from the course start date.
+     * 
+     * @param int $weeknumber The week number (1-based)
+     * @param int $courseid Optional course ID to get start date from. Uses COURSE global if not provided.
+     * @return string Formatted date range for the week (e.g., "Jan 6 - Jan 12, 2025")
+     */
+    private static function get_week_date_range($weeknumber, $courseid = null) {
+        global $COURSE;
+        
+        // Get course object if courseid provided
+        if (!empty($courseid)) {
+            $course = get_course($courseid);
+        } else {
+            $course = $COURSE;
+        }
+        
+        // Get course start date
+        $startdate = !empty($course->startdate) ? $course->startdate : time();
+        
+        // Calculate week start date (Monday of week number)
+        // Week 1 starts on the course start date
+        $weekstartdate = $startdate + (($weeknumber - 1) * 7 * 24 * 60 * 60);
+        $weekenddate = $weekstartdate + (6 * 24 * 60 * 60); // 6 days later = Sunday
+        
+        // Format as "Mon Date - Mon Date" (e.g., "Jan 6 - 12")
+        $startformatted = userdate($weekstartdate, '%b %d', 99999);
+        $endformatted = userdate($weekenddate, '%d', 99999);
+        
+        return "{$startformatted} - {$endformatted}";
+    }
+
+    /**
+     * Generate module structure and content using AI.
+     * 
+     * @param string $prompt User's input requirements
+     * @param array $documents Supporting documents/files
+     * @param string $structure Module structure type (weekly/theme)
+     * @param array $template_data Optional template data
+     * @param int $courseid Optional course ID for week date calculations
+     * @param bool $includeactivities Whether to request activities in the response (default: true)
+     * @param bool $includesessions Whether to request session instructions (default: true)
+     * @return array Module structure JSON
+     */
+    public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null, $courseid = null, $includeactivities = true, $includesessions = true) {
         global $USER, $COURSE;
         
-        // Log whether template_data was passed
-        self::debug_log('=== generate_module called ===');
-        self::debug_log('template_data is ' . (empty($template_data) ? 'EMPTY/NULL' : 'PRESENT'));
-        self::debug_log('template_data type: ' . gettype($template_data));
+        // Debug: Log template data status
+        error_log('DEBUG: generate_module called with template_data: ' . (empty($template_data) ? 'EMPTY' : 'PRESENT (' . count((array)$template_data) . ' keys)'));
+        if (!empty($template_data) && is_array($template_data)) {
+            error_log('DEBUG: template_data keys: ' . implode(', ', array_keys($template_data)));
+            error_log('DEBUG: template_data[structure] type: ' . gettype($template_data['structure'] ?? null) . ' count: ' . count((array)($template_data['structure'] ?? [])));
+            error_log('DEBUG: template_data[activities] type: ' . gettype($template_data['activities'] ?? null) . ' count: ' . count((array)($template_data['activities'] ?? [])));
+        }
         
         // Integrate with Moodle AI Subsystem Manager using generate_text action.
         try {
@@ -133,227 +553,231 @@ class ai_service {
                 ];
             }
 
-            // Compose an instruction-rich prompt with strict JSON schema requirements.
-            $structure = ($structure === 'theme') ? 'theme' : 'weekly';
-            
-            // Start with fixed JSON schema requirements
-            $jsonrequirements = "The JSON structure you return must represent a Moodle module for the user's requirements, not just generic activities.\n" .
-                "Return ONLY valid JSON matching the schema below. Do not include any commentary or code fences.";
+            // Compose instruction-rich prompt with strict JSON schema requirements.
+            // Normalize format types: connected_weekly -> weekly, connected_theme -> theme
+            $normalizedStructure = $structure;
+            if ($structure === 'connected_weekly') {
+                $normalizedStructure = 'weekly';
+            } elseif ($structure === 'connected_theme') {
+                $normalizedStructure = 'theme';
+            }
+            $structure = ($normalizedStructure === 'theme') ? 'theme' : 'weekly';
             
             // Get the configurable pedagogical guidance from admin settings
             $pedagogicalguidance = get_config('aiplacement_modgen', 'baseprompt');
             if (empty($pedagogicalguidance)) {
                 // Fallback to default if not configured
-                $pedagogicalguidance = "You are an expert Moodle learning content designer at a UK higher education institution.\n" .
-                    "Your task is to design a Moodle module for the user's input, using activities and resources appropriate for UK HE.\n" .
-                    "Design learning activities aligned with UK HE standards, inclusive pedagogy, and clear learning outcomes.";
+                $pedagogicalguidance = "You are an expert Moodle learning content designer at a UK higher education institution designing a Moodle module.";
             }
             
-            // Combine pedagogical guidance with JSON requirements
-            $roleinstruction = $pedagogicalguidance . "\n\n" . $jsonrequirements;
+            // Build simplified role instruction
+            $istemplate = !empty($template_data);
+            $source_label = $istemplate ? 'the existing module structure' : 'the curriculum file';
+            
+            $roleinstruction = $pedagogicalguidance . "\n\n" .
+                "CRITICAL - MUST FOLLOW:\n" .
+                "1. COMPLETE output: Generate all topics/sections. Do NOT stop early or truncate.\n" .
+                "2. Include ALL content from " . $source_label . " - nothing can be omitted.\n" .
+                "3. Return ONLY valid JSON - no commentary or code blocks.\n" .
+                "4. Use ONLY supported activity types - unsupported types will FAIL.\n" .
+                "5. TEMPLATE METADATA section describes the 'template' JSON field ONLY - do NOT add this to theme/week summaries.\n" .
+                "6. NEVER include JSON strings inside field values. All fields must contain plain text or arrays, NOT JSON-encoded strings.\n\n";
+
+            // Add structure-specific guidance - simplified
+            if ($structure === 'theme') {
+                $requestedthemecount = self::extract_requested_theme_count($prompt, $structure);
+                
+                if (!empty($requestedthemecount)) {
+                    $roleinstruction .= "THEME GENERATION:\n" .
+                        "Generate EXACTLY {$requestedthemecount} themes (non-negotiable).\n" .
+                        "Each theme must have 2-4 weeks.\n" .
+                        "Theme titles must be descriptive (e.g., 'Data Analysis Fundamentals'), never generic ('Theme 1').\n" .
+                        "Week titles must include BOTH date range AND descriptive topic (e.g., 'Oct 18 - 24: Introduction to Cloud Computing').\n\n";
+                } else {
+                    $roleinstruction .= "THEME GENERATION:\n" .
+                        "Generate 4-7 themes based on content. Each theme must have 2-4 weeks.\n" .
+                        "Theme titles must be descriptive, never generic.\n" .
+                        "Week titles must include BOTH date range AND descriptive topic (e.g., 'Oct 18 - 24: Introduction to Cloud Computing').\n\n";
+                }
+            } else {
+                $roleinstruction .= "WEEKLY GENERATION:\n" .
+                    "Create one section per major topic. Section titles must be descriptive (e.g., 'Week 1: Cloud Computing Basics').\n\n";
+            }
 
             $activitymetadata = registry::get_supported_activity_metadata();
-            $supportedactivitytypes = array_keys($activitymetadata);
 
-            // Debug: Log what activity types are available
-            self::debug_log("AI_SERVICE: Activity metadata: " . print_r($activitymetadata, true));
-            self::debug_log("AI_SERVICE: Supported types: " . print_r($supportedactivitytypes, true));
-
+            // Explicit JSON format instruction with detailed structure
             if ($structure === 'theme') {
-                $weekproperties = [
-                    'title' => ['type' => 'string'],
-                    'summary' => ['type' => 'string'],
-                ];
-                if (!empty($supportedactivitytypes)) {
-                    $weekproperties['activities'] = [
-                        'type' => 'array',
-                        'items' => [
-                            'type' => 'object',
-                            'required' => ['type', 'name'],
-                            'properties' => [
-                                'type' => [
-                                    'type' => 'string',
-                                    'enum' => $supportedactivitytypes,
-                                ],
-                                'name' => ['type' => 'string'],
-                                'intro' => ['type' => 'string'],
-                                'description' => ['type' => 'string'],
-                                'externalurl' => ['type' => 'string'],
-                                'chapters' => [
-                                    'type' => 'array',
-                                    'items' => [
-                                        'type' => 'object',
-                                        'properties' => [
-                                            'title' => ['type' => 'string'],
-                                            'content' => ['type' => 'string'],
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ];
+                if ($includesessions) {
+                    $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
+                        "Your response MUST be ONLY a valid JSON object with this exact structure:\n" .
+                        "{\n" .
+                        "  \"themes\": [\n" .
+                        "    {\n" .
+                        "      \"title\": \"Theme Title (descriptive, not generic)\",\n" .
+                        "      \"summary\": \"2-3 sentences introducing the theme topic to students\",\n" .
+                        "      \"weeks\": [\n" .
+                        "        {\n" .
+                        "          \"title\": \"Oct 18 - 24: Introduction to Cloud Computing\",\n" .
+                        "          \"summary\": \"Brief overview of the week's learning outcomes\",\n" .
+                        "          \"sessions\": {\n" .
+                        "            \"presession\": {\n" .
+                        "              \"description\": \"5-8 sentences of student-facing guidance for pre-session preparation\",\n" .
+                        "              \"activities\": [{\"type\": \"forum\", \"name\": \"Activity Name\"}]\n" .
+                        "            },\n" .
+                        "            \"session\": {\n" .
+                        "              \"description\": \"5-8 sentences of student-facing guidance for main session activities\",\n" .
+                        "              \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity Name\"}]\n" .
+                        "            },\n" .
+                        "            \"postsession\": {\n" .
+                        "              \"description\": \"5-8 sentences of student-facing guidance for post-session reflection\",\n" .
+                        "              \"activities\": [{\"type\": \"assignment\", \"name\": \"Activity Name\"}]\n" .
+                        "            }\n" .
+                        "          }\n" .
+                        "        }\n" .
+                        "      ]\n" .
+                        "    }\n" .
+                        "  ]\n" .
+                        "}\n\n" .
+                        "CRITICAL REQUIREMENTS:\n" .
+                        "- Return ONLY the JSON object. No additional text before or after.\n" .
+                        "- NEVER include JSON as a string value in any field (e.g., summary must NOT contain nested JSON)\n" .
+                        "- Each theme.summary must be 2-3 plain sentences (NO JSON inside)\n" .
+                        "- Each week.title must include date range AND descriptive topic: 'date: Topic Name'\n" .
+                        "- Each sessions.description must be 5-8 plain sentences (NO JSON inside)\n" .
+                        "- All field values must be strings or arrays of objects, NEVER strings containing JSON\n" .
+                        "- Themes array MUST contain all themes\n" .
+                        "- Each theme MUST have a weeks array with complete week structures\n\n";
+                } else {
+                    $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
+                        "Your response MUST be ONLY a valid JSON object (no text before/after):\n" .
+                        "{\"themes\": [{\"title\": \"Theme Name\", \"summary\": \"2-3 sentences\", \"weeks\": [{\"title\": \"Week N (Oct 18 - 24)\", \"summary\": \"Brief overview\"}]}]}\n\n";
                 }
-
-                $schemaspec = [
-                    'type' => 'object',
-                    'required' => ['themes'],
-                    'properties' => [
-                        'themes' => [
-                            'type' => 'array',
-                            'items' => [
-                                'type' => 'object',
-                                'required' => ['title', 'summary', 'weeks'],
-                                'properties' => [
-                                    'title' => ['type' => 'string'],
-                                    'summary' => ['type' => 'string'],
-                                    'weeks' => [
-                                        'type' => 'array',
-                                        'items' => [
-                                            'type' => 'object',
-                                            'required' => ['title', 'summary'],
-                                            'properties' => $weekproperties,
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
-                        'template' => ['type' => 'string'],
-                    ],
-                ];
-                if (!empty($supportedactivitytypes)) {
-                    $schemaspec['properties']['themes']['items']['properties']['activities'] = [
-                        'type' => 'array',
-                        'items' => [
-                            'type' => 'object',
-                            'required' => ['type', 'name'],
-                            'properties' => [
-                                'type' => [
-                                    'type' => 'string',
-                                    'enum' => $supportedactivitytypes,
-                                ],
-                                'name' => ['type' => 'string'],
-                                'intro' => ['type' => 'string'],
-                                'description' => ['type' => 'string'],
-                                'externalurl' => ['type' => 'string'],
-                                'chapters' => [
-                                    'type' => 'array',
-                                    'items' => [
-                                        'type' => 'object',
-                                        'properties' => [
-                                            'title' => ['type' => 'string'],
-                                            'content' => ['type' => 'string'],
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ];
-                }
-                $formatinstruction = "Schema: " . json_encode($schemaspec) . "\n" .
-                    "Output rules: Return a compact JSON object which validates against the schema.\n" .
-                    "Each theme includes a 'title', a 'summary', and a 'weeks' array.\n" .
-                    "Each week object contains a 'title' and 'summary' giving practical weekly delivery guidance.\n" .
-                    "Audience: UK university students. Use British English.";
             } else {
-                $sectionproperties = [
-                    'title' => ['type' => 'string'],
-                    'summary' => ['type' => 'string'],
-                    'outline' => [
-                        'type' => 'array',
-                        'items' => ['type' => 'string'],
-                    ],
-                ];
-                if (!empty($supportedactivitytypes)) {
-                    $sectionproperties['activities'] = [
-                        'type' => 'array',
-                        'items' => [
-                            'type' => 'object',
-                            'required' => ['type', 'name'],
-                            'properties' => [
-                                'type' => [
-                                    'type' => 'string',
-                                    'enum' => $supportedactivitytypes,
-                                ],
-                                'name' => ['type' => 'string'],
-                                'intro' => ['type' => 'string'],
-                                'description' => ['type' => 'string'],
-                                'externalurl' => ['type' => 'string'],
-                                'chapters' => [
-                                    'type' => 'array',
-                                    'items' => [
-                                        'type' => 'object',
-                                        'properties' => [
-                                            'title' => ['type' => 'string'],
-                                            'content' => ['type' => 'string'],
-                                        ],
-                                    ],
-                                ],
-                            ],
-                        ],
-                    ];
+                // Weekly structure with sessions
+                if ($includesessions) {
+                    $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
+                        "Your response MUST be ONLY a valid JSON object with this exact structure:\n" .
+                        "{\n" .
+                        "  \"sections\": [\n" .
+                        "    {\n" .
+                        "      \"title\": \"Week 1 (Oct 18 - 24): Introduction to Cloud Computing\",\n" .
+                        "      \"summary\": \"Brief overview of the week's learning outcomes\",\n" .
+                        "      \"sessions\": {\n" .
+                        "        \"presession\": {\n" .
+                        "          \"description\": \"5-8 sentences of student-facing guidance for pre-session preparation\",\n" .
+                        "          \"activities\": [{\"type\": \"forum\", \"name\": \"Activity Name\"}]\n" .
+                        "        },\n" .
+                        "        \"session\": {\n" .
+                        "          \"description\": \"5-8 sentences of student-facing guidance for main session activities\",\n" .
+                        "          \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity Name\"}]\n" .
+                        "        },\n" .
+                        "        \"postsession\": {\n" .
+                        "          \"description\": \"5-8 sentences of student-facing guidance for post-session reflection\",\n" .
+                        "          \"activities\": [{\"type\": \"assignment\", \"name\": \"Activity Name\"}]\n" .
+                        "        }\n" .
+                        "      }\n" .
+                        "    }\n" .
+                        "  ]\n" .
+                        "}\n\n" .
+                        "CRITICAL REQUIREMENTS:\n" .
+                        "- Return ONLY the JSON object. No additional text before or after.\n" .
+                        "- NEVER include JSON as a string value in any field\n" .
+                        "- Each section.summary must be 2-3 plain sentences (NO JSON inside)\n" .
+                        "- Each section.title must include date range AND descriptive topic: 'date: Topic Name'\n" .
+                        "- Each sessions.description must be 5-8 plain sentences (NO JSON inside)\n" .
+                        "- All field values must be strings or arrays of objects, NEVER strings containing JSON\n" .
+                        "- Sections array MUST contain all sections\n" .
+                        "- Each section MUST have a sessions object with presession, session, and postsession\n\n";
+                } else {
+                    $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
+                        "Your response MUST be ONLY a valid JSON object (no text before/after):\n" .
+                        "{\"sections\": [{\"title\": \"Oct 18 - 24: Topic\", \"summary\": \"Brief overview\", \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity\"}]}]}\n\n";
                 }
-
-                $schemaspec = [
-                    'type' => 'object',
-                    'required' => ['sections'],
-                    'properties' => [
-                        'sections' => [
-                            'type' => 'array',
-                            'items' => [
-                                'type' => 'object',
-                                'required' => ['title', 'summary', 'outline'],
-                                'properties' => $sectionproperties,
-                            ],
-                        ],
-                        'template' => ['type' => 'string'],
-                    ],
-                ];
-                $formatinstruction = "Schema: " . json_encode($schemaspec) . "\n" .
-                    "Output rules: Return a compact JSON object which validates against the schema.\n" .
-                    "Each section is a teaching week with a 'title', a narrative 'summary', and an 'outline' array of key activities/resources.\n" .
-                    "Audience: UK university students. Use British English.";
             }
 
-            if (!empty($activitymetadata)) {
-                $activitylines = [];
+            // Add supported activity types only
+            if (!empty($activitymetadata) && $includeactivities) {
+                $formatinstruction .= "SUPPORTED ACTIVITY TYPES:\n";
                 foreach ($activitymetadata as $type => $metadata) {
-                    $label = get_string($metadata['stringid'], 'aiplacement_modgen');
-                    $activitylines[] = "- {$type}: {$metadata['description']} (Moodle {$label}).";
+                    $formatinstruction .= "- {$type}: {$metadata['description']}\n";
                 }
-                $formatinstruction .= "\nWhen listing activities, use the optional 'activities' array and only choose from the supported types below:\n" .
-                    implode("\n", $activitylines) .
-                    "\nDo not invent new activity types beyond this list.";
-            } else {
-                $formatinstruction .= "\nDo not include an 'activities' array because no supported activity types are available.";
+                $formatinstruction .= "\nACTIVITY FIELD REQUIREMENTS:\n";
+                $formatinstruction .= "- ALL activities MUST have: type (required), name (required)\n";
+                $formatinstruction .= "- ALL activities SHOULD have: intro (description text for students)\n";
+                $formatinstruction .= "- URL activities MUST ALSO have: url (the external web address)\n";
+                $formatinstruction .= "  Example URL activity: {\"type\": \"url\", \"name\": \"Course Reading\", \"intro\": \"Read this article\", \"url\": \"https://example.com/article\"}\n";
+                $formatinstruction .= "- BOOK activities can have: chapters (array of chapter objects with title and content)\n";
+            } elseif ($includeactivities === false) {
+                $formatinstruction .= "Do NOT include activities - only sections with titles, summaries, and outlines.\n";
             }
+
+            // Add week date guidance if courseid provided
+            $weekdateguidance = '';
+            if (!empty($courseid)) {
+                $exampledate1 = self::get_week_date_range(1, $courseid);
+                $weekdateguidance = "\nInclude week dates in titles: \"{$exampledate1}\" instead of just \"Week 1\".\n";
+            }
+            
+            $formatinstruction .= $weekdateguidance;
 
             // Add template guidance if template data is provided
             $template_guidance = '';
-            if (!empty($template_data)) {
-                self::debug_log('Building template guidance...');
-                self::debug_log('Template data keys: ' . implode(', ', array_keys($template_data)));
-                $template_guidance = self::build_template_prompt_guidance($template_data);
-                self::debug_log('Template guidance built, length: ' . strlen($template_guidance));
-                if (strlen($template_guidance) > 0) {
-                    self::debug_log('First 300 chars of guidance: ' . substr($template_guidance, 0, 300));
-                    self::debug_log('FULL TEMPLATE GUIDANCE:\n' . $template_guidance);
-                }
-                
-                // When template is used, update format instruction to require HTML
-                $formatinstruction .= "\n\nTEMPLATE MODE: Each section summary MUST be valid HTML content.\n" .
-                    "Use HTML markup with Bootstrap 4/5 classes to structure the section summaries.\n" .
-                    "Each 'summary' field must contain formatted HTML, not plain text.\n" .
-                    "Example: <div class='card'><div class='card-body'><h5>Content</h5><p>Details here</p></div></div>";
-            } else {
-                self::debug_log('No template data provided to generate_module');
+            if (!empty($template_data) && is_array($template_data)) {
+                $template_guidance = self::build_template_prompt_guidance($template_data, $structure);
             }
 
-            $finalprompt = $roleinstruction . "\n\nUser requirements:\n" . trim($prompt) . "\n\n" . $template_guidance . "\n\n" . $formatinstruction;
+            // Incorporate supporting documents with truncation
+            $documents_text = '';
+            if (!empty($documents) && is_array($documents)) {
+                $documents_text .= "\nCONTENT:\n";
+                foreach ($documents as $doc) {
+                    $dname = isset($doc['filename']) ? $doc['filename'] : 'file';
+                    $dcontent = isset($doc['content']) ? $doc['content'] : '';
+                    if (is_string($dcontent) && strlen($dcontent) > 50000) {
+                        $dcontent = substr($dcontent, 0, 50000) . "\n[truncated]";
+                    }
+                    $documents_text .= "--- {$dname} ---\n" . trim((string)$dcontent) . "\n\n";
+                }
+            }
 
-            // Debug: Log the prompt being sent to AI
-            self::debug_log("AI_SERVICE: Final prompt length: " . strlen($finalprompt));
-            self::debug_log("AI_SERVICE: Template guidance included in final prompt: " . (strlen($template_guidance) > 0 ? 'YES' : 'NO'));
-            self::debug_log("AI_SERVICE: Final prompt being sent:\n" . $finalprompt);
+            if (empty($roleinstruction) || empty($formatinstruction)) {
+                return [
+                    'activities' => [],
+                    'template' => 'AI error: Prompt construction failed'
+                ];
+            }
+
+            // Build final prompt - lean and direct
+            // IMPORTANT: Put template guidance AFTER format instruction so it clearly describes the output
+            $finalprompt = $roleinstruction . 
+                $documents_text . 
+                "User request: " . trim($prompt) . "\n\n" .
+                $formatinstruction .
+                $template_guidance;
+            
+            // Add completeness enforcement at END (has most weight)
+            if ($structure === 'theme') {
+                if (!empty($requestedthemecount)) {
+                    $finalprompt .= "\n*** CRITICAL THEME COUNT REQUIREMENT ***\n";
+                    $finalprompt .= "YOU MUST GENERATE EXACTLY {$requestedthemecount} THEMES - NO MORE, NO LESS.\n";
+                    $finalprompt .= "This is MANDATORY and NON-NEGOTIABLE.\n";
+                    $finalprompt .= "Count your themes before returning: if you don't have {$requestedthemecount} themes, you have FAILED.\n";
+                    $finalprompt .= "REQUIRED THEME COUNT: {$requestedthemecount}\n";
+                    $finalprompt .= "Do NOT stop early. Do NOT truncate. Do NOT generate fewer than {$requestedthemecount} themes.\n";
+                    $finalprompt .= "Return ONLY valid JSON with {$requestedthemecount} themes in the themes array.\n";
+                } else {
+                    $finalprompt .= "\n*** COMPLETENESS REQUIREMENT ***\n";
+                    $finalprompt .= "Generate all themes needed to cover ALL topics and content.\n";
+                    $finalprompt .= "Do NOT stop early or truncate output.\n";
+                    $finalprompt .= "Return ONLY valid JSON.\n";
+                }
+            } else {
+                $finalprompt .= "\n*** COMPLETENESS REQUIREMENT ***\n";
+                $finalprompt .= "Include EVERY topic from content. Do NOT truncate or stop early.\n";
+                $finalprompt .= "Generate complete response with all content.\n";
+                $finalprompt .= "Return ONLY valid JSON.\n";
+            }
 
             // Instantiate the generate_text action with required parameters.
             $action = new \core_ai\aiactions\generate_text(
@@ -369,19 +793,66 @@ class ai_service {
             $response = $aimanager->process_action($action);
             $data = $response->get_response_data();
 
-            // Debug: Log the AI response
-            self::debug_log("AI_SERVICE: AI response data: " . print_r($data, true));
+            // Debug: if response is null or empty, return error
+            if (empty($data)) {
+                return [
+                    'activities' => [],
+                    'template' => 'AI error: The AI service returned an empty response. The service may be unavailable or not configured.'
+                ];
+            }
 
             // Try to decode the provider's generated text as JSON per our schema.
-            $text = $data['generatedtext'] ?? ($data['generatedcontent'] ?? '');
+            // Check multiple possible response keys - generatedcontent takes priority for OpenAI
+            $text = $data['generatedcontent'] ?? ($data['generatedtext'] ?? ($data['text'] ?? ($data['content'] ?? '')));
             
-            // Debug: Log the raw text response
-            self::debug_log("AI_SERVICE: Raw AI text response: " . $text);
+            // If we got no text at all, return error
+            if (empty($text) || !is_string($text)) {
+                return [
+                    'activities' => [],
+                    'template' => 'AI error: The AI service did not return any generated text. Response keys: ' . implode(', ', array_keys($data ?? []))
+                ];
+            }
+            
+            // Log token usage and potential truncation
+            $prompt_tokens = strlen($finalprompt) / 4; // Rough estimate: 1 token ≈ 4 chars
+            $response_tokens = strlen($text) / 4;
+            $total_tokens = $prompt_tokens + $response_tokens;
+            
+            // Check if response looks truncated (ends mid-sentence, incomplete JSON, etc)
+            $response_looks_truncated = false;
+            if (strlen($text) > 100) {
+                // Check for incomplete JSON (missing closing braces)
+                $open_braces = substr_count($text, '{') + substr_count($text, '[');
+                $close_braces = substr_count($text, '}') + substr_count($text, ']');
+                if ($open_braces > $close_braces) {
+                    $response_looks_truncated = true;
+                }
+            }
+            
+            // Log to debug file
+            error_log("=== AI Generation Debug ===\n" .
+                "Prompt tokens (est): " . round($prompt_tokens) . "\n" .
+                "Response tokens (est): " . round($response_tokens) . "\n" .
+                "Total tokens (est): " . round($total_tokens) . "\n" .
+                "Response length: " . strlen($text) . " chars\n" .
+                "Looks truncated: " . ($response_looks_truncated ? 'YES' : 'NO') . "\n" .
+                "Response ends with: " . substr($text, -50) . "\n" .
+                "---\n", 3, '/tmp/modgen_token_usage.log');
+            
+            if ($response_looks_truncated) {
+                error_log("WARNING: Response appears truncated! May be hitting token limit.\n", 3, '/tmp/modgen_token_usage.log');
+            }
             
             $jsondecoded = null;
             if (is_string($text)) {
                 // First attempt: direct JSON decode.
                 $jsondecoded = json_decode($text, true);
+                
+                // If decode failed, check why
+                if (!is_array($jsondecoded)) {
+                    $jsonError = json_last_error_msg();
+                    // Don't report every JSON error, just continue to next attempt
+                }
                 
                 // Second attempt: extract a JSON object/array from the text if provider added commentary.
                 if (!is_array($jsondecoded)) {
@@ -393,43 +864,96 @@ class ai_service {
                     }
                 }
                 
-                // If still not valid, try double-decoding in case JSON was stringified
-                if (!is_array($jsondecoded) && is_string($text)) {
-                    $doubledecode = json_decode($text, true);
-                    if (is_array($doubledecode) && isset($doubledecode['themes'])) {
-                        $jsondecoded = $doubledecode;
+                // Third attempt: if still not decoded, try unescaping the entire response first
+                if (!is_array($jsondecoded)) {
+                    $unescaped = self::unescape_json_string($text);
+                    if ($unescaped !== $text) {
+                        $jsondecoded = json_decode($unescaped, true);
                     }
+                }
+            }
+
+            // Fourth attempt: After successful decode, deeply unescape any stringified JSON within the structure
+            // This catches cases like {"themes": [{"summary": "{\"themes\": [...]}"}]}
+            if (is_array($jsondecoded)) {
+                $jsondecoded = self::deep_unescape_stringified_json($jsondecoded);
+                error_log("DEEP UNESCAPE: Applied recursive JSON string decoding\n", 3, '/tmp/modgen_token_usage.log');
+            }
+
+            // Log double-encoding detection
+            $is_double_encoded = false;
+            if (is_array($jsondecoded) && count($jsondecoded) === 1) {
+                $first_val = reset($jsondecoded);
+                if (is_string($first_val) && (strpos($first_val, '{"themes"') !== false || strpos($first_val, '{"sections"') !== false)) {
+                    $is_double_encoded = true;
+                    error_log("DOUBLE ENCODING DETECTED: Top-level key contains JSON string\n", 3, '/tmp/modgen_token_usage.log');
                 }
             }
 
             // Attempt to normalise nested/stringified JSON that may be embedded in string fields.
             if (is_array($jsondecoded)) {
                 $before = $jsondecoded;
-                $jsondecoded = self::normalize_ai_response($jsondecoded);
-                // Log if normalisation changed the structure in a meaningful way.
+                
+                $jsondecoded = self::normalize_ai_response($jsondecoded, true);
+                
+                // Log if normalisation changed the structure
                 if (serialize($before) !== serialize($jsondecoded)) {
-                    self::debug_log("AI_SERVICE: Normalised AI JSON structure; differences detected.");
-                    self::debug_log("AI_SERVICE: Normalised JSON: " . print_r($jsondecoded, true));
+                    error_log("NORMALIZATION CHANGED STRUCTURE\n", 3, '/tmp/modgen_token_usage.log');
                 }
+                
+                // Extract stringified JSON from summary fields that looks like full content
+                $jsondecoded = self::extract_misplaced_content_from_summaries($jsondecoded);
+                
+                // DEBUG: Log the response
+                file_put_contents('/tmp/modgen_ai_response.json', json_encode($jsondecoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), FILE_APPEND);
             }
 
             if (is_array($jsondecoded) && (isset($jsondecoded['sections']) || isset($jsondecoded['themes']) || isset($jsondecoded['activities']))) {
+                // If theme structure is requested but we have sections, attempt conversion
+                if ($structure === 'theme' && isset($jsondecoded['sections']) && !isset($jsondecoded['themes'])) {
+                    $jsondecoded = self::convert_sections_to_themes($jsondecoded);
+                }
+
+                // Validate the structure to catch malformed responses
+                $validation = self::validate_module_structure($jsondecoded, $structure);
+
+                if (!$validation['valid']) {
+                    // Return error response that will prevent approval
+                    return [
+                        $structure === 'theme' ? 'themes' : 'sections' => [],
+                        'validation_error' => $validation['error'],
+                        'template' => 'AI error: ' . $validation['error'],
+                        'raw' => $text,
+                        'debugprompt' => $finalprompt,
+                        'debugresponse' => $data
+                    ];
+                }
+
                 // Provider adhered to format. Attach raw text and prompt for visibility.
                 $jsondecoded['raw'] = $text;
                 $jsondecoded['debugprompt'] = $finalprompt;
                 $jsondecoded['debugresponse'] = $data;
-                
-                // Debug: Log the final processed JSON
-                self::debug_log("AI_SERVICE: Final processed JSON: " . print_r($jsondecoded, true));
-                
+
                 return $jsondecoded;
             }
 
             // Debug: JSON decode failed or invalid structure
-            self::debug_log("AI_SERVICE: JSON decode failed or invalid structure. Using fallback.");
-            self::debug_log("AI_SERVICE: jsondecoded: " . print_r($jsondecoded, true));
+            // For theme structure, attempt to convert sections to themes before falling back
+            if ($structure === 'theme' && is_array($jsondecoded) && isset($jsondecoded['sections'])) {
+                $jsondecoded = self::convert_sections_to_themes($jsondecoded);
+                
+                // Validate the converted structure
+                $validation = self::validate_module_structure($jsondecoded, $structure);
+                if ($validation['valid']) {
+                    $jsondecoded['raw'] = $text;
+                    $jsondecoded['debugprompt'] = $finalprompt;
+                    $jsondecoded['debugresponse'] = $data;
+                    return $jsondecoded;
+                }
+            }
 
-            // Fallback mapping: wrap generated text into a label.
+            // Last resort: wrap generated text into a label
+            // For theme structure, still wrap as themes but note this is fallback
             $revised = $data['revisedprompt'] ?? '';
             return [
                 $structure === 'theme' ? 'themes' : 'sections' => [
@@ -450,326 +974,263 @@ class ai_service {
     }
 
     /**
-     * Produce a concise human-readable summary of the generated module structure.
-     *
-     * @param array $moduledata The decoded JSON returned by the AI generator.
-     * @param string $structure Either 'weekly' or 'theme'.
-     * @return string Summary text or empty string if unavailable.
-     */
-    public static function summarise_module(array $moduledata, string $structure = 'weekly'): string {
-        global $USER, $COURSE;
-
-        try {
-            if (!class_exists('\\core_ai\\manager') || !class_exists('\\core_ai\\aiactions\\generate_text')) {
-                return '';
-            }
-
-            $contextid = !empty($COURSE->id)
-                ? \context_course::instance($COURSE->id)->id
-                : \context_system::instance()->id;
-
-            $aimanager = new \core_ai\manager();
-            if (!$aimanager->get_user_policy_status($USER->id)) {
-                return '';
-            }
-
-            $structure = ($structure === 'theme') ? 'theme' : 'weekly';
-            $jsonpayload = json_encode($moduledata, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
-            if ($jsonpayload === false) {
-                return '';
-            }
-
-            $instruction = "You are an instructional designer generating a concise summary of a Moodle module plan.\n" .
-                "Summarise what will be created in no more than 80 words, focusing on learner experience and structure.\n" .
-                "Refer to the module as a '{$structure}' style offering.\n" .
-                "Do not use bullet points or markdown headings. Respond with plain sentences.";
-
-            $prompt = $instruction . "\n\nModule plan JSON:\n" . $jsonpayload;
-
-            $action = new \core_ai\aiactions\generate_text(
-                $contextid,
-                $USER->id,
-                $prompt
-            );
-
-            $response = $aimanager->process_action($action);
-            $data = $response->get_response_data();
-            $text = $data['generatedtext'] ?? ($data['generatedcontent'] ?? '');
-            if (is_string($text)) {
-                return trim($text);
-            }
-            return '';
-        } catch (\Throwable $e) {
-            return '';
-        }
-    }
-
-    /**
      * Generate module content using a curriculum template.
      *
      * @param string $prompt User prompt
      * @param array $template_data Template data structure
      * @param array $documents Supporting documents
      * @param string $structure Module structure
+     * @param bool $includeactivities Whether to request activities (default: true)
+     * @param bool $includesessions Whether to request session instructions (default: true)
      * @return array Response from AI service
      */
-    public static function generate_module_with_template($prompt, $template_data, $documents = [], $structure = 'weekly') {
-        self::debug_log('=== generate_module_with_template called ===');
-        self::debug_log('template_data type: ' . gettype($template_data));
-        self::debug_log('template_data is empty: ' . (empty($template_data) ? 'YES' : 'NO'));
-        if (is_array($template_data)) {
-            self::debug_log('template_data keys: ' . implode(', ', array_keys($template_data)));
-        }
-        return self::generate_module($prompt, $documents, $structure, $template_data);
+    public static function generate_module_with_template($prompt, $template_data, $documents = [], $structure = 'weekly', $courseid = null, $includeactivities = true, $includesessions = true) {
+        return self::generate_module($prompt, $documents, $structure, $template_data, $courseid, $includeactivities, $includesessions);
     }
 
     /**
      * Build guidance text about the template for the AI
      *
-     * @param array $template_data Template data containing structure and HTML
-     * @return string Guidance about the template
+     * @param array $template_data Template data containing structure and activities
+     * @return string Guidance about the template with simplified structure
      */
-    private static function build_template_prompt_guidance($template_data) {
-        self::debug_log('build_template_prompt_guidance called');
-        self::debug_log('Template data type: ' . gettype($template_data));
-        if (is_array($template_data)) {
-            self::debug_log('Template data keys: ' . implode(', ', array_keys($template_data)));
-            foreach ($template_data as $key => $value) {
-                if (is_array($value)) {
-                    self::debug_log("  {$key}: array with " . count($value) . " items");
-                } elseif (is_string($value)) {
-                    self::debug_log("  {$key}: string, length " . strlen($value));
-                } else {
-                    self::debug_log("  {$key}: " . gettype($value));
-                }
-            }
-        }
-        
+    /**
+     * Build template guidance for the AI based on extracted module structure.
+     *
+     * @param array $template_data Extracted template data
+     * @param string $structure 'theme' or 'weekly'
+     * @return string Guidance text for AI prompt
+     */
+    private static function build_template_prompt_guidance($template_data, $structure = 'weekly') {
         $guidance = "";
         
-        // Add course info guidance
-        if (!empty($template_data['course_info'])) {
-            $course = $template_data['course_info'];
-            $guidance .= "CURRICULUM TEMPLATE INFORMATION:\n";
-            $guidance .= "Template Name: " . (!empty($course['name']) ? $course['name'] : 'Unnamed') . "\n";
-            $guidance .= "Template Format: " . (!empty($course['format']) ? $course['format'] : 'Unknown') . "\n";
-            if (!empty($course['summary'])) {
-                $guidance .= "Template Summary: " . substr($course['summary'], 0, 300) . "\n";
-            }
-            $guidance .= "\n";
-        }
+        // Detect multiple modules
+        $is_multiple = !empty($template_data['module_count']) && $template_data['module_count'] > 1;
         
-        // Add structure guidance
-        if (!empty($template_data['structure']) && is_array($template_data['structure'])) {
-            $guidance .= "TEMPLATE STRUCTURE:\n";
-            $guidance .= "The template is organized into " . count($template_data['structure']) . " sections:\n";
-            foreach ($template_data['structure'] as $section) {
-                $section_name = is_array($section) && !empty($section['name']) ? $section['name'] : 'Unknown Section';
-                $activity_count = is_array($section) && !empty($section['activity_count']) ? $section['activity_count'] : 0;
-                $guidance .= "- {$section_name} ({$activity_count} activities)\n";
-            }
-            $guidance .= "\n";
-        }
+        // Create compact structure representation
+        $compact = self::create_compact_template_structure($template_data);
         
-        // Add activities guidance
-        if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
-            $guidance .= "TEMPLATE ACTIVITIES:\n";
-            $guidance .= "The template uses the following activity types and patterns:\n";
-            $activity_types = [];
-            $activity_details = [];
-            foreach ($template_data['activities'] as $activity) {
-                if (is_array($activity)) {
-                    $type = $activity['type'] ?? 'unknown';
-                    $activity_types[$type] = ($activity_types[$type] ?? 0) + 1;
-                    $activity_details[] = "  - " . ($activity['name'] ?? 'Unnamed') . " (type: {$type})";
-                }
-            }
-            foreach ($activity_types as $type => $count) {
-                $guidance .= "- {$type}: {$count} instance(s)\n";
-            }
-            if (!empty($activity_details)) {
-                $guidance .= "\nDetailed Activities:\n" . implode("\n", array_slice($activity_details, 0, 15)) . "\n";
-            }
-            $guidance .= "Follow this same activity pattern in your generated module.\n\n";
-        }
-        
-        // Add Bootstrap structure guidance if HTML is available
-        self::debug_log('Checking template_html: ' . (!empty($template_data['template_html']) ? 'YES (length: ' . strlen($template_data['template_html']) . ')' : 'NO'));
-        if (!empty($template_data['template_html'])) {
-            self::debug_log('Template HTML found, length: ' . strlen($template_data['template_html']));
-            self::debug_log('First 500 chars: ' . substr($template_data['template_html'], 0, 500));
-            
-            $guidance .= "HTML STRUCTURE AND BOOTSTRAP COMPONENTS:\n";
-            $guidance .= "The template uses specific HTML and Bootstrap markup. When generating section summaries,\n";
-            $guidance .= "include similar HTML structure and Bootstrap classes. The template HTML includes:\n\n";
-            
-            // Include actual HTML snippets from template
-            $html_excerpt = substr($template_data['template_html'], 0, 1000);
-            $guidance .= "TEMPLATE HTML EXAMPLES:\n";
-            $guidance .= "```html\n";
-            $guidance .= $html_excerpt;
-            if (strlen($template_data['template_html']) > 1000) {
-                $guidance .= "\n... (additional HTML content)\n";
-            }
-            $guidance .= "```\n\n";
-            
-            // Extract Bootstrap classes for guidance
-            $bootstrap_classes = self::extract_bootstrap_classes_from_html($template_data['template_html']);
-            if (!empty($bootstrap_classes)) {
-                $guidance .= "Bootstrap classes used in template: " . implode(', ', array_slice($bootstrap_classes, 0, 15)) . "\n";
-                $guidance .= "Use these same Bootstrap classes in your generated section summaries.\n\n";
+        // Mode-specific instructions
+        if ($structure === 'theme') {
+            // Count the actual weeks in the template
+            $template_week_count = 0;
+            if (!empty($compact['sections']) && is_array($compact['sections'])) {
+                $template_week_count = count($compact['sections']);
             }
             
-            $guidance .= "IMPORTANT: Your section summaries MUST include HTML markup matching the template's style.\n";
-            $guidance .= "Structure content with divs using Bootstrap classes like 'container', 'row', 'col-md-6', 'card', etc.\n";
-            $guidance .= "Do not output plain text sections - each section summary MUST be formatted as HTML.\n\n";
+            // THEME MODE: AI should analyze and reorganize into themes
+            $guidance .= "\n*** TEMPLATE-BASED THEME GENERATION ***\n";
+            $guidance .= "You are converting content into a thematic structure based on this template:\n\n";
+            $guidance .= json_encode($compact, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n\n";
+            $guidance .= "UNDERSTANDING THE TEMPLATE:\n";
+            $guidance .= "- The 'organizational_pattern' shows how content was organized in the original (for context only)\n";
+            $guidance .= "- The 'label_sequence' shows headings like 'Learning Resources', 'Activities', 'Assessment'\n";
+            $guidance .= "- Use these labels to UNDERSTAND what type of content each activity represents\n";
+            $guidance .= "- DO NOT recreate these labels in your output\n\n";
+            
+            if ($template_week_count > 0) {
+                $guidance .= "*** MANDATORY WEEK COUNT ***\n";
+                $guidance .= "The template has EXACTLY {$template_week_count} sections/weeks.\n";
+                $guidance .= "Your output MUST contain EXACTLY {$template_week_count} weeks (no more, no less).\n";
+                $guidance .= "EVERY template section MUST map to EXACTLY ONE output week.\n";
+                $guidance .= "This is NON-NEGOTIABLE. Failure to include all {$template_week_count} weeks is an error.\n\n";
+            }
+            
+            $guidance .= "YOUR TASK:\n";
+            $guidance .= "1. Count the template sections: {$template_week_count} sections = {$template_week_count} output weeks required\n";
+            $guidance .= "2. Group these {$template_week_count} weeks into natural thematic clusters (e.g., 3 themes × 3-4 weeks each, or 5 themes × 2 weeks each)\n";
+            $guidance .= "3. Create descriptive theme titles that reflect each group's content\n";
+            $guidance .= "4. CRITICAL - DIRECT 1-to-1 WEEK MAPPING (NON-NEGOTIABLE):\n";
+            $guidance .= "   - Template section 1 → Output week 1 (within appropriate theme)\n";
+            $guidance .= "   - Template section 2 → Output week 2 (within appropriate theme)\n";
+            $guidance .= "   - Template section N → Output week N (within appropriate theme)\n";
+            $guidance .= "   - TOTAL OUTPUT WEEKS MUST EQUAL {$template_week_count}\n";
+            $guidance .= "   - Each template week's content goes into ONE output week's pre/session/post structure\n";
+            $guidance .= "   - NEVER skip a template week, NEVER combine multiple weeks, NEVER split one week\n";
+            $guidance .= "   - Structure: Theme → Week (with date) → Pre-session/Session/Post-session\n";
+            $guidance .= "5. WEEK TITLES - Preserve original names:\n";
+            $guidance .= "   - Each output week title MUST include BOTH the date AND the original section name\n";
+            $guidance .= "   - Format: \"Week N (date range): Original Section Title\"\n";
+            $guidance .= "   - Example: If template section is \"Introduction to the course\", output title is \"Week 1 (Oct 18 - 24): Introduction to the course\"\n";
+            $guidance .= "   - Example: If template section is \"Fun in the sun\", output title is \"Week 2 (Oct 25 - 31): Fun in the sun\"\n";
+            $guidance .= "   - Use the EXACT original section title from the template - do not modify or paraphrase it\n";
+            $guidance .= "6. Map activities from EACH template week into that week's three subsections:\n";
+            $guidance .= "   - Activities under 'Learning Resources' labels → Pre-session (reading/preparation)\n";
+            $guidance .= "   - Activities under 'Activities' labels → Session (main activities)\n";
+            $guidance .= "   - Activities under 'Assessment' labels → Post-session (assignments/reflection)\n";
+            $guidance .= "7. If session instructions are requested, generate appropriate descriptions for pre/session/post sections\n\n";
+        } else {
+            // Count the actual weeks in the template
+            $template_week_count = 0;
+            if (!empty($compact['sections']) && is_array($compact['sections'])) {
+                $template_week_count = count($compact['sections']);
+            }
+            
+            // WEEKLY/CONNECTED MODE: AI should preserve structure
+            $guidance .= "\n*** TEMPLATE-BASED WEEKLY GENERATION ***\n";
+            $guidance .= "You are recreating content in weekly structure based on this template:\n\n";
+            $guidance .= json_encode($compact, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n\n";
+            $guidance .= "UNDERSTANDING THE TEMPLATE:\n";
+            $guidance .= "- The 'organizational_pattern' shows the original content organization\n";
+            $guidance .= "- The 'label_sequence' shows headings used to organize activities\n";
+            $guidance .= "- Use these to understand content structure and types\n\n";
+            
+            if ($template_week_count > 0) {
+                $guidance .= "*** MANDATORY SECTION COUNT ***\n";
+                $guidance .= "The template has EXACTLY {$template_week_count} sections.\n";
+                $guidance .= "Your output MUST contain EXACTLY {$template_week_count} sections (no more, no less).\n";
+                $guidance .= "EVERY template section MUST map to EXACTLY ONE output section.\n";
+                $guidance .= "This is NON-NEGOTIABLE. Failure to include all {$template_week_count} sections is an error.\n\n";
+            }
+            
+            $guidance .= "YOUR TASK:\n";
+            $guidance .= "1. Count the template sections: {$template_week_count} sections = {$template_week_count} output sections required\n";
+            $guidance .= "2. CRITICAL - DIRECT 1-to-1 SECTION MAPPING (NON-NEGOTIABLE):\n";
+            $guidance .= "   - Template section 1 → Output section 1\n";
+            $guidance .= "   - Template section 2 → Output section 2\n";
+            $guidance .= "   - Template section N → Output section N\n";
+            $guidance .= "   - TOTAL OUTPUT SECTIONS MUST EQUAL {$template_week_count}\n";
+            $guidance .= "   - NEVER skip a template section, NEVER combine multiple sections, NEVER split one section\n";
+            $guidance .= "3. SECTION TITLES - Preserve original names:\n";
+            $guidance .= "   - Each output section title MUST include the original section name\n";
+            $guidance .= "   - Format: \"Week N (date range): Original Section Title\"\n";
+            $guidance .= "   - Example: If template section is \"Introduction to the course\", output title is \"Week 1 (Oct 18 - 24): Introduction to the course\"\n";
+            $guidance .= "   - Example: If template section is \"Fun in the sun\", output title is \"Week 2 (Oct 25 - 31): Fun in the sun\"\n";
+            $guidance .= "   - Use the EXACT original section title from the template - do not modify or paraphrase it\n";
+            $guidance .= "4. SECTION STRUCTURE - Each section has three subsections:\n";
+            $guidance .= "   - Create 'presession', 'session', and 'postsession' subsections for EACH week\n";
+            $guidance .= "   - Map template activities based on their pedagogical purpose:\n";
+            $guidance .= "     * 'Learning Resources' → Pre-session (reading/preparation)\n";
+            $guidance .= "     * 'Activities' → Session (main activities)\n";
+            $guidance .= "     * 'Assessment' → Post-session (assignments/reflection)\n";
+            $guidance .= "5. If session instructions are requested, generate appropriate descriptions for pre/session/post sections\n";
+            $guidance .= "6. Use Moodle's flexible sections format for output\n\n";
         }
         
-        // Add bootstrap structure if available
-        if (!empty($template_data['bootstrap_structure'])) {
-            $guidance .= "BOOTSTRAP STRUCTURE ANALYSIS:\n";
-            $guidance .= "The template's Bootstrap structure: " . (is_array($template_data['bootstrap_structure']) ? implode(', ', $template_data['bootstrap_structure']) : $template_data['bootstrap_structure']) . "\n\n";
+        // Output field instruction
+        $guidance .= "*** OUTPUT 'template' FIELD ***\n";
+        if ($is_multiple) {
+            $guidance .= "Set 'template' value to: \"Combining {$template_data['module_count']} existing modules\"\n";
+        } else {
+            $guidance .= "Set 'template' value to: \"Based on existing module template\"\n";
         }
-        
-        $guidance .= "ADAPTATION INSTRUCTIONS:\n";
-        $guidance .= "1. Use the template's structure and organization as your foundation\n";
-        $guidance .= "2. Adapt the content to match the user's request while maintaining the same layout\n";
-        $guidance .= "3. Match the template's activity distribution and types\n";
-        $guidance .= "4. Include similar HTML and Bootstrap markup in section summaries\n";
-        $guidance .= "5. Preserve the pedagogical approach and level of detail from the template\n\n";
+        $guidance .= "\nDo NOT include this template metadata in theme/section summaries.\n";
         
         return $guidance;
-    }
-
-    /**
-     * Extract Bootstrap classes from HTML
-     *
-     * @param string $html HTML content
-     * @return array Array of Bootstrap class names found
-     */
-    private static function extract_bootstrap_classes_from_html($html) {
-        $classes = [];
-        $pattern = '/class=["\']([^"\']*)/i';
-        
-        if (preg_match_all($pattern, $html, $matches)) {
-            foreach ($matches[1] as $class_string) {
-                $class_list = explode(' ', $class_string);
-                foreach ($class_list as $class) {
-                    $class = trim($class);
-                    if (!empty($class) && self::is_bootstrap_class($class)) {
-                        if (!isset($classes[$class])) {
-                            $classes[$class] = 0;
-                        }
-                        $classes[$class]++;
-                    }
-                }
-            }
-        }
-        
-        return array_keys($classes);
-    }
-
-    /**
-     * Check if a CSS class is a Bootstrap class
-     *
-     * @param string $class Class name to check
-     * @return bool True if it's a Bootstrap class
-     */
-    private static function is_bootstrap_class($class) {
-        $prefixes = [
-            'col-', 'row', 'card', 'btn', 'nav', 'tab', 'accordion', 
-            'alert', 'badge', 'list', 'grid', 'container', 'flex', 
-            'justify', 'align', 'text-', 'bg-', 'border', 'shadow',
-            'rounded', 'p-', 'm-', 'ml-', 'mr-', 'mt-', 'mb-',
-            'd-', 'w-', 'h-', 'gap-', 'ms-', 'me-', 'ps-', 'pe-',
-            'modal', 'form', 'input', 'label', 'dropdown', 'button'
-        ];
-        
-        foreach ($prefixes as $prefix) {
-            if (strpos($class, $prefix) === 0) {
-                return true;
-            }
-        }
-        return false;
     }
     
     /**
-     * Build guidance text about Bootstrap components used in the template.
-     * This helps the AI understand visual/structural patterns to replicate.
+     * Create compact template structure for AI consumption.
      *
-     * @param array $template_data Template data
-     * @return string Guidance text about Bootstrap usage
+     * @param array $template_data Raw extracted template data
+     * @return array Compact structure with organizational patterns
      */
-    private static function build_bootstrap_guidance($template_data) {
-        // Check if template data contains Bootstrap structure hints
-        $guidance = "";
-
-        // Log what we're receiving
-        error_log('Bootstrap structure data: ' . print_r($template_data['bootstrap_structure'] ?? 'NOT FOUND', true));
-
-        if (!empty($template_data['bootstrap_structure']['components'])) {
-            $components = $template_data['bootstrap_structure']['components'];
-            error_log('Found Bootstrap components: ' . implode(', ', $components));
-            
-            $guidance = "TEMPLATE VISUAL STRUCTURE:\n";
-            $guidance .= "The template uses the following Bootstrap HTML components to structure content:\n";
-            $guidance .= "- " . implode("\n- ", $components) . "\n\n";
-            $guidance .= "GUIDANCE: When creating section summaries and activity descriptions, include similar Bootstrap HTML patterns. ";
-            $guidance .= "For example:\n";
-
-            if (in_array('Bootstrap tabs', $components)) {
-                $guidance .= "- Use <div class=\"nav nav-tabs\"> and <div class=\"tab-content\"> markup for tabbed content\n";
+    public static function create_compact_template_structure($template_data) {
+        $compact = [
+            'source' => !empty($template_data['module_count']) && $template_data['module_count'] > 1 
+                ? 'multiple_modules' 
+                : 'single_module',
+            'organizational_pattern' => self::extract_organizational_pattern($template_data),
+            'sections' => []
+        ];
+        
+        // Process each section from the structure
+        if (!empty($template_data['structure']) && is_array($template_data['structure'])) {
+            foreach ($template_data['structure'] as $section) {
+                $section_data = [
+                    'number' => $section['id'] ?? 0,
+                    'title' => $section['name'] ?? 'Untitled',
+                    'content' => []
+                ];
+                
+                // Add section summary as initial context if present
+                if (!empty($section['summary'])) {
+                    $section_data['summary'] = substr($section['summary'], 0, 200); // Truncate for tokens
+                }
+                
+                // Find activities for this section
+                if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
+                    foreach ($template_data['activities'] as $activity) {
+                        // Match activities to this section by section name
+                        if (isset($activity['section']) && $activity['section'] === $section_data['title']) {
+                            $activity_item = [
+                                'type' => $activity['type'] ?? 'unknown'
+                            ];
+                            
+                            // For labels, include the intro (these are headings)
+                            if ($activity['type'] === 'label' && !empty($activity['intro'])) {
+                                $activity_item['text'] = $activity['intro'];
+                            } else {
+                                // For other activities, just the name
+                                $activity_item['name'] = $activity['name'] ?? 'Untitled';
+                            }
+                            
+                            $section_data['content'][] = $activity_item;
+                        }
+                    }
+                }
+                
+                $compact['sections'][] = $section_data;
             }
-            if (in_array('Bootstrap cards', $components)) {
-                $guidance .= "- Use <div class=\"card\"><div class=\"card-body\"> markup for content blocks\n";
-            }
-            if (in_array('Bootstrap accordion', $components)) {
-                $guidance .= "- Use <div class=\"accordion\"> markup for expandable sections\n";
-            }
-            if (in_array('Bootstrap grid layout', $components)) {
-                $guidance .= "- Use <div class=\"row\"><div class=\"col-md-6\"> classes for responsive column layouts\n";
-            }
-            $guidance .= "\nIMPORTANT: Include the actual HTML/CSS markup in your section summaries to match these patterns.\n\n";
-        } else {
-            $guidance = "TEMPLATE VISUAL STRUCTURE: Standard Moodle layout without special Bootstrap components.\n\n";
-            error_log('No Bootstrap components found in template');
         }
-
-        error_log('Bootstrap guidance: ' . $guidance);
-        return $guidance;
+        
+        return $compact;
     }
-
+    
     /**
-     * Build guidance about HTML structure with placeholders for the AI
+     * Extract organizational patterns from template data.
      *
      * @param array $template_data Template data
-     * @return string Guidance about structure template
+     * @return array Patterns (label sequence, typical activity count, etc.)
      */
-    private static function build_html_structure_guidance($template_data) {
-        if (empty($template_data['template_html'])) {
-            return "";
+    private static function extract_organizational_pattern($template_data) {
+        $pattern = [
+            'label_sequence' => [],
+            'activity_types_used' => [],
+            'typical_activities_per_section' => 0
+        ];
+        
+        if (empty($template_data['activities']) || !is_array($template_data['activities'])) {
+            return $pattern;
         }
-
-        // Parse the template HTML to extract structure
-        $parser = new template_structure_parser();
-        $structure_info = $parser->extract_structure_and_placeholders($template_data['template_html']);
-
-        if (empty($structure_info['structure_template'])) {
-            return "";
+        
+        $label_sequence = [];
+        $activity_types = [];
+        $section_counts = [];
+        $current_section = null;
+        
+        foreach ($template_data['activities'] as $activity) {
+            $type = $activity['type'] ?? 'unknown';
+            
+            // Track section for counting
+            $section = $activity['section'] ?? 'unknown';
+            if (!isset($section_counts[$section])) {
+                $section_counts[$section] = 0;
+            }
+            $section_counts[$section]++;
+            
+            // Extract label sequence from first occurrence
+            if ($type === 'label' && !empty($activity['intro'])) {
+                if (!in_array($activity['intro'], $label_sequence)) {
+                    $label_sequence[] = $activity['intro'];
+                }
+            }
+            
+            // Track activity types
+            if (!in_array($type, $activity_types)) {
+                $activity_types[] = $type;
+            }
         }
-
-        $guidance = "HTML STRUCTURE TEMPLATE:\n";
-        $guidance .= "The template has a specific HTML structure that should be preserved exactly. ";
-        $guidance .= "Below is the template structure with {{CONTENT_N}} placeholders for content areas:\n\n";
-        $guidance .= $structure_info['structure_template'] . "\n\n";
-        $guidance .= "STRUCTURE INSTRUCTIONS:\n";
-        $guidance .= "1. Preserve this exact HTML structure in your output\n";
-        $guidance .= "2. Replace each {{CONTENT_N}} placeholder with generated content that fits in that section\n";
-        $guidance .= "3. Do NOT modify any Bootstrap classes, div structures, or HTML formatting\n";
-        $guidance .= "4. Do NOT add or remove any HTML elements from the template\n";
-        $guidance .= "5. Only change the text content between the HTML tags\n\n";
-
-        return $guidance;
+        
+        $pattern['label_sequence'] = $label_sequence;
+        $pattern['activity_types_used'] = $activity_types;
+        
+        // Calculate average activities per section
+        if (!empty($section_counts)) {
+            $pattern['typical_activities_per_section'] = (int) round(array_sum($section_counts) / count($section_counts));
+        }
+        
+        return $pattern;
     }
 
     /**

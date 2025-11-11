@@ -1,0 +1,17 @@
+{{!
+    @template aiplacement_modgen/fab_button
+    @description Floating action button for the Module Assistant.
+    @context
+        {string} arialabel - ARIA label for accessibility
+        {string} buttonlabel - Button text label
+}}
+<button 
+    type="button" 
+    class="aiplacement-modgen__fab"
+    aria-label="{{arialabel}}"
+    aria-haspopup="dialog"
+    aria-expanded="false"
+    data-fab-button="true"
+>
+    <i class="fa fa-magic"></i> <span class="sr-only">{{buttonlabel}}</span>
+</button>

@@ -36,11 +36,11 @@ function aiplacement_modgen_extend_navigation_course($navigation, $course, $cont
     // Module generator - only show in edit mode
     if ($PAGE->user_is_editing()) {
         if (has_capability('local/aiplacement_modgen:use', $context)) {
-            $url = new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $course->id, 'embedded' => 1]);
+            $url = new moodle_url('/ai/placement/modgen/modal.php', ['id' => $course->id]);
 
             $params = [
                 'url' => $url->out(false),
-                'buttonlabel' => get_string('launchgenerator', 'aiplacement_modgen'),
+                'buttonlabel' => get_string('modgenmodalheading', 'aiplacement_modgen'),
                 'dialogtitle' => get_string('modgenmodalheading', 'aiplacement_modgen'),
                 'arialabel' => get_string('modgenfabaria', 'aiplacement_modgen'),
             ];
@@ -59,6 +59,18 @@ function aiplacement_modgen_extend_navigation_course($navigation, $course, $cont
             navigation_node::TYPE_SETTING,
             null,
             'aiplacement_modgen_explore'
+        );
+    }
+
+    // Add a direct generator page link into the course navigation (visible to users with capability).
+    if (has_capability('local/aiplacement_modgen:use', $context)) {
+        $genurl = new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $course->id, 'standalone' => 1]);
+        $navigation->add(
+            get_string('launchgenerator', 'aiplacement_modgen'),
+            $genurl,
+            navigation_node::TYPE_SETTING,
+            null,
+            'aiplacement_modgen_generator'
         );
     }
 }

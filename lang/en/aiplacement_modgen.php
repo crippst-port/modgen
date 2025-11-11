@@ -27,7 +27,12 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['pluginname'] = 'Module Assistant';
 
-$string['prompt'] = 'What would you like to create for your module?';
+$string['existingmodule'] = 'Base on existing module';
+$string['addtemplate'] = 'Add another template';
+$string['createfromscratch'] = 'Create from scratch';
+$string['existingmodule_help'] = 'Optionally select one or more existing modules to use as templates for AI generation. The AI will analyze the structure, activities, and content of the selected modules to create similar content for your prompt. Choose "Create from scratch" to generate content without using any existing template. You can add up to 3 templates, and the AI will merge their structures.';
+
+$string['prompt'] = 'Additional context or requests for the Assistant';
 $string['submit'] = 'Submit prompt';
 
 $string['reviewjson'] = 'Review the generated module JSON below. Approve to create activities.';
@@ -63,13 +68,36 @@ $string['labelcreationerror'] = 'Unable to create the "label" activity automatic
 $string['subsectioncreated'] = 'Subsection created: {$a}';
 $string['moduletype'] = 'Module format';
 $string['moduletype_weekly'] = 'Weekly format';
-$string['moduletype_theme'] = 'Themed format';
+$string['moduletype_connected_weekly'] = 'Connected Weekly';
+$string['moduletype_connected_theme'] = 'Connected Themed';
 $string['moduletypeinstruction_weekly'] = 'Structure the module as sequential weekly teaching sections with clear titles, summaries, and an outline array of 3-5 bullet points describing activities/resources.';
-$string['moduletypeinstruction_theme'] = 'Structure the module into distinct themes. For each theme provide a high-level summary and include an array of weekly entries that detail how the theme is delivered over time.';
+$string['moduletypeinstruction_connected_weekly'] = '[PLACEHOLDER: Connected weekly format instruction - custom prompt to be added]';
+$string['moduletypeinstruction_connected_theme'] = 'Structure the module as themed sections (themes), each containing multiple weeks of teaching. Each week has THREE subsections: "Pre-session", "Session", and "Post-session". 
+
+For THEMES: Provide a title and (if enabled) a brief introduction explaining the theme content.
+
+For WEEKS: Provide a generic, overarching weekly title and summary that introduces the week\'s overall learning outcomes and flow.
+
+For ACTIVITIES: Place activities in the appropriate session subsection:
+- "Pre-session" activities: Preparatory work, background reading, prerequisite materials students should engage with BEFORE the main session (e.g., "Review the X article", "Complete the Y preparation task")
+- "Session" activities: Main learning activities conducted DURING the session time (e.g., "Take the quiz on X", "Participate in the X forum discussion", "Complete the X practical exercise")
+- "Post-session" activities: Consolidation and reflection work AFTER the session (e.g., "Reflect on learning via the X assignment", "Review key concepts in the X book", "Complete the post-session quiz")
+
+Structure each week object with:
+- title: Week name/number
+- summary: Generic overview of the week\'s learning flow and outcomes
+- weeks array containing subsections for each pre/session/post component
+- activities organized within the appropriate session subsection
+
+Important: Each week MUST include at least one activity distributed across the three session types (pre, session, post) as appropriate for the learning design. Ensure activities are logically sequenced and pedagogically sound.';
+
 $string['weeklybreakdown'] = 'Weekly breakdown';
 $string['weeklyoutline'] = 'Weekly outline';
 $string['themefallback'] = 'Theme overview';
 $string['weekfallback'] = 'Weekly focus';
+$string['presession'] = 'Pre-session';
+$string['session'] = 'Session';
+$string['postsession'] = 'Post-session';
 $string['keepweeklabels'] = 'Keep dated headings and insert the subject title as a label';
 $string['includeaboutassessments'] = 'Add "About Assessments" subsection to the first section';
 $string['includeaboutlearning'] = 'Add "About Learning Outcomes" subsection to the first section';
@@ -77,35 +105,26 @@ $string['aboutassessments'] = 'About Assessments';
 $string['aboutlearningoutcomes'] = 'About Learning Outcomes';
 $string['returntocourse'] = 'Return to course home';
 $string['promptsentheading'] = 'Prompt sent to AI subsystem';
-$string['launchgenerator'] = 'Module Assistant';
+$string['launchgenerator'] = 'Generate Template';
 $string['modgenmodalheading'] = 'Module Assistant';
 $string['modgenfabaria'] = 'Open Module Assistant';
+$string['modalintro'] = 'Click below to open the Module Assistant and generate module content.';
 $string['closemodgenmodal'] = 'Close and return to module';
+$string['modalinaccessible'] = 'To access the full Module Assistant form, please use the "Generate Template" link from the course navigation menu.';
 $string['missingcourseid'] = 'Course ID is required to use the Module Assistant.';
 
 // Tabbed interface
 $string['generatetablabel'] = 'Generate from Template';
-$string['uploadtablabel'] = 'Upload Content';
 
-// File upload and content import
-$string['contentfile'] = 'Upload document file';
-$string['contentfiledescription'] = 'Upload a Word document or OpenDocument file to extract content and create activities.';
-$string['selectactivitytype'] = 'What activity would you like to create?';
-$string['unsupportedfiletype'] = 'File type "{$a}" is not supported. Please upload a .docx, .doc, or .odt file.';
-$string['conversionfailed'] = 'Could not convert "{$a}" to HTML. Falling back to plain text extraction.';
-$string['fallbacktoplaintext'] = 'File was converted to plain text (formatting was not preserved).';
-$string['couldnotextractcontent'] = 'Could not extract content from "{$a}". Please check the file and try again.';
-$string['bookcreated'] = 'Book activity created: {$a} with {$chapters} chapters.';
-$string['uploadandcreate'] = 'Upload and create activity';
+$string['supportingfiles'] = 'Supporting documents';
+$string['supportingfiles_help'] = 'Upload up to 5 supporting documents (for example: .docx, .odt, .txt, or .html). These files will be used as additional context by the Module Assistant when generating module structure and content. Content may be extracted from the files and included in the AI prompt. Maximum 10MB per file.';
+
 $string['longquery'] = 'This may take a moment while the AI processes your request.';
 $string['connectedcurriculum30'] = '30 credit module';
 $string['connectedcurriculum60'] = '60 credit module';
 $string['connectedcurriculum120'] = '120 credit module';
 $string['connectedcurriculumcredits'] = 'Module type';
 $string['connectedcurriculuminstruction'] = 'Module credit volume: {$a} credit Connected Curriculum module.';
-$string['nocurriculum'] = 'No curriculum template';
-$string['selectcurriculum'] = 'Curriculum template';
-$string['curriculumtemplates'] = 'Curriculum templates';
 
 // Book activity
 $string['activitytype_book'] = 'Book';
@@ -118,6 +137,10 @@ $string['forumdescription'] = 'Collaborative discussion space for peer interacti
 // URL activity
 $string['activitytype_url'] = 'External Link';
 $string['urldescription'] = 'Links to external websites, articles, videos, or resources';
+
+// Assignment activity
+$string['activitytype_assignment'] = 'Assignment';
+$string['assignmentdescription'] = 'Student work submission activity for formative and summative assessments, essays, projects, and reflective tasks';
 
 $string['aipolicynotaccepted'] = 'You must accept the AI policy before using the Module Assistant.';
 $string['aipolicyacceptance'] = 'AI Policy Acceptance Required';
@@ -133,116 +156,75 @@ $string['aiprocessingdetail'] = 'AI is analyzing your request and generating mod
 $string['prompt_help'] = 'Describe what you want to create for your module. Be specific about the topic, learning objectives, and type of activities you want. More detailed prompts will give better results but may take longer to process.';
 $string['moduletype_help'] = 'Choose how to structure your module:
 
-**Weekly format**: Creates sequential weekly sections with clear titles and activities for each week of teaching.
+**Connected Weekly**: Weekly format enhanced with the Flexible Sections layout to improve organization and usability for the new Connected Curriculum.
 
-**Themed format**: Organizes content into distinct learning themes that may span multiple weeks.';
+**Connected Themed**: Themed format enhanced with the Flexible Sections layout, organizing content into distinct learning themes for improved usability with the new Connected Curriculum.';
 
-// Template system strings
-$string['templateheading'] = 'Curriculum Template Configuration';
-$string['templateheading_desc'] = 'Configure curriculum modules that can be used as templates for AI generation';
-$string['enabletemplates'] = 'Enable Template System';
-$string['enabletemplates_desc'] = 'Allow users to select predefined modules as templates for AI generation';
-$string['curriculumtemplates'] = 'Curriculum Template Modules';
-$string['curriculumtemplates_desc'] = 'Define curriculum template modules. Format: One per line as "Template Name|Course ID|Section ID (optional)". Example:<br/>
-Basic Mathematics|15<br/>
-Advanced Chemistry|23|2<br/>
-Introduction to Biology|31';
-$string['selectcurriculum'] = 'Select Template';
-$string['nocurriculum'] = 'Create from scratch';
-$string['curriculumnotfound'] = 'Selected curriculum template not found or not accessible';
-$string['invalidcurriculumconfig'] = 'Invalid curriculum template configuration. Please check admin settings.';
-$string['curriculumtemplates_help'] = 'Select an existing module to use as a template for AI generation. The AI will analyze the structure, activities, and content of the selected template to create similar content for your prompt.
+// Form section headers
+$string['templatesettings'] = 'Template Setup';
+$string['suggestedcontent'] = 'Suggest Content';
 
-Choose "Create from scratch" to generate content without using any existing template.';
+// Generator introduction
+$string['generatorintroduction'] = 'Use the Module Assistant to generate Themes, weeks and activity sections ready for your content. Select one or more existing modules to base your generation on, choose a Connected Curriculum layout and let the AI do the rest. If you\'re modifying an existing module, add context into the prompt field and the AI will adapt the content accordingly. Enable the "Suggest Content" options below to generate suggested content to fill out your module.';
 
-// Upload form error messages
-$string['nofileuploadederror'] = 'No file was uploaded. Please select a file to upload.';
-$string['nochaptersextractederror'] = 'Could not extract chapters from the uploaded file. Ensure it is a valid document (.doc, .docx, or .odt).';
-$string['bookactivitycreated'] = 'Book activity "{$a}" has been created successfully with imported chapters.';
-
-// Upload form labels
-$string['contentfile'] = 'Upload document';
-$string['contentfile_help'] = 'Select a document file (.doc, .docx, or .odt) to extract content from. The content will be parsed into chapters for the activity.';
-$string['selectactivitytype'] = 'Activity type';
-$string['activityintro'] = 'Activity description';
-$string['generatetablabel'] = 'Generate module template';
-$string['uploadtablabel'] = 'Activity from file';
-
-// File upload workflow settings
-$string['fileuploadheading'] = 'File Upload Workflow';
-$string['fileuploadheading_desc'] = 'Configure the file upload workflow that allows users to create activities from uploaded documents.';
-$string['enablefileupload'] = 'Enable file upload workflow';
-$string['enablefileupload_desc'] = 'When enabled, users will see an "Activity from file" tab in the Module Assistant where they can upload documents to create book activities.';
+// Base on existing module settings
+$string['existingmoduleheading'] = 'Base on Existing Module';
+$string['existingmoduleheading_desc'] = 'Allow users to select existing modules as the basis for AI generation.';
+$string['enableexistingmodules'] = 'Enable base on existing module';
+$string['enableexistingmodules_desc'] = 'When enabled, users can select one or more existing modules to base their AI generation on. The AI will analyze the structure and activities of the selected modules and use them as a template for the new content.';
 
 // Activity creation toggle
 $string['createsuggestedactivities'] = 'Create suggested activities';
 $string['createsuggestedactivities_help'] = 'When enabled, the generator will create activity shells as suggestions for your content. These are empty placeholder activities without content, ready for you to fill in with your own materials. When disabled, only section headings and descriptions will be created.';
-$string['activityguidanceinstructions'] = 'ACTIVITY GUIDANCE AND COHERENCE - CRITICAL REQUIREMENTS:
+$string['generatethemeintroductions'] = 'Generate theme introductions';
+$string['generatethemeintroductions_help'] = 'When enabled, the AI will generate an introductory paragraph for each theme section to introduce students to that theme. These introductions will be placed in the summary/overview of each themed section.';
+$string['generatesessioninstructions'] = 'Generate session instructions';
+$string['generatesessioninstructions_help'] = 'When enabled, the AI will generate a paragraph for each session/week aimed at students. This explains what the session covers and lists the activities included. Helps students understand their learning path and what to focus on.';
+$string['activityguidanceinstructions'] = 'ACTIVITY GUIDANCE - CORE REQUIREMENTS:
 
-AUDIENCE: All summaries, guidance, and activity descriptions must be written for UK UNIVERSITY STUDENTS. Use appropriate academic language and assume prior tertiary-level education.
+AUDIENCE: Write for UK university students with academic, mature language.
 
-ACTIVITY REQUIREMENTS:
-- Each week MUST include AT LEAST ONE activity, maximum 5 Moodle activities per week (or as many as the content supports, up to 5)
-- External links and face-to-face activities do not count toward the activity limit and can be included as described below
-- The number and type of activities should be led by the topic complexity and learning outcomes
-- All suggested activities MUST be pedagogically sound and evidence-based
-- Focus on the learning outcome, and naturally reference the activity when it helps clarify the task
+ACTIVITY LIMITS:
+- Each week: minimum 1 activity, maximum 5 Moodle activities
+- External links (URLs) and face-to-face do NOT count toward limit
+- Activity selection should match topic complexity and learning outcomes
 
-EXTERNAL LINKS (URLs):
-- Use external links to direct students to reading materials, reference websites, videos, multimedia content, or context related to other activities
-- External links do NOT count toward the activity limit and can be used liberally to supplement learning
-- Examples: "Review the X article to understand background", "Watch the X video for context before the quiz", "Use the X database for references"
-- Include externalurl field with full URL (e.g., "https://example.com")
+WEEKLY SUMMARY (REQUIRED):
+- Clearly describe what students will learn and do
+- Explain the LEARNING PURPOSE (what concept/skill each element develops)
+- Provide HOW TO APPROACH guidance (sequence of activities)
+- Reference activities by name naturally: "Take the [Name] quiz to check your understanding"
+- Include face-to-face activities as descriptions: "Attend the Wednesday 2pm lecture on X"
+- Link external resources to learning context: "Review the X article for background"
 
-FACE-TO-FACE ACTIVITIES:
-- If the module includes face-to-face components, include these as descriptive text in the weekly summary
-- Face-to-face activities do NOT require associated Moodle activities
-- Examples in weekly summary: "Attend the Wednesday 2pm lecture on X topic", "Complete face-to-face group work in lab session", "Present findings in class"
-- Keep descriptions clear about timing, location expectations, and learning purpose
+ACTIVITY DESCRIPTIONS (REQUIRED):
+- Reinforce learning purposes from weekly summary
+- Provide specific, practical guidance
+- Link back to weekly learning objectives
+- Create coherent flow from summary to activity
 
-1. IN EACH WEEKLY/SECTION SUMMARY, YOU MUST:
-   - Clearly describe what students will learn and do this week
-   - Explain the LEARNING PURPOSE of each element (what concept or skill it develops)
-   - Provide HOW TO APPROACH guidance (what students should do first, then next, etc.)
-   - Explain what students will gain or be able to do after engaging with the activities
-   - Use natural, conversational language appropriate for university students
-   - Reference activities by name when it aids clarity, e.g., "Use the [Activity Name] book to read about X" or "Take the [Activity Name] quiz to check your understanding"
-   - Include any face-to-face activities as natural descriptions of in-class or on-campus activities
-   - Reference external reading links when they provide important context or prerequisites
+COHERENCE:
+- Weekly summary and activity descriptions must tell a consistent story
+- Students understand WHY they are doing activities, not just WHAT
+- Activities build progressively toward learning outcomes
+- External links support the learning narrative naturally
 
-2. IN EACH ACTIVITY DESCRIPTION, YOU MUST:
-   - Expand on and reinforce the learning purposes from the weekly summary
-   - Provide specific, practical guidance for engaging with the activity
-   - Link back to the learning objectives mentioned in the summary
-   - Make the activity description coherent and naturally flowing from the summary
+PEDAGOGICAL QUALITY:
+- Align with learning outcomes and Bloom\'s taxonomy
+- Vary activity types to maintain engagement
+- Support diverse learning preferences
 
-3. COHERENCE REQUIREMENT:
-   - The weekly summary and activity descriptions MUST tell a consistent story
-   - Students should understand not just WHAT to do, but WHY they are doing it and what it contributes to their learning
-   - Guidance must flow logically from week-level overview to specific activity engagement
-   - External links should be naturally woven in to support the learning narrative
+CRITICAL RULES:
+- Do NOT use "label" activities - labels are display containers, not learning activities
+- All items in "activities" array must be real activities (quiz, book, forum, url, assignment)
+- Display important information in summaries or other activity types instead
+- Be specific about what students will learn (outcomes focus)';
 
-PEDAGOGICAL SOUNDNESS:
-- Activities should align with Bloom\'s taxonomy (remember, understand, apply, analyze, evaluate, create)
-- Vary activity types throughout the week to maintain student engagement
-- Ensure activities build progressively toward the learning outcomes
-- Consider diverse learning preferences (visual, auditory, kinesthetic, reading/writing)
-
-EXAMPLE SUMMARY FORMAT: "This week you\'ll explore [Topic] through structured learning. Begin by reviewing the [URL Name] article for background context, then use the [Name] book to read about [concept], which helps you understand [key idea]. You\'ll then take the [Name] quiz to check your understanding and identify areas for deeper engagement. Attend the Wednesday lecture on [topic] to discuss applications with peers. By working through these elements, you\'ll develop [learning outcome]."
-
-LANGUAGE GUIDELINES:
-- Write for mature learners; avoid patronising or overly simple language
-- Focus on learning outcomes and intellectual development, but can naturally reference activity names when helpful
-- Use natural phrases like "explore," "investigate," "develop understanding" combined with activity references where appropriate
-- Examples: "Use the X book to...", "Work through the X quiz to...", "Discuss in the X forum how...", "Review the X link for...", "Explore the X resource to...", "Review the X reading to understand...", "Attend the X lecture to..."
-- Vary your sentence structure and phrasing to maintain engagement
-- Be specific about what students will learn, not just what they\'ll do
-
-IMPORTANT - DO NOT USE LABELS:
-- Never include "label" activity types in your response - they are not learning activities
-- Labels are content display containers, not pedagogical activities
-- All items in the "activities" array must be real learning activities (quiz, book, forum, url, assignment, etc.)
-- If you need to display important information, use a different activity type or include it in the section summary instead';
+// AI enable/disable setting
+$string['aienabledheading'] = 'AI Integration';
+$string['aienabledheading_desc'] = 'Control whether the plugin uses AI to generate module structures or processes uploaded files directly.';
+$string['enableai'] = 'Enable AI generation';
+$string['enableai_desc'] = 'When enabled, uploaded files are processed exactly as specified, and you can make additional adjustments via the prompt field or base the structure on an existing module template. When disabled, only uploaded CSV files are processed with no AI adjustments available.';
 
 // AI prompt configuration
 $string['aipromptheading'] = 'AI Generation Settings';
@@ -278,5 +260,10 @@ $string['loadinginsights'] = 'Loading insights...';
 $string['activitysummary'] = 'Activity Summary';
 $string['totalactivities'] = 'Total activities:';
 $string['improvementsuggestions'] = 'Improvement Suggestions';
+
+// Validation error strings
+$string['generationfailed'] = 'Generation Failed';
+$string['validationerrorhelp'] = 'The AI response was malformed and cannot be used to create content. This sometimes happens when the AI double-encodes the response or returns an incorrect structure. Please try generating again with the same or modified prompt.';
+$string['tryagain'] = 'Try Again';
 
 

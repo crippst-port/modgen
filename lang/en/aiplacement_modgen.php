@@ -33,7 +33,7 @@ $string['createfromscratch'] = 'Create from scratch';
 $string['existingmodule_help'] = 'Optionally select one or more existing modules to use as templates for AI generation. The AI will analyze the structure, activities, and content of the selected modules to create similar content for your prompt. Choose "Create from scratch" to generate content without using any existing template. You can add up to 3 templates, and the AI will merge their structures.';
 
 $string['prompt'] = 'Additional context or requests for the Assistant';
-$string['submit'] = 'Submit prompt';
+$string['submit'] = 'Preview Template';
 
 $string['reviewjson'] = 'Review the generated module JSON below. Approve to create activities.';
 $string['jsonpreview'] = 'JSON preview';
@@ -271,5 +271,16 @@ $string['improvementsuggestions'] = 'Improvement Suggestions';
 $string['generationfailed'] = 'Generation Failed';
 $string['validationerrorhelp'] = 'The AI response was malformed and cannot be used to create content. This sometimes happens when the AI double-encodes the response or returns an incorrect structure. Please try generating again with the same or modified prompt.';
 $string['tryagain'] = 'Try Again';
+
+// Module preview display strings
+$string['moduleoverview'] = 'Module Overview';
+$string['themes'] = 'Themes';
+$string['weeks'] = 'Weeks';
+$string['activities'] = 'Activities';
+$string['downloadjson'] = '💾 Download JSON';
+$string['viewjson'] = '👁️ View JSON';
+$string['nothemes'] = 'No themes defined';
+$string['noweeks'] = 'No weeks defined';
+$string['noactivities'] = 'No activities defined';
 
 

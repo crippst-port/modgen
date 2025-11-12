@@ -245,6 +245,128 @@ function aiplacement_modgen_generate_fallback_summary(array $moduledata, string 
     return '';
 }
 
+/**
+ * Convert JSON module data into structured preview data for template rendering.
+ *
+ * @param array $moduledata Decoded module structure returned by the AI.
+ * @param string $structure Module structure type ('theme' or 'weekly').
+ * @return array Structured data with themes/weeks and activities for display.
+ */
+function aiplacement_modgen_build_module_preview(array $moduledata, string $structure): array {
+    $preview = [
+        'structure' => $structure,
+        'hasthemes' => false,
+        'themes' => [],
+        'hasweeks' => false,
+        'weeks' => [],
+    ];
+
+    if ($structure === 'theme' && !empty($moduledata['themes']) && is_array($moduledata['themes'])) {
+        $preview['hasthemes'] = true;
+
+        foreach ($moduledata['themes'] as $theme) {
+            if (!is_array($theme)) {
+                continue;
+            }
+
+            $themeitem = [
+                'title' => !empty($theme['title']) ? s($theme['title']) : get_string('themefallback', 'aiplacement_modgen'),
+                'summary' => !empty($theme['summary']) ? s($theme['summary']) : '',
+                'weeks' => [],
+                'hasweeks' => false,
+            ];
+
+            if (!empty($theme['weeks']) && is_array($theme['weeks'])) {
+                foreach ($theme['weeks'] as $week) {
+                    if (!is_array($week)) {
+                        continue;
+                    }
+
+                    $weekitem = [
+                        'title' => !empty($week['title']) ? s($week['title']) : get_string('weekfallback', 'aiplacement_modgen'),
+                        'summary' => !empty($week['summary']) ? s($week['summary']) : '',
+                        'activities' => [],
+                        'hasactivities' => false,
+                    ];
+
+                    // Collect all activities from all session types
+                    $sessions = [
+                        'presession' => $week['presession'] ?? [],
+                        'session' => $week['session'] ?? [],
+                        'postsession' => $week['postsession'] ?? [],
+                    ];
+
+                    foreach ($sessions as $sessiontype => $activities) {
+                        if (!is_array($activities)) {
+                            continue;
+                        }
+
+                        foreach ($activities as $activity) {
+                            if (!is_array($activity)) {
+                                continue;
+                            }
+
+                            $weekitem['activities'][] = [
+                                'name' => !empty($activity['name']) ? s($activity['name']) : '',
+                                'type' => !empty($activity['type']) ? s($activity['type']) : '',
+                                'session' => $sessiontype,
+                            ];
+                        }
+                    }
+
+                    if (!empty($weekitem['activities'])) {
+                        $weekitem['hasactivities'] = true;
+                    }
+
+                    $themeitem['weeks'][] = $weekitem;
+                }
+            }
+
+            if (!empty($themeitem['weeks'])) {
+                $themeitem['hasweeks'] = true;
+            }
+
+            $preview['themes'][] = $themeitem;
+        }
+    } else if (!empty($moduledata['sections']) && is_array($moduledata['sections'])) {
+        // Weekly format
+        $preview['hasweeks'] = true;
+
+        foreach ($moduledata['sections'] as $section) {
+            if (!is_array($section)) {
+                continue;
+            }
+
+            $weekitem = [
+                'title' => !empty($section['title']) ? s($section['title']) : get_string('weekfallback', 'aiplacement_modgen'),
+                'summary' => !empty($section['summary']) ? s($section['summary']) : '',
+                'activities' => [],
+                'hasactivities' => false,
+            ];
+
+            if (!empty($section['outline']) && is_array($section['outline'])) {
+                foreach ($section['outline'] as $activity) {
+                    if (is_string($activity) && trim($activity) !== '') {
+                        $weekitem['activities'][] = [
+                            'name' => s($activity),
+                            'type' => '',
+                            'session' => 'outline',
+                        ];
+                    }
+                }
+            }
+
+            if (!empty($weekitem['activities'])) {
+                $weekitem['hasactivities'] = true;
+            }
+
+            $preview['weeks'][] = $weekitem;
+        }
+    }
+
+    return $preview;
+}
+
 // Resolve course id from id or courseid.
 $courseid = optional_param('id', 0, PARAM_INT);
 if (!$courseid) {
@@ -2076,16 +2198,21 @@ if ($pdata = $promptform->get_data()) {
     $approveform->display();
     $formhtml = ob_get_clean();
 
+    // Build module preview from the generated JSON
+    $modulepreview = aiplacement_modgen_build_module_preview($json, $moduletype);
+
     $previewdata = [
         'notifications' => $notifications,
         'hassummary' => $summarytext !== '',
         'summaryheading' => get_string('generationresultssummaryheading', 'aiplacement_modgen'),
         'summary' => $summaryformatted,
+        'modulepreview' => $modulepreview,
         'hasjson' => !empty($jsonstr),
         'jsonheading' => get_string('generationresultsjsonheading', 'aiplacement_modgen'),
         'jsondescription' => get_string('generationresultsjsondescription', 'aiplacement_modgen'),
         'json' => s($jsonstr),
         'jsonnote' => get_string('generationresultsjsonnote', 'aiplacement_modgen'),
+        'downloadjsontext' => get_string('downloadjson', 'aiplacement_modgen'),
         'form' => $formhtml,
         'promptheading' => get_string('generationresultspromptheading', 'aiplacement_modgen'),
         'prompttoggle' => get_string('generationresultsprompttoggle', 'aiplacement_modgen'),
@@ -2095,6 +2222,11 @@ if ($pdata = $promptform->get_data()) {
 
     $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/prompt_preview', $previewdata);
     $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
+
+    // Initialize JSON handler for download and view functionality
+    if (!empty($jsonstr)) {
+        $PAGE->requires->js_call_amd('aiplacement_modgen/json_handler', 'init');
+    }
 
     $footeractions = [[
         'label' => get_string('reenterprompt', 'aiplacement_modgen'),

@@ -1,362 +1,386 @@
-# Module Generator Workflow Guide
+# Module Generator Workflow Guide (Updated November 2025)
 
-This guide explains how the Module Generator works in different configurations, focusing on the workflow with AI enabled vs. disabled.
+Complete reference for all Module Generator behaviors and configuration options.
 
-## Overview
+## Quick Reference: What Each Checkbox Does
 
-The Module Generator creates Moodle course modules using either:
-- **CSV files** for exact, structured imports
-- **AI enhancement** to expand on CSV structure or generate from scratch
-- **Combination** of CSV base structure with AI enhancement
-
----
-
-## File Upload Requirements
-
-| Setting | File Type | Max Files | Max Size | Purpose |
-|---------|-----------|-----------|----------|---------|
-| Always | `.csv` only | 1 file | 5MB | Provides module structure |
+| Scenario | Expand on Themes | Generate Example Content | Result |
+|----------|------------------|--------------------------|--------|
+| ❌ Both OFF | No | No | CSV only - exact structure |
+| ✅ Expand only | Yes | No | Enhanced titles, original structure |
+| ✅ Examples only | No | Yes | Original titles, example activities/instructions |
+| ✅ Both ON | Yes | Yes | Enhanced titles + activities + instructions |
 
 ---
 
-## AI Disabled Workflow
+## File Upload
 
-When **AI is disabled** in plugin settings (`enable_ai = false`):
+**CSV File (Required)**
+- **Type**: `.csv` only
+- **Max files**: 1
+- **Max size**: 5 MB
+- **Purpose**: Defines course structure (themes, weeks, sessions)
 
-### Behavior
-- **CSV file is REQUIRED**
-- **Exact creation**: Module created exactly as specified in CSV
-- No AI enhancement or expansion
-- All AI-specific form fields are hidden (template selector, prompt field, suggested content section)
+---
 
-### Form Display
+## CSV Structure Formats
+
+### Theme-Based Format
 ```
-✓ CSV structure file upload
-✗ Template selector (hidden)
-✗ Prompt field (hidden)
-✗ Suggested content section (hidden)
-```
-
-### Workflow Steps
-1. User uploads CSV file with module structure
-2. System detects CSV format (theme or weekly)
-3. CSV parsed directly to JSON structure
-4. Sections and activities created exactly as specified
-5. No names changed, no descriptions added, no AI involvement
-
-### Use Cases
-- Importing pre-defined course structures
-- Bulk module creation from templates
-- Exact replication of existing course designs
-- When AI service is unavailable or not needed
-
----
-
-## AI Enabled Workflow
-
-When **AI is enabled** in plugin settings (`enable_ai = true`):
-
-### Available Options
-
-The form displays additional controls in the **Suggested Content** section:
-
-1. **Expand on themes found in file** (checkbox)
-   - Default: **OFF** (unchecked)
-   - When ON: AI enhances CSV structure (names, descriptions)
-   - When OFF: Creates exactly what's in CSV (unless prompt provided)
-
-2. **Create suggested activities** (checkbox)
-   - Default: OFF
-   - Controls whether AI creates activity shells
-   - Works independently of "Expand on themes"
-
-3. **Generate session instructions** (checkbox)
-   - Default: OFF
-   - Controls whether AI generates session descriptions
-   - Works independently of "Expand on themes"
-
-4. **Generate theme introductions** (checkbox)
-   - Default: ON
-   - Only visible for `connected_theme` module type
-   - Adds introductory paragraphs to theme sections
-
-### Decision Matrix
-
-| CSV Upload | User Prompt | Expand on Themes | Result |
-|------------|-------------|------------------|--------|
-| ✓ Yes | Empty | OFF | **Pure CSV** - Exact creation |
-| ✓ Yes | Empty | ON | **Enhanced structure** - AI improves names/descriptions |
-| ✓ Yes | "Make it fun" | OFF | **AI follows prompt** - Respects user instructions |
-| ✓ Yes | "Make it fun" | ON | **AI + Enhancement** - Follows prompt + expands |
-| ✗ No | Any text | N/A | **AI generation** - Creates from scratch |
-
-### Key Rule
-**User prompts are ALWAYS followed**, regardless of the "Expand on themes" checkbox state.
-
----
-
-## Detailed AI Workflows
-
-### Workflow A: Pure CSV Import (AI On, No Enhancement)
-
-**Settings:**
-- AI enabled: ✓
-- CSV uploaded: ✓
-- User prompt: Empty
-- Expand on themes: ✗ OFF
-- Create activities: ✗ OFF
-- Session instructions: ✗ OFF
-
-**Process:**
-1. CSV file uploaded
-2. System detects: AI enabled but no enhancement requested
-3. CSV parsed directly (same as AI disabled mode)
-4. Exact structure created from CSV
-5. No AI involvement
-
-**Result:** Identical to AI disabled workflow - exact CSV replication
-
----
-
-### Workflow B: CSV with Structure Enhancement Only
-
-**Settings:**
-- AI enabled: ✓
-- CSV uploaded: ✓ (e.g., "Week 1", "Week 2", "Week 3")
-- User prompt: Empty
-- Expand on themes: ✓ ON
-- Create activities: ✗ OFF
-- Session instructions: ✗ OFF
-
-**Process:**
-1. CSV file uploaded and parsed to extract base structure
-2. CSV structure converted to JSON
-3. JSON sent to AI with prompt:
-   ```
-   *** BASE STRUCTURE FROM CSV ***
-   Use this as the foundation and enhance the theme names, 
-   descriptions, and structure:
-   {CSV structure as JSON}
-   
-   Enhance the names, descriptions, and overall structure 
-   while maintaining the core organization.
-   ```
-4. AI enhances:
-   - Week/theme names (e.g., "Week 1" → "Introduction to Key Concepts")
-   - Section descriptions
-   - Overall narrative flow
-5. **Activities NOT created** (toggle is OFF)
-6. **Session instructions NOT added** (toggle is OFF)
-
-**Result:** Enhanced structure with better names/descriptions, but no activity shells
-
----
-
-### Workflow C: CSV with Full Enhancement
-
-**Settings:**
-- AI enabled: ✓
-- CSV uploaded: ✓
-- User prompt: Empty
-- Expand on themes: ✓ ON
-- Create activities: ✓ ON
-- Session instructions: ✓ ON
-
-**Process:**
-1. CSV parsed and sent to AI as base structure
-2. AI enhances theme/week names and descriptions
-3. AI creates suggested activity shells based on structure
-4. AI generates session instruction text for each week/session
-5. Complete module created with enhanced content
-
-**Result:** Fully enhanced module with improved structure, activity suggestions, and instructional text
-
----
-
-### Workflow D: CSV with Custom Instructions
-
-**Settings:**
-- AI enabled: ✓
-- CSV uploaded: ✓
-- User prompt: "Make this course fun and engaging for high school students"
-- Expand on themes: ✗ OFF (doesn't matter - prompt triggers AI)
-- Create activities: ✓ ON
-- Session instructions: ✗ OFF
-
-**Process:**
-1. CSV parsed to get base structure
-2. User prompt combined with CSV structure context
-3. AI processes with custom instructions
-4. Theme/week names enhanced per user's request
-5. Activities created (toggle ON)
-6. Session instructions skipped (toggle OFF)
-
-**Result:** CSV structure enhanced according to user's specific instructions, with activities but no session text
-
----
-
-### Workflow E: AI Generation from Scratch (No CSV)
-
-**Settings:**
-- AI enabled: ✓
-- CSV uploaded: ✗ None
-- User prompt: "Create a 12-week introduction to psychology course"
-- All enhancement toggles: User's choice
-
-**Process:**
-1. No CSV provided
-2. AI generates complete structure from user prompt
-3. Module type determines structure format (weekly/theme)
-4. Activity and session toggles control what gets created
-
-**Result:** Completely AI-generated module based on user description
-
----
-
-## Toggle Independence
-
-The three content toggles work **independently**:
-
-| Expand Themes | Create Activities | Session Instructions | What Gets Created |
-|---------------|-------------------|---------------------|-------------------|
-| OFF | OFF | OFF | **CSV only** - exact replication |
-| ON | OFF | OFF | **Enhanced names** - no activities |
-| ON | ON | OFF | **Enhanced + activities** - no session text |
-| ON | OFF | ON | **Enhanced + session text** - no activities |
-| ON | ON | ON | **Full enhancement** - everything |
-
-### Example: Structure Enhancement Without Activities
-
-This is particularly useful when you want:
-- Better theme/week names and descriptions
-- **But NOT** pre-created activity placeholders
-- Instructor will add their own activities manually
-
-Simply check **"Expand on themes"** and leave **"Create activities"** unchecked.
-
----
-
-## CSV Format Detection
-
-The system auto-detects CSV format based on columns:
-
-### Theme Format
-```csv
-Theme,Session,Activity Name,Activity Type,Description
-Digital Literacy,Pre-session,Introduction Forum,forum,Welcome to the theme
-Digital Literacy,Session 1,Research Task,assignment,Find digital resources
+Title:,Course Title
+Theme:,Theme 1 Name
+Description:,Optional theme introduction
+Week:,Week 1 Name
+Description:,Optional week description
+Week:,Week 2 Name
+Theme:,Theme 2 Name
+Week:,Week 1 Name
 ```
 
-### Weekly Format  
-```csv
-Week,Activity Name,Activity Type,Description
-1,Course Introduction,forum,Introduce yourself
-1,Reading Assignment,assignment,Read chapter 1
+**Structure**: Multiple themes → Multiple weeks per theme → Three sessions per week (presession, session, postsession)
+
+### Weekly Format
+```
+Title:,Course Title
+Week:,Week 1 Name
+Description:,Optional week description
+Week:,Week 2 Name
 ```
 
-Auto-detection happens when:
-- Module type is not explicitly set
-- Module type is set to default `connected_weekly`
+**Structure**: Multiple weeks → Three sessions per week
 
 ---
 
-## Template-Based Generation
+## Behavior Scenarios
 
-When using an existing module as a template:
+### Scenario 1: CSV Only (Both Checkboxes OFF)
 
-### Without CSV
-- AI analyzes template structure
-- Generates new content maintaining template's organization pattern
+**When**: 
+- CSV uploaded
+- "Expand on themes" = OFF
+- "Generate example content" = OFF
 
-### With CSV + Expand On
-- Template provides visual/organizational context
-- CSV provides specific structure
-- AI enhances CSV while respecting template patterns
+**AI Processing**: ❌ DISABLED
 
----
+**Result**:
+- Creates exact structure from CSV
+- No title enhancement
+- No activities generated
+- No summaries/instructions generated
+- User-provided descriptions kept exactly as-is
 
-## Processing Paths
-
-The system has **3 processing code paths** (all updated with CSV enhancement logic):
-
-1. **Template extraction path**: When existing module selected as template
-2. **Fallback path**: If template extraction fails
-3. **Regular path**: Standard generation without template
-
-All three paths support the same CSV enhancement logic for consistency.
+**Use Case**: Bulk import of course templates, exact replication
 
 ---
 
-## Best Practices
+### Scenario 2: CSV + Expand on Themes
 
-### When to Use AI Off
-- Importing exact course structures
-- Bulk creation from standardized templates
-- AI service unavailable
-- Want complete control over all content
+**When**:
+- CSV uploaded
+- "Expand on themes" = ✅ ON
+- "Generate example content" = OFF
 
-### When to Use AI On (No Enhancement)
-- CSV has perfect names/descriptions already
-- Want exact CSV but need AI available for other features
-- Testing CSV format before enhancement
+**AI Processing**: ✅ ENABLED
 
-### When to Use "Expand on Themes"
-- CSV has basic structure but generic names (Week 1, Week 2)
-- Want AI to improve descriptions and naming
-- Need better narrative flow
-- Still want control over base structure
+**What AI Does**:
+- Enhances theme and week titles with professional language
+- Creates summaries ONLY where CSV fields are empty
+- Preserves user-provided descriptions exactly as written
+- Respects exact same number of themes/weeks as CSV
 
-### When to Add Custom Prompt
-- Have specific tone/audience requirements
-- Need content adapted for specific context
-- Want to combine CSV structure with custom instructions
+**Result**:
+- ✅ Enhanced theme and week titles
+- ✅ Professional, academic tone
+- ✅ Exact same number of themes/weeks as CSV
+- ❌ No activities generated
+- ❌ No session instructions generated
+- ✅ User-provided summaries preserved exactly
 
-### Independent Toggles Strategy
-- Use **Expand themes** alone for structure improvement
-- Add **Create activities** when you want suggestions
-- Add **Session instructions** for student-facing guidance
-- Combine as needed for your use case
+**Use Case**: Improving title quality while keeping structure and user content
 
 ---
 
-## Error Handling
+### Scenario 3: CSV + Generate Example Content
 
-### CSV Required Scenarios
-If CSV file is required but missing:
+**When**:
+- CSV uploaded
+- "Expand on themes" = OFF
+- "Generate example content" = ✅ ON
+
+**AI Processing**: ✅ ENABLED
+
+**What AI Does**:
+- Keeps all titles EXACTLY as specified in CSV
+- Generates activities (forums, assignments, quizzes, etc.)
+- Generates session instructions
+- Creates summaries ONLY where CSV fields are empty
+- Preserves user-provided summaries exactly
+
+**Result**:
+- ✅ Activities generated
+- ✅ Session instructions generated
+- ✅ Summaries generated ONLY where CSV is empty
+- ✅ User-provided summaries preserved exactly
+- ✅ All titles kept EXACTLY as in CSV
+- ✅ Exact same number of themes/weeks as CSV
+
+**Use Case**: Adding learning activities while keeping user's original titles and descriptions
+
+---
+
+### Scenario 4: CSV + Both Checkboxes ON
+
+**When**:
+- CSV uploaded
+- "Expand on themes" = ✅ ON
+- "Generate example content" = ✅ ON
+
+**AI Processing**: ✅ ENABLED (Full Enhancement)
+
+**What AI Does**:
+- Enhances titles with professional language
+- Generates activities
+- Generates session instructions
+- Creates summaries where empty
+- Preserves user-provided summaries
+- Maintains exact same structure as CSV
+
+**Result**:
+- ✅ Enhanced professional titles
+- ✅ Activities generated
+- ✅ Session instructions generated
+- ✅ Summaries generated where empty
+- ✅ User-provided summaries preserved
+- ✅ Exact same structure as CSV (no weeks added/removed)
+
+**Use Case**: Complete enhancement with professional titles and learning activities
+
+---
+
+## Critical Safeguards (All Scenarios)
+
+### Structural Preservation
+Every AI prompt includes explicit instructions:
 ```
-Exception: 'No CSV file uploaded. A CSV file with the 
-module structure is required.'
+Create EXACTLY [NUMBER] themes with [NUMBER] weeks total
+(this is non-negotiable)
+
+Do NOT add extra themes, weeks, or sessions
+Do NOT remove any themes, weeks, or sessions
+Do NOT merge or split sections
+Your output MUST have EXACTLY [NUMBER] themes
 ```
 
-This happens when:
-- AI is disabled (CSV always required)
-- AI enabled but expand off and no prompt (CSV needed for structure)
+### How Theme/Week Counting Works
+1. **CSV parsing**: System parses CSV into structured format
+2. **Counting**: System counts exact themes and weeks
+3. **Explicit instruction**: "Create EXACTLY 3 themes with 9 weeks"
+4. **AI extraction**: AI service recognizes the number pattern
+5. **Enforcement**: AI follows the exact count (no defaults)
 
-### CSV Optional Scenarios
-CSV is optional when:
-- AI enabled AND user provides a prompt
-- System will generate from scratch using AI
+### Why Explicit Counting Matters
+**OLD SYSTEM** (before v2.2):
+- Had default: "Each theme must have 2-4 weeks"
+- Caused AI to ignore CSV week counts
+- Created wrong number of weeks
 
----
-
-## Summary Comparison
-
-| Feature | AI OFF | AI ON (No Enhancement) | AI ON (With Enhancement) |
-|---------|--------|------------------------|--------------------------|
-| CSV Required | Yes | Yes (if no prompt) | Yes (if no prompt) |
-| Exact CSV Replication | Yes | Yes (if expand off + no prompt) | No |
-| Enhanced Names | No | No | Yes (if expand on OR prompt) |
-| Activity Creation | From CSV only | From CSV OR toggle | AI-suggested OR from CSV |
-| Session Instructions | From CSV only | From CSV OR toggle | AI-generated OR from CSV |
-| User Prompt Support | No | Yes | Yes |
-| Template Support | No | Yes | Yes |
+**NEW SYSTEM** (v2.2+):
+- "Create EXACTLY 3 themes with 9 weeks"
+- Explicit counts from CSV
+- No arbitrary limits
+- Respects any week/theme structure
 
 ---
 
-## Version Info
+## User-Provided Descriptions
 
-- **Plugin**: aiplacement_modgen
-- **Type**: AI Placement plugin for Moodle
-- **Install Path**: `ai/placement/modgen`
-- **Moodle Version**: 4.5+
-- **Documentation Updated**: 2025-11-12
+### When User Provides Description in CSV
+```
+Theme:,Data Analysis
+Description:,Students explore statistical methods and data visualization
+```
+
+**With "Expand on themes" ON**: 
+- Title: Enhanced professionally
+- Description: Kept EXACTLY as written
+
+**With "Generate example content" ON**: 
+- Title: Kept EXACTLY as written
+- Description: Kept EXACTLY as written
+- Activities: Generated
+
+**With both OFF**:
+- Everything kept exactly as written
+
+### When User Leaves Description Empty
+```
+Week:,Week 1 Introduction
+Description:[empty]
+```
+
+**With "Expand on themes" ON**: 
+- AI generates professional week summary
+
+**With "Generate example content" ON**: 
+- AI generates week summary
+
+**With both OFF**:
+- Stays empty
+
+---
+
+## Form Controls
+
+| Option | Visibility |
+|--------|------------|
+| CSV upload | Always visible |
+| Expand on themes | Visible when AI enabled |
+| Generate example content | Visible when AI enabled |
+| Template selector | Hidden |
+| Prompt field | Hidden |
+
+---
+
+## AI Service Processing
+
+### Phase 1: CSV Parsing
+- Detect format (theme or weekly)
+- Parse to structured array
+- Count themes and weeks
+- Extract user-provided summaries
+
+### Phase 2: Prompt Construction
+- Add complete CSV structure
+- Add critical structural requirements
+- Add explicit theme/week counts
+- Add scenario-specific instructions
+
+### Phase 3: AI Generation
+- Send prompt to Moodle AI subsystem
+- AI extracts explicit count
+- AI generates exact structure
+- AI respects all requirements
+
+### Phase 4: Validation
+- Validate response structure
+- Check theme/week count matches
+- Process activities and sessions
+
+---
+
+## Session Structure
+
+Every week automatically gets 3 sessions:
+1. **presession**: Pre-class preparation
+2. **session**: In-class/synchronous activities
+3. **postsession**: Post-class reflection/review
+
+Each session can contain:
+- Custom instructions/guidance
+- Multiple activities (if "Generate example content" ON)
+
+---
+
+## Professional Tone
+
+When "Expand on themes" is ON, AI uses:
+
+```
+Professional, academic language suitable for UK higher education:
+- Clear, descriptive, informative titles
+- Avoid marketing language or casual tone
+- Focus on clarity and academic rigor
+- Scholarly but accessible content
+```
+
+Examples:
+- ✅ "Data Analysis Fundamentals" (good)
+- ✅ "Introduction to Statistical Methods" (good)
+- ❌ "Exciting Data Adventure!" (bad)
+- ❌ "Fun Week!" (bad)
+
+---
+
+## Decision Guide
+
+### "I have a CSV template I want to import exactly"
+→ **Both OFF** → Exact CSV import
+
+### "I have a CSV but want better-sounding titles"
+→ **Expand ON, Examples OFF** → Professional titles
+
+### "I have a CSV but want to add activities"
+→ **Examples ON, Expand OFF** → Same titles + activities
+
+### "I have a CSV and want the full treatment"
+→ **Both ON** → Professional titles + activities + instructions
+
+---
+
+## Troubleshooting
+
+### "Wrong number of weeks generated"
+✓ Check: "Create EXACTLY X themes with Y weeks" in prompt
+✓ Check: CSV was parsed correctly
+✓ Check: No "2-4 weeks per theme" constraint in AI output
+
+### "User-provided summaries were overwritten"
+✓ Check: Prompt includes "DO NOT replace user-provided summaries"
+✓ Check: CSV structure shows summary field status
+✓ Check: Settings when generating
+
+### "Activities not being generated"
+✓ Check: "Generate example content" is ON
+✓ Check: Supported activity types used
+✓ Check: No errors in AI response
+
+---
+
+## Version History
+
+- **v2.2** (November 2025): **Current**
+  - ✅ Explicit theme/week counts in AI prompts
+  - ✅ Removed "2-4 weeks per theme" default constraint
+  - ✅ Preserve user-provided summaries
+  - ✅ Independent example content generation
+  - ✅ Only generate summaries where CSV is empty
+  - ✅ Professional UK higher education tone
+  - ✅ Critical structural requirements in all scenarios
+
+---
+
+## Technical Details
+
+### Explicit Count Extraction
+AI service looks for patterns like:
+- "3 themes"
+- "EXACTLY 3 themes with 9 weeks"
+- "create 3 themes"
+
+When found, explicit count is used (no defaults applied)
+
+### Activity Types Supported
+- forum
+- assignment
+- quiz
+- label
+- book
+- url
+- choice
+- glossary
+- wiki
+
+---
+
+## Summary
+
+The Module Generator v2.2 provides precise control over course structure with AI enhancement:
+
+- **Exact CSV import** when AI not needed
+- **Title enhancement** for professional academic tone
+- **Content generation** for activities and instructions
+- **Flexible combination** of both features
+- **Structure preservation** with explicit week counts
+- **Summary respecting** to keep user content
+
+Use the checkbox combinations to get exactly what you need!

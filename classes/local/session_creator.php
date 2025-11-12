@@ -45,22 +45,12 @@ class session_creator {
     public static function create_session_subsections($courseformat, $parentsectionnum, $courseid, $sessiondata = null) {
         global $DB;
         
-        // Debug logging
-        error_log("SESSION_CREATOR: Starting subsection creation for parent section {$parentsectionnum}");
-        error_log("SESSION_CREATOR: Session data type: " . gettype($sessiondata));
-        if (is_array($sessiondata)) {
-            error_log("SESSION_CREATOR: Session data keys: " . implode(', ', array_keys($sessiondata)));
-        }
-        
         // Validate course format
         if (!$courseformat || get_class($courseformat) !== 'format_flexsections') {
-            $actualclass = $courseformat ? get_class($courseformat) : 'null';
-            error_log("SESSION_CREATOR: Invalid course format: {$actualclass}");
             throw new \Exception('Course format must be flexsections to create nested subsections');
         }
         
         if (!method_exists($courseformat, 'create_new_section')) {
-            error_log("SESSION_CREATOR: Course format missing create_new_section method");
             throw new \Exception('The flexsections course format is not properly supporting nested sections');
         }
         
@@ -71,26 +61,18 @@ class session_creator {
             'postsession' => get_string('postsession', 'aiplacement_modgen'),
         ];
         
-        error_log("SESSION_CREATOR: Parent section number is: {$parentsectionnum}");
-        
         $sessionsectionmap = [];
         
         foreach ($sessiontypes as $sessionkey => $sessionlabel) {
-            error_log("SESSION_CREATOR: Creating subsection '{$sessionkey}' with label '{$sessionlabel}' under parent {$parentsectionnum}");
-            
             // CRITICAL: Always use the original parent section number, not a previously created section
             // create_new_section($parent, $before) where $parent is the parent section number
             // and $before is null to append at the end
             $sessionsectionnum = $courseformat->create_new_section($parentsectionnum, null);
             $sessionsectionmap[$sessionkey] = $sessionsectionnum;
             
-            error_log("SESSION_CREATOR: Created section number: {$sessionsectionnum} (parent is still {$parentsectionnum})");
-            
             // Get the section ID for database updates
             $sessionsectionid = $DB->get_field('course_sections', 'id', 
                 ['course' => $courseid, 'section' => $sessionsectionnum]);
-            
-            error_log("SESSION_CREATOR: Section ID: {$sessionsectionid}");
             
             // Prepare section update data
             $sectionupdate = [
@@ -104,13 +86,11 @@ class session_creator {
                 if (!empty($data['description'])) {
                     $sectionupdate['summary'] = format_text($data['description'], FORMAT_HTML);
                     $sectionupdate['summaryformat'] = FORMAT_HTML;
-                    error_log("SESSION_CREATOR: Added description for {$sessionkey}");
                 }
             }
             
             // Update section record
             $DB->update_record('course_sections', $sectionupdate);
-            error_log("SESSION_CREATOR: Updated section record");
             
             // Set session section to NOT appear as a link (collapsed = 0)
             if (method_exists($courseformat, 'update_section_format_options')) {
@@ -118,11 +98,9 @@ class session_creator {
                     'id' => $sessionsectionid, 
                     'collapsed' => 0
                 ]);
-                error_log("SESSION_CREATOR: Set collapsed=0 for section {$sessionsectionid}");
             }
         }
         
-        error_log("SESSION_CREATOR: Completed. Created sections: " . json_encode($sessionsectionmap));
         return $sessionsectionmap;
     }
     

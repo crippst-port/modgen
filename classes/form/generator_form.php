@@ -57,9 +57,12 @@ class aiplacement_modgen_generator_form extends moodleform {
         // === TEMPLATE SETUP SECTION ===
         $mform->addElement('header', 'templatesettingsheader', get_string('templatesettings', 'aiplacement_modgen'));
         
+        // Check if AI is enabled early so we can control visibility
+        $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
+        
         // Existing module selection - allows user to base generation on existing module structure
         // Only show if admin has enabled this feature AND AI is enabled
-        if (get_config('aiplacement_modgen', 'enable_ai') && get_config('aiplacement_modgen', 'enable_existing_modules')) {
+        if ($ai_enabled && get_config('aiplacement_modgen', 'enable_existing_modules')) {
             // Support up to 3 templates via multiselect
             $existingmodules = $this->get_editable_courses();
             
@@ -69,16 +72,18 @@ class aiplacement_modgen_generator_form extends moodleform {
             $mform->addHelpButton('existing_modules', 'existingmodule', 'aiplacement_modgen');
         }
         
-        // Module type selection - store options as fixed to ensure they're available during form processing
-        $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
-        $mform->setType('moduletype', PARAM_ALPHANUMEXT);
-        $mform->setDefault('moduletype', 'connected_weekly');
-        $mform->addHelpButton('moduletype', 'moduletype', 'aiplacement_modgen');
+        // Module type selection - ONLY show if AI is enabled
+        if ($ai_enabled) {
+            $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
+            $mform->setType('moduletype', PARAM_ALPHANUMEXT);
+            $mform->setDefault('moduletype', 'connected_weekly');
+            $mform->addHelpButton('moduletype', 'moduletype', 'aiplacement_modgen');
+        }
         
         // Store the module type options in customdata for validation
         $this->_moduletypeoptions = $moduletypeoptions;
         
-        // File upload for supporting documents (optional) - moved before prompt
+        // File upload for supporting documents (optional) - always visible
         $returntypes = defined('FILE_INTERNAL') ? FILE_INTERNAL : 2;
         $fileoptions = [
             'subdirs' => 0,
@@ -89,9 +94,6 @@ class aiplacement_modgen_generator_form extends moodleform {
         ];
         $mform->addElement('filemanager', 'supportingfiles', get_string('supportingfiles', 'aiplacement_modgen'), null, $fileoptions);
         $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
-        
-        // Check if AI is enabled
-        $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
         
         // Main content prompt - only show if AI is enabled
         if ($ai_enabled) {

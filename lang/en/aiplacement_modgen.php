@@ -158,7 +158,9 @@ $string['moduletype_help'] = 'Choose how to structure your module:
 
 **Connected Weekly**: Weekly format enhanced with the Flexible Sections layout to improve organization and usability for the new Connected Curriculum.
 
-**Connected Themed**: Themed format enhanced with the Flexible Sections layout, organizing content into distinct learning themes for improved usability with the new Connected Curriculum.';
+**Connected Themed**: Themed format enhanced with the Flexible Sections layout, organizing content into distinct learning themes for improved usability with the new Connected Curriculum.
+
+**Note**: If you upload a CSV file, the format will be automatically detected based on its contents (themes vs weekly structure). You can override the auto-detected format by selecting a specific option here.';
 
 // Form section headers
 $string['templatesettings'] = 'Template Setup';

@@ -57,12 +57,8 @@ class book implements activity_type {
         $name = trim($activitydata->name ?? '');
         
         if ($name === '') {
-            error_log('BOOK: Empty name, returning null');
             return null;
         }
-
-        error_log('BOOK: Creating book activity: ' . $name);
-        error_log('BOOK: Course ID: ' . $course->id . ', Section: ' . $sectionnumber);
 
         $intro = trim($activitydata->intro ?? '');
         $chapters = $activitydata->chapters ?? [];
@@ -71,8 +67,6 @@ class book implements activity_type {
         if (!is_array($chapters)) {
             $chapters = [];
         }
-
-        error_log('BOOK: Chapters count: ' . count($chapters));
 
         // Create the book module using the same pattern as quiz/label
         $moduleinfo = new stdClass();
@@ -95,32 +89,22 @@ class book implements activity_type {
         $moduleinfo->numbering = 0;  // 0 = no numbering
         $moduleinfo->customtitles = 0;  // 0 = standard numbering
 
-        error_log('BOOK: Module info prepared: ' . print_r($moduleinfo, true));
-
         try {
-            error_log('BOOK: Calling create_module');
             $cm = \create_module($moduleinfo);
-            error_log('BOOK: create_module succeeded');
             
             $bookid = $cm->instance;
             $cmid = $cm->coursemodule;
 
-            error_log('BOOK: Book created with ID: ' . $bookid . ', CM ID: ' . $cmid);
-
             // Add chapters to the book
             if (!empty($chapters) && is_array($chapters)) {
-                error_log('BOOK: Adding ' . count($chapters) . ' chapters');
                 $this->add_chapters_to_book($bookid, $chapters);
             }
 
-            error_log('BOOK: Creation successful');
             return [
                 'coursemodule' => $cmid,
                 'instance' => $bookid
             ];
         } catch (\Exception $e) {
-            error_log('BOOK: Exception caught: ' . $e->getMessage());
-            error_log('BOOK: Trace: ' . $e->getTraceAsString());
             return null;
         }
     }

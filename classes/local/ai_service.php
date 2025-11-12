@@ -269,8 +269,6 @@ class ai_service {
             // Check if summary is already decoded to an array (from deep_unescape_stringified_json)
             if (is_array($summary) && (isset($summary['themes']) || isset($summary['sections']))) {
                 // This is misplaced content already decoded!
-                error_log("MISPLACED CONTENT EXTRACTED: Full module structure was in theme[{$idx}].summary (decoded)\n", 3, '/tmp/modgen_token_usage.log');
-                
                 // Use the extracted content as the main data, preserving template field
                 $template_value = $data['template'] ?? "Generated via AI subsystem";
                 $data = $summary;
@@ -292,8 +290,6 @@ class ai_service {
                     $parsed = json_decode($summary, true);
                     if (is_array($parsed) && (isset($parsed['themes']) || isset($parsed['sections']))) {
                         // This is misplaced content!
-                        error_log("MISPLACED CONTENT EXTRACTED: Full module structure was in theme[{$idx}].summary (string)\n", 3, '/tmp/modgen_token_usage.log');
-                        
                         // Use the extracted content as the main data, preserving template field
                         $template_value = $data['template'] ?? "Generated via AI subsystem";
                         $data = $parsed;
@@ -523,14 +519,6 @@ class ai_service {
      */
     public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null, $courseid = null, $includeactivities = true, $includesessions = true) {
         global $USER, $COURSE;
-        
-        // Debug: Log template data status
-        error_log('DEBUG: generate_module called with template_data: ' . (empty($template_data) ? 'EMPTY' : 'PRESENT (' . count((array)$template_data) . ' keys)'));
-        if (!empty($template_data) && is_array($template_data)) {
-            error_log('DEBUG: template_data keys: ' . implode(', ', array_keys($template_data)));
-            error_log('DEBUG: template_data[structure] type: ' . gettype($template_data['structure'] ?? null) . ' count: ' . count((array)($template_data['structure'] ?? [])));
-            error_log('DEBUG: template_data[activities] type: ' . gettype($template_data['activities'] ?? null) . ' count: ' . count((array)($template_data['activities'] ?? [])));
-        }
         
         // Integrate with Moodle AI Subsystem Manager using generate_text action.
         try {
@@ -829,18 +817,9 @@ class ai_service {
                 }
             }
             
-            // Log to debug file
-            error_log("=== AI Generation Debug ===\n" .
-                "Prompt tokens (est): " . round($prompt_tokens) . "\n" .
-                "Response tokens (est): " . round($response_tokens) . "\n" .
-                "Total tokens (est): " . round($total_tokens) . "\n" .
-                "Response length: " . strlen($text) . " chars\n" .
-                "Looks truncated: " . ($response_looks_truncated ? 'YES' : 'NO') . "\n" .
-                "Response ends with: " . substr($text, -50) . "\n" .
-                "---\n", 3, '/tmp/modgen_token_usage.log');
-            
+            // Response truncation check
             if ($response_looks_truncated) {
-                error_log("WARNING: Response appears truncated! May be hitting token limit.\n", 3, '/tmp/modgen_token_usage.log');
+                // WARNING: Response may be truncated due to token limits
             }
             
             $jsondecoded = null;
@@ -877,7 +856,6 @@ class ai_service {
             // This catches cases like {"themes": [{"summary": "{\"themes\": [...]}"}]}
             if (is_array($jsondecoded)) {
                 $jsondecoded = self::deep_unescape_stringified_json($jsondecoded);
-                error_log("DEEP UNESCAPE: Applied recursive JSON string decoding\n", 3, '/tmp/modgen_token_usage.log');
             }
 
             // Log double-encoding detection
@@ -886,20 +864,12 @@ class ai_service {
                 $first_val = reset($jsondecoded);
                 if (is_string($first_val) && (strpos($first_val, '{"themes"') !== false || strpos($first_val, '{"sections"') !== false)) {
                     $is_double_encoded = true;
-                    error_log("DOUBLE ENCODING DETECTED: Top-level key contains JSON string\n", 3, '/tmp/modgen_token_usage.log');
                 }
             }
 
             // Attempt to normalise nested/stringified JSON that may be embedded in string fields.
             if (is_array($jsondecoded)) {
-                $before = $jsondecoded;
-                
                 $jsondecoded = self::normalize_ai_response($jsondecoded, true);
-                
-                // Log if normalisation changed the structure
-                if (serialize($before) !== serialize($jsondecoded)) {
-                    error_log("NORMALIZATION CHANGED STRUCTURE\n", 3, '/tmp/modgen_token_usage.log');
-                }
                 
                 // Extract stringified JSON from summary fields that looks like full content
                 $jsondecoded = self::extract_misplaced_content_from_summaries($jsondecoded);
@@ -1244,7 +1214,6 @@ class ai_service {
 
         try {
             if (!class_exists('\\core_ai\\manager') || !class_exists('\\core_ai\\aiactions\\generate_text')) {
-                error_log('AI classes not available for analyze_module');
                 return '';
             }
 
@@ -1254,7 +1223,6 @@ class ai_service {
 
             $aimanager = new \core_ai\manager();
             if (!$aimanager->get_user_policy_status($USER->id)) {
-                error_log('User has not accepted AI policy - analyze_module');
                 return '';
             }
 
@@ -1268,17 +1236,12 @@ class ai_service {
             $data = $response->get_response_data();
             $text = $data['generatedtext'] ?? ($data['generatedcontent'] ?? '');
             
-            error_log('AI response data keys: ' . implode(', ', array_keys($data)));
-            error_log('AI response text length: ' . (is_string($text) ? strlen($text) : 'NOT A STRING'));
-            
             if (is_string($text)) {
                 return trim($text);
             }
-            error_log('AI response text is not a string, type: ' . gettype($text));
             return '';
         } catch (\Throwable $e) {
-            error_log('AI analysis error: ' . $e->getMessage());
-            error_log('AI analysis error stack: ' . $e->getTraceAsString());
+            // AI analysis error occurred
             return '';
         }
     }

@@ -951,7 +951,6 @@ if ($pdata = $promptform->get_data()) {
                 
             } catch (Exception $e) {
                 $template_data_debug[] = 'ERROR: ' . $e->getMessage();
-                error_log("DEBUG BUTTON ERROR: " . $e->getMessage() . "\nStack: " . $e->getTraceAsString());
                 $template_data = null;
             }
         } else {
@@ -1579,6 +1578,13 @@ if ($pdata = $promptform->get_data()) {
                 }
                 
                 $csvfile = array_shift($files);
+                
+                // Auto-detect CSV format if module type is not explicitly set or is default
+                if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
+                    $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
+                    $moduletype = $detectedformat;
+                }
+                
                 $json = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
             } else {
                 // Use AI generation
@@ -1605,6 +1611,13 @@ if ($pdata = $promptform->get_data()) {
                 }
                 
                 $csvfile = array_shift($files);
+                
+                // Auto-detect CSV format if module type is not explicitly set or is default
+                if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
+                    $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
+                    $moduletype = $detectedformat;
+                }
+                
                 $json = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
             } else {
             $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype, null, $courseid, $includeactivities, $includesessions);
@@ -1628,6 +1641,13 @@ if ($pdata = $promptform->get_data()) {
         }
         
         $csvfile = array_shift($files);
+        
+        // Auto-detect CSV format if module type is not explicitly set or is default
+        if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
+            $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
+            $moduletype = $detectedformat;
+        }
+        
         $json = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
     } else {
     $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $supportingfiles, $moduletype, null, $courseid, $includeactivities, $includesessions);

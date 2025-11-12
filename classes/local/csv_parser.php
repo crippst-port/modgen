@@ -36,6 +36,53 @@ defined('MOODLE_INTERNAL') || die();
 class csv_parser {
 
     /**
+     * Detect whether a CSV file contains themed or weekly structure.
+     * 
+     * Detects by scanning for "Theme:" labels. If found, treats as themed structure.
+     * If no "Theme:" labels are found, treats as weekly structure.
+     *
+     * @param stored_file $file The uploaded CSV file
+     * @return string Either 'connected_theme' or 'connected_weekly'
+     * @throws \Exception if CSV parsing fails
+     */
+    public static function detect_csv_format(\stored_file $file): string {
+        $content = $file->get_content();
+        
+        if (empty($content)) {
+            // Default to weekly if file is empty
+            return 'connected_weekly';
+        }
+
+        // Parse CSV content
+        $lines = explode("\n", $content);
+        
+        // Scan for "Theme:" labels (case-insensitive)
+        foreach ($lines as $line) {
+            $line = trim($line);
+            
+            // Skip empty lines
+            if (empty($line) || $line === ',') {
+                continue;
+            }
+
+            // Parse the line
+            $parts = str_getcsv($line);
+            
+            if (count($parts) >= 1) {
+                $label = trim($parts[0]);
+                
+                // Check if this line contains a theme label
+                if (stripos($label, 'Theme') === 0) {
+                    return 'connected_theme';
+                }
+            }
+        }
+
+        // No themes found, default to weekly structure
+        return 'connected_weekly';
+    }
+
+    /**
      * Parse a CSV file and return module structure in the same format as AI generation.
      *
      * Expected CSV format:

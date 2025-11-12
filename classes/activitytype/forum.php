@@ -57,18 +57,12 @@ class forum implements activity_type {
         $name = trim($activitydata->name ?? '');
         
         if ($name === '') {
-            error_log('FORUM: Empty name, returning null');
             return null;
         }
-
-        error_log('FORUM: Creating forum activity: ' . $name);
-        error_log('FORUM: Course ID: ' . $course->id . ', Section: ' . $sectionnumber);
 
         $intro = trim($activitydata->intro ?? '');
         $forumtype = trim($activitydata->type ?? 'general');
         $forumtype = $this->normalize_forum_type($forumtype);
-
-        error_log('FORUM: Forum type: ' . $forumtype);
 
         // Create the forum module
         $moduleinfo = new stdClass();
@@ -103,26 +97,17 @@ class forum implements activity_type {
         $moduleinfo->cmidnumber = '';  // No custom ID number
         $moduleinfo->grade_forum = 0;  // No grading by default
 
-        error_log('FORUM: Module info prepared: ' . print_r($moduleinfo, true));
-
         try {
-            error_log('FORUM: Calling create_module');
             $cm = \create_module($moduleinfo);
-            error_log('FORUM: create_module succeeded');
             
             $forumid = $cm->instance;
             $cmid = $cm->coursemodule;
-
-            error_log('FORUM: Forum created with ID: ' . $forumid . ', CM ID: ' . $cmid);
-            error_log('FORUM: Creation successful');
 
             return [
                 'coursemodule' => $cmid,
                 'instance' => $forumid
             ];
         } catch (\Exception $e) {
-            error_log('FORUM: Exception caught: ' . $e->getMessage());
-            error_log('FORUM: Trace: ' . $e->getTraceAsString());
             return null;
         }
     }

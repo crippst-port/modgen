@@ -39,21 +39,14 @@ class template_reader {
      */
     public function extract_curriculum_template($template_key) {
         try {
-            error_log("DEBUG: extract_curriculum_template called with template_key: $template_key");
-            
             $parts = explode('|', $template_key);
             $courseid = (int)$parts[0];
             $rawsection = isset($parts[1]) ? trim($parts[1]) : null;
             $sectionid = $rawsection !== null && $rawsection !== '' ? (int)$rawsection : null;
             
-            error_log("DEBUG: Parsed courseid=$courseid, sectionid=$sectionid");
-            
             if (!$this->validate_template_access($courseid)) {
-                error_log("DEBUG: Access validation failed for courseid=$courseid");
                 throw new \moodle_exception('curriculumnotfound', 'aiplacement_modgen');
             }
-            
-            error_log("DEBUG: Access validation passed");
             
             // Normalize section identifier so callers may provide either the DB id
             // (course_sections.id) or the section number (course_sections.section).
@@ -62,67 +55,49 @@ class template_reader {
             $resolvedsectionnum = null; // section number
             if ($sectionid) {
                 try {
-                    error_log("DEBUG: About to resolve section with sectionid=$sectionid");
                     // First, try to find by DB id
                     $record = $DB->get_record('course_sections', ['course' => $courseid, 'id' => $sectionid]);
                     if ($record) {
                         $resolvedsectionid = (int)$record->id;
                         $resolvedsectionnum = (int)$record->section;
-                        error_log("DEBUG: Resolved section by ID: db_id=$resolvedsectionid, section_num=$resolvedsectionnum");
                     } else {
                         // If not found by id, try treating supplied value as section number
                         $record2 = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $sectionid]);
                         if ($record2) {
                             $resolvedsectionid = (int)$record2->id;
                             $resolvedsectionnum = (int)$record2->section;
-                            error_log("DEBUG: Resolved section by number: db_id=$resolvedsectionid, section_num=$resolvedsectionnum");
                         } else {
                             // Not found - clear both so callers treat as no section filter
                             $resolvedsectionid = null;
                             $resolvedsectionnum = null;
-                            error_log("DEBUG: Section not found with either method");
                         }
                     }
                 } catch (Throwable $e) {
-                    error_log("DEBUG: Section resolution threw exception: " . get_class($e) . " - " . $e->getMessage());
                     // Don't fail - just skip section filtering
                     $resolvedsectionid = null;
                     $resolvedsectionnum = null;
                 }
             }
 
-            error_log("DEBUG: About to call get_course_info");
             try {
                 $course_info = $this->get_course_info($courseid);
-                error_log("DEBUG: get_course_info completed successfully");
             } catch (Throwable $e) {
-                error_log("DEBUG: get_course_info threw exception: " . get_class($e) . " - " . $e->getMessage());
                 throw new Exception("Failed in get_course_info: " . $e->getMessage());
             }
             
-            error_log("DEBUG: About to call get_course_structure");
             try {
                 $structure = $this->get_course_structure($courseid, $resolvedsectionid);
-                error_log("DEBUG: get_course_structure completed successfully, got " . count($structure) . " sections");
             } catch (Throwable $e) {
-                error_log("DEBUG: get_course_structure threw exception: " . get_class($e) . " - " . $e->getMessage());
                 // Don't fail - just use empty structure
                 $structure = [];
             }
             
-            error_log("DEBUG: About to call get_activities_detail");
             try {
                 $activities = $this->get_activities_detail($courseid, $resolvedsectionnum);
-                error_log("DEBUG: get_activities_detail completed successfully, got " . count($activities) . " activities");
             } catch (Throwable $e) {
-                error_log("DEBUG: get_activities_detail threw exception: " . get_class($e) . " - " . $e->getMessage());
                 // Don't fail - just use empty activities
                 $activities = [];
             }
-            
-            error_log("DEBUG: Extracted course_info: " . json_encode($course_info));
-            error_log("DEBUG: Extracted structure count: " . count($structure) . " sections");
-            error_log("DEBUG: Extracted activities count: " . count($activities) . " activities");
 
             $template = [
                 'course_info' => $course_info,
@@ -130,10 +105,8 @@ class template_reader {
                 'activities' => $activities,
             ];
             
-            error_log("DEBUG: Returning template with keys: " . implode(', ', array_keys($template)));
             return $template;
         } catch (Exception $e) {
-            error_log("DEBUG: Exception in extract_curriculum_template: " . $e->getMessage() . " (Code: " . $e->getCode() . ")");
             throw $e;
         }
     }
@@ -157,7 +130,6 @@ class template_reader {
             // More detailed capability checks can fail with database errors in some Moodle instances
             return !empty($USER->id);
         } catch (Exception $e) {
-            error_log("DEBUG: Exception in validate_template_access: " . $e->getMessage());
             return false;
         }
     }
@@ -171,19 +143,14 @@ class template_reader {
     private function get_course_info($courseid) {
         global $DB;
         
-        error_log("DEBUG: get_course_info called with courseid=$courseid");
         $courseid = (int)$courseid;
         
         try {
-            error_log("DEBUG: About to query course table with id=$courseid");
             $course = $DB->get_record('course', ['id' => $courseid], 'fullname,shortname,summary,format');
             
             if (!$course) {
-                error_log("DEBUG: Course not found: courseid=$courseid");
                 throw new Exception("Course not found: $courseid");
             }
-            
-            error_log("DEBUG: Course found: " . $course->fullname);
             
             return [
                 'name' => $course->fullname,
@@ -191,7 +158,6 @@ class template_reader {
                 'summary' => strip_tags($course->summary)
             ];
         } catch (Throwable $e) {
-            error_log("DEBUG: Error in get_course_info: " . get_class($e) . " - " . $e->getMessage());
             throw $e;
         }
     }
@@ -205,8 +171,6 @@ class template_reader {
      */
     private function get_course_structure($courseid, $sectionid = null) {
         try {
-            error_log("DEBUG: get_course_structure called with courseid=$courseid, sectionid=$sectionid");
-            
             $courseid = (int)$courseid;  // Ensure it's an integer
             $course = get_course($courseid);
             
@@ -224,8 +188,6 @@ class template_reader {
                     continue;
                 }
                 
-                error_log("DEBUG: Processing section $sectionnum with " . count($cmids) . " activities");
-                
                 $sections[] = [
                     'id' => $section->id,
                     'name' => !empty($section->name) ? $section->name : "Section {$sectionnum}",
@@ -234,10 +196,8 @@ class template_reader {
                 ];
             }
             
-            error_log("DEBUG: get_course_structure returning " . count($sections) . " sections");
             return $sections;
         } catch (Exception $e) {
-            error_log("DEBUG: Exception in get_course_structure: " . $e->getMessage());
             throw $e;
         }
     }
@@ -252,19 +212,14 @@ class template_reader {
      */
     private function get_activities_detail($courseid, $sectionid = null) {
         try {
-            error_log("DEBUG: get_activities_detail called with courseid=$courseid, sectionid=$sectionid");
-            
             global $DB;
             $activities = [];
             $courseid = (int)$courseid;  // Ensure integer
             
             // First get all modules to have a lookup table
             try {
-                error_log("DEBUG: About to query modules table");
                 $modules_list = $DB->get_records('modules', [], '', 'id, name');
-                error_log("DEBUG: modules query succeeded, got " . count($modules_list) . " module types");
             } catch (Throwable $e) {
-                error_log("DEBUG: modules query failed: " . get_class($e) . " - " . $e->getMessage());
                 throw new Exception("Failed to query modules: " . $e->getMessage());
             }
             
@@ -272,29 +227,22 @@ class template_reader {
             foreach ($modules_list as $mod) {
                 $module_lookup[$mod->id] = $mod->name;
             }
-            error_log("DEBUG: Module lookup has " . count($module_lookup) . " entries");
             
             // Pre-fetch ALL sections to avoid N+1 queries
             try {
-                error_log("DEBUG: Pre-fetching all course sections");
                 $all_sections = $DB->get_records('course_sections', ['course' => $courseid], '', 'id, section, name');
                 $section_lookup = [];
                 foreach ($all_sections as $sec) {
                     $section_lookup[$sec->section] = !empty($sec->name) ? $sec->name : "Section {$sec->section}";
                 }
-                error_log("DEBUG: Pre-fetched " . count($all_sections) . " sections");
             } catch (Throwable $e) {
-                error_log("DEBUG: Failed to pre-fetch sections: " . $e->getMessage());
                 $section_lookup = [];
             }
             
             // Query course modules directly from database
             try {
-                error_log("DEBUG: About to query course_modules for courseid=$courseid");
                 $allcms = $DB->get_records('course_modules', ['course' => $courseid], 'section, id');
-                error_log("DEBUG: course_modules query succeeded, got " . count($allcms) . " modules");
             } catch (Throwable $e) {
-                error_log("DEBUG: course_modules query failed: " . get_class($e) . " - " . $e->getMessage());
                 throw new Exception("Failed to query course_modules: " . $e->getMessage());
             }
             
@@ -314,7 +262,6 @@ class template_reader {
                 
                 // If we couldn't load the full module object, skip it
                 if (!$fullcm) {
-                    error_log("DEBUG: Could not load full module object for cm->id={$cm->id}, modname={$modname}");
                     continue;
                 }
                 
@@ -336,10 +283,8 @@ class template_reader {
                 $activities[] = $activity_data;
             }
             
-            error_log("DEBUG: get_activities_detail returning " . count($activities) . " activities");
             return $activities;
         } catch (Throwable $e) {
-            error_log("DEBUG: Exception in get_activities_detail: " . $e->getMessage() . " / " . $e->getTraceAsString());
             throw $e;
         }
     }

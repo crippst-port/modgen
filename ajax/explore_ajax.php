@@ -59,14 +59,11 @@ try {
         $cached = \aiplacement_modgen\local\explore_cache::get($courseid);
         if ($cached) {
             $templatedata = $cached;
-            error_log('Loaded insights from cache for course ' . $courseid);
         }
     }
 
     // If no cache or forcing refresh, generate new insights
     if (!$templatedata) {
-        error_log('Generating fresh insights for course ' . $courseid);
-        
         // Generate insights
         $insights = generate_module_insights($course);
         
@@ -81,9 +78,6 @@ try {
         
         // Generate section activity chart data
         $sectionchartdata = generate_section_activity_chart($insights['moduledata']);
-        
-        // Debug logging
-        error_log('Section chart data: ' . json_encode($sectionchartdata));
         
         // Generate workload analysis
         $workload_analysis = generate_workload_analysis($insights['moduledata']);
@@ -109,10 +103,6 @@ try {
         
         // Save to cache
         \aiplacement_modgen\local\explore_cache::set($courseid, $templatedata);
-        error_log('Saved insights to cache for course ' . $courseid);
-        
-        // Debug logging
-        error_log('Template data keys: ' . implode(', ', array_keys($templatedata)));
     }
     
     // Return the data for client-side template rendering
@@ -122,8 +112,6 @@ try {
     ]);
     die();
 } catch (Throwable $e) {
-    error_log('AJAX exploration error: ' . $e->getMessage());
-    error_log('Stack trace: ' . $e->getTraceAsString());
     http_response_code(500);
     echo json_encode([
         'success' => false,
@@ -214,7 +202,6 @@ function generate_module_insights(stdClass $course) {
             'moduledata' => $moduledata,
         ];
     } catch (Exception $e) {
-        error_log('Module exploration error: ' . $e->getMessage());
         return false;
     }
 }
@@ -249,7 +236,7 @@ function parse_analysis_json(string $response): array {
             return $data;
         }
     } catch (Exception $e) {
-        error_log('Failed to parse JSON: ' . $e->getMessage());
+        // JSON parsing failed
     }
     
     // Fallback if JSON parsing fails
@@ -321,7 +308,7 @@ function parse_improvement_json(string $response): array {
             return $data;
         }
     } catch (Exception $e) {
-        error_log('Failed to parse improvements JSON: ' . $e->getMessage());
+        // JSON parsing failed
     }
     
     // Fallback
@@ -366,7 +353,7 @@ function parse_summary_json(string $response): array {
             return $data;
         }
     } catch (Exception $e) {
-        error_log('Failed to parse summary JSON: ' . $e->getMessage());
+        // JSON parsing failed
     }
     
     // Fallback
@@ -589,25 +576,17 @@ function generate_workload_analysis(array $moduledata): array {
 function get_ai_analysis(string $prompt): string {
     try {
         if (!class_exists('aiplacement_modgen\\ai_service')) {
-            error_log('ai_service class not found');
             return json_encode(['error' => 'AI service not available.']);
         }
         
-        error_log('Calling AI service with prompt length: ' . strlen($prompt));
-        
         $analysis = \aiplacement_modgen\ai_service::analyze_module($prompt);
         
-        error_log('AI service returned: ' . (empty($analysis) ? 'EMPTY' : 'Response length: ' . strlen($analysis)));
-        
         if (empty($analysis)) {
-            error_log('Analysis is empty - returning error JSON');
             return json_encode(['error' => 'Analysis unavailable at this time.']);
         }
         
         return $analysis;
     } catch (Throwable $e) {
-        error_log('AI analysis error: ' . $e->getMessage());
-        error_log('Stack trace: ' . $e->getTraceAsString());
         return json_encode(['error' => 'Unable to generate analysis: ' . $e->getMessage()]);
     }
 }

@@ -30,22 +30,13 @@ class label implements activity_type {
     public function create(stdClass $activitydata, stdClass $course, int $sectionnumber, array $options = []): ?array {
         global $CFG;
 
-        file_put_contents('/tmp/modgen_debug.log', "\n=== LABEL CREATION DEBUG ===\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Activity data: " . print_r($activitydata, true) . "\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Course ID: " . $course->id . "\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Section number: " . $sectionnumber . "\n", FILE_APPEND);
-
         require_once($CFG->dirroot . '/course/modlib.php');
 
         // Extract name and intro, ensuring proper handling
         $name = trim($activitydata->name ?? '');
         $intro = trim($activitydata->intro ?? '');
         
-        file_put_contents('/tmp/modgen_debug.log', "Processed name: '" . $name . "'\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Intro: '" . $intro . "'\n", FILE_APPEND);
-        
         if ($name === '') {
-            file_put_contents('/tmp/modgen_debug.log', "ERROR: Empty name, returning null\n", FILE_APPEND);
             return null;
         }
 

@@ -52,10 +52,6 @@ class url implements activity_type {
     public function create(stdClass $activitydata, stdClass $course, int $sectionnumber, array $options = []): ?array {
         global $CFG, $DB;
 
-        file_put_contents('/tmp/modgen_debug.log', "\n=== URL CREATE CALLED ===\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Activity data: " . print_r($activitydata, true) . "\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Course ID: " . $course->id . ", Section: " . $sectionnumber . "\n", FILE_APPEND);
-
         require_once($CFG->dirroot . '/course/modlib.php');
         require_once($CFG->dirroot . '/mod/url/lib.php');
         require_once($CFG->dirroot . '/mod/url/locallib.php');
@@ -64,7 +60,6 @@ class url implements activity_type {
         $name = trim($activitydata->name ?? '');
         
         if ($name === '') {
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Empty name, returning null' . "\n", FILE_APPEND);
             return null;
         }
 
@@ -72,23 +67,13 @@ class url implements activity_type {
         $externalurl = trim($activitydata->externalurl ?? $activitydata->url ?? '');
         
         if ($externalurl === '') {
-            file_put_contents('/tmp/modgen_debug.log', 'URL: No externalurl or url field found. Activity name: ' . $name . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Available fields: ' . implode(', ', array_keys((array)$activitydata)) . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Full activity data: ' . json_encode($activitydata) . "\n", FILE_APPEND);
             return null;
         }
 
         // Validate that this actually looks like a URL, not random text
         if (!$this->is_valid_url($externalurl)) {
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Field does not appear to be a valid URL: ' . $externalurl . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Activity name: ' . $name . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Full activity data: ' . json_encode($activitydata) . "\n", FILE_APPEND);
             return null;
         }
-
-        file_put_contents('/tmp/modgen_debug.log', 'URL: Creating URL activity: ' . $name . "\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', 'URL: Course ID: ' . $course->id . ', Section: ' . $sectionnumber . "\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', 'URL: External URL: ' . $externalurl . "\n", FILE_APPEND);
 
         $intro = trim($activitydata->intro ?? '');
 
@@ -120,38 +105,20 @@ class url implements activity_type {
         $moduleinfo->popupwidth = 620;
         $moduleinfo->popupheight = 450;
 
-        file_put_contents('/tmp/modgen_debug.log', 'URL: Module info prepared' . "\n", FILE_APPEND);
-
         try {
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Calling create_module' . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'URL: moduleinfo->name = ' . $moduleinfo->name . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'URL: moduleinfo->externalurl = ' . $moduleinfo->externalurl . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'URL: moduleinfo->display = ' . $moduleinfo->display . "\n", FILE_APPEND);
-            
             $cm = create_module($moduleinfo);
-            file_put_contents('/tmp/modgen_debug.log', 'URL: create_module succeeded, result: ' . print_r($cm, true) . "\n", FILE_APPEND);
             
             if (!isset($cm->coursemodule) || !isset($cm->instance)) {
-                file_put_contents('/tmp/modgen_debug.log', 'URL: Missing coursemodule or instance in result' . "\n", FILE_APPEND);
                 return null;
             }
-
-            file_put_contents('/tmp/modgen_debug.log', 'URL: URL created with ID: ' . $cm->instance . ', CM ID: ' . $cm->coursemodule . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Creation successful' . "\n", FILE_APPEND);
 
             return [
                 'coursemodule' => $cm->coursemodule,
                 'instance' => $cm->instance
             ];
         } catch (\Exception $e) {
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Exception caught: ' . $e->getMessage() . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Exception trace: ' . $e->getTraceAsString() . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Exception file: ' . $e->getFile() . ' line: ' . $e->getLine() . "\n", FILE_APPEND);
             return null;
         } catch (\Throwable $t) {
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Throwable caught: ' . $t->getMessage() . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Throwable trace: ' . $t->getTraceAsString() . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'URL: Throwable file: ' . $t->getFile() . ' line: ' . $t->getLine() . "\n", FILE_APPEND);
             return null;
         }
     }

@@ -157,7 +157,5 @@ try {
     http_response_code(500);
     header('Content-Type: text/plain');
     echo 'Error generating PDF: ' . $e->getMessage();
-    error_log('PDF generation error: ' . $e->getMessage());
-    error_log('Stack trace: ' . $e->getTraceAsString());
     die();
 }

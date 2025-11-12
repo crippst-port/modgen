@@ -52,22 +52,14 @@ class assignment implements activity_type {
     public function create(stdClass $activitydata, stdClass $course, int $sectionnumber, array $options = []): ?array {
         global $CFG, $DB;
 
-        file_put_contents('/tmp/modgen_debug.log', "\n=== ASSIGNMENT CREATE CALLED ===\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Activity data: " . print_r($activitydata, true) . "\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Course ID: " . $course->id . ", Section: " . $sectionnumber . "\n", FILE_APPEND);
-
         require_once($CFG->dirroot . '/course/modlib.php');
         require_once($CFG->dirroot . '/mod/assign/lib.php');
 
         $name = trim($activitydata->name ?? '');
 
         if ($name === '') {
-            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Empty name, returning null' . "\n", FILE_APPEND);
             return null;
         }
-
-        file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Creating assignment: ' . $name . "\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Course ID: ' . $course->id . ', Section: ' . $sectionnumber . "\n", FILE_APPEND);
 
         $intro = trim($activitydata->intro ?? '');
 
@@ -113,33 +105,20 @@ class assignment implements activity_type {
         $moduleinfo->markingallocation = 0;  // Don't use marking allocation
 
         // Submission plugin settings
-        $moduleinfo->assignsubmission_onlinetext_enabled = 1;  // Enable online text submission
-        $moduleinfo->assignsubmission_file_enabled = 1;  // Enable file submission
-        $moduleinfo->assignsubmission_file_maxfiles = 20;  // Allow up to 20 files
-        $moduleinfo->assignsubmission_file_maxsizebytes = 52428800;  // 50MB max file size
-
-        file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Module info prepared' . "\n", FILE_APPEND);
+        $moduleinfo->assignsubmission_onlinetext_enabled = 1; // Enable online text
+        $moduleinfo->assignsubmission_file_enabled = 0; // Disable file submissions
+        $moduleinfo->assignfeedback_comments_enabled = 1; // Enable feedback comments
 
         try {
-            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Calling create_module' . "\n", FILE_APPEND);
-            $cm = create_module($moduleinfo);
-            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: create_module succeeded, result: ' . print_r($cm, true) . "\n", FILE_APPEND);
+            $cm = \create_module($moduleinfo);
 
             if (!isset($cm->coursemodule) || !isset($cm->instance)) {
-                file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Missing coursemodule or instance in result' . "\n", FILE_APPEND);
                 return null;
-            }
-
-            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Assignment created with ID: ' . $cm->instance . ', CM ID: ' . $cm->coursemodule . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Creation successful' . "\n", FILE_APPEND);
-
-            return [
+            }            return [
                 'coursemodule' => $cm->coursemodule,
                 'instance' => $cm->instance
             ];
         } catch (\Exception $e) {
-            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Exception caught: ' . $e->getMessage() . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', 'ASSIGNMENT: Trace: ' . $e->getTraceAsString() . "\n", FILE_APPEND);
             return null;
         }
     }

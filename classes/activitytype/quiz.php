@@ -30,22 +30,13 @@ class quiz implements activity_type {
     public function create(stdClass $activitydata, stdClass $course, int $sectionnumber, array $options = []): ?array {
         global $CFG;
 
-        file_put_contents('/tmp/modgen_debug.log', "\n=== QUIZ CREATION START ===\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Activity data: " . print_r($activitydata, true) . "\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Course ID: {$course->id}, Section: $sectionnumber\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Section number: " . $sectionnumber . "\n", FILE_APPEND);
-
         require_once($CFG->dirroot . '/course/modlib.php');
 
         // Extract name and intro, ensuring proper handling
         $name = trim($activitydata->name ?? '');
         $intro = trim($activitydata->intro ?? '');
         
-        file_put_contents('/tmp/modgen_debug.log', "Processed name: '" . $name . "'\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Intro: '" . $intro . "'\n", FILE_APPEND);
-        
         if ($name === '') {
-            file_put_contents('/tmp/modgen_debug.log', "ERROR: Empty name, returning null\n", FILE_APPEND);
             return null;
         }
 
@@ -81,10 +72,7 @@ class quiz implements activity_type {
             $moduleinfo->quizpassword = ''; // Gets converted to password by quiz_process_options
             $moduleinfo->feedbackboundarycount = -1; // Disable feedback processing
 
-            file_put_contents('/tmp/modgen_debug.log', "Quiz module info prepared: " . print_r($moduleinfo, true) . "\n", FILE_APPEND);
-
             $cm = create_module($moduleinfo);
-            file_put_contents('/tmp/modgen_debug.log', "Quiz creation SUCCESS: CM ID = " . $cm->coursemodule . "\n", FILE_APPEND);
             
             return [
                 'coursemodule' => $cm->coursemodule,
@@ -92,8 +80,6 @@ class quiz implements activity_type {
             ];
             
         } catch (\Exception $e) {
-            file_put_contents('/tmp/modgen_debug.log', "QUIZ EXCEPTION: " . $e->getMessage() . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', "Stack trace: " . $e->getTraceAsString() . "\n", FILE_APPEND);
             return null;
         }
     }

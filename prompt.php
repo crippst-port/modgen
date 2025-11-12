@@ -249,7 +249,7 @@ function aiplacement_modgen_generate_fallback_summary(array $moduledata, string 
  * Convert JSON module data into structured preview data for template rendering.
  *
  * @param array $moduledata Decoded module structure returned by the AI.
- * @param string $structure Module structure type ('theme' or 'weekly').
+ * @param string $structure Module structure type ('theme', 'connected_theme', 'weekly', 'connected_weekly', etc).
  * @return array Structured data with themes/weeks and activities for display.
  */
 function aiplacement_modgen_build_module_preview(array $moduledata, string $structure): array {
@@ -261,7 +261,10 @@ function aiplacement_modgen_build_module_preview(array $moduledata, string $stru
         'weeks' => [],
     ];
 
-    if ($structure === 'theme' && !empty($moduledata['themes']) && is_array($moduledata['themes'])) {
+    // Normalize structure type - check for 'theme' variations
+    $isthemeformat = strpos($structure, 'theme') !== false;
+
+    if ($isthemeformat && !empty($moduledata['themes']) && is_array($moduledata['themes'])) {
         $preview['hasthemes'] = true;
 
         foreach ($moduledata['themes'] as $theme) {
@@ -287,30 +290,64 @@ function aiplacement_modgen_build_module_preview(array $moduledata, string $stru
                         'summary' => !empty($week['summary']) ? s($week['summary']) : '',
                         'activities' => [],
                         'hasactivities' => false,
+                        'sessions' => [],
+                        'hassessions' => false,
                     ];
 
                     // Collect all activities from all session types
-                    $sessions = [
+                    // Sessions can be either direct arrays (presession, session, postsession keys)
+                    // or nested in a sessions object (sessions.presession.activities, etc)
+                    $sessionsData = $week['sessions'] ?? [
                         'presession' => $week['presession'] ?? [],
                         'session' => $week['session'] ?? [],
                         'postsession' => $week['postsession'] ?? [],
                     ];
 
-                    foreach ($sessions as $sessiontype => $activities) {
-                        if (!is_array($activities)) {
-                            continue;
+                    $sessionLabels = ['presession' => 'Pre-session', 'session' => 'Session', 'postsession' => 'Post-session'];
+
+                    foreach ($sessionsData as $sessiontype => $sessiondata) {
+                        // Handle both formats:
+                        // 1. Sessions object with {presession: {activities: [...]}}
+                        // 2. Direct activities array [{type, name, ...}]
+                        $activities = [];
+                        if (is_array($sessiondata)) {
+                            if (isset($sessiondata['activities']) && is_array($sessiondata['activities'])) {
+                                // Format 1: nested structure
+                                $activities = $sessiondata['activities'];
+                            } elseif (!isset($sessiondata['activities']) && !isset($sessiondata['description'])) {
+                                // Format 2: direct array of activities
+                                $activities = $sessiondata;
+                            }
                         }
 
-                        foreach ($activities as $activity) {
-                            if (!is_array($activity)) {
-                                continue;
+                        // Track that this session type exists (even if empty)
+                        if (!empty($activities) || (is_array($sessiondata) && isset($sessiondata['activities']))) {
+                            $sessionActivities = [];
+                            foreach ($activities as $activity) {
+                                if (!is_array($activity)) {
+                                    continue;
+                                }
+
+                                $sessionActivities[] = [
+                                    'name' => !empty($activity['name']) ? s($activity['name']) : '',
+                                    'type' => !empty($activity['type']) ? s($activity['type']) : '',
+                                    'session' => $sessiontype,
+                                ];
+
+                                // Also add to the flat activities list for backward compatibility
+                                $weekitem['activities'][] = [
+                                    'name' => !empty($activity['name']) ? s($activity['name']) : '',
+                                    'type' => !empty($activity['type']) ? s($activity['type']) : '',
+                                    'session' => $sessiontype,
+                                ];
                             }
 
-                            $weekitem['activities'][] = [
-                                'name' => !empty($activity['name']) ? s($activity['name']) : '',
-                                'type' => !empty($activity['type']) ? s($activity['type']) : '',
-                                'session' => $sessiontype,
+                            $weekitem['sessions'][] = [
+                                'type' => $sessiontype,
+                                'label' => $sessionLabels[$sessiontype] ?? $sessiontype,
+                                'activities' => $sessionActivities,
                             ];
+                            $weekitem['hassessions'] = true;
                         }
                     }
 
@@ -342,9 +379,62 @@ function aiplacement_modgen_build_module_preview(array $moduledata, string $stru
                 'summary' => !empty($section['summary']) ? s($section['summary']) : '',
                 'activities' => [],
                 'hasactivities' => false,
+                'sessions' => [],
+                'hassessions' => false,
             ];
 
-            if (!empty($section['outline']) && is_array($section['outline'])) {
+            // Check for sessions structure first (connected_weekly with sessions)
+            if (!empty($section['sessions']) && is_array($section['sessions'])) {
+                $sessionsData = $section['sessions'];
+                $sessionLabels = ['presession' => 'Pre-session', 'session' => 'Session', 'postsession' => 'Post-session'];
+                
+                foreach ($sessionsData as $sessiontype => $sessiondata) {
+                    // Handle both formats:
+                    // 1. Sessions object with {presession: {activities: [...]}}
+                    // 2. Direct activities array [{type, name, ...}]
+                    $activities = [];
+                    if (is_array($sessiondata)) {
+                        if (isset($sessiondata['activities']) && is_array($sessiondata['activities'])) {
+                            // Format 1: nested structure
+                            $activities = $sessiondata['activities'];
+                        } elseif (!isset($sessiondata['activities']) && !isset($sessiondata['description'])) {
+                            // Format 2: direct array of activities
+                            $activities = $sessiondata;
+                        }
+                    }
+
+                    // Track that this session type exists (even if empty)
+                    if (!empty($activities) || (is_array($sessiondata) && isset($sessiondata['activities']))) {
+                        $sessionActivities = [];
+                        foreach ($activities as $activity) {
+                            if (!is_array($activity)) {
+                                continue;
+                            }
+
+                            $sessionActivities[] = [
+                                'name' => !empty($activity['name']) ? s($activity['name']) : '',
+                                'type' => !empty($activity['type']) ? s($activity['type']) : '',
+                                'session' => $sessiontype,
+                            ];
+
+                            // Also add to the flat activities list for backward compatibility
+                            $weekitem['activities'][] = [
+                                'name' => !empty($activity['name']) ? s($activity['name']) : '',
+                                'type' => !empty($activity['type']) ? s($activity['type']) : '',
+                                'session' => $sessiontype,
+                            ];
+                        }
+
+                        $weekitem['sessions'][] = [
+                            'type' => $sessiontype,
+                            'label' => $sessionLabels[$sessiontype] ?? $sessiontype,
+                            'activities' => $sessionActivities,
+                        ];
+                        $weekitem['hassessions'] = true;
+                    }
+                }
+            } else if (!empty($section['outline']) && is_array($section['outline'])) {
+                // Fallback to outline format if sessions not present
                 foreach ($section['outline'] as $activity) {
                     if (is_string($activity) && trim($activity) !== '') {
                         $weekitem['activities'][] = [
@@ -2197,16 +2287,34 @@ if ($pdata = $promptform->get_data()) {
     ob_start();
     $approveform->display();
     $formhtml = ob_get_clean();
+    
+    // Add regenerate button functionality if AI is enabled
+    if (get_config('aiplacement_modgen', 'enable_ai')) {
+        $formhtml .= html_writer::script("
+            document.addEventListener('DOMContentLoaded', function() {
+                var regenerateBtn = document.querySelector('[name=\"regeneratebutton\"]');
+                if (regenerateBtn) {
+                    regenerateBtn.addEventListener('click', function(e) {
+                        e.preventDefault();
+                        location.reload();
+                    });
+                }
+            });
+        ");
+    }
 
     // Build module preview from the generated JSON
     $modulepreview = aiplacement_modgen_build_module_preview($json, $moduletype);
+    // Ensure modulepreview is always included (will be truthy if it has themes or weeks)
+    $modulepreview['showmodulepreview'] = !empty($modulepreview['themes']) || !empty($modulepreview['weeks']);
 
     $previewdata = [
         'notifications' => $notifications,
         'hassummary' => $summarytext !== '',
         'summaryheading' => get_string('generationresultssummaryheading', 'aiplacement_modgen'),
         'summary' => $summaryformatted,
-        'modulepreview' => $modulepreview,
+        'modulepreview' => $modulepreview['showmodulepreview'] ? $modulepreview : false,
+        'modulestructureinfo' => get_string('modulestructureinfo', 'aiplacement_modgen'),
         'hasjson' => !empty($jsonstr),
         'jsonheading' => get_string('generationresultsjsonheading', 'aiplacement_modgen'),
         'jsondescription' => get_string('generationresultsjsondescription', 'aiplacement_modgen'),
@@ -2222,11 +2330,6 @@ if ($pdata = $promptform->get_data()) {
 
     $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/prompt_preview', $previewdata);
     $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
-
-    // Initialize JSON handler for download and view functionality
-    if (!empty($jsonstr)) {
-        $PAGE->requires->js_call_amd('aiplacement_modgen/json_handler', 'init');
-    }
 
     $footeractions = [[
         'label' => get_string('reenterprompt', 'aiplacement_modgen'),

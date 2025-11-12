@@ -50,7 +50,7 @@ $string['rawoutput'] = 'Raw output';
 $string['aigensummary'] = 'AI Generated Summary';
 $string['sectioncreated'] = 'Section created: {$a}';
 $string['nosectionscreated'] = 'No sections were created from the AI response.';
-$string['approveandcreate'] = 'Approve and create';
+$string['approveandcreate'] = 'Create';
 $string['reenterprompt'] = 'Re-enter prompt';
 $string['loadingthinking'] = 'Thinking... generating your request.';
 $string['activitytypeunsupported'] = 'The generated activity type "{$a}" is not available on this site.';
@@ -277,10 +277,10 @@ $string['moduleoverview'] = 'Module Overview';
 $string['themes'] = 'Themes';
 $string['weeks'] = 'Weeks';
 $string['activities'] = 'Activities';
-$string['downloadjson'] = '💾 Download JSON';
-$string['viewjson'] = '👁️ View JSON';
+$string['downloadjson'] = 'Download JSON';
+$string['viewjson'] = 'View JSON';
 $string['nothemes'] = 'No themes defined';
 $string['noweeks'] = 'No weeks defined';
 $string['noactivities'] = 'No activities defined';
-
-
+$string['regenerate'] = 'Regenerate';
+$string['modulestructureinfo'] = 'This preview shows the structure and organisation of the module that will be created. It is a schematic representation and does not reflect how the content will appear in Moodle. Click "Create" below to proceed with creating the module in your course.';

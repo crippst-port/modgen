@@ -14,57 +14,96 @@
     </section>
     {{/hasprompt}}
 
-    {{#hassummary}}
-    <section>
-        <h3>{{summaryheading}}</h3>
-        <p class="aiplacement-modgen-preview__summary">{{{summary}}}</p>
-    </section>
-    {{/hassummary}}
-
     {{#modulepreview}}
+    <h2>Module Structure</h2>
+    <div class="aiplacement-modgen-preview__summary mb-4">
+        <p>{{modulestructureinfo}}</p>
+    </div>
     <section class="aiplacement-modgen-preview__module">
-        <h3>📚 Module Structure</h3>
+        
+        <p class="aiplacement-modgen-legend">
+            <strong>Key:</strong>
+            <i class="fa fa-folder" style="color: #4055cc;"></i> Theme,
+            <i class="fa fa-calendar" style="color: #764ba2;"></i> Week,
+            <i class="fa fa-graduation-cap" style="color: #4055cc;"></i> Session
+        </p>
         
         {{#hasthemes}}
         <div class="aiplacement-modgen-module-structure">
             {{#themes}}
-            <div class="aiplacement-modgen-theme">
-                <div class="aiplacement-modgen-theme__header">
-                    <h4 class="aiplacement-modgen-theme__title">📂 {{title}}</h4>
+            <details class="aiplacement-modgen-theme-details" open>
+                <summary class="aiplacement-modgen-theme-summary">
+                    <i class="fa fa-folder aiplacement-modgen-theme-icon"></i>
+                    <span class="aiplacement-modgen-theme-title">{{title}}</span>
+                </summary>
+                <div class="aiplacement-modgen-theme-content">
                     {{#summary}}<p class="aiplacement-modgen-theme__summary">{{summary}}</p>{{/summary}}
-                </div>
-                
-                {{#hasweeks}}
-                <div class="aiplacement-modgen-theme__weeks">
-                    {{#weeks}}
-                    <div class="aiplacement-modgen-week">
-                        <div class="aiplacement-modgen-week__header">
-                            <h5 class="aiplacement-modgen-week__title">📅 {{title}}</h5>
-                            {{#summary}}<p class="aiplacement-modgen-week__summary">{{summary}}</p>{{/summary}}
-                        </div>
-                        
-                        {{#hasactivities}}
-                        <div class="aiplacement-modgen-week__activities">
-                            {{#activities}}
-                            <div class="aiplacement-modgen-activity">
-                                <span class="aiplacement-modgen-activity__icon">🔹</span>
-                                <div class="aiplacement-modgen-activity__content">
-                                    <span class="aiplacement-modgen-activity__name">{{name}}</span>
-                                    {{#type}}<span class="aiplacement-modgen-activity__type">({{type}})</span>{{/type}}
-                                    {{#session}}<span class="aiplacement-modgen-activity__session">{{session}}</span>{{/session}}
+                    
+                    {{#hasweeks}}
+                    <div class="aiplacement-modgen-theme__weeks">
+                        {{#weeks}}
+                        <details class="aiplacement-modgen-week-details">
+                            <summary class="aiplacement-modgen-week-summary">
+                                <i class="fa fa-calendar aiplacement-modgen-week-icon"></i>
+                                <span class="aiplacement-modgen-week-title">{{title}}</span>
+                            </summary>
+                            <div class="aiplacement-modgen-week-content">
+                                {{#summary}}<p class="aiplacement-modgen-week__summary">{{summary}}</p>{{/summary}}
+                                
+                                {{#hassessions}}
+                                <div class="aiplacement-modgen-week__sessions">
+                                    {{#sessions}}
+                                    <div class="aiplacement-modgen-session">
+                                        <div class="aiplacement-modgen-session-header">
+                                            <i class="fa fa-graduation-cap" style="color: #4055cc;"></i>
+                                            <span>{{label}}</span>
+                                        </div>
+                                        <div class="aiplacement-modgen-session-content">
+                                            {{#activities}}
+                                            <div class="aiplacement-modgen-activity">
+                                                <i class="fa fa-pencil aiplacement-modgen-activity__icon" style="color: #4055cc;"></i>
+                                                <div class="aiplacement-modgen-activity__content">
+                                                    <span class="aiplacement-modgen-activity__name">{{name}}</span>
+                                                    {{#type}}<span class="aiplacement-modgen-activity__type">({{type}})</span>{{/type}}
+                                                </div>
+                                            </div>
+                                            {{/activities}}
+                                            {{^activities}}
+                                            <p class="aiplacement-modgen-activity-none">No activities</p>
+                                            {{/activities}}
+                                        </div>
+                                    </div>
+                                    {{/sessions}}
                                 </div>
+                                {{/hassessions}}
+                                
+                                {{#hasactivities}}
+                                {{^hassessions}}
+                                <div class="aiplacement-modgen-week__activities">
+                                    {{#activities}}
+                                    <div class="aiplacement-modgen-activity">
+                                        <i class="fa fa-pencil aiplacement-modgen-activity__icon" style="color: #4055cc;"></i>
+                                        <div class="aiplacement-modgen-activity__content">
+                                            <span class="aiplacement-modgen-activity__name">{{name}}</span>
+                                            {{#type}}<span class="aiplacement-modgen-activity__type">({{type}})</span>{{/type}}
+                                        </div>
+                                    </div>
+                                    {{/activities}}
+                                </div>
+                                {{/hassessions}}
+                                {{/hasactivities}}
+                                {{^hasactivities}}
+                                {{^hassessions}}
+                                <p class="aiplacement-modgen-activity-none">No activities in this week</p>
+                                {{/hassessions}}
+                                {{/hasactivities}}
                             </div>
-                            {{/activities}}
-                        </div>
-                        {{/hasactivities}}
-                        {{^hasactivities}}
-                        <p class="aiplacement-modgen-activity-none">No activities in this week</p>
-                        {{/hasactivities}}
+                        </details>
+                        {{/weeks}}
                     </div>
-                    {{/weeks}}
+                    {{/hasweeks}}
                 </div>
-                {{/hasweeks}}
-            </div>
+            </details>
             {{/themes}}
         </div>
         {{/hasthemes}}
@@ -73,29 +112,43 @@
         {{#hasweeks}}
         <div class="aiplacement-modgen-module-structure">
             {{#weeks}}
-            <div class="aiplacement-modgen-week">
-                <div class="aiplacement-modgen-week__header">
-                    <h4 class="aiplacement-modgen-week__title">📅 {{title}}</h4>
+            <details class="aiplacement-modgen-week-details" open>
+                <summary class="aiplacement-modgen-week-summary">
+                    <i class="fa fa-calendar aiplacement-modgen-week-icon"></i>
+                    <span class="aiplacement-modgen-week-title">{{title}}</span>
+                </summary>
+                <div class="aiplacement-modgen-week-content">
                     {{#summary}}<p class="aiplacement-modgen-week__summary">{{summary}}</p>{{/summary}}
-                </div>
-                
-                {{#hasactivities}}
-                <div class="aiplacement-modgen-week__activities">
-                    {{#activities}}
-                    <div class="aiplacement-modgen-activity">
-                        <span class="aiplacement-modgen-activity__icon">🔹</span>
-                        <div class="aiplacement-modgen-activity__content">
-                            <span class="aiplacement-modgen-activity__name">{{name}}</span>
-                            {{#type}}<span class="aiplacement-modgen-activity__type">({{type}})</span>{{/type}}
+                    
+                    {{#hassessions}}
+                    <div class="aiplacement-modgen-week__sessions">
+                        {{#sessions}}
+                        <div class="aiplacement-modgen-session-header">
+                            <i class="fa fa-graduation-cap" style="color: #4055cc;"></i>
+                            <span>{{label}}</span>
                         </div>
+                        {{/sessions}}
                     </div>
-                    {{/activities}}
+                    {{/hassessions}}
+                    
+                    {{#hasactivities}}
+                    <div class="aiplacement-modgen-week__activities">
+                        {{#activities}}
+                        <div class="aiplacement-modgen-activity">
+                            <i class="fa fa-pencil aiplacement-modgen-activity__icon" style="color: #4055cc;"></i>
+                            <div class="aiplacement-modgen-activity__content">
+                                <span class="aiplacement-modgen-activity__name">{{name}}</span>
+                                {{#type}}<span class="aiplacement-modgen-activity__type">({{type}})</span>{{/type}}
+                            </div>
+                        </div>
+                        {{/activities}}
+                    </div>
+                    {{/hasactivities}}
+                    {{^hasactivities}}
+                    <p class="aiplacement-modgen-activity-none">No activities in this week</p>
+                    {{/hasactivities}}
                 </div>
-                {{/hasactivities}}
-                {{^hasactivities}}
-                <p class="aiplacement-modgen-activity-none">No activities in this week</p>
-                {{/hasactivities}}
-            </div>
+            </details>
             {{/weeks}}
         </div>
         {{/hasweeks}}
@@ -106,27 +159,19 @@
         <p class="alert alert-warning">No module structure data available. The AI response may be incomplete.</p>
         {{/hasweeks}}
         {{/hasthemes}}
+        {{#hasjson}}
+    
+        <p class="text-right">
+            <a href="data:application/json;charset=utf-8,{{{json}}}" download="module-structure.json">
+                Download as JSON
+            </a>
+        </p>
+    
+    {{/hasjson}}
     </section>
     {{/modulepreview}}
 
-    {{#hasjson}}
-    <section class="aiplacement-modgen-preview__json">
-        <h3>{{jsonheading}}</h3>
-        <p class="aiplacement-modgen-preview__json-description">{{jsondescription}}</p>
-        <div class="aiplacement-modgen-json-controls">
-            <button class="btn btn-sm btn-outline-secondary" id="aiplacement-modgen-download-json" data-json="{{{json}}}">
-                💾 {{downloadjsontext}}
-            </button>
-            <button class="btn btn-sm btn-outline-secondary" id="aiplacement-modgen-view-json">
-                👁️ View JSON
-            </button>
-        </div>
-        <div id="aiplacement-modgen-json-viewer" class="aiplacement-modgen-json-viewer" style="display: none;">
-            <pre><code id="aiplacement-modgen-json-code">{{{json}}}</code></pre>
-        </div>
-        <p class="aiplacement-modgen-preview__json-note">{{jsonnote}}</p>
-    </section>
-    {{/hasjson}}
+    
     
     {{{form}}}
 </div>

@@ -58,6 +58,16 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->addElement('hidden', 'generatedsummary', $this->_customdata['generatedsummary']);
         $mform->setType('generatedsummary', PARAM_RAW);
         $mform->setDefault('generatedsummary', $this->_customdata['generatedsummary']);
-        $this->add_action_buttons(false, get_string('approveandcreate', 'aiplacement_modgen'));
+        
+        // Add regenerate button if AI is enabled
+        if (get_config('aiplacement_modgen', 'enable_ai')) {
+            $buttonarray = [];
+            $buttonarray[] = &$mform->createElement('button', 'regeneratebutton', get_string('regenerate', 'aiplacement_modgen'));
+            $buttonarray[] = &$mform->createElement('submit', 'submitbutton', get_string('approveandcreate', 'aiplacement_modgen'));
+            $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);
+            $mform->registerNoSubmitButton('regeneratebutton');
+        } else {
+            $this->add_action_buttons(false, get_string('approveandcreate', 'aiplacement_modgen'));
+        }
     }
 }

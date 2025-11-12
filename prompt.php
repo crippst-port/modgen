@@ -1081,9 +1081,12 @@ if ($pdata = $promptform->get_data()) {
     
     $prompt = !empty($pdata->prompt) ? trim($pdata->prompt) : '';
     $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'connected_weekly';
-    $generatethemeintroductions = !empty($pdata->generatethemeintroductions);
-    $createsuggestedactivities = !empty($pdata->createsuggestedactivities);
-    $generatesessioninstructions = !empty($pdata->generatesessioninstructions);
+    
+    // New simplified checkbox - if checked, generate all example content
+    $generateexamplecontent = !empty($pdata->generateexamplecontent);
+    $generatethemeintroductions = $generateexamplecontent;
+    $createsuggestedactivities = $generateexamplecontent;
+    $generatesessioninstructions = $generateexamplecontent;
     
     // For connected layouts, ALWAYS generate the sessions structure, but respect activity creation preference
     $includesessions = $generatesessioninstructions || ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme');
@@ -1561,10 +1564,21 @@ if ($pdata = $promptform->get_data()) {
             // Don't extract Bootstrap structure - just use the template data as-is
             // The template_data already contains course_info, structure, activities, and template_html
             
-            // Check if AI is enabled - if not, use CSV parsing instead
+            // Simplified decision logic:
+            // 1. CSV only (no prompt, no expand, no examples) = Pure CSV parsing
+            // 2. CSV + prompt (no expand) = AI modifies per prompt, no title expansion
+            // 3. CSV/prompt + expand = Full AI enhancement including titles
+            // 4. CSV + examples (no expand) = Generate content, keep CSV titles
+            
             $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
-            if (!$ai_enabled) {
-                // Process uploaded CSV file directly without AI
+            $expand_on_themes = !empty($pdata->expandonthemes);
+            $has_user_prompt = !empty($pdata->prompt) && trim($pdata->prompt) !== '';
+            $has_csv_file = !empty($pdata->supportingfiles);
+            $generate_examples = !empty($pdata->generateexamplecontent);
+            
+            // Use pure CSV parsing only if: AI disabled OR (AI enabled + has CSV + no prompt + no expand + no examples)
+            if (!$ai_enabled || ($ai_enabled && $has_csv_file && !$has_user_prompt && !$expand_on_themes && !$generate_examples)) {
+                // Process uploaded CSV file directly without AI enhancement
                 require_once(__DIR__ . '/classes/local/csv_parser.php');
                 
                 // Get the first uploaded file from draft area (should be CSV)
@@ -1574,7 +1588,7 @@ if ($pdata = $promptform->get_data()) {
                 $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
                 
                 if (empty($files)) {
-                    throw new Exception('No CSV file uploaded. When AI is disabled, you must upload a CSV file with the module structure.');
+                    throw new Exception('No CSV file uploaded. A CSV file with the module structure is required.');
                 }
                 
                 $csvfile = array_shift($files);
@@ -1587,17 +1601,118 @@ if ($pdata = $promptform->get_data()) {
                 
                 $json = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
             } else {
-                // Use AI generation
-            $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, $supportingfiles, $moduletype, $courseid, $includeactivities, $includesessions);
+                // AI enhancement enabled (has prompt OR expand on themes checked)
+                
+                // Check if there's a CSV file to use as base structure
+                $csv_structure = null;
+                if ($has_csv_file) {
+                    require_once(__DIR__ . '/classes/local/csv_parser.php');
+                    
+                    $draftitemid = $pdata->supportingfiles;
+                    $usercontext = context_user::instance($USER->id);
+                    $fs = get_file_storage();
+                    $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
+                    
+                    if (!empty($files)) {
+                        $csvfile = array_shift($files);
+                        
+                        // Auto-detect CSV format if needed
+                        if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
+                            $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
+                            $moduletype = $detectedformat;
+                        }
+                        
+                        // Parse CSV to get base structure
+                        $csv_structure = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
+                    }
+                }
+                
+                // Build the AI prompt based on what's enabled
+                $ai_instructions = "";
+                
+                if ($csv_structure !== null) {
+                    // Count themes/weeks for explicit instruction
+                    $themecount = 0;
+                    $weekcount = 0;
+                    if (!empty($csv_structure['themes']) && is_array($csv_structure['themes'])) {
+                        $themecount = count($csv_structure['themes']);
+                        // Count total weeks across all themes
+                        foreach ($csv_structure['themes'] as $theme) {
+                            if (!empty($theme['weeks']) && is_array($theme['weeks'])) {
+                                $weekcount += count($theme['weeks']);
+                            }
+                        }
+                    }
+                    
+                    $ai_instructions .= "\n\n*** BASE STRUCTURE FROM CSV ***\n";
+                    $ai_instructions .= json_encode($csv_structure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+                    $ai_instructions .= "\n\n*** CRITICAL STRUCTURAL REQUIREMENTS ***\n";
+                    $ai_instructions .= "You MUST preserve the exact structure from the CSV:\n";
+                    $ai_instructions .= "- Create EXACTLY " . $themecount . " themes with " . $weekcount . " weeks total\n";
+                    $ai_instructions .= "- Do NOT add extra themes, weeks, or sessions\n";
+                    $ai_instructions .= "- Do NOT remove any themes, weeks, or sessions\n";
+                    $ai_instructions .= "- Do NOT merge or split sections\n";
+                    $ai_instructions .= "- Maintain the EXACT organizational hierarchy\n";
+                    $ai_instructions .= "- Keep the SAME session structure within each theme/week\n";
+                    $ai_instructions .= "- Your output MUST have EXACTLY " . $themecount . " themes (this is non-negotiable)\n";
+                    $ai_instructions .= "- Return ONLY the exact structure shown above - no modifications to theme/week count\n\n";
+                    
+                    if ($expand_on_themes) {
+                        // Expand on themes: enhance titles and descriptions professionally
+                        $ai_instructions .= "*** TITLE ENHANCEMENT INSTRUCTIONS ***\n";
+                        $ai_instructions .= "Improve the section titles with these requirements:\n";
+                        $ai_instructions .= "- Use professional, academic language suitable for UK higher education\n";
+                        $ai_instructions .= "- Make titles clear, descriptive, and informative\n";
+                        $ai_instructions .= "- Avoid marketing language or overly casual tone\n";
+                        $ai_instructions .= "- Focus on clarity and academic rigor\n";
+                        $ai_instructions .= "- Enhanced titles should be scholarly but accessible\n";
+                        if ($generate_examples) {
+                            $ai_instructions .= "\n*** ADDITIONAL CONTENT GENERATION ***\n";
+                            $ai_instructions .= "Generate example content ONLY within the existing structure:\n";
+                            $ai_instructions .= "- Do NOT create new weeks, themes, or sessions\n";
+                            $ai_instructions .= "- Add activities ONLY to the sessions that exist in the CSV structure\n";
+                            $ai_instructions .= "- Add session instructions ONLY to existing sessions\n";
+                            $ai_instructions .= "- Generate theme/week summaries ONLY where 'summary' field is empty\n";
+                            $ai_instructions .= "- Preserve any existing user-provided summaries exactly as given\n";
+                            $ai_instructions .= "- The output structure MUST have the EXACT same number of weeks/themes as the CSV\n";
+                        }
+                    } else {
+                        // No expansion: keep titles as-is, but may still generate example content
+                        $ai_instructions .= "*** MODIFICATION INSTRUCTIONS ***\n";
+                        $ai_instructions .= "Keep all section titles and names EXACTLY as specified in the CSV.\n";
+                        $ai_instructions .= "Do NOT modify, enhance, or change any titles or theme names.\n";
+                        if ($generate_examples) {
+                            $ai_instructions .= "However, you should generate example content (activities, session instructions) while keeping titles unchanged.\n";
+                            $ai_instructions .= "IMPORTANT: For theme introductions and week summaries:\n";
+                            $ai_instructions .= "- ONLY generate these where the 'summary' field is empty in the CSV structure\n";
+                            $ai_instructions .= "- DO NOT replace or modify summaries that the user has already provided\n";
+                            $ai_instructions .= "- Preserve user-provided summaries exactly as they appear in the CSV\n";
+                        }
+                        if ($has_user_prompt) {
+                            $ai_instructions .= "Apply the following user-specified modifications:\n";
+                        }
+                    }
+                }
+                
+                $compositeprompt = $compositeprompt . $ai_instructions;
+                
+                // Use AI generation with appropriate flags for activities and sessions
+                $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, $supportingfiles, $moduletype, $courseid, $includeactivities, $includesessions);
             }
         } catch (Exception $e) {
             // Fall back to normal generation if template fails
             $debuglog[] = 'Template extraction failed: ' . $e->getMessage();
             
-            // Check if AI is enabled
+            // Simplified decision logic (same as above)
             $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
-            if (!$ai_enabled) {
-                // Process uploaded CSV file directly without AI
+            $expand_on_themes = !empty($pdata->expandonthemes);
+            $has_user_prompt = !empty($pdata->prompt) && trim($pdata->prompt) !== '';
+            $has_csv_file = !empty($pdata->supportingfiles);
+            $generate_examples = !empty($pdata->generateexamplecontent);
+            
+            // Use pure CSV parsing only if: AI disabled OR (AI enabled + has CSV + no prompt + no expand + no examples)
+            if (!$ai_enabled || ($ai_enabled && $has_csv_file && !$has_user_prompt && !$expand_on_themes && !$generate_examples)) {
+                // Process uploaded CSV file directly without AI enhancement
                 require_once(__DIR__ . '/classes/local/csv_parser.php');
                 
                 // Get the first uploaded file from draft area (should be CSV)
@@ -1607,7 +1722,7 @@ if ($pdata = $promptform->get_data()) {
                 $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
                 
                 if (empty($files)) {
-                    throw new Exception('No CSV file uploaded. When AI is disabled, you must upload a CSV file with the module structure.');
+                    throw new Exception('No CSV file uploaded. A CSV file with the module structure is required.');
                 }
                 
                 $csvfile = array_shift($files);
@@ -1620,14 +1735,111 @@ if ($pdata = $promptform->get_data()) {
                 
                 $json = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
             } else {
+                // AI enhancement enabled - check for CSV to enhance
+                $csv_structure = null;
+                if ($has_csv_file) {
+                    require_once(__DIR__ . '/classes/local/csv_parser.php');
+                    
+                    $draftitemid = $pdata->supportingfiles;
+                    $usercontext = context_user::instance($USER->id);
+                    $fs = get_file_storage();
+                    $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
+                    
+                    if (!empty($files)) {
+                        $csvfile = array_shift($files);
+                        
+                        if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
+                            $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
+                            $moduletype = $detectedformat;
+                        }
+                        
+                        $csv_structure = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
+                    }
+                }
+                
+                // Build AI instructions based on what's enabled
+                $ai_instructions = "";
+                
+                if ($csv_structure !== null) {
+                    // Count themes/weeks for explicit instruction
+                    $themecount = 0;
+                    $weekcount = 0;
+                    if (!empty($csv_structure['themes']) && is_array($csv_structure['themes'])) {
+                        $themecount = count($csv_structure['themes']);
+                        // Count total weeks across all themes
+                        foreach ($csv_structure['themes'] as $theme) {
+                            if (!empty($theme['weeks']) && is_array($theme['weeks'])) {
+                                $weekcount += count($theme['weeks']);
+                            }
+                        }
+                    }
+                    
+                    $ai_instructions .= "\n\n*** BASE STRUCTURE FROM CSV ***\n";
+                    $ai_instructions .= json_encode($csv_structure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+                    $ai_instructions .= "\n\n*** CRITICAL STRUCTURAL REQUIREMENTS ***\n";
+                    $ai_instructions .= "You MUST preserve the exact structure from the CSV:\n";
+                    $ai_instructions .= "- Create EXACTLY " . $themecount . " themes with " . $weekcount . " weeks total\n";
+                    $ai_instructions .= "- Do NOT add extra themes, weeks, or sessions\n";
+                    $ai_instructions .= "- Do NOT remove any themes, weeks, or sessions\n";
+                    $ai_instructions .= "- Do NOT merge or split sections\n";
+                    $ai_instructions .= "- Maintain the EXACT organizational hierarchy\n";
+                    $ai_instructions .= "- Keep the SAME session structure within each theme/week\n";
+                    $ai_instructions .= "- Your output MUST have EXACTLY " . $themecount . " themes (this is non-negotiable)\n";
+                    $ai_instructions .= "- Return ONLY the exact structure shown above - no modifications to theme/week count\n\n";
+                    
+                    if ($expand_on_themes) {
+                        // Expand on themes: enhance titles and descriptions professionally
+                        $ai_instructions .= "*** TITLE ENHANCEMENT INSTRUCTIONS ***\n";
+                        $ai_instructions .= "Improve the section titles with these requirements:\n";
+                        $ai_instructions .= "- Use professional, academic language suitable for UK higher education\n";
+                        $ai_instructions .= "- Make titles clear, descriptive, and informative\n";
+                        $ai_instructions .= "- Avoid marketing language or overly casual tone\n";
+                        $ai_instructions .= "- Focus on clarity and academic rigor\n";
+                        $ai_instructions .= "- Enhanced titles should be scholarly but accessible\n";
+                        if ($generate_examples) {
+                            $ai_instructions .= "\n*** ADDITIONAL CONTENT GENERATION ***\n";
+                            $ai_instructions .= "Generate example content ONLY within the existing structure:\n";
+                            $ai_instructions .= "- Do NOT create new weeks, themes, or sessions\n";
+                            $ai_instructions .= "- Add activities ONLY to the sessions that exist in the CSV structure\n";
+                            $ai_instructions .= "- Add session instructions ONLY to existing sessions\n";
+                            $ai_instructions .= "- Generate theme/week summaries ONLY where 'summary' field is empty\n";
+                            $ai_instructions .= "- Preserve any existing user-provided summaries exactly as given\n";
+                            $ai_instructions .= "- The output structure MUST have the EXACT same number of weeks/themes as the CSV\n";
+                        }
+                    } else {
+                        // No expansion: keep titles as-is, but may still generate example content
+                        $ai_instructions .= "*** MODIFICATION INSTRUCTIONS ***\n";
+                        $ai_instructions .= "Keep all section titles and names EXACTLY as specified in the CSV.\n";
+                        $ai_instructions .= "Do NOT modify, enhance, or change any titles or theme names.\n";
+                        if ($generate_examples) {
+                            $ai_instructions .= "However, you should generate example content (activities, session instructions) while keeping titles unchanged.\n";
+                            $ai_instructions .= "IMPORTANT: For theme introductions and week summaries:\n";
+                            $ai_instructions .= "- ONLY generate these where the 'summary' field is empty in the CSV structure\n";
+                            $ai_instructions .= "- DO NOT replace or modify summaries that the user has already provided\n";
+                            $ai_instructions .= "- Preserve user-provided summaries exactly as they appear in the CSV\n";
+                        }
+                        if ($has_user_prompt) {
+                            $ai_instructions .= "Apply the following user-specified modifications:\n";
+                        }
+                    }
+                }
+                
+                $compositeprompt = $compositeprompt . $ai_instructions;
+                
             $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype, null, $courseid, $includeactivities, $includesessions);
             }
         }
     } else {
-    // Check if AI is enabled
+    // Simplified decision logic (same as above)
     $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
-    if (!$ai_enabled) {
-        // Process uploaded CSV file directly without AI
+    $expand_on_themes = !empty($pdata->expandonthemes);
+    $has_user_prompt = !empty($pdata->prompt) && trim($pdata->prompt) !== '';
+    $has_csv_file = !empty($pdata->supportingfiles);
+    $generate_examples = !empty($pdata->generateexamplecontent);
+    
+    // Use pure CSV parsing only if: AI disabled OR (AI enabled + has CSV + no prompt + no expand + no examples)
+    if (!$ai_enabled || ($ai_enabled && $has_csv_file && !$has_user_prompt && !$expand_on_themes && !$generate_examples)) {
+        // Process uploaded CSV file directly without AI enhancement
         require_once(__DIR__ . '/classes/local/csv_parser.php');
         
         // Get the first uploaded file from draft area (should be CSV)
@@ -1637,7 +1849,7 @@ if ($pdata = $promptform->get_data()) {
         $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
         
         if (empty($files)) {
-            throw new Exception('No CSV file uploaded. When AI is disabled, you must upload a CSV file with the module structure.');
+            throw new Exception('No CSV file uploaded. A CSV file with the module structure is required.');
         }
         
         $csvfile = array_shift($files);
@@ -1650,6 +1862,99 @@ if ($pdata = $promptform->get_data()) {
         
         $json = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
     } else {
+        // AI enhancement enabled - check for CSV to enhance
+        $csv_structure = null;
+        if ($has_csv_file) {
+            require_once(__DIR__ . '/classes/local/csv_parser.php');
+            
+            $draftitemid = $pdata->supportingfiles;
+            $usercontext = context_user::instance($USER->id);
+            $fs = get_file_storage();
+            $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
+            
+            if (!empty($files)) {
+                $csvfile = array_shift($files);
+                
+                if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
+                    $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
+                    $moduletype = $detectedformat;
+                }
+                
+                $csv_structure = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
+            }
+        }
+        
+        // Build AI instructions based on what's enabled
+        $ai_instructions = "";
+        
+        if ($csv_structure !== null) {
+            // Count themes/weeks for explicit instruction
+            $themecount = 0;
+            $weekcount = 0;
+            if (!empty($csv_structure['themes']) && is_array($csv_structure['themes'])) {
+                $themecount = count($csv_structure['themes']);
+                // Count total weeks across all themes
+                foreach ($csv_structure['themes'] as $theme) {
+                    if (!empty($theme['weeks']) && is_array($theme['weeks'])) {
+                        $weekcount += count($theme['weeks']);
+                    }
+                }
+            }
+            
+            $ai_instructions .= "\n\n*** BASE STRUCTURE FROM CSV ***\n";
+            $ai_instructions .= json_encode($csv_structure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
+            $ai_instructions .= "\n\n*** CRITICAL STRUCTURAL REQUIREMENTS ***\n";
+            $ai_instructions .= "You MUST preserve the exact structure from the CSV:\n";
+            $ai_instructions .= "- Create EXACTLY " . $themecount . " themes with " . $weekcount . " weeks total\n";
+            $ai_instructions .= "- Do NOT add extra themes, weeks, or sessions\n";
+            $ai_instructions .= "- Do NOT remove any themes, weeks, or sessions\n";
+            $ai_instructions .= "- Do NOT merge or split sections\n";
+            $ai_instructions .= "- Maintain the EXACT organizational hierarchy\n";
+            $ai_instructions .= "- Keep the SAME session structure within each theme/week\n";
+            $ai_instructions .= "- Your output MUST have EXACTLY " . $themecount . " themes (this is non-negotiable)\n";
+            $ai_instructions .= "- Return ONLY the exact structure shown above - no modifications to theme/week count\n\n";
+            
+            $ai_instructions .= "- The number of sections in your output MUST match the CSV exactly\n\n";
+            
+            if ($expand_on_themes) {
+                // Expand on themes: enhance titles and descriptions professionally
+                $ai_instructions .= "*** TITLE ENHANCEMENT INSTRUCTIONS ***\n";
+                $ai_instructions .= "Improve the section titles with these requirements:\n";
+                $ai_instructions .= "- Use professional, academic language suitable for UK higher education\n";
+                $ai_instructions .= "- Make titles clear, descriptive, and informative\n";
+                $ai_instructions .= "- Avoid marketing language or overly casual tone\n";
+                $ai_instructions .= "- Focus on clarity and academic rigor\n";
+                $ai_instructions .= "- Enhanced titles should be scholarly but accessible\n";
+                if ($generate_examples) {
+                    $ai_instructions .= "\n*** ADDITIONAL CONTENT GENERATION ***\n";
+                    $ai_instructions .= "Generate example content ONLY within the existing structure:\n";
+                    $ai_instructions .= "- Do NOT create new weeks, themes, or sessions\n";
+                    $ai_instructions .= "- Add activities ONLY to the sessions that exist in the CSV structure\n";
+                    $ai_instructions .= "- Add session instructions ONLY to existing sessions\n";
+                    $ai_instructions .= "- Generate theme/week summaries ONLY where 'summary' field is empty\n";
+                    $ai_instructions .= "- Preserve any existing user-provided summaries exactly as given\n";
+                    $ai_instructions .= "- The output structure MUST have the EXACT same number of weeks/themes as the CSV\n";
+                }
+            } else {
+                // No expansion: keep titles as-is, but may still generate example content
+                $ai_instructions .= "*** MODIFICATION INSTRUCTIONS ***\n";
+                $ai_instructions .= "Keep all section titles and names EXACTLY as specified in the CSV.\n";
+                $ai_instructions .= "Do NOT modify, enhance, or change any titles or theme names.\n";
+                if ($generate_examples) {
+                    $ai_instructions .= "However, you should generate example content (activities, session instructions) while keeping titles unchanged.\n";
+                    $ai_instructions .= "IMPORTANT: For theme introductions and week summaries:\n";
+                    $ai_instructions .= "- ONLY generate these where the 'summary' field is empty in the CSV structure\n";
+                    $ai_instructions .= "- DO NOT replace or modify summaries that the user has already provided\n";
+                    $ai_instructions .= "- Preserve user-provided summaries exactly as they appear in the CSV\n";
+                }
+                if ($has_user_prompt) {
+                    $ai_instructions .= "Apply the following user-specified modifications:\n";
+                }
+            }
+        }
+        
+        $compositeprompt = $compositeprompt . $ai_instructions;
+        
     $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $supportingfiles, $moduletype, null, $courseid, $includeactivities, $includesessions);
     }
     }

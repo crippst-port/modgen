@@ -116,8 +116,8 @@ $string['missingcourseid'] = 'Course ID is required to use the Module Assistant.
 // Tabbed interface
 $string['generatetablabel'] = 'Generate from Template';
 
-$string['supportingfiles'] = 'Supporting documents';
-$string['supportingfiles_help'] = 'Upload up to 5 supporting documents (for example: .docx, .odt, .txt, or .html). These files will be used as additional context by the Module Assistant when generating module structure and content. Content may be extracted from the files and included in the AI prompt. Maximum 10MB per file.';
+$string['supportingfiles'] = 'CSV structure file';
+$string['supportingfiles_help'] = 'Upload a CSV file containing your module structure. When AI is disabled, the module will be created exactly as specified in the CSV. When AI is enabled, the CSV provides the base structure, and you can optionally enable "Expand on themes" to have AI enhance the content. Maximum 5MB.';
 
 $string['longquery'] = 'This may take a moment while the AI processes your request.';
 $string['connectedcurriculum30'] = '30 credit module';
@@ -176,6 +176,10 @@ $string['enableexistingmodules'] = 'Enable base on existing module';
 $string['enableexistingmodules_desc'] = 'When enabled, users can select one or more existing modules to base their AI generation on. The AI will analyze the structure and activities of the selected modules and use them as a template for the new content.';
 
 // Activity creation toggle
+$string['expandonthemes'] = 'Expand on themes';
+$string['expandonthemes_help'] = 'When enabled, AI will enhance section titles and descriptions using professional academic language suitable for UK higher education. Titles will be made clear, descriptive, and informative while maintaining the exact structure (same number of themes/weeks/sessions) from your CSV file. When disabled, section names remain exactly as specified in the CSV file.';
+$string['generateexamplecontent'] = 'Generate example content';
+$string['generateexamplecontent_help'] = 'When enabled, AI will generate example activities, session instructions, and theme introductions. This creates placeholder content to help you visualize the course structure. When disabled, only the section structure is created without example content.';
 $string['createsuggestedactivities'] = 'Create suggested activities';
 $string['createsuggestedactivities_help'] = 'When enabled, the generator will create activity shells as suggestions for your content. These are empty placeholder activities without content, ready for you to fill in with your own materials. When disabled, only section headings and descriptions will be created.';
 $string['generatethemeintroductions'] = 'Generate theme introductions';

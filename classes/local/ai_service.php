@@ -578,12 +578,12 @@ class ai_service {
                 if (!empty($requestedthemecount)) {
                     $roleinstruction .= "THEME GENERATION:\n" .
                         "Generate EXACTLY {$requestedthemecount} themes (non-negotiable).\n" .
-                        "Each theme must have 2-4 weeks.\n" .
                         "Theme titles must be descriptive (e.g., 'Data Analysis Fundamentals'), never generic ('Theme 1').\n" .
-                        "Week titles must include BOTH date range AND descriptive topic (e.g., 'Oct 18 - 24: Introduction to Cloud Computing').\n\n";
+                        "Week titles must include BOTH date range AND descriptive topic (e.g., 'Oct 18 - 24: Introduction to Cloud Computing').\n" .
+                        "Each week structure MUST match the BASE STRUCTURE shown above - do NOT add or remove weeks from any theme.\n\n";
                 } else {
                     $roleinstruction .= "THEME GENERATION:\n" .
-                        "Generate 4-7 themes based on content. Each theme must have 2-4 weeks.\n" .
+                        "Generate 4-7 themes based on content.\n" .
                         "Theme titles must be descriptive, never generic.\n" .
                         "Week titles must include BOTH date range AND descriptive topic (e.g., 'Oct 18 - 24: Introduction to Cloud Computing').\n\n";
                 }

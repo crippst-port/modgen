@@ -83,13 +83,13 @@ class aiplacement_modgen_generator_form extends moodleform {
         // Store the module type options in customdata for validation
         $this->_moduletypeoptions = $moduletypeoptions;
         
-        // File upload for supporting documents (optional) - always visible
+        // File upload for CSV structure file (optional) - always visible
         $returntypes = defined('FILE_INTERNAL') ? FILE_INTERNAL : 2;
         $fileoptions = [
             'subdirs' => 0,
-            'maxbytes' => 10485760, // 10MB per file
-            'maxfiles' => 5,
-            'accepted_types' => '*',
+            'maxbytes' => 5242880, // 5MB
+            'maxfiles' => 1, // Only one CSV file
+            'accepted_types' => ['.csv'],
             'return_types' => $returntypes,
         ];
         $mform->addElement('filemanager', 'supportingfiles', get_string('supportingfiles', 'aiplacement_modgen'), null, $fileoptions);
@@ -108,26 +108,17 @@ class aiplacement_modgen_generator_form extends moodleform {
         if ($ai_enabled) {
         $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
         
-        // Theme introductions option
-        $mform->addElement('advcheckbox', 'generatethemeintroductions', get_string('generatethemeintroductions', 'aiplacement_modgen'));
-        $mform->addHelpButton('generatethemeintroductions', 'generatethemeintroductions', 'aiplacement_modgen');
-        $mform->setType('generatethemeintroductions', PARAM_BOOL);
-        $mform->setDefault('generatethemeintroductions', 1);
+        // Expand on themes option - enhances section titles and descriptions
+        $mform->addElement('advcheckbox', 'expandonthemes', get_string('expandonthemes', 'aiplacement_modgen'));
+        $mform->addHelpButton('expandonthemes', 'expandonthemes', 'aiplacement_modgen');
+        $mform->setType('expandonthemes', PARAM_BOOL);
+        $mform->setDefault('expandonthemes', 0); // Default to OFF
         
-        // Only show theme introductions option for connected_theme
-        $mform->hideIf('generatethemeintroductions', 'moduletype', 'ne', 'connected_theme');
-        
-        // Generation options
-        $mform->addElement('advcheckbox', 'createsuggestedactivities', get_string('createsuggestedactivities', 'aiplacement_modgen'));
-        $mform->addHelpButton('createsuggestedactivities', 'createsuggestedactivities', 'aiplacement_modgen');
-        $mform->setType('createsuggestedactivities', PARAM_BOOL);
-        $mform->setDefault('createsuggestedactivities', 0);
-        
-        // Session instructions option
-        $mform->addElement('advcheckbox', 'generatesessioninstructions', get_string('generatesessioninstructions', 'aiplacement_modgen'));
-        $mform->addHelpButton('generatesessioninstructions', 'generatesessioninstructions', 'aiplacement_modgen');
-        $mform->setType('generatesessioninstructions', PARAM_BOOL);
-        $mform->setDefault('generatesessioninstructions', 0);
+        // Single consolidated checkbox for all example content
+        $mform->addElement('advcheckbox', 'generateexamplecontent', get_string('generateexamplecontent', 'aiplacement_modgen'));
+        $mform->addHelpButton('generateexamplecontent', 'generateexamplecontent', 'aiplacement_modgen');
+        $mform->setType('generateexamplecontent', PARAM_BOOL);
+        $mform->setDefault('generateexamplecontent', 0);
         
         $mform->closeHeaderBefore('buttonar');
         } // End AI-enabled section

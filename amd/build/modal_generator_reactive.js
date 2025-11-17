@@ -116,9 +116,14 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/templates", "
       fetch(url + '?' + params.toString(), {
         method: 'GET',
         headers: {
-          'Content-Type': 'application/json'
+          'Accept': 'application/json'
         }
-      }).then(response => response.json()).then(data => {
+      }).then(response => {
+        if (!response.ok) {
+          throw new Error('HTTP error ' + response.status);
+        }
+        return response.json();
+      }).then(data => {
         if (!data.success) {
           let errorHtml = '<div class="alert alert-danger"><h4>Error loading form</h4>';
           errorHtml += '<p><strong>Error:</strong> ' + (data.error || 'Unknown error') + '</p>';

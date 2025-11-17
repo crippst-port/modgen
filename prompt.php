@@ -30,6 +30,19 @@ require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir . '/formslib.php');
 require_login();
 
+// Get course ID early for authentication
+$courseid = optional_param('id', 0, PARAM_INT);
+if (!$courseid) {
+    $courseid = optional_param('courseid', 0, PARAM_INT);
+}
+if (!$courseid) {
+    print_error('missingcourseid', 'aiplacement_modgen');
+}
+
+// Verify user has access to this course
+$context = context_course::instance($courseid);
+require_capability('moodle/course:update', $context);
+
 // Include form classes
 require_once(__DIR__ . '/classes/form/generator_form.php');
 require_once(__DIR__ . '/classes/form/approve_form.php');
@@ -456,17 +469,6 @@ function aiplacement_modgen_build_module_preview(array $moduledata, string $stru
 
     return $preview;
 }
-
-// Resolve course id from id or courseid.
-$courseid = optional_param('id', 0, PARAM_INT);
-if (!$courseid) {
-    $courseid = optional_param('courseid', 0, PARAM_INT);
-}
-if (!$courseid) {
-    print_error('missingcourseid', 'aiplacement_modgen');
-}
-
-$context = context_course::instance($courseid);
 
 // Handle policy acceptance first (before checking status).
 $acceptpolicy = optional_param('acceptpolicy', 0, PARAM_BOOL);

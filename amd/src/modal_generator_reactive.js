@@ -201,10 +201,15 @@ class ModalGeneratorComponent extends BaseComponent {
         fetch(url + '?' + params.toString(), {
             method: 'GET',
             headers: {
-                'Content-Type': 'application/json',
+                'Accept': 'application/json',
             },
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error('HTTP error ' + response.status);
+            }
+            return response.json();
+        })
         .then(data => {
             if (!data.success) {
                 // Show detailed error information

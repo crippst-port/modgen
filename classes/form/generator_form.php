@@ -33,6 +33,12 @@
  * including template selection, module type, and generation options.
  */
 class aiplacement_modgen_generator_form extends moodleform {
+
+    /**
+     * @var array Module type options available for this form
+     */
+    private $_moduletypeoptions = [];
+
     public function definition() {
         $mform = $this->_form;
         $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
@@ -65,9 +71,9 @@ class aiplacement_modgen_generator_form extends moodleform {
             // Support up to 3 templates via multiselect
             $existingmodules = $this->get_editable_courses();
             
-            $mform->addElement('select', 'existing_modules', get_string('existingmodule', 'aiplacement_modgen'), $existingmodules, 
+            $mform->addElement('select', 'existing_modules', get_string('existingmodule', 'aiplacement_modgen'), $existingmodules,
                 ['multiple' => 'multiple', 'size' => 4]);
-            $mform->setType('existing_modules', PARAM_INT);
+            $mform->setType('existing_modules', PARAM_SEQUENCE);
             $mform->addHelpButton('existing_modules', 'existingmodule', 'aiplacement_modgen');
         }
         
@@ -81,11 +87,10 @@ class aiplacement_modgen_generator_form extends moodleform {
         
         // Store the module type options in customdata for validation
         $this->_moduletypeoptions = $moduletypeoptions;
-        
-        // File upload for CSV structure file (optional) - using plain HTML5 file input
-        // This works reliably in modals without any JavaScript initialization
-        $mform->addElement('file', 'supportingfiles', get_string('supportingfiles', 'aiplacement_modgen'), 
-            'accept=".csv"');
+
+        // File upload for CSV structure file (optional) - using filemanager for PHP 8+ compatibility
+        $mform->addElement('filemanager', 'supportingfiles', get_string('supportingfiles', 'aiplacement_modgen'), null,
+            array('subdirs' => 0, 'maxbytes' => 10485760, 'maxfiles' => 5, 'accepted_types' => array('.csv')));
         $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
         
         // Main content prompt - only show if AI is enabled
@@ -136,6 +141,7 @@ class aiplacement_modgen_generator_form extends moodleform {
     }
     
     public function validation($data, $files) {
+        global $USER;
         $errors = parent::validation($data, $files);
         
         // Rebuild the moduletype options to match what's in definition()
@@ -157,7 +163,15 @@ class aiplacement_modgen_generator_form extends moodleform {
         
         // Either prompt, files, or existing module must be provided
         $hasPrompt = !empty(trim($data['prompt'] ?? ''));
-        $hasFiles = !empty($data['supportingfiles']);
+        // For filemanager, check if draft area has files
+        $hasFiles = false;
+        if (!empty($data['supportingfiles'])) {
+            $draftitemid = $data['supportingfiles'];
+            $context = !empty($this->_customdata['contextid']) ? context::instance_by_id($this->_customdata['contextid']) : context_user::instance($USER->id);
+            $fs = get_file_storage();
+            $draftfiles = $fs->get_area_files(context_user::instance($USER->id)->id, 'user', 'draft', $draftitemid, 'id', false);
+            $hasFiles = !empty($draftfiles);
+        }
         $hasExistingModules = !empty($data['existing_modules']) && is_array($data['existing_modules']) && count(array_filter($data['existing_modules'])) > 0;
         
         if (!$hasPrompt && !$hasFiles && !$hasExistingModules) {

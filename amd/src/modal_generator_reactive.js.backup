@@ -1,0 +1,498 @@
+// This file is part of Moodle - http://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+
+/**
+ * Reactive modal generator component.
+ *
+ * @module     aiplacement_modgen/modal_generator_reactive
+ * @copyright  2025 Tom Cripps <tom.cripps@port.ac.uk>
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+define(['core/reactive', 'core/modal_factory', 'core/modal_events', 'core/notification'], 
+function(Reactive, ModalFactory, ModalEvents, Notification) {
+
+    var reactiveInstance = null;
+    var stateInitialized = false;
+
+    /**
+     * Get or create the reactive instance for managing form state.
+     *
+     * @returns {Object} The reactive instance
+     */
+    var getReactiveInstance = function() {
+        if (!reactiveInstance) {
+            reactiveInstance = new Reactive.Reactive({
+                name: 'ModalGeneratorForm',
+                eventName: 'aiplacement_modgen:formstatechanged',
+                eventDispatch: function(event) {
+                    document.dispatchEvent(new CustomEvent(event.eventName, {
+                        detail: event,
+                        bubbles: true,
+                    }));
+                },
+            });
+
+            // Set up mutations for form state
+            reactiveInstance.setMutations({
+                formLoaded: function(stateManager) {
+                    stateManager.setReadOnly(false);
+                    stateManager.state.form.isLoading = false;
+                    stateManager.state.form.isValid = true;
+                    stateManager.setReadOnly(true);
+                },
+                
+                formChanged: function(stateManager, isValid, isDirty) {
+                    stateManager.setReadOnly(false);
+                    stateManager.state.form.isValid = isValid;
+                    stateManager.state.form.isDirty = isDirty;
+                    stateManager.setReadOnly(true);
+                },
+                
+                submitForm: function(stateManager) {
+                    stateManager.setReadOnly(false);
+                    stateManager.state.form.isSubmitting = true;
+                    stateManager.setReadOnly(true);
+                },
+                
+                submitComplete: function(stateManager, success) {
+                    stateManager.setReadOnly(false);
+                    stateManager.state.form.isSubmitting = false;
+                    if (success) {
+                        stateManager.state.form.isDirty = false;
+                    }
+                    stateManager.setReadOnly(true);
+                },
+            });
+
+            // Set initial state
+            reactiveInstance.setInitialState({
+                form: {
+                    isLoading: true,
+                    isValid: false,
+                    isDirty: false,
+                    isSubmitting: false,
+                },
+            });
+            
+            stateInitialized = true;
+        }
+        return reactiveInstance;
+    };
+
+    /**
+     * Create and show the modal with reactive form state.
+     *
+     * @param {number} courseid Course ID
+     * @returns {Promise} Promise resolving when modal is created
+     */
+    var openModal = function(courseid) {
+        var reactive = getReactiveInstance();
+        
+        return ModalFactory.create({
+            type: ModalFactory.types.DEFAULT,
+            title: 'Module Generator',
+            body: '<p>Loading form...</p>',
+            large: true,
+        }).then(function(modal) {
+            modal.show();
+            
+            // Load the form content via AJAX
+            // For now, just show a placeholder
+            modal.setBody('<div class="alert alert-info">Form will be loaded here with reactive state management</div>');
+            
+            // Dispatch formLoaded mutation
+            reactive.dispatch('formLoaded');
+            
+            return modal;
+        }).catch(Notification.exception);
+    };
+
+    return {
+        open: openModal,
+    };
+});
+
+    /**
+     * Get or create the reactive instance.
+     *
+     * @returns {Object} The reactive instance
+     */
+    var getReactiveInstance = function() {
+        if (!reactiveInstance) {
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: Creating reactive instance (without state)');
+            reactiveInstance = new Reactive.Reactive({
+                name: 'ModalGenerator',
+                eventName: 'aiplacement_modgen:statechanged',
+                eventDispatch: function(event) {
+                    document.dispatchEvent(new CustomEvent(event.eventName, {
+                        detail: event,
+                        bubbles: true,
+                    }));
+                },
+            });
+
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: Registering mutations');
+            reactiveInstance.setMutations({
+                openModal: function(stateManager) {
+                    // eslint-disable-next-line no-console
+                    console.log('Module Generator Reactive: openModal mutation');
+                    stateManager.setReadOnly(false);
+                    stateManager.state.modal.isOpen = true;
+                    stateManager.state.modal.isLoading = true;
+                    stateManager.state.modal.loadingMessage = 'Loading form...';
+                    stateManager.setReadOnly(true);
+                },
+                closeModal: function(stateManager) {
+                    stateManager.setReadOnly(false);
+                    stateManager.state.modal.isOpen = false;
+                    stateManager.state.modal.isLoading = false;
+                    stateManager.state.form.isDirty = false;
+                    stateManager.setReadOnly(true);
+                },
+                formLoaded: function(stateManager) {
+                    stateManager.setReadOnly(false);
+                    stateManager.state.modal.isLoading = false;
+                    stateManager.setReadOnly(true);
+                },
+                submitForm: function(stateManager) {
+                    stateManager.setReadOnly(false);
+                    stateManager.state.form.isSubmitting = true;
+                    stateManager.state.modal.isLoading = true;
+                    stateManager.state.modal.loadingMessage = 'Generating module structure...';
+                    stateManager.setReadOnly(true);
+                },
+                formChanged: function(stateManager) {
+                    stateManager.setReadOnly(false);
+                    stateManager.state.form.isDirty = true;
+                    stateManager.setReadOnly(true);
+                },
+            });
+
+            // DON'T set initial state here - will do it after component is created
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: Reactive instance ready (state will be set after component)');
+        }
+        return reactiveInstance;
+    };
+
+    /**
+     * Modal Generator Component.
+     *
+     * @class
+     */
+    var ModalGeneratorComponent = class extends Reactive.BaseComponent {
+        /**
+         * Create the component.
+         *
+         * @param {Object} descriptor Component descriptor
+         */
+        create(descriptor) {
+            this.courseid = descriptor.courseid;
+            this.modal = null;
+            this.formElement = null;
+        }
+
+        /**
+         * Called when state is ready.
+         */
+        stateReady() {
+            this.isStateReady = true;
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: *** stateReady() CALLED *** - watchers should be active');
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: this.reactive =', this.reactive);
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: this.reactive.state =', this.reactive ? this.reactive.state : 'NO REACTIVE');
+        }
+
+        /**
+         * Get state watchers.
+         *
+         * @returns {Array} Watchers
+         */
+        getWatchers() {
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: *** getWatchers() CALLED ***');
+            var watchers = [
+                {watch: 'modal.isOpen:updated', handler: this.handleModalStateChange},
+                {watch: 'modal.isLoading:updated', handler: this.handleLoadingStateChange},
+                {watch: 'form.isSubmitting:updated', handler: this.handleSubmittingStateChange},
+            ];
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: Returning watchers:', watchers);
+            return watchers;
+        }
+
+        /**
+         * Handle modal state changes.
+         *
+         * @param {Object} args Watch arguments
+         * @param {Object} args.state Current state
+         */
+        handleModalStateChange({state}) {
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: Modal state changed', state.modal);
+            if (state.modal.isOpen && !this.modal) {
+                this.createModal();
+            } else if (!state.modal.isOpen && this.modal) {
+                this.modal.destroy();
+                this.modal = null;
+            }
+        }
+
+        /**
+         * Handle loading state change.
+         *
+         * @param {Object} args Watch arguments
+         * @param {Object} args.state Current state
+         */
+        handleLoadingStateChange({state}) {
+            if (!this.modal) {
+                return;
+            }
+
+            if (state.modal.isLoading) {
+                var message = state.modal.loadingMessage || 'Loading...';
+                var spinner = '<div class="modgen-loading text-center p-5">' +
+                    '<div class="spinner-border text-primary mb-3" role="status">' +
+                    '<span class="sr-only">Loading...</span></div>' +
+                    '<p class="text-muted">' + message + '</p></div>';
+                this.modal.setBody(spinner);
+                this.locked = true;
+            } else {
+                this.locked = false;
+            }
+        }
+
+        /**
+         * Handle submitting state change.
+         *
+         * @param {Object} args Watch arguments
+         * @param {Object} args.state Current state
+         */
+        handleSubmittingStateChange({state}) {
+            if (this.formElement && state.form.isSubmitting) {
+                var inputs = this.formElement.querySelectorAll('input, select, textarea, button');
+                inputs.forEach(function(input) {
+                    input.disabled = true;
+                });
+            }
+        }
+
+        /**
+         * Create and show the modal.
+         */
+        createModal() {
+            var self = this;
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: Creating modal');
+            Modal.create({
+                title: 'Module Assistant',
+                body: '<div class="text-center p-3"><div class="spinner-border"></div></div>',
+                large: true,
+                removeOnClose: true,
+            }).then(function(modal) {
+                self.modal = modal;
+                modal.show();
+                return self.loadForm();
+            }).then(function() {
+                self.modal.getRoot()[0].addEventListener('hidden.bs.modal', function() {
+                    self.reactive.dispatch('closeModal');
+                });
+                return;
+            }).catch(function(error) {
+                // eslint-disable-next-line no-console
+                console.error('Module Generator Reactive: Error', error);
+                Notification.exception(error);
+            });
+        }
+
+        /**
+         * Load form via AJAX.
+         *
+         * @returns {Promise} Promise that resolves when form is loaded
+         */
+        loadForm() {
+            var self = this;
+            var url = M.cfg.wwwroot + '/ai/placement/modgen/generate.php?courseid=' + this.courseid;
+
+            return fetch(url, {
+                method: 'GET',
+                headers: {'Accept': 'application/json'},
+                credentials: 'same-origin',
+            }).then(function(response) {
+                return response.json();
+            }).then(function(data) {
+                if (data.success && data.html) {
+                    self.modal.setBody(data.html);
+                    self.reactive.dispatch('formLoaded');
+
+                    setTimeout(function() {
+                        self.setupFormHandlers();
+                    }, 100);
+                    return;
+                }
+                throw new Error('Failed to load form');
+            }).catch(function(error) {
+                Notification.exception(error);
+                self.reactive.dispatch('closeModal');
+            });
+        }
+
+        /**
+         * Setup form event handlers.
+         */
+        setupFormHandlers() {
+            var self = this;
+            this.formElement = this.modal.getBody()[0].querySelector('form');
+            if (!this.formElement) {
+                return;
+            }
+
+            // Track form changes
+            this.formElement.addEventListener('change', function() {
+                self.reactive.dispatch('formChanged');
+            });
+
+            // Handle form submission
+            this.formElement.addEventListener('submit', function(e) {
+                e.preventDefault();
+                self.reactive.dispatch('submitForm');
+
+                var formData = new FormData(self.formElement);
+                var url = self.formElement.action || M.cfg.wwwroot + '/ai/placement/modgen/prompt.php';
+
+                fetch(url, {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin',
+                }).then(function(response) {
+                    if (response.ok) {
+                        window.location.reload();
+                        return;
+                    }
+                    throw new Error('Form submission failed');
+                }).catch(function(error) {
+                    Notification.exception(error);
+                    self.reactive.dispatch('closeModal');
+                });
+            });
+        }
+
+        /**
+         * Open the modal.
+         */
+        open() {
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: open() - stateReady called?', this.isStateReady);
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: open() - dispatching openModal');
+            this.reactive.dispatch('openModal');
+        }
+    };
+
+    /**
+     * Initialize the reactive modal generator.
+     *
+     * @param {number} courseid Course ID
+     * @returns {Promise} Promise resolving to component instance
+     */
+    var init = function(courseid) {
+        // eslint-disable-next-line no-console
+        console.log('Module Generator Reactive: Initializing with courseid', courseid);
+
+        var reactive = getReactiveInstance();
+        
+        // Create component (this registers it with the reactive instance)
+        // eslint-disable-next-line no-console
+        console.log('Module Generator Reactive: Creating and registering component');
+        var component = new ModalGeneratorComponent({
+            element: document.body,
+            reactive: reactive,
+            courseid: courseid,
+        });
+
+        // eslint-disable-next-line no-console
+        console.log('Module Generator Reactive: Component registered');
+
+        // Debug: Check component and reactive connection after a delay
+        setTimeout(function() {
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: [After 500ms] Component ready check:');
+            // eslint-disable-next-line no-console
+            console.log('  - isStateReady?', component.isStateReady);
+            // eslint-disable-next-line no-console
+            console.log('  - Component has reactive?', !!component.reactive);
+            // eslint-disable-next-line no-console
+            console.log('  - Reactive has state?', component.reactive ? !!component.reactive.state : 'NO REACTIVE');
+            // eslint-disable-next-line no-console
+            console.log('  - Reactive target:', component.reactive ? component.reactive.target : 'NO REACTIVE');
+        }, 500);
+
+        // NOW set the initial state - this will trigger component.stateReady() asynchronously
+        if (!stateInitialized) {
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: Setting initial state (will trigger stateReady async)');
+            // eslint-disable-next-line no-console
+            console.log('Module Generator Reactive: Current state before setInitialState:', reactive.state);
+            
+            // Add a listener to verify the state:loaded event is dispatched
+            reactive.target.addEventListener('state:loaded', function(event) {
+                // eslint-disable-next-line no-console
+                console.log('Module Generator Reactive: *** state:loaded EVENT FIRED ***', event.detail);
+            });
+            
+            try {
+                // eslint-disable-next-line no-console
+                console.log('Module Generator Reactive: About to call setInitialState');
+                // eslint-disable-next-line no-console
+                console.log('Module Generator Reactive: reactive.stateManager:', reactive.stateManager);
+                // eslint-disable-next-line no-console
+                console.log('Module Generator Reactive: Checking if setInitialState exists:', typeof reactive.setInitialState);
+                
+                reactive.setInitialState({
+                    modal: {
+                        isOpen: false,
+                        isLoading: false,
+                        loadingMessage: '',
+                    },
+                    form: {
+                        isValid: false,
+                        isDirty: false,
+                        isSubmitting: false,
+                    },
+                });
+                stateInitialized = true;
+                // eslint-disable-next-line no-console
+                console.log('Module Generator Reactive: Initial state set - stateReady will be called asynchronously');
+                // eslint-disable-next-line no-console
+                console.log('Module Generator Reactive: State after setInitialState:', reactive.state);
+            } catch (error) {
+                // eslint-disable-next-line no-console
+                console.error('Module Generator Reactive: ERROR setting initial state:', error);
+            }
+        }
+
+        // Return component immediately - stateReady() will be called async by the Reactive instance
+        return Promise.resolve(component);
+    };
+
+    return {
+        init: init
+    };
+});

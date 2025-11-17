@@ -1,3 +1,4 @@
+<?php
 // This file is part of Moodle - https://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
@@ -14,36 +15,30 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Custom modal class for the Module Generator workflow.
+ * Renderer for aiplacement_modgen plugin.
  *
- * @module     aiplacement_modgen/modal
- * @copyright  2025
+ * @package    aiplacement_modgen
+ * @copyright  2025 Tom Cripps <tom.cripps@port.ac.uk>
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import Modal from 'core/modal';
+namespace aiplacement_modgen\output;
 
-export default class ModgenModal extends Modal {
-    /** @inheritDoc */
-    static get TYPE() {
-        return 'aiplacement_modgen/modal';
-    }
+use plugin_renderer_base;
 
-    /** @inheritDoc */
-    static get TEMPLATE() {
-        return 'aiplacement_modgen/modal';
-    }
-
+/**
+ * Plugin renderer class.
+ */
+class renderer extends plugin_renderer_base {
+    
     /**
-     * Override the modal configuration with plugin defaults.
+     * Render the course toolbar.
      *
-     * @param {Moodle.modal.MoodleConfig} modalConfig
+     * @param course_toolbar $toolbar Toolbar renderable
+     * @return string HTML
      */
-    configure(modalConfig) {
-        modalConfig.large = true;
-        if (typeof modalConfig.removeOnClose === 'undefined') {
-            modalConfig.removeOnClose = false;
-        }
-        super.configure(modalConfig);
+    public function render_course_toolbar(course_toolbar $toolbar): string {
+        $data = $toolbar->export_for_template($this);
+        return $this->render_from_template('aiplacement_modgen/course_nav', $data);
     }
 }

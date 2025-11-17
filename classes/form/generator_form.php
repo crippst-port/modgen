@@ -23,9 +23,8 @@
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-require_once($CFG->libdir . '/formslib.php');
-require_once($CFG->libdir . '/filelib.php');
+// Note: formslib.php and filelib.php are loaded by the calling context (lib.php fragment callback)
+// Classes in classes/* are autoloaded and should not require_once global dependencies
 
 /**
  * Form for generating module structure and content.
@@ -83,16 +82,10 @@ class aiplacement_modgen_generator_form extends moodleform {
         // Store the module type options in customdata for validation
         $this->_moduletypeoptions = $moduletypeoptions;
         
-        // File upload for CSV structure file (optional) - always visible
-        $returntypes = defined('FILE_INTERNAL') ? FILE_INTERNAL : 2;
-        $fileoptions = [
-            'subdirs' => 0,
-            'maxbytes' => 5242880, // 5MB
-            'maxfiles' => 1, // Only one CSV file
-            'accepted_types' => ['.csv'],
-            'return_types' => $returntypes,
-        ];
-        $mform->addElement('filemanager', 'supportingfiles', get_string('supportingfiles', 'aiplacement_modgen'), null, $fileoptions);
+        // File upload for CSV structure file (optional) - using plain HTML5 file input
+        // This works reliably in modals without any JavaScript initialization
+        $mform->addElement('file', 'supportingfiles', get_string('supportingfiles', 'aiplacement_modgen'), 
+            'accept=".csv"');
         $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
         
         // Main content prompt - only show if AI is enabled

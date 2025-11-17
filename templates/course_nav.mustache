@@ -1,0 +1,23 @@
+{{!
+    @template aiplacement_modgen/course_nav
+    @description Navigation bar for Module Assistant tools shown at top of course when editing
+}}
+<div class="aiplacement-modgen-nav">
+    <div class="aiplacement-modgen-nav__container">
+        <div class="aiplacement-modgen-nav__brand">
+            <span>{{navtitle}}</span>
+        </div>
+        <div class="aiplacement-modgen-nav__buttons">
+            {{#showgenerator}}
+            <a href="{{generatorurl}}" class="btn btn-sm btn-primary aiplacement-modgen-nav__btn" data-action="open-generator">
+                <i class="fa fa-plus-circle"></i> {{generatorlabel}}
+            </a>
+            {{/showgenerator}}
+            {{#showexplore}}
+            <a href="{{exploreurl}}" class="btn btn-sm btn-outline-primary aiplacement-modgen-nav__btn">
+                <i class="fa fa-chart-bar"></i> {{explorelabel}}
+            </a>
+            {{/showexplore}}
+        </div>
+    </div>
+</div>

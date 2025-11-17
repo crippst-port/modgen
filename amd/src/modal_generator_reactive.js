@@ -26,6 +26,7 @@ import {dispatchEvent} from 'core/event_dispatcher';
 import Templates from 'core/templates';
 import ModgenModal from 'aiplacement_modgen/modal';
 import Notification from 'core/notification';
+import ModalEvents from 'core/modal_events';
 
 /**
  * Event types for modal generator.
@@ -179,11 +180,17 @@ class ModalGeneratorComponent extends BaseComponent {
             large: true,
         }).then((modal) => {
             this.modal = modal;
+
+            // Listen for modal hide/close events and update reactive state
+            this.modal.getRoot().on(ModalEvents.hidden, () => {
+                this.reactive.dispatch('closeModal');
+            });
+
             this.modal.show();
-            
+
             // Load the generator form via AJAX
             this.loadForm();
-            
+
             return modal;
         }).catch(Notification.exception);
     }

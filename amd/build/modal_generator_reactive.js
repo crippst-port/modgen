@@ -1,4 +1,4 @@
-define(["exports", "core/reactive", "core/event_dispatcher", "core/templates", "aiplacement_modgen/modal", "core/notification"], function (_exports, _reactive, _event_dispatcher, _templates, _modal, _notification) {
+define(["exports", "core/reactive", "core/event_dispatcher", "core/templates", "aiplacement_modgen/modal", "core/notification", "core/modal_events"], function (_exports, _reactive, _event_dispatcher, _templates, _modal, _notification, _modal_events) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -8,6 +8,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/templates", "
   _templates = _interopRequireDefault(_templates);
   _modal = _interopRequireDefault(_modal);
   _notification = _interopRequireDefault(_notification);
+  _modal_events = _interopRequireDefault(_modal_events);
   function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
   /**
    * Reactive modal generator component.
@@ -102,6 +103,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/templates", "
         large: true
       }).then(modal => {
         this.modal = modal;
+        this.modal.getRoot().on(_modal_events.default.hidden, () => {
+          this.reactive.dispatch('closeModal');
+        });
         this.modal.show();
         this.loadForm();
         return modal;

@@ -70,9 +70,9 @@ header('Content-Type: application/json');
 try {
     // Ensure formslib is loaded
     require_once($CFG->libdir . '/formslib.php');
-    
-    // Include form class
-    require_once(__DIR__ . '/classes/form/generator_form.php');
+
+    // Include modal-optimized form class (for reactive UI)
+    require_once(__DIR__ . '/classes/form/modal_generator_form.php');
 
     // Get course ID
     $courseid = required_param('courseid', PARAM_INT);
@@ -100,13 +100,13 @@ try {
         exit;
     }
 
-    // Create form
+    // Create modal-optimized form (uses simple HTML file input)
     $formdata = [
         'courseid' => $courseid,
         'embedded' => 1,
         'contextid' => $context->id,
     ];
-    $form = new aiplacement_modgen_generator_form(null, $formdata);
+    $form = new aiplacement_modgen_modal_generator_form(null, $formdata);
 
     // Handle form cancellation
     if ($form->is_cancelled()) {

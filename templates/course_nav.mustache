@@ -2,22 +2,57 @@
     @template aiplacement_modgen/course_nav
     @description Navigation bar for Module Assistant tools shown at top of course when editing
 }}
-<div class="aiplacement-modgen-nav">
-    <div class="aiplacement-modgen-nav__container">
-        <div class="aiplacement-modgen-nav__brand">
-            <span>{{navtitle}}</span>
+<nav class="navbar navbar-expand-lg navbar-dark aiplacement-modgen-navbar px-3">
+    <a class="navbar-brand" href="#">{{navtitle}}</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#aimodgenNavbar" aria-controls="aimodgenNavbar" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="aimodgenNavbar">
+        <ul class="navbar-nav ml-auto">
+
+<li class="nav-item dropdown mx-3">
+        <a class="nav-link dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-expanded="false">
+          Help and Advice
+        </a>
+        <div class="dropdown-menu">
+          <a class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="#">Building for the Connected Curriculum</a>
+          <a class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="#">Creating Accessible Modules</a>
+          
         </div>
-        <div class="aiplacement-modgen-nav__buttons">
-            {{#showgenerator}}
-            <a href="{{generatorurl}}" class="btn btn-sm btn-primary aiplacement-modgen-nav__btn" data-action="open-generator">
-                <i class="fa fa-plus-circle"></i> {{generatorlabel}}
-            </a>
-            {{/showgenerator}}
+      </li>
+
+         <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle btn btn-primary btn-sm" href="#" role="button" data-toggle="dropdown" aria-expanded="false">
+          <i class="fa fa-plus-circle mr-1"></i> Quick Add 
+        </a>
+        
+        <div class="dropdown-menu">
+         {{#showgenerator}}
+          <a href="{{generatorurl}}" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="open-generator">
+                    <i class="fa fa-plus-circle"></i> {{generatorlabel}}
+                </a>
+          <div class="dropdown-divider"></div>
+          {{/showgenerator}}
+          <a href="{{generatorurl}}" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="open-generator">
+                    <i class="fas fa-book"></i> New Theme
+                </a>
+                <a href="{{generatorurl}}" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="open-generator">
+                    <i class="fas fa-calendar"></i> New Week
+                </a>
+        </div>
+      </li>
+           
+           
+            
+           
             {{#showexplore}}
-            <a href="{{exploreurl}}" class="btn btn-sm btn-outline-primary aiplacement-modgen-nav__btn">
-                <i class="fa fa-chart-bar"></i> {{explorelabel}}
-            </a>
+            <li class="nav-item">
+                <a href="{{exploreurl}}" class="nav-link aiplacement-modgen-nav-link aiplacement-modgen-nav-link--secondary">
+                    <i class="fa fa-chart-bar"></i> {{explorelabel}}
+                </a>
+            </li>
             {{/showexplore}}
-        </div>
+        </ul>
     </div>
-</div>
+</nav>

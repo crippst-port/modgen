@@ -71,13 +71,13 @@ class course_toolbar implements renderable, templatable {
         if ($this->showgenerator) {
             $generatorurl = new moodle_url('/ai/placement/modgen/modal.php', ['id' => $this->courseid]);
             $data->generatorurl = $generatorurl->out(false);
-            $data->generatorlabel = get_string('generatorbutton', 'aiplacement_modgen');
+            $data->generatorlabel = get_string('generatorlabel', 'aiplacement_modgen');
         }
         
         if ($this->showexplore) {
             $exploreurl = new moodle_url('/ai/placement/modgen/explore.php', ['id' => $this->courseid]);
             $data->exploreurl = $exploreurl->out(false);
-            $data->explorelabel = get_string('explorebutton', 'aiplacement_modgen');
+            $data->explorelabel = get_string('explorelabel', 'aiplacement_modgen');
         }
         
         return $data;

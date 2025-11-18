@@ -1,11 +1,10 @@
-define(["exports", "core/reactive", "core/event_dispatcher", "core/templates", "aiplacement_modgen/modal", "core/notification", "core/modal_events"], function (_exports, _reactive, _event_dispatcher, _templates, _modal, _notification, _modal_events) {
+define(["exports", "core/reactive", "core/event_dispatcher", "aiplacement_modgen/modal", "core/notification", "core/modal_events"], function (_exports, _reactive, _event_dispatcher, _modal, _notification, _modal_events) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
     value: true
   });
   _exports.init = void 0;
-  _templates = _interopRequireDefault(_templates);
   _modal = _interopRequireDefault(_modal);
   _notification = _interopRequireDefault(_notification);
   _modal_events = _interopRequireDefault(_modal_events);
@@ -97,66 +96,20 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/templates", "
       }
     }
     createModal() {
+      const promptUrl = M.cfg.wwwroot + '/ai/placement/modgen/prompt.php?id=' + this.courseid;
+      const body = '<div class="text-center p-4">' + '<p>Click the button below to open the Module Generator form.</p>' + '<a href="' + promptUrl + '" class="btn btn-primary btn-lg">' + 'Open Module Generator' + '</a>' + '</div>';
       _modal.default.create({
         title: 'Module Generator',
-        body: '<div class="d-flex justify-content-center p-5"><div class="spinner-border" role="status">' + '<span class="sr-only">Loading...</span></div></div>',
-        large: true
+        body: body,
+        large: false
       }).then(modal => {
         this.modal = modal;
         this.modal.getRoot().on(_modal_events.default.hidden, () => {
           this.reactive.dispatch('closeModal');
         });
         this.modal.show();
-        this.loadForm();
         return modal;
       }).catch(_notification.default.exception);
-    }
-    loadForm() {
-      const url = M.cfg.wwwroot + '/ai/placement/modgen/generate.php';
-      const params = new URLSearchParams({
-        courseid: this.courseid,
-        sesskey: M.cfg.sesskey
-      });
-      fetch(url + '?' + params.toString(), {
-        method: 'GET',
-        headers: {
-          'Accept': 'application/json'
-        }
-      }).then(response => {
-        if (!response.ok) {
-          throw new Error('HTTP error ' + response.status);
-        }
-        return response.json();
-      }).then(data => {
-        if (!data.success) {
-          let errorHtml = '<div class="alert alert-danger"><h4>Error loading form</h4>';
-          errorHtml += '<p><strong>Error:</strong> ' + (data.error || 'Unknown error') + '</p>';
-          if (data.file) {
-            errorHtml += '<p><strong>File:</strong> ' + data.file + ':' + data.line + '</p>';
-          }
-          if (data.trace) {
-            errorHtml += '<details><summary>Stack Trace</summary><pre>' + (Array.isArray(data.trace) ? data.trace.join('\n') : data.trace) + '</pre></details>';
-          }
-          errorHtml += '</div>';
-          this.modal.setBody(errorHtml);
-          console.error('Form load error:', data);
-          return;
-        }
-        if (!data.html) {
-          throw new Error('No HTML returned from server');
-        }
-        const modalBody = this.modal.getBody()[0];
-        _templates.default.replaceNodeContents(modalBody, data.html, data.javascript || '');
-        return new Promise(resolve => {
-          setTimeout(() => {
-            this.reactive.dispatch('formLoaded');
-            resolve();
-          }, 200);
-        });
-      }).catch(error => {
-        this.modal.setBody('<div class="alert alert-danger">Error loading form: ' + error.message + '</div>');
-        _notification.default.exception(error);
-      });
     }
     open() {
       this.reactive.dispatch('openModal');

@@ -51,7 +51,11 @@ function aiplacement_modgen_extend_navigation_course(
     if ($PAGE->user_is_editing()) {
         // Show generator to anyone who can edit the course
         $showgenerator = true;
-        $showexplore = get_config('aiplacement_modgen', 'enable_exploration');
+        
+        // Only show explore if BOTH admin settings are enabled
+        $ai_generation_enabled = !empty(get_config('aiplacement_modgen', 'enable_ai'));
+        $explore_enabled = !empty(get_config('aiplacement_modgen', 'enable_exploration'));
+        $showexplore = $ai_generation_enabled && $explore_enabled;
         
         // Only render nav bar if at least one tool is available
         if ($showgenerator || $showexplore) {
@@ -68,8 +72,11 @@ function aiplacement_modgen_extend_navigation_course(
         }
     }
 
-    // Module exploration - also add to course navigation menu when enabled
-    if (get_config('aiplacement_modgen', 'enable_exploration')) {
+    // Module exploration - also add to course navigation menu when BOTH admin settings are enabled
+    $ai_generation_enabled = !empty(get_config('aiplacement_modgen', 'enable_ai'));
+    $explore_enabled = !empty(get_config('aiplacement_modgen', 'enable_exploration'));
+    
+    if ($ai_generation_enabled && $explore_enabled) {
         $exploreurl = new moodle_url('/ai/placement/modgen/explore.php', ['id' => $course->id]);
         $navigation->add(
             get_string('exploremenuitem', 'aiplacement_modgen'),

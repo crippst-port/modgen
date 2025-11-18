@@ -23,7 +23,6 @@
 
 import {Reactive, BaseComponent} from 'core/reactive';
 import {dispatchEvent} from 'core/event_dispatcher';
-import Templates from 'core/templates';
 import ModgenModal from 'aiplacement_modgen/modal';
 import Notification from 'core/notification';
 import ModalEvents from 'core/modal_events';
@@ -61,7 +60,9 @@ class ModalMutations {
         stateManager.state.modal.isOpen = true;
         stateManager.state.modal.isLoading = true;
         stateManager.setReadOnly(true);
-    }    /**
+    }
+
+    /**
      * Close the modal.
      *
      * @param {StateManager} stateManager The state manager
@@ -173,11 +174,21 @@ class ModalGeneratorComponent extends BaseComponent {
      * Create and show the modal.
      */
     createModal() {
+        // Build the prompt.php URL
+        const promptUrl = M.cfg.wwwroot + '/ai/placement/modgen/prompt.php?id=' + this.courseid;
+
+        // Create modal with link to prompt.php
+        const body = '<div class="text-center p-4">' +
+                     '<p>Click the button below to open the Module Generator form.</p>' +
+                     '<a href="' + promptUrl + '" class="btn btn-primary btn-lg">' +
+                     'Open Module Generator' +
+                     '</a>' +
+                     '</div>';
+
         ModgenModal.create({
             title: 'Module Generator',
-            body: '<div class="d-flex justify-content-center p-5"><div class="spinner-border" role="status">' +
-                  '<span class="sr-only">Loading...</span></div></div>',
-            large: true,
+            body: body,
+            large: false,
         }).then((modal) => {
             this.modal = modal;
 
@@ -188,79 +199,8 @@ class ModalGeneratorComponent extends BaseComponent {
 
             this.modal.show();
 
-            // Load the generator form via AJAX
-            this.loadForm();
-
             return modal;
         }).catch(Notification.exception);
-    }
-
-    /**
-     * Load the generator form via AJAX and properly execute embedded JavaScript.
-     */
-    loadForm() {
-        const url = M.cfg.wwwroot + '/ai/placement/modgen/generate.php';
-        const params = new URLSearchParams({
-            courseid: this.courseid,
-            sesskey: M.cfg.sesskey,
-        });
-
-        fetch(url + '?' + params.toString(), {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-            },
-        })
-        .then(response => {
-            if (!response.ok) {
-                throw new Error('HTTP error ' + response.status);
-            }
-            return response.json();
-        })
-        .then(data => {
-            if (!data.success) {
-                // Show detailed error information
-                let errorHtml = '<div class="alert alert-danger"><h4>Error loading form</h4>';
-                errorHtml += '<p><strong>Error:</strong> ' + (data.error || 'Unknown error') + '</p>';
-                if (data.file) {
-                    errorHtml += '<p><strong>File:</strong> ' + data.file + ':' + data.line + '</p>';
-                }
-                if (data.trace) {
-                    errorHtml += '<details><summary>Stack Trace</summary><pre>' +
-                                 (Array.isArray(data.trace) ? data.trace.join('\n') : data.trace) +
-                                 '</pre></details>';
-                }
-                errorHtml += '</div>';
-                this.modal.setBody(errorHtml);
-                // eslint-disable-next-line no-console
-                console.error('Form load error:', data);
-                return;
-            }
-
-            if (!data.html) {
-                throw new Error('No HTML returned from server');
-            }
-
-            // Use Templates.replaceNodeContents which properly handles script execution
-            const modalBody = this.modal.getBody()[0];
-
-            // This properly executes the JavaScript including YUI filemanager init
-            Templates.replaceNodeContents(modalBody, data.html, data.javascript || '');
-
-            // Dispatch after a short delay to ensure scripts have executed
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    this.reactive.dispatch('formLoaded');
-                    resolve();
-                }, 200);
-            });
-        })
-        .catch(error => {
-            this.modal.setBody(
-                '<div class="alert alert-danger">Error loading form: ' + error.message + '</div>'
-            );
-            Notification.exception(error);
-        });
     }
 
     /**

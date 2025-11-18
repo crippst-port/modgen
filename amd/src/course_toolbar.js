@@ -22,10 +22,7 @@
  */
 
 import Fragment from 'core/fragment';
-import * as ModalGenerator from 'aiplacement_modgen/modal_generator_reactive';
 import Notification from 'core/notification';
-
-let modalComponent = null;
 
 /**
  * Initialize the course navigation toolbar.
@@ -49,9 +46,22 @@ export const init = (config) => {
         if (regionMain) {
             regionMain.insertAdjacentHTML('afterbegin', html);
 
+            // Bootstrap 4 collapse handling via jQuery (Moodle loads jQuery globally)
+            const collapseToggle = document.querySelector('.navbar-toggler');
+            const collapseTarget = document.querySelector('#aimodgenNavbar');
+            if (collapseToggle && collapseTarget && window.$ && window.$.fn && window.$.fn.collapse) {
+                // Initialize Bootstrap 4 collapse
+                window.$(collapseTarget).collapse({toggle: false});
+                
+                // Handle toggle button clicks
+                collapseToggle.addEventListener('click', () => {
+                    window.$(collapseTarget).collapse('toggle');
+                });
+            }
+
             // Attach event listener to generator button if present
             if (config.showgenerator) {
-                setupGeneratorButton(config.courseid, config.contextid);
+                setupGeneratorButton(config.courseid);
             }
         }
         return html;
@@ -60,12 +70,11 @@ export const init = (config) => {
 };
 
 /**
- * Setup generator button to open modal.
+ * Setup generator button to link directly to prompt.php.
  *
  * @param {number} courseid Course ID
- * @param {number} contextid Context ID
  */
-const setupGeneratorButton = (courseid, contextid) => {
+const setupGeneratorButton = (courseid) => {
     const generatorBtn = document.querySelector('[data-action="open-generator"]');
     if (!generatorBtn) {
         return;
@@ -73,13 +82,8 @@ const setupGeneratorButton = (courseid, contextid) => {
 
     generatorBtn.addEventListener('click', (e) => {
         e.preventDefault();
-        
-        // Initialize component on first click
-        if (!modalComponent) {
-            modalComponent = ModalGenerator.init(courseid, contextid);
-        }
-        
-        // Open the modal
-        modalComponent.open();
+
+        // Navigate directly to prompt.php
+        window.location.href = M.cfg.wwwroot + '/ai/placement/modgen/prompt.php?id=' + courseid;
     });
 };

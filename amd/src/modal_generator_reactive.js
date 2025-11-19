@@ -327,15 +327,19 @@ class ModalGeneratorComponent extends BaseComponent {
                     }
                     
                     // Add return to course button
-                    const courseUrl = M.cfg.wwwroot + '/course/view.php?id=' + this.courseid;
                     successHtml += '<p class="mt-3">';
-                    successHtml += '<a href="' + courseUrl + '" class="btn btn-primary">';
+                    successHtml += '<button type="button" class="btn btn-primary" id="reload-page-btn">';
                     successHtml += 'Return to course';
-                    successHtml += '</a>';
+                    successHtml += '</button>';
                     successHtml += '</p>';
                     successHtml += '</div>';
                     
                     modal.setBody(successHtml);
+                    
+                    // Add click handler to reload button
+                    modal.getRoot().find('#reload-page-btn').on('click', () => {
+                        window.location.reload();
+                    });
                 } else {
                     // Show error message
                     const errorHtml = '<div class="alert alert-danger">' +

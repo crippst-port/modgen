@@ -182,14 +182,16 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
               });
               successHtml += '</ul>';
             }
-            const courseUrl = M.cfg.wwwroot + '/course/view.php?id=' + this.courseid;
             successHtml += '<p class="mt-3">';
-            successHtml += '<a href="' + courseUrl + '" class="btn btn-primary">';
+            successHtml += '<button type="button" class="btn btn-primary" id="reload-page-btn">';
             successHtml += 'Return to course';
-            successHtml += '</a>';
+            successHtml += '</button>';
             successHtml += '</p>';
             successHtml += '</div>';
             modal.setBody(successHtml);
+            modal.getRoot().find('#reload-page-btn').on('click', () => {
+              window.location.reload();
+            });
           } else {
             const errorHtml = '<div class="alert alert-danger">' + '<p>' + (data.error || 'An error occurred') + '</p>' + '</div>';
             modal.setBody(errorHtml);

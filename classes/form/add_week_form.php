@@ -44,8 +44,8 @@ class aiplacement_modgen_add_week_form extends moodleform {
         for ($i = 1; $i <= 10; $i++) {
             $options[$i] = $i;
         }
-        $mform->addElement('select', 'count', get_string('weekcount', 'aiplacement_modgen'), $options);
-        $mform->setDefault('count', 1);
+        $mform->addElement('select', 'weekcount', get_string('weekcount', 'aiplacement_modgen'), $options);
+        $mform->setDefault('weekcount', 1);
 
         // Submit button.
         $this->add_action_buttons(true, get_string('addweek', 'aiplacement_modgen'));
@@ -61,8 +61,8 @@ class aiplacement_modgen_add_week_form extends moodleform {
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
-        if (empty($data['count']) || $data['count'] < 1 || $data['count'] > 10) {
-            $errors['count'] = get_string('invalidcount', 'aiplacement_modgen');
+        if (empty($data['weekcount']) || $data['weekcount'] < 1 || $data['weekcount'] > 10) {
+            $errors['weekcount'] = get_string('invalidcount', 'aiplacement_modgen');
         }
 
         return $errors;

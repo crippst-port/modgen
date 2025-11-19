@@ -131,10 +131,33 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         this.modal.getRoot().on(_modal_events.default.hidden, () => {
           this.reactive.dispatch('closeModal');
         });
+        this.setupFormSubmission(modal, formName);
         this.reactive.dispatch('formLoaded');
         this.modal.show();
         return modal;
       }).catch(_notification.default.exception);
+    }
+    setupFormSubmission(modal, formName) {
+      const modalRoot = modal.getRoot();
+      modalRoot.on('submit', 'form', e => {
+        e.preventDefault();
+        const form = e.target;
+        const formData = new FormData(form);
+        const params = {
+          courseid: this.courseid
+        };
+        formData.forEach((value, key) => {
+          params[key] = value;
+        });
+        modal.setBody('<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">Loading...</span>' + '</div>' + '</div>');
+        _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, params).then(html => {
+          modal.setBody(html);
+          if (html.indexOf('alert-success') !== -1) {} else {
+            this.setupFormSubmission(modal, formName);
+          }
+          return html;
+        }).catch(_notification.default.exception);
+      });
     }
     showGeneratorLink(title) {
       const promptUrl = M.cfg.wwwroot + '/ai/placement/modgen/prompt.php?id=' + this.courseid;

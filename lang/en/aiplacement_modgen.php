@@ -300,5 +300,16 @@ $string['newweek'] = 'New Week';
 $string['quickadd'] = 'Quick Add';
 $string['themecount'] = 'How many themes do you want to create?';
 $string['weekcount'] = 'How many weeks do you want to create?';
+$string['weeksperTheme'] = 'How many weeks per theme?';
 $string['invalidcount'] = 'Please select a number between 1 and 10';
+$string['defaultthemename'] = 'Theme {$a}';
+$string['defaultthemesummary'] = 'Placeholder theme structure. Edit this section to add your theme introduction and learning outcomes.';
+$string['defaultweekname'] = 'Theme {$a->theme} - Week {$a->week}';
+$string['defaultstandaloneweekname'] = 'Week {$a}';
+$string['defaultweeksummary'] = 'Placeholder week structure. Edit this section to add your weekly overview and key topics.';
+$string['themescreated'] = '{$a} theme(s) successfully created';
+$string['weekscreated'] = '{$a} week(s) successfully created';
+$string['returntocourseview'] = 'Return to course';
+$string['erroracquiringlock'] = 'Could not acquire course lock. Another user may be editing this course.';
+$string['errorconvertingformat'] = 'Could not convert course to flexsections format.';
 

@@ -232,12 +232,72 @@ class ModalGeneratorComponent extends BaseComponent {
                 this.reactive.dispatch('closeModal');
             });
 
+            // Handle form submission
+            this.setupFormSubmission(modal, formName);
+
             this.reactive.dispatch('formLoaded');
             this.modal.show();
 
             return modal;
         })
         .catch(Notification.exception);
+    }
+
+    /**
+     * Setup form submission handler for modal forms.
+     *
+     * When the form is submitted, reload the fragment with the form data.
+     * The fragment callback will process the submission and return either
+     * the form again (with errors) or a success message.
+     *
+     * @param {Object} modal The modal instance
+     * @param {string} formName Form fragment name
+     */
+    setupFormSubmission(modal, formName) {
+        const modalRoot = modal.getRoot();
+        
+        modalRoot.on('submit', 'form', (e) => {
+            e.preventDefault();
+            
+            const form = e.target;
+            const formData = new FormData(form);
+            
+            // Convert FormData to params object for Fragment API
+            const params = {
+                courseid: this.courseid,
+            };
+            
+            formData.forEach((value, key) => {
+                params[key] = value;
+            });
+            
+            // Show loading indicator
+            modal.setBody('<div class="text-center p-5">' +
+                '<div class="spinner-border" role="status">' +
+                '<span class="sr-only">Loading...</span>' +
+                '</div>' +
+                '</div>');
+            
+            // Reload fragment with form data (this triggers submission in fragment callback)
+            Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, params)
+                .then((html) => {
+                    modal.setBody(html);
+                    
+                    // Check if response contains success message
+                    if (html.indexOf('alert-success') !== -1) {
+                        // Success! Form was processed.
+                        // The HTML now contains success message and return link
+                        // No need to re-setup form submission
+                    } else {
+                        // Form was redisplayed (probably with errors)
+                        // Re-setup form submission for next attempt
+                        this.setupFormSubmission(modal, formName);
+                    }
+                    
+                    return html;
+                })
+                .catch(Notification.exception);
+        });
     }
 
     /**

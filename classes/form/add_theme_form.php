@@ -44,8 +44,12 @@ class aiplacement_modgen_add_theme_form extends moodleform {
         for ($i = 1; $i <= 10; $i++) {
             $options[$i] = $i;
         }
-        $mform->addElement('select', 'count', get_string('themecount', 'aiplacement_modgen'), $options);
-        $mform->setDefault('count', 1);
+        $mform->addElement('select', 'themecount', get_string('themecount', 'aiplacement_modgen'), $options);
+        $mform->setDefault('themecount', 1);
+
+        // Number of weeks per theme (1-10).
+        $mform->addElement('select', 'weeksperTheme', get_string('weeksperTheme', 'aiplacement_modgen'), $options);
+        $mform->setDefault('weeksperTheme', 1);
 
         // Submit button.
         $this->add_action_buttons(true, get_string('addtheme', 'aiplacement_modgen'));
@@ -61,8 +65,12 @@ class aiplacement_modgen_add_theme_form extends moodleform {
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
-        if (empty($data['count']) || $data['count'] < 1 || $data['count'] > 10) {
-            $errors['count'] = get_string('invalidcount', 'aiplacement_modgen');
+        if (empty($data['themecount']) || $data['themecount'] < 1 || $data['themecount'] > 10) {
+            $errors['themecount'] = get_string('invalidcount', 'aiplacement_modgen');
+        }
+
+        if (empty($data['weeksperTheme']) || $data['weeksperTheme'] < 1 || $data['weeksperTheme'] > 10) {
+            $errors['weeksperTheme'] = get_string('invalidcount', 'aiplacement_modgen');
         }
 
         return $errors;

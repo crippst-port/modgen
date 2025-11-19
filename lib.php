@@ -196,101 +196,61 @@ function aiplacement_modgen_output_fragment_generator_form(array $args): string 
  * @param array $args Fragment arguments containing courseid
  * @return string Rendered form HTML
  */
+/**
+ * Fragment callback to render the add_theme form in a modal.
+ *
+ * This only renders the form HTML using moodleform.
+ * Submission is handled via AJAX (ajax/create_sections.php).
+ *
+ * @param array $args Fragment arguments containing courseid
+ * @return string Rendered form HTML
+ */
 function aiplacement_modgen_output_fragment_form_add_theme(array $args): string {
     global $PAGE, $CFG;
 
-    // Ensure required libraries are loaded.
-    require_once($CFG->libdir . '/formslib.php');
-    require_once($CFG->dirroot . '/course/lib.php');
-
-    // Validate parameters.
-    $courseid = clean_param($args['courseid'], PARAM_INT);
-    $context = context_course::instance($courseid);
-
-    // Verify permission.
-    require_capability('moodle/course:update', $context);
-
-    // Set page context for proper JS/CSS loading.
-    $PAGE->set_context($context);
-
-    // Create form.
-    require_once(__DIR__ . '/classes/form/add_theme_form.php');
-    $formdata = ['courseid' => $courseid];
-    $form = new \aiplacement_modgen_add_theme_form(null, $formdata);
-
-    // Check if this is a form submission (has themecount parameter from JS)
-    if (isset($args['themecount']) && isset($args['weeksperTheme'])) {
-        // Manually process the submission since Fragment API doesn't populate $_POST
-        $themecount = clean_param($args['themecount'], PARAM_INT);
-        $weeksperTheme = clean_param($args['weeksperTheme'], PARAM_INT);
+    try {
+        error_log('Fragment form_add_theme called with args: ' . print_r($args, true));
         
-        // Validate
-        $errors = [];
-        if ($themecount < 1 || $themecount > 10) {
-            $errors[] = get_string('invalidcount', 'aiplacement_modgen');
-        }
-        if ($weeksperTheme < 1 || $weeksperTheme > 10) {
-            $errors[] = get_string('invalidcount', 'aiplacement_modgen');
-        }
+        // Ensure required libraries are loaded.
+        require_once($CFG->libdir . '/formslib.php');
+
+        // Validate parameters.
+        $courseid = clean_param($args['courseid'], PARAM_INT);
+        error_log("Fragment form_add_theme - courseid: $courseid");
         
-        if (empty($errors)) {
-            // Valid submission - process it
-            try {
-                require_once(__DIR__ . '/classes/local/theme_builder.php');
-                
-                $result = \aiplacement_modgen\local\theme_builder::create_themes($courseid, $themecount, $weeksperTheme);
-                
-                if ($result['success']) {
-                    // Return success HTML with messages.
-                    $html = html_writer::start_div('alert alert-success');
-                    $html .= html_writer::tag('h4', get_string('themescreated', 'aiplacement_modgen', $themecount));
-                    $html .= html_writer::start_tag('ul');
-                    foreach ($result['messages'] as $message) {
-                        $html .= html_writer::tag('li', $message);
-                    }
-                    $html .= html_writer::end_tag('ul');
-                    $html .= html_writer::end_div();
-                    
-                    // Add return to course link.
-                    $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
-                    $html .= html_writer::div(
-                        html_writer::link($courseurl, get_string('returntocourseview', 'aiplacement_modgen'), 
-                            ['class' => 'btn btn-primary mt-3']),
-                        'text-center'
-                    );
-                    
-                    return $html;
-                }
-            } catch (Exception $e) {
-                // Return error HTML.
-                $html = html_writer::div(
-                    html_writer::tag('h4', get_string('error')) . 
-                    html_writer::tag('p', $e->getMessage()),
-                    'alert alert-danger'
-                );
-                return $html;
-            }
-        } else {
-            // Validation errors - show form with errors
-            $html = html_writer::div(
-                html_writer::tag('h4', get_string('error')) . 
-                html_writer::tag('ul', array_reduce($errors, function($carry, $error) {
-                    return $carry . html_writer::tag('li', $error);
-                }, '')),
-                'alert alert-danger'
-            );
-            $html .= $form->render();
-            return $html;
-        }
+        $context = context_course::instance($courseid);
+
+        // Verify permission.
+        require_capability('moodle/course:update', $context);
+
+        // Set page context for proper JS/CSS loading.
+        $PAGE->set_context($context);
+
+        // Create form using moodleform.
+        require_once(__DIR__ . '/classes/form/add_theme_form.php');
+        $formdata = ['courseid' => $courseid];
+        $form = new \aiplacement_modgen_add_theme_form(null, $formdata);
+
+        // Set default data.
+        $form->set_data((object)$formdata);
+
+        // Return rendered form HTML.
+        // Submission will be handled by JavaScript AJAX to create_sections.php
+        $html = $form->render();
+        error_log("Fragment form_add_theme - rendered successfully, length: " . strlen($html));
+        return $html;
+    } catch (\Exception $e) {
+        error_log("Fragment form_add_theme ERROR: " . $e->getMessage());
+        error_log("Stack trace: " . $e->getTraceAsString());
+        throw $e;
     }
-
-    // Form not submitted yet - return form HTML.
-    $form->set_data((object)$formdata);
-    return $form->render();
 }
 
 /**
  * Fragment callback to render the add_week form in a modal.
+ *
+ * This only renders the form HTML using moodleform.
+ * Submission is handled via AJAX (ajax/create_sections.php).
  *
  * @param array $args Fragment arguments containing courseid
  * @return string Rendered form HTML
@@ -300,7 +260,6 @@ function aiplacement_modgen_output_fragment_form_add_week(array $args): string {
 
     // Ensure required libraries are loaded.
     require_once($CFG->libdir . '/formslib.php');
-    require_once($CFG->dirroot . '/course/lib.php');
 
     // Validate parameters.
     $courseid = clean_param($args['courseid'], PARAM_INT);
@@ -312,74 +271,15 @@ function aiplacement_modgen_output_fragment_form_add_week(array $args): string {
     // Set page context for proper JS/CSS loading.
     $PAGE->set_context($context);
 
-    // Create form.
+    // Create form using moodleform.
     require_once(__DIR__ . '/classes/form/add_week_form.php');
     $formdata = ['courseid' => $courseid];
     $form = new \aiplacement_modgen_add_week_form(null, $formdata);
 
-    // Check if this is a form submission (has weekcount parameter from JS)
-    if (isset($args['weekcount'])) {
-        // Manually process the submission since Fragment API doesn't populate $_POST
-        $weekcount = clean_param($args['weekcount'], PARAM_INT);
-        
-        // Validate
-        $errors = [];
-        if ($weekcount < 1 || $weekcount > 10) {
-            $errors[] = get_string('invalidcount', 'aiplacement_modgen');
-        }
-        
-        if (empty($errors)) {
-            // Valid submission - process it
-            try {
-                require_once(__DIR__ . '/classes/local/theme_builder.php');
-                
-                $result = \aiplacement_modgen\local\theme_builder::create_weeks($courseid, $weekcount);
-                
-                if ($result['success']) {
-                    // Return success HTML with messages.
-                    $html = html_writer::start_div('alert alert-success');
-                    $html .= html_writer::tag('h4', get_string('weekscreated', 'aiplacement_modgen', $weekcount));
-                    $html .= html_writer::start_tag('ul');
-                    foreach ($result['messages'] as $message) {
-                        $html .= html_writer::tag('li', $message);
-                    }
-                    $html .= html_writer::end_tag('ul');
-                    $html .= html_writer::end_div();
-                    
-                    // Add return to course link.
-                    $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
-                    $html .= html_writer::div(
-                        html_writer::link($courseurl, get_string('returntocourseview', 'aiplacement_modgen'), 
-                            ['class' => 'btn btn-primary mt-3']),
-                        'text-center'
-                    );
-                    
-                    return $html;
-                }
-            } catch (Exception $e) {
-                // Return error HTML.
-                $html = html_writer::div(
-                    html_writer::tag('h4', get_string('error')) . 
-                    html_writer::tag('p', $e->getMessage()),
-                    'alert alert-danger'
-                );
-                return $html;
-            }
-        } else {
-            // Validation errors - show form with errors
-            $html = html_writer::div(
-                html_writer::tag('h4', get_string('error')) . 
-                html_writer::tag('ul', array_reduce($errors, function($carry, $error) {
-                    return $carry . html_writer::tag('li', $error);
-                }, '')),
-                'alert alert-danger'
-            );
-            $html .= $form->render();
-            return $html;
-        }
-    }
-
-    // Form not submitted yet - return form HTML.
+    // Set default data.
     $form->set_data((object)$formdata);
+
+    // Return rendered form HTML.
+    // Submission will be handled by JavaScript AJAX to create_sections.php
     return $form->render();
 }

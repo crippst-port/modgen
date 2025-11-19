@@ -210,12 +210,13 @@ class ModalGeneratorComponent extends BaseComponent {
     }
 
     /**
-     * Load a form in the modal via Fragment API.
+     * Load a form in the modal using Fragment API to render moodleform.
      *
      * @param {string} formName Form fragment name (e.g., 'add_theme', 'add_week')
      * @param {string} title Modal title
      */
     loadFormInModal(formName, title) {
+        // Use Fragment API to render the moodleform HTML
         Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
             courseid: this.courseid,
         })
@@ -232,7 +233,7 @@ class ModalGeneratorComponent extends BaseComponent {
                 this.reactive.dispatch('closeModal');
             });
 
-            // Handle form submission
+            // Handle form submission via AJAX instead of Fragment reload
             this.setupFormSubmission(modal, formName);
 
             this.reactive.dispatch('formLoaded');
@@ -246,12 +247,10 @@ class ModalGeneratorComponent extends BaseComponent {
     /**
      * Setup form submission handler for modal forms.
      *
-     * When the form is submitted, reload the fragment with the form data.
-     * The fragment callback will process the submission and return either
-     * the form again (with errors) or a success message.
+     * Submits form via AJAX to create_sections.php endpoint.
      *
      * @param {Object} modal The modal instance
-     * @param {string} formName Form fragment name
+     * @param {string} formName Form name ('add_theme' or 'add_week')
      */
     setupFormSubmission(modal, formName) {
         const modalRoot = modal.getRoot();
@@ -262,14 +261,25 @@ class ModalGeneratorComponent extends BaseComponent {
             const form = e.target;
             const formData = new FormData(form);
             
-            // Convert FormData to params object for Fragment API
+            // Determine action based on form name
+            const action = formName === 'add_theme' ? 'create_themes' : 'create_weeks';
+            
+            // Build params object - start with required params
             const params = {
                 courseid: this.courseid,
+                sesskey: M.cfg.sesskey,
             };
             
+            // Add form fields to params (but skip internal moodleform fields)
             formData.forEach((value, key) => {
-                params[key] = value;
+                // Skip moodleform internal fields, buttons, and action field
+                if (!key.startsWith('_qf__') && key !== 'submitbutton' && key !== 'courseid' && key !== 'action') {
+                    params[key] = value;
+                }
             });
+            
+            // Set action AFTER adding form fields to ensure it's not overwritten
+            params.action = action;
             
             // Show loading indicator
             modal.setBody('<div class="text-center p-5">' +
@@ -278,25 +288,52 @@ class ModalGeneratorComponent extends BaseComponent {
                 '</div>' +
                 '</div>');
             
-            // Reload fragment with form data (this triggers submission in fragment callback)
-            Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, params)
-                .then((html) => {
-                    modal.setBody(html);
+            // POST to AJAX endpoint
+            fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/create_sections.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams(params),
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Build success message HTML
+                    let successHtml = '<div class="alert alert-success">';
+                    successHtml += '<p>' + data.message + '</p>';
                     
-                    // Check if response contains success message
-                    if (html.indexOf('alert-success') !== -1) {
-                        // Success! Form was processed.
-                        // The HTML now contains success message and return link
-                        // No need to re-setup form submission
-                    } else {
-                        // Form was redisplayed (probably with errors)
-                        // Re-setup form submission for next attempt
-                        this.setupFormSubmission(modal, formName);
+                    // Add detailed messages if present
+                    if (data.messages && data.messages.length > 0) {
+                        successHtml += '<ul>';
+                        data.messages.forEach(msg => {
+                            successHtml += '<li>' + msg + '</li>';
+                        });
+                        successHtml += '</ul>';
                     }
                     
-                    return html;
-                })
-                .catch(Notification.exception);
+                    // Add return to course button
+                    const courseUrl = M.cfg.wwwroot + '/course/view.php?id=' + this.courseid;
+                    successHtml += '<p class="mt-3">';
+                    successHtml += '<a href="' + courseUrl + '" class="btn btn-primary">';
+                    successHtml += M.util.get_string('returntocourseview', 'aiplacement_modgen');
+                    successHtml += '</a>';
+                    successHtml += '</p>';
+                    successHtml += '</div>';
+                    
+                    modal.setBody(successHtml);
+                } else {
+                    // Show error message
+                    const errorHtml = '<div class="alert alert-danger">' +
+                        '<p>' + (data.error || 'An error occurred') + '</p>' +
+                        '</div>';
+                    modal.setBody(errorHtml);
+                }
+                return data;
+            })
+            .catch(error => {
+                Notification.exception(error);
+            });
         });
     }
 

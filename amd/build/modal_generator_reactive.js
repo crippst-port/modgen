@@ -143,20 +143,51 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         e.preventDefault();
         const form = e.target;
         const formData = new FormData(form);
+        const action = formName === 'add_theme' ? 'create_themes' : 'create_weeks';
         const params = {
-          courseid: this.courseid
+          courseid: this.courseid,
+          sesskey: M.cfg.sesskey
         };
         formData.forEach((value, key) => {
-          params[key] = value;
-        });
-        modal.setBody('<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">Loading...</span>' + '</div>' + '</div>');
-        _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, params).then(html => {
-          modal.setBody(html);
-          if (html.indexOf('alert-success') !== -1) {} else {
-            this.setupFormSubmission(modal, formName);
+          if (!key.startsWith('_qf__') && key !== 'submitbutton' && key !== 'courseid' && key !== 'action') {
+            params[key] = value;
           }
-          return html;
-        }).catch(_notification.default.exception);
+        });
+        params.action = action;
+        modal.setBody('<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">Loading...</span>' + '</div>' + '</div>');
+        fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/create_sections.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams(params)
+        }).then(response => response.json()).then(data => {
+          if (data.success) {
+            let successHtml = '<div class="alert alert-success">';
+            successHtml += '<p>' + data.message + '</p>';
+            if (data.messages && data.messages.length > 0) {
+              successHtml += '<ul>';
+              data.messages.forEach(msg => {
+                successHtml += '<li>' + msg + '</li>';
+              });
+              successHtml += '</ul>';
+            }
+            const courseUrl = M.cfg.wwwroot + '/course/view.php?id=' + this.courseid;
+            successHtml += '<p class="mt-3">';
+            successHtml += '<a href="' + courseUrl + '" class="btn btn-primary">';
+            successHtml += M.util.get_string('returntocourseview', 'aiplacement_modgen');
+            successHtml += '</a>';
+            successHtml += '</p>';
+            successHtml += '</div>';
+            modal.setBody(successHtml);
+          } else {
+            const errorHtml = '<div class="alert alert-danger">' + '<p>' + (data.error || 'An error occurred') + '</p>' + '</div>';
+            modal.setBody(errorHtml);
+          }
+          return data;
+        }).catch(error => {
+          _notification.default.exception(error);
+        });
       });
     }
     showGeneratorLink(title) {

@@ -298,4 +298,7 @@ $string['addweek'] = 'Add Week';
 $string['newtheme'] = 'New Theme';
 $string['newweek'] = 'New Week';
 $string['quickadd'] = 'Quick Add';
+$string['themecount'] = 'How many themes do you want to create?';
+$string['weekcount'] = 'How many weeks do you want to create?';
+$string['invalidcount'] = 'Please select a number between 1 and 10';
 

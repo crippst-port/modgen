@@ -39,15 +39,13 @@ class aiplacement_modgen_add_theme_form extends moodleform {
         $mform->addElement('hidden', 'courseid');
         $mform->setType('courseid', PARAM_INT);
 
-        // Theme title.
-        $mform->addElement('text', 'title', get_string('title', 'aiplacement_modgen'));
-        $mform->setType('title', PARAM_TEXT);
-        $mform->addRule('title', get_string('required'), 'required', null, 'client');
-
-        // Theme summary.
-        $mform->addElement('textarea', 'summary', get_string('summary', 'aiplacement_modgen'),
-            ['rows' => 4, 'cols' => 50]);
-        $mform->setType('summary', PARAM_RAW);
+        // Number of themes to create (1-10).
+        $options = [];
+        for ($i = 1; $i <= 10; $i++) {
+            $options[$i] = $i;
+        }
+        $mform->addElement('select', 'count', get_string('themecount', 'aiplacement_modgen'), $options);
+        $mform->setDefault('count', 1);
 
         // Submit button.
         $this->add_action_buttons(true, get_string('addtheme', 'aiplacement_modgen'));
@@ -63,8 +61,8 @@ class aiplacement_modgen_add_theme_form extends moodleform {
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
-        if (empty($data['title']) || trim($data['title']) === '') {
-            $errors['title'] = get_string('required');
+        if (empty($data['count']) || $data['count'] < 1 || $data['count'] > 10) {
+            $errors['count'] = get_string('invalidcount', 'aiplacement_modgen');
         }
 
         return $errors;

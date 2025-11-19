@@ -297,4 +297,5 @@ $string['addtheme'] = 'Add Theme';
 $string['addweek'] = 'Add Week';
 $string['newtheme'] = 'New Theme';
 $string['newweek'] = 'New Week';
+$string['quickadd'] = 'Quick Add';
 

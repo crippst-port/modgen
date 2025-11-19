@@ -3,7 +3,7 @@
     @description Navigation bar for Module Assistant tools shown at top of course when editing
 }}
 <nav class="navbar navbar-expand-lg navbar-dark aiplacement-modgen-navbar px-3">
-    <a class="navbar-brand" href="#">{{navtitle}}</a>
+    <a class="navbar-brand" href="#">{{#str}}navtitle, aiplacement_modgen{{/str}}</a>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#aimodgenNavbar" aria-controls="aimodgenNavbar" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
     </button>
@@ -24,21 +24,21 @@
 
          <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle btn btn-primary btn-sm" href="#" role="button" data-toggle="dropdown" aria-expanded="false">
-          <i class="fa fa-plus-circle mr-1"></i> Quick Add 
+          <i class="fa fa-plus-circle mr-1"></i> {{#str}}quickadd, aiplacement_modgen{{/str}}
         </a>
         
         <div class="dropdown-menu">
          
-          <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="add_theme" data-title="{{newtheme}}">
-                    <i class="fas fa-book"></i> New Theme
+          <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="add_theme" data-title="{{#str}}newtheme, aiplacement_modgen{{/str}}">
+                    <i class="fas fa-book"></i> {{#str}}newtheme, aiplacement_modgen{{/str}}
                 </a>
-                <a href="#" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="add_week" data-title="{{newweek}}">
-                    <i class="fas fa-calendar"></i> New Week
+                <a href="#" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="add_week" data-title="{{#str}}newweek, aiplacement_modgen{{/str}}">
+                    <i class="fas fa-calendar"></i> {{#str}}newweek, aiplacement_modgen{{/str}}
                 </a>
                 {{#showgenerator}}
                 <div class="dropdown-divider"></div>
           <a href="{{generatorurl}}" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="open-generator">
-                    <i class="fa fa-plus-circle"></i> {{generatorlabel}}
+                    <i class="fa fa-plus-circle"></i> {{#str}}generatorlabel, aiplacement_modgen{{/str}}
                 </a>
           
           {{/showgenerator}}
@@ -51,7 +51,7 @@
             {{#showexplore}}
             <li class="nav-item">
                 <a href="{{exploreurl}}" class="nav-link aiplacement-modgen-nav-link aiplacement-modgen-nav-link--secondary">
-                    <i class="fa fa-chart-bar"></i> {{explorelabel}}
+                    <i class="fa fa-chart-bar"></i> {{#str}}explorelabel, aiplacement_modgen{{/str}}
                 </a>
             </li>
             {{/showexplore}}

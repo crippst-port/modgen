@@ -64,24 +64,17 @@ class course_toolbar implements renderable, templatable {
      */
     public function export_for_template(renderer_base $output): stdClass {
         $data = new stdClass();
-        $data->navtitle = get_string('navtitle', 'aiplacement_modgen');
         $data->showgenerator = $this->showgenerator;
         $data->showexplore = $this->showexplore;
-        
-        // Quick add button labels.
-        $data->newtheme = get_string('newtheme', 'aiplacement_modgen');
-        $data->newweek = get_string('newweek', 'aiplacement_modgen');
         
         if ($this->showgenerator) {
             $generatorurl = new moodle_url('/ai/placement/modgen/modal.php', ['id' => $this->courseid]);
             $data->generatorurl = $generatorurl->out(false);
-            $data->generatorlabel = get_string('generatorlabel', 'aiplacement_modgen');
         }
         
         if ($this->showexplore) {
             $exploreurl = new moodle_url('/ai/placement/modgen/explore.php', ['id' => $this->courseid]);
             $data->exploreurl = $exploreurl->out(false);
-            $data->explorelabel = get_string('explorelabel', 'aiplacement_modgen');
         }
         
         return $data;

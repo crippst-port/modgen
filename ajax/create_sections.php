@@ -44,8 +44,9 @@ error_log('create_sections.php - GET data: ' . print_r($_GET, true));
 // Get parameters.
 $courseid = required_param('courseid', PARAM_INT);
 $action = required_param('action', PARAM_ALPHAEXT); // 'create_themes' or 'create_weeks' (ALPHAEXT allows underscores)
+$parentsection = optional_param('parentsection', 0, PARAM_INT); // Current section to add content within
 
-error_log("create_sections.php - courseid: $courseid, action: $action");
+error_log("create_sections.php - courseid: $courseid, action: $action, parentsection: $parentsection");
 
 // Verify course access and permissions.
 $context = context_course::instance($courseid);
@@ -78,8 +79,8 @@ try {
             throw new moodle_exception('invalidcount', 'aiplacement_modgen');
         }
 
-        // Create themes.
-        $result = \aiplacement_modgen\local\theme_builder::create_themes($courseid, $themecount, $weeksperTheme);
+        // Create themes within current section.
+        $result = \aiplacement_modgen\local\theme_builder::create_themes($courseid, $themecount, $weeksperTheme, $parentsection);
 
         if ($result['success']) {
             $response['success'] = true;
@@ -96,8 +97,8 @@ try {
             throw new moodle_exception('invalidcount', 'aiplacement_modgen');
         }
 
-        // Create weeks.
-        $result = \aiplacement_modgen\local\theme_builder::create_weeks($courseid, $weekcount);
+        // Create weeks within current section.
+        $result = \aiplacement_modgen\local\theme_builder::create_weeks($courseid, $weekcount, $parentsection);
 
         if ($result['success']) {
             $response['success'] = true;

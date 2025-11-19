@@ -142,6 +142,7 @@ class ModalGeneratorComponent extends BaseComponent {
     create(descriptor) {
         this.courseid = descriptor.courseid;
         this.contextid = descriptor.contextid;
+        this.currentsection = descriptor.currentsection || 0;
         this.modal = null;
     }
 
@@ -255,8 +256,20 @@ class ModalGeneratorComponent extends BaseComponent {
     setupFormSubmission(modal, formName) {
         const modalRoot = modal.getRoot();
         
+        // Track which button was clicked
+        let clickedButton = null;
+        modalRoot.on('click', 'input[type="submit"]', function() {
+            clickedButton = this.getAttribute('name');
+        });
+        
         modalRoot.on('submit', 'form', (e) => {
             e.preventDefault();
+            
+            // If cancel button was clicked, just close modal
+            if (clickedButton === 'cancel') {
+                modal.destroy();
+                return;
+            }
             
             const form = e.target;
             const formData = new FormData(form);
@@ -268,6 +281,7 @@ class ModalGeneratorComponent extends BaseComponent {
             const params = {
                 courseid: this.courseid,
                 sesskey: M.cfg.sesskey,
+                parentsection: this.currentsection, // Current section to add content within
             };
             
             // Add form fields to params (but skip internal moodleform fields)
@@ -316,7 +330,7 @@ class ModalGeneratorComponent extends BaseComponent {
                     const courseUrl = M.cfg.wwwroot + '/course/view.php?id=' + this.courseid;
                     successHtml += '<p class="mt-3">';
                     successHtml += '<a href="' + courseUrl + '" class="btn btn-primary">';
-                    successHtml += M.util.get_string('returntocourseview', 'aiplacement_modgen');
+                    successHtml += 'Return to course';
                     successHtml += '</a>';
                     successHtml += '</p>';
                     successHtml += '</div>';
@@ -403,14 +417,16 @@ class ModalGeneratorComponent extends BaseComponent {
  *
  * @param {number} courseid Course ID
  * @param {number} contextid Context ID
+ * @param {number} currentsection Current section number
  * @returns {ModalGeneratorComponent} The component instance
  */
-export const init = (courseid, contextid) => {
+export const init = (courseid, contextid, currentsection = 0) => {
     const component = new ModalGeneratorComponent({
         element: document.body,
         reactive: reactiveInstance,
         courseid,
         contextid,
+        currentsection,
     });
     
     return component;

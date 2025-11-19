@@ -77,6 +77,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
     create(descriptor) {
       this.courseid = descriptor.courseid;
       this.contextid = descriptor.contextid;
+      this.currentsection = descriptor.currentsection || 0;
       this.modal = null;
     }
     stateReady() {}
@@ -139,14 +140,23 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
     }
     setupFormSubmission(modal, formName) {
       const modalRoot = modal.getRoot();
+      let clickedButton = null;
+      modalRoot.on('click', 'input[type="submit"]', function () {
+        clickedButton = this.getAttribute('name');
+      });
       modalRoot.on('submit', 'form', e => {
         e.preventDefault();
+        if (clickedButton === 'cancel') {
+          modal.destroy();
+          return;
+        }
         const form = e.target;
         const formData = new FormData(form);
         const action = formName === 'add_theme' ? 'create_themes' : 'create_weeks';
         const params = {
           courseid: this.courseid,
-          sesskey: M.cfg.sesskey
+          sesskey: M.cfg.sesskey,
+          parentsection: this.currentsection
         };
         formData.forEach((value, key) => {
           if (!key.startsWith('_qf__') && key !== 'submitbutton' && key !== 'courseid' && key !== 'action') {
@@ -175,7 +185,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
             const courseUrl = M.cfg.wwwroot + '/course/view.php?id=' + this.courseid;
             successHtml += '<p class="mt-3">';
             successHtml += '<a href="' + courseUrl + '" class="btn btn-primary">';
-            successHtml += M.util.get_string('returntocourseview', 'aiplacement_modgen');
+            successHtml += 'Return to course';
             successHtml += '</a>';
             successHtml += '</p>';
             successHtml += '</div>';
@@ -216,12 +226,14 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       this.reactive.dispatch('closeModal');
     }
   }
-  const init = (courseid, contextid) => {
+  const init = function (courseid, contextid) {
+    let currentsection = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
     const component = new ModalGeneratorComponent({
       element: document.body,
       reactive: reactiveInstance,
       courseid,
-      contextid
+      contextid,
+      currentsection
     });
     return component;
   };

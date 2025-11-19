@@ -46,9 +46,10 @@ class theme_builder {
      * @param int $courseid Course ID
      * @param int $themecount Number of themes to create (1-10)
      * @param int $weeksperTheme Number of weeks per theme (1-10)
+     * @param int $parent Parent section number (0 = top level, N = nested under section N)
      * @return array Result with 'success' boolean and 'messages' array
      */
-    public static function create_themes($courseid, $themecount, $weeksperTheme) {
+    public static function create_themes($courseid, $themecount, $weeksperTheme, $parent = 0) {
         global $DB;
 
         $messages = [];
@@ -71,8 +72,8 @@ class theme_builder {
                 $themetitle = get_string('defaultthemename', 'aiplacement_modgen', $i);
                 $themesummary = get_string('defaultthemesummary', 'aiplacement_modgen');
 
-                // Create theme section.
-                $options = ['collapsed' => 1]; // Theme appears as link.
+                // Create theme section under parent.
+                $options = ['collapsed' => 1, 'parent' => $parent]; // Theme appears as link.
                 $themesectionnum = self::create_theme_section(
                     $courseid,
                     $courseformat,
@@ -127,13 +128,14 @@ class theme_builder {
     /**
      * Create standalone weeks with sessions (Quick Add workflow).
      *
-     * Creates weeks at top level (not under a theme) with pre/session/post subsections.
+     * Creates weeks under specified parent section with pre/session/post subsections.
      *
      * @param int $courseid Course ID
      * @param int $weekcount Number of weeks to create (1-10)
+     * @param int $parent Parent section number (0 = top level, N = nested under section N)
      * @return array Result with 'success' boolean and 'messages' array
      */
-    public static function create_weeks($courseid, $weekcount) {
+    public static function create_weeks($courseid, $weekcount, $parent = 0) {
         global $DB;
 
         $messages = [];
@@ -160,7 +162,7 @@ class theme_builder {
                 $weeksectionnum = self::create_week_section(
                     $courseid,
                     $courseformat,
-                    0, // Parent 0 = top level
+                    $parent, // Use provided parent section
                     $weektitle,
                     $weeksummary,
                     $weekoptions

@@ -36,10 +36,11 @@ let modalComponent = null;
  * @param {number} config.contextid Context ID
  * @param {boolean} config.showgenerator Show generator button
  * @param {boolean} config.showexplore Show explore button
+ * @param {number} config.currentsection Current section number (for context-aware creation)
  */
 export const init = (config) => {
-    // Initialize modal component once for reuse.
-    modalComponent = initModalComponent(config.courseid, config.contextid);
+    // Initialize modal component once for reuse, passing current section.
+    modalComponent = initModalComponent(config.courseid, config.contextid, config.currentsection || 0);
 
     // Load toolbar HTML via Fragment API
     Fragment.loadFragment('aiplacement_modgen', 'course_toolbar', config.contextid, {

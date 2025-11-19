@@ -17,7 +17,7 @@ define(["exports", "core/fragment", "core/notification", "aiplacement_modgen/mod
    */
   let modalComponent = null;
   const init = config => {
-    modalComponent = (0, _modal_generator_reactive.init)(config.courseid, config.contextid);
+    modalComponent = (0, _modal_generator_reactive.init)(config.courseid, config.contextid, config.currentsection || 0);
     _fragment.default.loadFragment('aiplacement_modgen', 'course_toolbar', config.contextid, {
       courseid: config.courseid,
       showgenerator: config.showgenerator ? 1 : 0,

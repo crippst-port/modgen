@@ -57,10 +57,13 @@ function aiplacement_modgen_extend_navigation_course(
         $explore_enabled = !empty(get_config('aiplacement_modgen', 'enable_exploration'));
         $showexplore = $ai_generation_enabled && $explore_enabled;
         
-        // Only render nav bar if at least one tool is available
+                // Only render nav bar if at least one tool is available
         if ($showgenerator || $showexplore) {
             // Load CSS
             $PAGE->requires->css('/ai/placement/modgen/styles.css');
+            
+            // Get current section from URL (for context-aware creation)
+            $currentsection = optional_param('section', 0, PARAM_INT);
             
             // Initialize toolbar via AMD module using Fragment API
             $PAGE->requires->js_call_amd('aiplacement_modgen/course_toolbar', 'init', [[
@@ -68,6 +71,7 @@ function aiplacement_modgen_extend_navigation_course(
                 'contextid' => $context->id,
                 'showgenerator' => $showgenerator,
                 'showexplore' => $showexplore,
+                'currentsection' => $currentsection,
             ]]);
         }
     }

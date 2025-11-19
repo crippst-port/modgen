@@ -180,16 +180,78 @@ function aiplacement_modgen_output_fragment_generator_form(array $args): string 
     ];
     $form = new \aiplacement_modgen_generator_form(null, $formdata);
     
-    // Set the draft area data
+    // Set the draft area data.
     $formdefaults = new stdClass();
     $formdefaults->supportingfiles = $draftitemid;
     $form->set_data($formdefaults);
     
-    // Return rendered form
-    // Fragment API automatically handles JavaScript initialization
+    // Return rendered form.
+    // Fragment API automatically handles JavaScript initialization.
     return $form->render();
 }
 
+/**
+ * Fragment callback to render the add_theme form in a modal.
+ *
+ * @param array $args Fragment arguments containing courseid
+ * @return string Rendered form HTML
+ */
+function aiplacement_modgen_output_fragment_form_add_theme(array $args): string {
+    global $PAGE, $CFG;
 
+    // Ensure required libraries are loaded.
+    require_once($CFG->libdir . '/formslib.php');
 
+    // Validate parameters.
+    $courseid = clean_param($args['courseid'], PARAM_INT);
+    $context = context_course::instance($courseid);
 
+    // Verify permission.
+    require_capability('moodle/course:update', $context);
+
+    // Set page context for proper JS/CSS loading.
+    $PAGE->set_context($context);
+
+    // Create form.
+    require_once(__DIR__ . '/classes/form/add_theme_form.php');
+    $formdata = ['courseid' => $courseid];
+    $form = new \aiplacement_modgen_add_theme_form(null, $formdata);
+
+    // Set default data.
+    $form->set_data((object)$formdata);
+
+    return $form->render();
+}
+
+/**
+ * Fragment callback to render the add_week form in a modal.
+ *
+ * @param array $args Fragment arguments containing courseid
+ * @return string Rendered form HTML
+ */
+function aiplacement_modgen_output_fragment_form_add_week(array $args): string {
+    global $PAGE, $CFG;
+
+    // Ensure required libraries are loaded.
+    require_once($CFG->libdir . '/formslib.php');
+
+    // Validate parameters.
+    $courseid = clean_param($args['courseid'], PARAM_INT);
+    $context = context_course::instance($courseid);
+
+    // Verify permission.
+    require_capability('moodle/course:update', $context);
+
+    // Set page context for proper JS/CSS loading.
+    $PAGE->set_context($context);
+
+    // Create form.
+    require_once(__DIR__ . '/classes/form/add_week_form.php');
+    $formdata = ['courseid' => $courseid];
+    $form = new \aiplacement_modgen_add_week_form(null, $formdata);
+
+    // Set default data.
+    $form->set_data((object)$formdata);
+
+    return $form->render();
+}

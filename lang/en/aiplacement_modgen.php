@@ -289,3 +289,12 @@ $string['noweeks'] = 'No weeks defined';
 $string['noactivities'] = 'No activities defined';
 $string['regenerate'] = 'Regenerate';
 $string['modulestructureinfo'] = 'This preview shows the structure and organisation of the module that will be created. It is a schematic representation and does not reflect how the content will appear in Moodle. Click "Create" below to proceed with creating the module in your course.';
+
+// Quick add forms
+$string['title'] = 'Title';
+$string['summary'] = 'Summary';
+$string['addtheme'] = 'Add Theme';
+$string['addweek'] = 'Add Week';
+$string['newtheme'] = 'New Theme';
+$string['newweek'] = 'New Week';
+

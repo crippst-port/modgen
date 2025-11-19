@@ -23,6 +23,10 @@
 
 import Fragment from 'core/fragment';
 import Notification from 'core/notification';
+import {init as initModalComponent} from 'aiplacement_modgen/modal_generator_reactive';
+
+// Store modal component instance for button handlers.
+let modalComponent = null;
 
 /**
  * Initialize the course navigation toolbar.
@@ -34,6 +38,9 @@ import Notification from 'core/notification';
  * @param {boolean} config.showexplore Show explore button
  */
 export const init = (config) => {
+    // Initialize modal component once for reuse.
+    modalComponent = initModalComponent(config.courseid, config.contextid);
+
     // Load toolbar HTML via Fragment API
     Fragment.loadFragment('aiplacement_modgen', 'course_toolbar', config.contextid, {
         courseid: config.courseid,
@@ -52,12 +59,15 @@ export const init = (config) => {
             if (collapseToggle && collapseTarget && window.$ && window.$.fn && window.$.fn.collapse) {
                 // Initialize Bootstrap 4 collapse
                 window.$(collapseTarget).collapse({toggle: false});
-                
+
                 // Handle toggle button clicks
                 collapseToggle.addEventListener('click', () => {
                     window.$(collapseTarget).collapse('toggle');
                 });
             }
+
+            // Setup quick add buttons for theme/week forms.
+            setupQuickAddButtons();
 
             // Attach event listener to generator button if present
             if (config.showgenerator) {
@@ -67,6 +77,23 @@ export const init = (config) => {
         return html;
     })
     .catch(Notification.exception);
+};
+
+/**
+ * Setup quick add buttons to open modal with forms.
+ */
+const setupQuickAddButtons = () => {
+    const quickAddButtons = document.querySelectorAll('[data-action="quick-add"]');
+    quickAddButtons.forEach((button) => {
+        button.addEventListener('click', (e) => {
+            e.preventDefault();
+            const formName = button.getAttribute('data-form');
+            const title = button.getAttribute('data-title');
+            if (formName && title && modalComponent) {
+                modalComponent.openWithForm(formName, title);
+            }
+        });
+    });
 };
 
 /**

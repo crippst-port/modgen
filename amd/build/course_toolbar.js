@@ -1,4 +1,4 @@
-define(["exports", "core/fragment", "core/notification"], function (_exports, _fragment, _notification) {
+define(["exports", "core/fragment", "core/notification", "aiplacement_modgen/modal_generator_reactive"], function (_exports, _fragment, _notification, _modal_generator_reactive) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -15,7 +15,9 @@ define(["exports", "core/fragment", "core/notification"], function (_exports, _f
    * @copyright  2025 Tom Cripps <tom.cripps@port.ac.uk>
    * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
    */
+  let modalComponent = null;
   const init = config => {
+    modalComponent = (0, _modal_generator_reactive.init)(config.courseid, config.contextid);
     _fragment.default.loadFragment('aiplacement_modgen', 'course_toolbar', config.contextid, {
       courseid: config.courseid,
       showgenerator: config.showgenerator ? 1 : 0,
@@ -34,6 +36,7 @@ define(["exports", "core/fragment", "core/notification"], function (_exports, _f
             window.$(collapseTarget).collapse('toggle');
           });
         }
+        setupQuickAddButtons();
         if (config.showgenerator) {
           setupGeneratorButton(config.courseid);
         }
@@ -42,6 +45,19 @@ define(["exports", "core/fragment", "core/notification"], function (_exports, _f
     }).catch(_notification.default.exception);
   };
   _exports.init = init;
+  const setupQuickAddButtons = () => {
+    const quickAddButtons = document.querySelectorAll('[data-action="quick-add"]');
+    quickAddButtons.forEach(button => {
+      button.addEventListener('click', e => {
+        e.preventDefault();
+        const formName = button.getAttribute('data-form');
+        const title = button.getAttribute('data-title');
+        if (formName && title && modalComponent) {
+          modalComponent.openWithForm(formName, title);
+        }
+      });
+    });
+  };
   const setupGeneratorButton = courseid => {
     const generatorBtn = document.querySelector('[data-action="open-generator"]');
     if (!generatorBtn) {

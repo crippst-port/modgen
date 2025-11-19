@@ -23,6 +23,7 @@
 
 import {Reactive, BaseComponent} from 'core/reactive';
 import {dispatchEvent} from 'core/event_dispatcher';
+import Fragment from 'core/fragment';
 import ModgenModal from 'aiplacement_modgen/modal';
 import Notification from 'core/notification';
 import ModalEvents from 'core/modal_events';
@@ -51,14 +52,32 @@ const notifyStateChanged = (detail, container) => {
  */
 class ModalMutations {
     /**
-     * Open the modal.
+     * Open the modal with specific content.
      *
-     * @param {StateManager} stateManager
+     * @param {StateManager} stateManager State manager
+     * @param {string} formName Form name to load (e.g., 'add_theme', 'add_week')
+     * @param {string} title Modal title
+     */
+    openModalWithForm(stateManager, formName, title) {
+        stateManager.setReadOnly(false);
+        stateManager.state.modal.isOpen = true;
+        stateManager.state.modal.isLoading = true;
+        stateManager.state.modal.formName = formName;
+        stateManager.state.modal.title = title;
+        stateManager.setReadOnly(true);
+    }
+
+    /**
+     * Open the modal (legacy - for generator button).
+     *
+     * @param {StateManager} stateManager State manager
      */
     openModal(stateManager) {
         stateManager.setReadOnly(false);
         stateManager.state.modal.isOpen = true;
         stateManager.state.modal.isLoading = true;
+        stateManager.state.modal.formName = null;
+        stateManager.state.modal.title = 'Module Generator';
         stateManager.setReadOnly(true);
     }
 
@@ -71,6 +90,8 @@ class ModalMutations {
         stateManager.setReadOnly(false);
         stateManager.state.modal.isOpen = false;
         stateManager.state.modal.isLoading = false;
+        stateManager.state.modal.formName = null;
+        stateManager.state.modal.title = '';
         stateManager.setReadOnly(true);
     }
 
@@ -96,6 +117,8 @@ const reactiveInstance = new Reactive({
             modal: {
                 isOpen: false,
                 isLoading: false,
+                formName: null,
+                title: '',
             },
             form: {
                 isValid: false,
@@ -174,6 +197,55 @@ class ModalGeneratorComponent extends BaseComponent {
      * Create and show the modal.
      */
     createModal() {
+        const formName = this.reactive.state.modal.formName;
+        const title = this.reactive.state.modal.title || 'Module Generator';
+
+        // If formName is set, load form via Fragment API
+        if (formName) {
+            this.loadFormInModal(formName, title);
+        } else {
+            // Legacy behavior: show link to prompt.php
+            this.showGeneratorLink(title);
+        }
+    }
+
+    /**
+     * Load a form in the modal via Fragment API.
+     *
+     * @param {string} formName Form fragment name (e.g., 'add_theme', 'add_week')
+     * @param {string} title Modal title
+     */
+    loadFormInModal(formName, title) {
+        Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
+            courseid: this.courseid,
+        })
+        .then((html) => ModgenModal.create({
+            title: title,
+            body: html,
+            large: false,
+        }))
+        .then((modal) => {
+            this.modal = modal;
+
+            // Listen for modal hide/close events and update reactive state
+            this.modal.getRoot().on(ModalEvents.hidden, () => {
+                this.reactive.dispatch('closeModal');
+            });
+
+            this.reactive.dispatch('formLoaded');
+            this.modal.show();
+
+            return modal;
+        })
+        .catch(Notification.exception);
+    }
+
+    /**
+     * Show generator link in modal (legacy behavior).
+     *
+     * @param {string} title Modal title
+     */
+    showGeneratorLink(title) {
         // Build the prompt.php URL
         const promptUrl = M.cfg.wwwroot + '/ai/placement/modgen/prompt.php?id=' + this.courseid;
 
@@ -186,7 +258,7 @@ class ModalGeneratorComponent extends BaseComponent {
                      '</div>';
 
         ModgenModal.create({
-            title: 'Module Generator',
+            title: title,
             body: body,
             large: false,
         }).then((modal) => {
@@ -209,6 +281,16 @@ class ModalGeneratorComponent extends BaseComponent {
      */
     open() {
         this.reactive.dispatch('openModal');
+    }
+
+    /**
+     * Public method to open the modal with a specific form.
+     *
+     * @param {string} formName Form fragment name (e.g., 'add_theme', 'add_week')
+     * @param {string} title Modal title
+     */
+    openWithForm(formName, title) {
+        this.reactive.dispatch('openModalWithForm', formName, title);
     }
 
     /**

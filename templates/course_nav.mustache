@@ -12,12 +12,12 @@
         <ul class="navbar-nav ml-auto">
 
 <li class="nav-item dropdown mx-3">
-        <a class="nav-link dropdown-toggle" href="#" role="button" data-toggle="dropdown" aria-expanded="false">
+        <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-toggle="dropdown" aria-expanded="false">
           Help and Advice
         </a>
         <div class="dropdown-menu">
-          <a class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="#">Building for the Connected Curriculum</a>
-          <a class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="#">Creating Accessible Modules</a>
+          <a class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="#"><i class="fas fa-external-link-alt mr-1"></i>Building for the Connected Curriculum</a>
+          <a class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="#"><i class="fas fa-external-link-alt mr-1"></i>Creating Accessible Modules</a>
           
         </div>
       </li>
@@ -28,18 +28,20 @@
         </a>
         
         <div class="dropdown-menu">
-         {{#showgenerator}}
-          <a href="{{generatorurl}}" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="open-generator">
-                    <i class="fa fa-plus-circle"></i> {{generatorlabel}}
-                </a>
-          <div class="dropdown-divider"></div>
-          {{/showgenerator}}
+         
           <a href="{{generatorurl}}" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="open-generator">
                     <i class="fas fa-book"></i> New Theme
                 </a>
                 <a href="{{generatorurl}}" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="open-generator">
                     <i class="fas fa-calendar"></i> New Week
                 </a>
+                {{#showgenerator}}
+                <div class="dropdown-divider"></div>
+          <a href="{{generatorurl}}" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="open-generator">
+                    <i class="fa fa-plus-circle"></i> {{generatorlabel}}
+                </a>
+          
+          {{/showgenerator}}
         </div>
       </li>
            

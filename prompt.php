@@ -582,6 +582,7 @@ $approvedtypeparam = optional_param('moduletype', 'connected_weekly', PARAM_ALPH
 $generatethemeintroductionsparam = optional_param('generatethemeintroductions', 0, PARAM_BOOL);
 $createsuggestedactivitiesparam = optional_param('createsuggestedactivities', 0, PARAM_BOOL);
 $generatedsummaryparam = optional_param('generatedsummary', '', PARAM_RAW);
+$hideexistingsectionsparam = optional_param('hideexistingsections', 0, PARAM_BOOL);
 if ($approvedjsonparam !== null) {
     $approveform = new aiplacement_modgen_approve_form(null, [
         'courseid' => $courseid,
@@ -590,6 +591,7 @@ if ($approvedjsonparam !== null) {
         'generatethemeintroductions' => $generatethemeintroductionsparam,
         'createsuggestedactivities' => $createsuggestedactivitiesparam,
         'generatedsummary' => $generatedsummaryparam,
+        'hideexistingsections' => $hideexistingsectionsparam,
         'embedded' => $embedded ? 1 : 0,
     ]);
 }
@@ -598,12 +600,27 @@ if ($approvedjsonparam !== null) {
         // Create weekly sections from approved JSON.
         $json = json_decode($adata->approvedjson, true);
         $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'connected_weekly';
+        $hideexistingsections = !empty($adata->hideexistingsections);
         
         // Lock the course to prevent concurrent access during build
         $lockkey = 'aiplacement_modgen_building_' . $courseid;
         $lock = \core\lock\lock_config::get_lock_factory('aiplacement_modgen')->get_lock($lockkey, 600); // 10 minute timeout
         
         try {
+            // Track existing section numbers BEFORE creating new content
+            $existing_section_ids = [];
+            $new_toplevel_section_ids = []; // Track new top-level sections to move to top
+            if ($hideexistingsections) {
+                $existingsections = $DB->get_records('course_sections', ['course' => $courseid], 'section ASC');
+                foreach ($existingsections as $section) {
+                    // Skip section 0 (general section)
+                    if ($section->section == 0) {
+                        continue;
+                    }
+                    $existing_section_ids[] = $section->id;
+                }
+            }
+            
             // CRITICAL: Ensure course format is set to flexsections FIRST - both theme and weekly require it
             // This must happen before ANY section or module creation
             $pluginmanager = core_plugin_manager::instance();
@@ -674,6 +691,14 @@ if ($approvedjsonparam !== null) {
                 }
                 $themesectionnum = $courseformat->create_new_section(0, null); // 0 means top level (no parent)
                 $themesectionnums[] = $themesectionnum;
+                
+                // Track this top-level section for potential moving later
+                if ($hideexistingsections) {
+                    $themesection = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $themesectionnum]);
+                    if ($themesection) {
+                        $new_toplevel_section_ids[] = $themesection->id;
+                    }
+                }
             } catch (Exception $e) {
                 $activitywarnings[] = "Failed to create theme section: " . $e->getMessage();
                 continue;
@@ -831,10 +856,20 @@ if ($approvedjsonparam !== null) {
                 }
                 $actualsectionnum = $courseformat->create_new_section(0, null); // 0 = top level
                 $section = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $actualsectionnum], '*', MUST_EXIST);
+                
+                // Track this top-level section for potential moving later
+                if ($hideexistingsections) {
+                    $new_toplevel_section_ids[] = $section->id;
+                }
             } else {
                 // For plain weekly, use standard section creation
                 $section = course_create_section($course, $sectionnum);
                 $actualsectionnum = $sectionnum;
+                
+                // Track this top-level section for potential moving later
+                if ($hideexistingsections) {
+                    $new_toplevel_section_ids[] = $section->id;
+                }
             }
             
             $sectionrecord = $DB->get_record('course_sections', ['id' => $section->id], '*', MUST_EXIST);
@@ -919,6 +954,27 @@ if ($approvedjsonparam !== null) {
             $sectionnum++;
         }
     }
+
+        // Handle hiding existing sections and moving new ones to top if requested
+        if ($hideexistingsections && !empty($existing_section_ids)) {
+            // Hide the old sections so only new content is visible
+            foreach ($existing_section_ids as $old_section_id) {
+                $DB->set_field('course_sections', 'visible', 0, ['id' => $old_section_id]);
+            }
+            
+            // Move new top-level sections to the top (after section 0)
+            // Move them in reverse order so they maintain their relative order
+            if (!empty($new_toplevel_section_ids)) {
+                $targetposition = 1; // Start after section 0
+                foreach (array_reverse($new_toplevel_section_ids) as $new_section_id) {
+                    $newsection = $DB->get_record('course_sections', ['id' => $new_section_id]);
+                    if ($newsection) {
+                        move_section_to($course, $newsection->section, $targetposition);
+                    }
+                }
+                rebuild_course_cache($courseid, true, true);
+            }
+        }
 
         if ($needscacherefresh) {
             rebuild_course_cache($courseid, true, true);
@@ -1301,6 +1357,9 @@ if ($pdata = $promptform->get_data()) {
     $generatethemeintroductions = $generateexamplecontent;
     $createsuggestedactivities = $generateexamplecontent;
     $generatesessioninstructions = $generateexamplecontent;
+    
+    // Check if user wants to hide existing sections and place new content at top
+    $hideexistingsections = !empty($pdata->hideexistingsections);
     
     // For connected layouts, ALWAYS generate the sessions structure, but respect activity creation preference
     $includesessions = $generatesessioninstructions || ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme');
@@ -2274,6 +2333,7 @@ if ($pdata = $promptform->get_data()) {
         'generatethemeintroductions' => $generatethemeintroductions ? 1 : 0,
         'createsuggestedactivities' => $createsuggestedactivities ? 1 : 0,
         'generatedsummary' => $summarytext,
+        'hideexistingsections' => $hideexistingsections ? 1 : 0,
         'embedded' => $embedded ? 1 : 0,
     ]);
 

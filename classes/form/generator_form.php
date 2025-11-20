@@ -122,6 +122,13 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->closeHeaderBefore('buttonar');
         } // End AI-enabled section
         
+        // === PLACEMENT OPTIONS ===
+        // Checkbox to hide existing sections and place new content at top
+        $mform->addElement('advcheckbox', 'hideexistingsections', get_string('hideexistingsections', 'aiplacement_modgen'));
+        $mform->addHelpButton('hideexistingsections', 'hideexistingsections', 'aiplacement_modgen');
+        $mform->setType('hideexistingsections', PARAM_BOOL);
+        $mform->setDefault('hideexistingsections', 0);
+        
         // Add both submit button and debug button (debug button only if AI and existing modules enabled)
         $buttonarray = [];
         $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('submit', 'aiplacement_modgen'));

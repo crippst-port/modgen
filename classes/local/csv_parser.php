@@ -187,13 +187,17 @@ class csv_parser {
                 $last_item_type = 'title';
             } elseif (stripos($label, 'Description') === 0) {
                 // Add description to the most recently added item
-                if ($last_item_type === 'week' && $current_week !== null) {
-                    $current_week['summary'] = $value;
+                if ($last_item_type === 'week' && is_array($current_week)) {
+                    // Directly modify the last week in the current theme
+                    $week_count = count($current_theme['weeks']);
+                    if ($week_count > 0) {
+                        $current_theme['weeks'][$week_count - 1]['summary'] = $value;
+                    }
                 } elseif ($last_item_type === 'theme' && $current_theme !== null) {
                     $current_theme['summary'] = $value;
                 }
             } elseif (stripos($label, 'Theme') === 0) {
-                // Start a new theme
+                // Start a new theme - save the previous one first
                 if ($current_theme !== null) {
                     $themes[] = $current_theme;
                 }
@@ -216,8 +220,8 @@ class csv_parser {
                     ]
                 ];
                 $current_theme['weeks'][] = $week;
-                // Store reference to last week for description updates
-                $current_week = &$current_theme['weeks'][count($current_theme['weeks']) - 1];
+                // Mark that we just added a week (for description tracking)
+                $current_week = true; // Just a flag, not a reference
                 $last_item_type = 'week';
             }
         }

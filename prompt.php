@@ -955,23 +955,84 @@ if ($approvedjsonparam !== null) {
         }
     }
 
-        // Handle hiding existing sections and moving new ones to top if requested
+        // Handle hiding existing sections and moving new ones to top if requested.
         if ($hideexistingsections && !empty($existing_section_ids)) {
             // Hide the old sections so only new content is visible
             foreach ($existing_section_ids as $old_section_id) {
                 $DB->set_field('course_sections', 'visible', 0, ['id' => $old_section_id]);
             }
-            
-            // Move new top-level sections to the top (after section 0)
-            // Move them in reverse order so they maintain their relative order
+
+            // Move new top-level sections to the top (after section 0) using the course format API
+            // Prefer format-specific move (preserves format metadata like parent/child relationships)
             if (!empty($new_toplevel_section_ids)) {
-                $targetposition = 1; // Start after section 0
-                foreach (array_reverse($new_toplevel_section_ids) as $new_section_id) {
-                    $newsection = $DB->get_record('course_sections', ['id' => $new_section_id]);
-                    if ($newsection) {
-                        move_section_to($course, $newsection->section, $targetposition);
+                /** @var \course_format $courseformat */
+                $courseformat = course_get_format($course);
+                $modinfo = get_fast_modinfo($course);
+
+                // Find the first existing top-level section that is NOT one of the newly created sections.
+                $anchorsectionnum = null;
+                foreach ($modinfo->get_section_info_all() as $s) {
+                    if ($s->section && empty($s->parent) && !in_array($s->id, $new_toplevel_section_ids, true)) {
+                        $anchorsectionnum = $s->section;
+                        break;
                     }
                 }
+
+                // Move sections in reverse order before the anchor so their relative order is preserved.
+                // Compute the anchor once (the first existing top-level section that is not part of the new set).
+                $anchor = $anchorsectionnum;
+                if ($anchor === null) {
+                    // If there's no other top-level section, we'll use position 1 as the numeric target.
+                    $anchor = 1;
+                }
+
+                foreach (array_reverse($new_toplevel_section_ids) as $new_section_id) {
+                    $newsection = $DB->get_record('course_sections', ['id' => $new_section_id]);
+                    if (!$newsection) {
+                        continue;
+                    }
+
+                    $fromnum = $newsection->section;
+                    $moved = false;
+
+                    // Prefer format-specific move_section if available (flexsections provides move_section)
+                    if (is_object($courseformat) && method_exists($courseformat, 'move_section')) {
+                        try {
+                            // Insert before the original anchor so the anchor remains the same across iterations.
+                            $courseformat->move_section($fromnum, 0, $anchor);
+                            $moved = true;
+                        } catch (Throwable $e) {
+                            debugging('format move_section failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+                            $moved = false;
+                        }
+                    }
+
+                    // Next preference: format-level move_section_after (core formats may implement it).
+                    if (!$moved && is_object($courseformat) && method_exists($courseformat, 'move_section_after')) {
+                        try {
+                            $modinfo = get_fast_modinfo($course);
+                            $frominfo = $modinfo->get_section_info_by_id($newsection->id, MUST_EXIST);
+                            if ($anchor !== null && $anchor !== 1) {
+                                $destinfo = $modinfo->get_section_info($anchor);
+                                $courseformat->move_section_after($frominfo, $destinfo);
+                            }
+                            // If anchor == 1 and no destinfo available we will fall back to numeric move.
+                            $moved = true;
+                        } catch (Throwable $e) {
+                            debugging('format move_section_after failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+                            $moved = false;
+                        }
+                    }
+
+                    // Final fallback: use core helper move_section_to (works for simple formats but may not
+                    // preserve format-specific metadata for complex formats like flexsections).
+                    if (!$moved) {
+                        $targetposition = $anchor;
+                        move_section_to($course, $fromnum, $targetposition);
+                    }
+                }
+
+                // Rebuild cache once after moves.
                 rebuild_course_cache($courseid, true, true);
             }
         }

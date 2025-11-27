@@ -159,6 +159,11 @@ class csv_parser {
         $module_title = '';
         $last_item_type = ''; // Track what was just added (theme/week)
 
+        // Strip BOM from the first line if present
+        if (isset($lines[0])) {
+            $lines[0] = preg_replace('/^\xEF\xBB\xBF/', '', $lines[0]);
+        }
+
         foreach ($lines as $line) {
             $line = trim($line);
             
@@ -187,8 +192,7 @@ class csv_parser {
                 $last_item_type = 'title';
             } elseif (stripos($label, 'Description') === 0) {
                 // Add description to the most recently added item
-                if ($last_item_type === 'week' && is_array($current_week)) {
-                    // Directly modify the last week in the current theme
+                if ($last_item_type === 'week' && $current_theme !== null) {
                     $week_count = count($current_theme['weeks']);
                     if ($week_count > 0) {
                         $current_theme['weeks'][$week_count - 1]['summary'] = $value;

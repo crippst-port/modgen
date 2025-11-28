@@ -134,6 +134,18 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         });
         this.setupFormSubmission(modal, formName);
         this.reactive.dispatch('formLoaded');
+        if (formName === 'suggest') {
+          try {
+            require(['aiplacement_modgen/suggest'], suggest => {
+              const mod = suggest && typeof suggest.init === 'function' ? suggest : suggest && suggest.default ? suggest.default : null;
+              if (mod && typeof mod.init === 'function') {
+                mod.init(modal, this.courseid, this.currentsection);
+              }
+            });
+          } catch (e) {
+            _notification.default.exception(e);
+          }
+        }
         this.modal.show();
         return modal;
       }).catch(_notification.default.exception);

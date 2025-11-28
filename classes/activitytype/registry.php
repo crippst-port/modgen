@@ -140,7 +140,23 @@ class registry {
         foreach ($outcome['results'] as $result) {
             if (!empty($result['message'])) {
                 $created[] = $result['message'];
+                continue;
             }
+            // Fallbacks: many handlers return arrays with 'coursemodule', 'instance' or similar.
+            if (!empty($result['coursemodule'])) {
+                $created[] = get_string('activity_created_coursemodule', 'aiplacement_modgen', (int)$result['coursemodule']);
+                continue;
+            }
+            if (!empty($result['instance'])) {
+                $created[] = get_string('activity_created_instance', 'aiplacement_modgen', (int)$result['instance']);
+                continue;
+            }
+            if (!empty($result['cmid'])) {
+                $created[] = get_string('activity_created_cmid', 'aiplacement_modgen', (int)$result['cmid']);
+                continue;
+            }
+            // Last resort: include a JSON-encoded representation so caller can inspect.
+            $created[] = json_encode($result);
         }
 
         return [

@@ -42,6 +42,7 @@ module.exports = function(grunt) {
                     'amd/build/course_nav.js': 'amd/src/course_nav.js',
                     'amd/build/course_toolbar.js': 'amd/src/course_toolbar.js',
                     'amd/build/modal_generator_reactive.js': 'amd/src/modal_generator_reactive.js'
+                    , 'amd/build/suggest.js': 'amd/src/suggest.js'
                 }
             }
         },
@@ -76,6 +77,7 @@ module.exports = function(grunt) {
                     'amd/build/course_nav.min.js': ['amd/build/course_nav.js'],
                     'amd/build/course_toolbar.min.js': ['amd/build/course_toolbar.js'],
                     'amd/build/modal_generator_reactive.min.js': ['amd/build/modal_generator_reactive.js']
+                    , 'amd/build/suggest.min.js': ['amd/build/suggest.js']
                 }
             }
         },

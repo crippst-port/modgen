@@ -1245,5 +1245,150 @@ class ai_service {
             return '';
         }
     }
+
+    /**
+     * Generate suggestion items for a given section map.
+     *
+     * Accepts a compact map of sections and returns an array of suggestion objects:
+     * [ { id: string, activity: {type, name}, rationale: string, supported: bool }, ... ]
+     *
+     * @param array $sectionmap
+     * @param int|null $courseid
+     * @return array
+     */
+    public static function generate_suggestions_from_map(array $sectionmap, $courseid = null): array {
+        global $USER;
+
+        try {
+            if (!class_exists('\core_ai\manager') || !class_exists('\core_ai\aiactions\generate_text')) {
+                return ['success' => false, 'error' => 'AI subsystem not available'];
+            }
+
+            $contextid = !empty($courseid)
+                ? \context_course::instance($courseid)->id
+                : \context_system::instance()->id;
+
+            $aimanager = new \core_ai\manager();
+            if (!$aimanager->get_user_policy_status($USER->id)) {
+                return ['success' => false, 'error' => 'AI policy not accepted'];
+            }
+
+            // Determine supported activity types from the registry and build a compact
+            // prompt describing the selected section and surrounding context.
+            $supported = registry::get_supported_activity_metadata();
+            $allowedtypes = array_keys($supported);
+            // Build a mapping of normalized labels to canonical type keys to help
+            // match AI-returned free-text types back to supported keys.
+            $normmap = [];
+            foreach ($allowedtypes as $t) {
+                $label = (string)($supported[$t]['description'] ?? $t);
+                $stringid = (string)($supported[$t]['stringid'] ?? '');
+                $normforms = [];
+                $normforms[] = preg_replace('/[^a-z0-9]+/', '', \core_text::strtolower($t));
+                if ($stringid !== '') {
+                    $normforms[] = preg_replace('/[^a-z0-9]+/', '', \core_text::strtolower($stringid));
+                }
+                if ($label !== '') {
+                    $normforms[] = preg_replace('/[^a-z0-9]+/', '', \core_text::strtolower($label));
+                }
+                foreach ($normforms as $nf) {
+                    if ($nf === '') {
+                        continue;
+                    }
+                    $normmap[$nf] = $t;
+                }
+            }
+
+            // Build a compact prompt describing the selected section and surrounding context.
+            $sectionsummary = '';
+            foreach ($sectionmap as $s) {
+                $idx = $s['section'] ?? ($s['id'] ?? '');
+                $title = $s['name'] ?? ($s['title'] ?? '');
+                $summary = isset($s['summary']) ? substr($s['summary'], 0, 1000) : '';
+                $sectionsummary .= "Section: {$idx} - {$title}\nSummary: {$summary}\n\n";
+            }
+
+            $prompt = "You are an expert learning designer. Given course section context below, propose up to 6 suggested Moodle activities for the selected section. RETURN ONLY a JSON array of suggestion objects with keys: id (string), activity: {type: '<one of the allowed activity type keys>', name: '<activity name>'}, rationale: '<brief pedagogical rationale>', supported: true|false. Use only the allowed activity type keys listed below in the activity.type field — do NOT invent new types. Do NOT include any other commentary.\n\nAllowed activity types (key => description):\n";
+            foreach ($allowedtypes as $t) {
+                $prompt .= "- {$t} => " . ($supported[$t]['description'] ?? '') . "\n";
+            }
+            $prompt .= "\nContext:\n\n";
+            $prompt .= $sectionsummary;
+
+            $action = new \core_ai\aiactions\generate_text($contextid, $USER->id, $prompt);
+            $response = $aimanager->process_action($action);
+            $data = $response->get_response_data();
+            $text = $data['generatedcontent'] ?? ($data['generatedtext'] ?? ($data['text'] ?? ''));
+
+            if (empty($text) || !is_string($text)) {
+                return ['success' => false, 'error' => 'AI returned no text'];
+            }
+
+            // Try to decode JSON from the response
+            $decoded = json_decode($text, true);
+            if (!is_array($decoded)) {
+                // Try to extract JSON block from code fences or inline
+                if (preg_match('/```(?:json)?\s*(\[.*\])\s*```/s', $text, $m)) {
+                    $decoded = json_decode($m[1], true);
+                } elseif (preg_match('/(\[\s*\{.*\}\s*\])/s', $text, $m2)) {
+                    $decoded = json_decode($m2[1], true);
+                }
+            }
+
+            if (!is_array($decoded)) {
+                return ['success' => false, 'error' => 'Unable to parse AI suggestions', 'raw' => $text];
+            }
+
+            // Normalize suggestions to expected shape and restrict to supported types
+            $out = [];
+            foreach ($decoded as $i => $s) {
+                if (!is_array($s)) {
+                    continue;
+                }
+                $id = isset($s['id']) ? (string)$s['id'] : (string)($i + 1);
+                $activity = $s['activity'] ?? [];
+                $rationale = $s['rationale'] ?? ($s['reason'] ?? '');
+                $supported = isset($s['supported']) ? (bool)$s['supported'] : true;
+                // Attempt to normalise the returned type and match it to a supported key.
+                $rawtype = (string)($activity['type'] ?? ($activity['activity'] ?? ''));
+                $cand = preg_replace('/[^a-z0-9]+/', '', \core_text::strtolower($rawtype));
+                $matched = $normmap[$cand] ?? null;
+                if ($matched === null) {
+                    // If AI returned a human label that matches a description/stringid,
+                    // try matching by normalised content against the normmap.
+                    foreach ($normmap as $nf => $key) {
+                        if ($nf === $cand) {
+                            $matched = $key;
+                            break;
+                        }
+                    }
+                }
+
+                // If still no canonical match was found, keep the suggestion but mark it unsupported.
+                $is_supported = true;
+                $type_to_use = $matched;
+                if ($matched === null || $matched === '') {
+                    $is_supported = false;
+                    // Preserve the raw type string so the UI can show and allow edits.
+                    $type_to_use = $rawtype ?: '';
+                }
+
+                $out[] = [
+                    'id' => $id,
+                    'activity' => (object)[
+                        'type' => $type_to_use,
+                        'name' => $activity['name'] ?? ($activity['title'] ?? 'Suggested Activity')
+                    ],
+                    'rationale' => $rationale,
+                    'supported' => $is_supported,
+                    'raw_type' => $rawtype,
+                ];
+            }
+
+            return ['success' => true, 'suggestions' => $out, 'raw' => $text];
+        } catch (\Throwable $e) {
+            return ['success' => false, 'error' => $e->getMessage()];
+        }
+    }
 }
 

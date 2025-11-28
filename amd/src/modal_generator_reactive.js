@@ -238,6 +238,21 @@ class ModalGeneratorComponent extends BaseComponent {
             this.setupFormSubmission(modal, formName);
 
             this.reactive.dispatch('formLoaded');
+
+            // If this is the suggest form, initialize the suggest client module
+            if (formName === 'suggest') {
+                try {
+                    require(['aiplacement_modgen/suggest'], (suggest) => {
+                        const mod = (suggest && typeof suggest.init === 'function') ? suggest : (suggest && suggest.default ? suggest.default : null);
+                        if (mod && typeof mod.init === 'function') {
+                            mod.init(modal, this.courseid, this.currentsection);
+                        }
+                    });
+                } catch (e) {
+                    Notification.exception(e);
+                }
+            }
+
             this.modal.show();
 
             return modal;

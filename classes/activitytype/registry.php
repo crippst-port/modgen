@@ -61,54 +61,32 @@ class registry {
         $results = [];
         $warnings = [];
 
-        file_put_contents('/tmp/modgen_debug.log', "\n=== CREATE ACTIVITIES DEBUG ===\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Activities count: " . count($activities) . "\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Activities data: " . print_r($activities, true) . "\n", FILE_APPEND);
-
         foreach ($activities as $index => $activity) {
-            file_put_contents('/tmp/modgen_debug.log', "\nProcessing activity $index:\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', "Activity object: " . print_r($activity, true) . "\n", FILE_APPEND);
-            
             $type = self::normalise_type($activity->type ?? '');
             $handlerclass = self::get_map()[$type] ?? null;
-
-            file_put_contents('/tmp/modgen_debug.log', "Original type: " . ($activity->type ?? 'NULL') . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', "Normalized type: '$type'\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', "Handler class: " . ($handlerclass ?? 'NULL') . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', "Available handlers: " . print_r(array_keys(self::get_map()), true) . "\n", FILE_APPEND);
 
             if ($handlerclass === null) {
                 $error = get_string('activitytypeunsupported', 'aiplacement_modgen', $type ?: '?');
                 $warnings[] = $error;
-                file_put_contents('/tmp/modgen_debug.log', "ERROR: $error\n", FILE_APPEND);
                 continue;
             }
 
             try {
                 $handler = new $handlerclass();
-                file_put_contents('/tmp/modgen_debug.log', "Created handler instance\n", FILE_APPEND);
-                
                 $result = $handler->create($activity, $course, $sectionnumber, $options);
-                file_put_contents('/tmp/modgen_debug.log', "Handler result: " . print_r($result, true) . "\n", FILE_APPEND);
 
                 if ($result === null) {
                     $error = get_string('activitytypecreationfailed', 'aiplacement_modgen', $type);
                     $warnings[] = $error;
-                    file_put_contents('/tmp/modgen_debug.log', "ERROR: $error\n", FILE_APPEND);
                     continue;
                 }
 
                 $results[] = $result;
-                file_put_contents('/tmp/modgen_debug.log', "SUCCESS: Activity created\n", FILE_APPEND);
             } catch (\Exception $e) {
                 $error = "Exception creating $type: " . $e->getMessage();
                 $warnings[] = $error;
-                file_put_contents('/tmp/modgen_debug.log', "EXCEPTION: $error\n", FILE_APPEND);
             }
         }
-
-        file_put_contents('/tmp/modgen_debug.log', "\nFinal results: " . print_r($results, true) . "\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Final warnings: " . print_r($warnings, true) . "\n", FILE_APPEND);
 
         return [
             'results' => $results,

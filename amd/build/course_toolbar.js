@@ -17,13 +17,18 @@ define(["exports", "core/fragment", "core/notification", "aiplacement_modgen/mod
    */
   let modalComponent = null;
   const init = config => {
+    if (!config.courseid || !config.contextid) {
+      console.error('course_toolbar.init called with invalid config:', config);
+      return;
+    }
     modalComponent = (0, _modal_generator_reactive.init)(config.courseid, config.contextid, config.currentsection || 0);
     _fragment.default.loadFragment('aiplacement_modgen', 'course_toolbar', config.contextid, {
       courseid: config.courseid,
+      contextid: config.contextid,
       showgenerator: config.showgenerator ? 1 : 0,
       showexplore: config.showexplore ? 1 : 0,
       showsuggest: config.showsuggest ? 1 : 0,
-      currentsection: config.currentsection
+      currentsection: config.currentsection || 0
     }).then(html => {
       const regionMain = document.querySelector('#region-main');
       if (regionMain) {

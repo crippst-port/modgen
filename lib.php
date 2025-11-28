@@ -119,15 +119,20 @@ function aiplacement_modgen_extend_navigation_course(
  */
 function aiplacement_modgen_output_fragment_course_toolbar(array $args): string {
     global $PAGE;
-    
+
     // Validate and clean parameters
     $courseid = clean_param($args['courseid'], PARAM_INT);
+    $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
     $showgenerator = !empty($args['showgenerator']);
     $showexplore = !empty($args['showexplore']);
-    
+
     // Verify course exists and get context
     $course = get_course($courseid);
-    $context = context_course::instance($courseid);
+    if ($contextid) {
+        $context = context::instance_by_id($contextid);
+    } else {
+        $context = context_course::instance($courseid);
+    }
     
     // Verify permissions
     require_capability('moodle/course:update', $context);
@@ -208,7 +213,13 @@ function aiplacement_modgen_output_fragment_form_suggest(array $args): string {
 
     // Validate parameters and permissions
     $courseid = clean_param($args['courseid'], PARAM_INT);
-    $context = context_course::instance($courseid);
+    $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
+
+    if ($contextid) {
+        $context = context::instance_by_id($contextid);
+    } else {
+        $context = context_course::instance($courseid);
+    }
     require_capability('moodle/course:update', $context);
 
     // Build data for mustache template rendering
@@ -256,42 +267,36 @@ function aiplacement_modgen_output_fragment_form_suggest(array $args): string {
 function aiplacement_modgen_output_fragment_form_add_theme(array $args): string {
     global $PAGE, $CFG;
 
-    try {
-        error_log('Fragment form_add_theme called with args: ' . print_r($args, true));
-        
-        // Ensure required libraries are loaded.
-        require_once($CFG->libdir . '/formslib.php');
+    // Ensure required libraries are loaded.
+    require_once($CFG->libdir . '/formslib.php');
 
-        // Validate parameters.
-        $courseid = clean_param($args['courseid'], PARAM_INT);
-        error_log("Fragment form_add_theme - courseid: $courseid");
-        
+    // Validate parameters.
+    $courseid = clean_param($args['courseid'], PARAM_INT);
+    $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
+
+    if ($contextid) {
+        $context = context::instance_by_id($contextid);
+    } else {
         $context = context_course::instance($courseid);
-
-        // Verify permission.
-        require_capability('moodle/course:update', $context);
-
-        // Set page context for proper JS/CSS loading.
-        $PAGE->set_context($context);
-
-        // Create form using moodleform.
-        require_once(__DIR__ . '/classes/form/add_theme_form.php');
-        $formdata = ['courseid' => $courseid];
-        $form = new \aiplacement_modgen_add_theme_form(null, $formdata);
-
-        // Set default data.
-        $form->set_data((object)$formdata);
-
-        // Return rendered form HTML.
-        // Submission will be handled by JavaScript AJAX to create_sections.php
-        $html = $form->render();
-        error_log("Fragment form_add_theme - rendered successfully, length: " . strlen($html));
-        return $html;
-    } catch (\Exception $e) {
-        error_log("Fragment form_add_theme ERROR: " . $e->getMessage());
-        error_log("Stack trace: " . $e->getTraceAsString());
-        throw $e;
     }
+
+    // Verify permission.
+    require_capability('moodle/course:update', $context);
+
+    // Set page context for proper JS/CSS loading.
+    $PAGE->set_context($context);
+
+    // Create form using moodleform.
+    require_once(__DIR__ . '/classes/form/add_theme_form.php');
+    $formdata = ['courseid' => $courseid];
+    $form = new \aiplacement_modgen_add_theme_form(null, $formdata);
+
+    // Set default data.
+    $form->set_data((object)$formdata);
+
+    // Return rendered form HTML.
+    // Submission will be handled by JavaScript AJAX to create_sections.php
+    return $form->render();
 }
 
 /**
@@ -311,7 +316,13 @@ function aiplacement_modgen_output_fragment_form_add_week(array $args): string {
 
     // Validate parameters.
     $courseid = clean_param($args['courseid'], PARAM_INT);
-    $context = context_course::instance($courseid);
+    $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
+
+    if ($contextid) {
+        $context = context::instance_by_id($contextid);
+    } else {
+        $context = context_course::instance($courseid);
+    }
 
     // Verify permission.
     require_capability('moodle/course:update', $context);

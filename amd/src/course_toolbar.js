@@ -39,16 +39,24 @@ let modalComponent = null;
  * @param {number} config.currentsection Current section number (for context-aware creation)
  */
 export const init = (config) => {
+    // Validate config has required fields
+    if (!config.courseid || !config.contextid) {
+        /* eslint-disable-next-line no-console */
+        console.error('course_toolbar.init called with invalid config:', config);
+        return;
+    }
+
     // Initialize modal component once for reuse, passing current section.
     modalComponent = initModalComponent(config.courseid, config.contextid, config.currentsection || 0);
 
     // Load toolbar HTML via Fragment API
     Fragment.loadFragment('aiplacement_modgen', 'course_toolbar', config.contextid, {
         courseid: config.courseid,
+        contextid: config.contextid,
         showgenerator: config.showgenerator ? 1 : 0,
         showexplore: config.showexplore ? 1 : 0,
         showsuggest: config.showsuggest ? 1 : 0,
-        currentsection: config.currentsection,
+        currentsection: config.currentsection || 0,
     })
     .then((html) => {
         // Insert toolbar at top of region-main using vanilla JS

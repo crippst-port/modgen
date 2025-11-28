@@ -25,7 +25,6 @@ module.exports = function(grunt) {
                     useBuiltIns: false
                 }]],
                 plugins: [
-                    'transform-es2015-modules-amd-lazy',
                     '@babel/plugin-syntax-dynamic-import',
                     '@babel/plugin-syntax-import-meta',
                     ['@babel/plugin-proposal-class-properties', {'loose': false}],

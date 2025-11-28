@@ -220,6 +220,7 @@ class ModalGeneratorComponent extends BaseComponent {
         // Use Fragment API to render the moodleform HTML
         Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
             courseid: this.courseid,
+            contextid: this.contextid,
         })
         .then((html) => ModgenModal.create({
             title: title,

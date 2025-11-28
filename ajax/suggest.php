@@ -97,7 +97,6 @@ try {
             }
         } catch (\Throwable $e) {
             // Fall back to modinfo if template reader fails
-            file_put_contents('/tmp/modgen_suggest_template_reader_error.log', $e->getMessage() . "\n", FILE_APPEND);
             $templatereaderavailable = false;
         }
     }
@@ -254,8 +253,6 @@ try {
     // Discard any accidental output and return JSON
     $extra = @ob_get_clean();
     if ($extra !== false && trim($extra) !== '') {
-        // Log unexpected output for debugging
-        file_put_contents('/tmp/modgen_suggest_extra_output.log', $extra, FILE_APPEND);
         // Attach a base64-encoded debug field so client can see unexpected HTML without breaking JSON.parse
         $result['debug_extra_base64'] = base64_encode($extra);
     }
@@ -269,8 +266,6 @@ try {
     }
     @header('Content-Type: application/json');
     $msg = $e->getMessage();
-    // Log the exception for debugging
-    file_put_contents('/tmp/modgen_suggest_error.log', $msg . "\n" . $e->getTraceAsString() . "\nBufferedOutput:\n" . $buffered . "\n", FILE_APPEND);
     $error = ['success' => false, 'error' => $msg];
     if (!empty($buffered)) {
         $error['debug_extra_base64'] = base64_encode($buffered);

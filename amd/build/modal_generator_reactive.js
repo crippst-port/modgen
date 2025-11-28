@@ -122,7 +122,8 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
     }
     loadFormInModal(formName, title) {
       _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
-        courseid: this.courseid
+        courseid: this.courseid,
+        contextid: this.contextid
       }).then(html => _modal.default.create({
         title: title,
         body: html,

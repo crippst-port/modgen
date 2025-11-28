@@ -211,33 +211,31 @@ function aiplacement_modgen_output_fragment_form_suggest(array $args): string {
     $context = context_course::instance($courseid);
     require_capability('moodle/course:update', $context);
 
-    // Build a small form that allows scanning a selected section
+    // Build data for mustache template rendering
     $modinfo = get_fast_modinfo($courseid);
     $sections = $modinfo->get_section_info_all();
 
-    $html = '<div class="p-3">';
-    $html .= '<h4>' . get_string('suggest', 'aiplacement_modgen') . '</h4>';
-    $html .= '<p>' . get_string('suggestheading_desc', 'aiplacement_modgen') . '</p>';
-    $html .= '<div class="form-group">';
-    $html .= '<label for="suggest-section-select">' . get_string('section') . '</label>';
-    $html .= '<select id="suggest-section-select" class="form-control">';
+    $tplsections = [];
     foreach ($sections as $s) {
         $name = !empty($s->name) ? s($s->name) : get_string('sectionname', 'moodle', $s->section);
-        $html .= '<option value="' . (int)$s->section . '">' . $name . '</option>';
+        $tplsections[] = [
+            'value' => (int)$s->section,
+            'name' => $name,
+            'selected' => ($s->section == ($args['currentsection'] ?? 0)),
+        ];
     }
-    $html .= '</select>';
-    $html .= '</div>';
-    $html .= '<div class="form-group">';
-    $html .= '<button class="btn btn-primary" id="suggest-scan-btn">' . get_string('suggestactivities', 'aiplacement_modgen') . '</button> ';
-    $html .= '<span id="suggest-loading" style="display:none; margin-left:8px;">' . get_string('loadingthinking', 'aiplacement_modgen') . '</span>';
-    $html .= '</div>';
-    $html .= '<div id="suggest-results"></div>';
-    $html .= '<div class="mt-3">';
-    $html .= '<button class="btn btn-success" id="suggest-create-selected" disabled>' . get_string('approveandcreate', 'aiplacement_modgen') . '</button>';
-    $html .= '</div>';
-    $html .= '</div>';
 
-    return $html;
+    $data = [
+        'suggest_label' => get_string('suggestactivities', 'aiplacement_modgen'),
+        'suggest_description' => get_string('suggestheading_desc', 'aiplacement_modgen'),
+        'section_label' => get_string('section'),
+        'sections' => $tplsections,
+        'suggestactivities' => get_string('suggestactivities', 'aiplacement_modgen'),
+        'loadingthinking' => get_string('loadingthinking', 'aiplacement_modgen'),
+        'approveandcreate' => get_string('approveandcreate', 'aiplacement_modgen'),
+    ];
+
+    return $PAGE->get_renderer('core')->render_from_template('aiplacement_modgen/suggest', $data);
 }
 
 /**

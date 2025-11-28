@@ -6,6 +6,15 @@ const CREATE_AJAX = M.cfg.wwwroot + '/ai/placement/modgen/ajax/suggest_create.ph
 
 export default {
     init(modal, courseid, currentsection = 0) {
+        // Colour mapping for Laurillard learning types — keep consistent with Explore report palette
+        const LAURILLARD_COLORS = {
+            'acquisition': 'rgba(66, 139, 202, 0.9)',   // blue (Narrative)
+            'inquiry': 'rgba(255, 152, 0, 0.9)',        // orange (Interactive)
+            'practice': 'rgba(255, 193, 7, 0.9)',       // yellow (Adaptive)
+            'discussion': 'rgba(40, 167, 69, 0.9)',     // green (Dialogic)
+            'collaboration': 'rgba(75, 192, 192, 0.9)', // teal (custom within palette)
+            'production': 'rgba(220, 53, 69, 0.9)',     // red (Productive)
+        };
         const root = modal.getRoot();
         const $select = root.find('#suggest-section-select');
         const $loading = root.find('#suggest-loading');
@@ -76,6 +85,29 @@ export default {
                         const activityType = (s.activity && s.activity.type ? s.activity.type : '?');
                         const $title = $('<strong/>').text(activityName + ' (' + activityType + ')');
 
+                        // Show Laurillard learning type badge if provided
+                        const lauri = s.laurillard_type || s.laurillardType || '';
+                        if (lauri) {
+                            const lc = String(lauri).toLowerCase().trim();
+                            const color = LAURILLARD_COLORS[lc] || null;
+                            const $lauriBadge = $('<span/>')
+                                .addClass('ml-2')
+                                .attr('title', lauri)
+                                .text(lauri);
+                            if (color) {
+                                $lauriBadge.css({
+                                    'background-color': color,
+                                    'color': '#fff',
+                                    'padding': '0.25em 0.5em',
+                                    'border-radius': '0.25rem',
+                                    'font-size': '0.75em'
+                                });
+                            } else {
+                                $lauriBadge.addClass('badge badge-info');
+                            }
+                            $title.append($lauriBadge);
+                        }
+
                         // If suggestion is unsupported, show a visible badge and leave checkbox unchecked.
                         if (s.supported === false) {
                             const raw = s.raw_type || activityType || '';
@@ -87,7 +119,10 @@ export default {
                         }
 
                         const $rationale = $('<p/>').addClass('mb-0 small text-muted').text(s.rationale || '');
-                        $card.append($cb).append($title).append('<br/>').append($rationale);
+                        // Show laurillard rationale beneath the main rationale, if present
+                        const lauriRationale = s.laurillard_rationale || s.laurillardRationale || '';
+                        const $lauriRationale = lauriRationale ? $('<p/>').addClass('mb-0 small font-italic text-muted').text(lauriRationale) : $();
+                        $card.append($cb).append($title).append('<br/>').append($rationale).append($lauriRationale);
                         $card.data('suggestion', s);
                         $list.append($card);
                     });

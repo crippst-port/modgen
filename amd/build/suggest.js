@@ -13,6 +13,14 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
   var _default = _exports.default = {
     init(modal, courseid) {
       let currentsection = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
+      const LAURILLARD_COLORS = {
+        'acquisition': 'rgba(66, 139, 202, 0.9)',
+        'inquiry': 'rgba(255, 152, 0, 0.9)',
+        'practice': 'rgba(255, 193, 7, 0.9)',
+        'discussion': 'rgba(40, 167, 69, 0.9)',
+        'collaboration': 'rgba(75, 192, 192, 0.9)',
+        'production': 'rgba(220, 53, 69, 0.9)'
+      };
       const root = modal.getRoot();
       const $select = root.find('#suggest-section-select');
       const $loading = root.find('#suggest-loading');
@@ -75,13 +83,33 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
               const activityName = s.activity && s.activity.name ? s.activity.name : 'Activity';
               const activityType = s.activity && s.activity.type ? s.activity.type : '?';
               const $title = (0, _jquery.default)('<strong/>').text(activityName + ' (' + activityType + ')');
+              const lauri = s.laurillard_type || s.laurillardType || '';
+              if (lauri) {
+                const lc = String(lauri).toLowerCase().trim();
+                const color = LAURILLARD_COLORS[lc] || null;
+                const $lauriBadge = (0, _jquery.default)('<span/>').addClass('ml-2').attr('title', lauri).text(lauri);
+                if (color) {
+                  $lauriBadge.css({
+                    'background-color': color,
+                    'color': '#fff',
+                    'padding': '0.25em 0.5em',
+                    'border-radius': '0.25rem',
+                    'font-size': '0.75em'
+                  });
+                } else {
+                  $lauriBadge.addClass('badge badge-info');
+                }
+                $title.append($lauriBadge);
+              }
               if (s.supported === false) {
                 const raw = s.raw_type || activityType || '';
                 const $badge = (0, _jquery.default)('<span/>').addClass('badge badge-warning ml-2').attr('title', raw).text(M.util.get_string('unsupported_label', 'aiplacement_modgen') || 'Unsupported');
                 $title.append($badge);
               }
               const $rationale = (0, _jquery.default)('<p/>').addClass('mb-0 small text-muted').text(s.rationale || '');
-              $card.append($cb).append($title).append('<br/>').append($rationale);
+              const lauriRationale = s.laurillard_rationale || s.laurillardRationale || '';
+              const $lauriRationale = lauriRationale ? (0, _jquery.default)('<p/>').addClass('mb-0 small font-italic text-muted').text(lauriRationale) : (0, _jquery.default)();
+              $card.append($cb).append($title).append('<br/>').append($rationale).append($lauriRationale);
               $card.data('suggestion', s);
               $list.append($card);
             });
@@ -99,18 +127,29 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
       root.on('click', '#suggest-create-selected', ev => {
         ev.preventDefault();
         const selected = [];
+        const skipped = [];
         $results.find('.list-group-item').each(function () {
           const $card = (0, _jquery.default)(this);
           const $cb = $card.find('input.suggest-checkbox');
           if ($cb.length && $cb.prop('checked')) {
             const s = $card.data('suggestion');
-            if (s) {
-              selected.push(s);
+            if (!s) {
+              return;
             }
+            const type = s.activity && s.activity.type ? String(s.activity.type).trim() : '';
+            if (s.supported === false || type === '' || type === '?') {
+              skipped.push(s.activity && (s.activity.name || s.activity.type) ? s.activity.name || s.activity.type : '(unknown)');
+              return;
+            }
+            selected.push(s);
           }
         });
         if (selected.length === 0) {
-          _notification.default.exception(new Error('No items selected'));
+          if (skipped.length) {
+            _notification.default.exception(new Error('Some selected items were skipped because their activity type is unsupported or unknown: ' + skipped.join(', ')));
+          } else {
+            _notification.default.exception(new Error('No items selected'));
+          }
           return;
         }
         const params = new URLSearchParams();

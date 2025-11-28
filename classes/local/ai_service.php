@@ -1308,12 +1308,27 @@ class ai_service {
                 $sectionsummary .= "Section: {$idx} - {$title}\nSummary: {$summary}\n\n";
             }
 
-            $prompt = "You are an expert learning designer. Given course section context below, propose up to 6 suggested Moodle activities for the selected section. RETURN ONLY a JSON array of suggestion objects with keys: id (string), activity: {type: '<one of the allowed activity type keys>', name: '<activity name>'}, rationale: '<brief pedagogical rationale>', supported: true|false. Use only the allowed activity type keys listed below in the activity.type field — do NOT invent new types. Do NOT include any other commentary.\n\nAllowed activity types (key => description):\n";
+            $prompt = "You are an expert learning designer. Given the course section context below, propose up to 6 suggested Moodle activities for the selected section. RETURN ONLY a JSON array of suggestion objects. Each suggestion object MUST include the following keys:\n" .
+                "- id: string (unique within this list)\n" .
+                "- activity: { type: '<one of the allowed activity type keys>', name: '<activity name>' }\n" .
+                "- rationale: '<2-4 sentence pedagogical rationale explaining why this activity is appropriate>'\n" .
+                "- laurillard_type: '<one of: Acquisition, Inquiry, Practice, Discussion, Collaboration, Production>'\n" .
+                "- laurillard_rationale: '<1-2 sentence explanation linking the activity to the Laurillard learning type>'\n" .
+                "- supported: true|false\n\n" .
+                "IMPORTANT: Use only the allowed activity type keys listed below in the activity.type field — do NOT invent new activity type keys. Do NOT include any other commentary or text outside the JSON array.\n\nAllowed activity types (key => description):\n";
             foreach ($allowedtypes as $t) {
                 $prompt .= "- {$t} => " . ($supported[$t]['description'] ?? '') . "\n";
             }
             $prompt .= "\nContext:\n\n";
             $prompt .= $sectionsummary;
+
+            // Add guidance about Laurillard learning types and mix balancing
+            $prompt .= "\nPEDAGOGICAL GUIDANCE (Laurillard & Mix):\n";
+            $prompt .= "For each suggested activity, include a 'laurillard_type' field with one of these values: Acquisition, Inquiry, Practice, Discussion, Collaboration, Production.\n";
+            $prompt .= "Provide a short 'laurillard_rationale' (1-2 sentences) that explains how the activity exemplifies the chosen Laurillard learning type.\n";
+            $prompt .= "When selecting up to 6 suggestions, aim to produce a balanced mix across these learning types for the SECTION as a whole.\n";
+            $prompt .= "If the section context already shows an imbalance (for example many Acquisition-type resources), favour suggestions that increase the diversity of learning types (e.g., add Practice, Discussion, or Collaboration) — this preference should be strongly weighted in your selection.\n";
+            $prompt .= "Return activities that are pedagogically appropriate for the section context and explicitly explain the fit in the 'rationale' field.\n\n";
 
             $action = new \core_ai\aiactions\generate_text($contextid, $USER->id, $prompt);
             $response = $aimanager->process_action($action);
@@ -1348,6 +1363,9 @@ class ai_service {
                 $id = isset($s['id']) ? (string)$s['id'] : (string)($i + 1);
                 $activity = $s['activity'] ?? [];
                 $rationale = $s['rationale'] ?? ($s['reason'] ?? '');
+                // Read Laurillard learning type and rationale if provided by the AI.
+                $laurillard_type = $s['laurillard_type'] ?? $s['laurillardType'] ?? $s['laurillard'] ?? '';
+                $laurillard_rationale = $s['laurillard_rationale'] ?? $s['laurillardRationale'] ?? $s['laurillard_reason'] ?? '';
                 $supported = isset($s['supported']) ? (bool)$s['supported'] : true;
                 // Attempt to normalise the returned type and match it to a supported key.
                 $rawtype = (string)($activity['type'] ?? ($activity['activity'] ?? ''));
@@ -1380,6 +1398,8 @@ class ai_service {
                         'name' => $activity['name'] ?? ($activity['title'] ?? 'Suggested Activity')
                     ],
                     'rationale' => $rationale,
+                    'laurillard_type' => $laurillard_type,
+                    'laurillard_rationale' => $laurillard_rationale,
                     'supported' => $is_supported,
                     'raw_type' => $rawtype,
                 ];

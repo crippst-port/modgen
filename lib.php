@@ -60,10 +60,17 @@ function aiplacement_modgen_extend_navigation_course(
         if ($showgenerator || $showexplore) {
             // Load CSS
             $PAGE->requires->css('/ai/placement/modgen/styles.css');
-            
+
+            // Load strings needed by suggest.js (must be in main page context, not fragment)
+            $PAGE->requires->strings_for_js([
+                'creation_warnings',
+                'suggest_noresults',
+                'unsupported_label',
+            ], 'aiplacement_modgen');
+
             // Get current section from URL (for context-aware creation)
             $currentsection = optional_param('section', 0, PARAM_INT);
-            
+
             // Initialize toolbar via AMD module using Fragment API
             $PAGE->requires->js_call_amd('aiplacement_modgen/course_toolbar', 'init', [[
                 'courseid' => $course->id,

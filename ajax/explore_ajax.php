@@ -35,6 +35,14 @@ require_once(__DIR__ . '/../classes/local/explore_cache.php');
 // Get parameters
 $courseid = required_param('courseid', PARAM_INT);
 $refresh = optional_param('refresh', 0, PARAM_INT);
+$sesskey = required_param('sesskey', PARAM_RAW);
+
+// Validate session key for CSRF protection
+if (!confirm_sesskey($sesskey)) {
+    http_response_code(403);
+    echo json_encode(['error' => 'Invalid session key']);
+    die();
+}
 
 $course = get_course($courseid);
 $context = context_course::instance($course->id);

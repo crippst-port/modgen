@@ -136,7 +136,7 @@ define(['core/templates'], function(templates) {
          */
         loadInsights: function(courseId, refresh) {
             var self = this;
-            var ajaxUrl = M.cfg.wwwroot + '/ai/placement/modgen/ajax/explore_ajax.php?courseid=' + courseId;
+            var ajaxUrl = M.cfg.wwwroot + '/ai/placement/modgen/ajax/explore_ajax.php?courseid=' + courseId + '&sesskey=' + M.cfg.sesskey;
             if (refresh) {
                 ajaxUrl += '&refresh=1';
             }

@@ -817,3 +817,7 @@
 .report-body {
     flex-grow: 1;
 }
+/* Modal width override for suggest feature */
+.aiplacement-modgen-modal-wide .modal-dialog {
+    max-width: 1200px !important;
+}

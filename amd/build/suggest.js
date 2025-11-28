@@ -1,4 +1,4 @@
-define(["exports", "core/notification", "jquery"], function (_exports, _notification, _jquery) {
+define(["exports", "core/notification", "core/config", "jquery"], function (_exports, _notification, _config, _jquery) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -6,13 +6,14 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
   });
   _exports.default = void 0;
   _notification = _interopRequireDefault(_notification);
+  _config = _interopRequireDefault(_config);
   _jquery = _interopRequireDefault(_jquery);
   function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
-  const SUGGEST_AJAX = M.cfg.wwwroot + '/ai/placement/modgen/ajax/suggest.php';
-  const CREATE_AJAX = M.cfg.wwwroot + '/ai/placement/modgen/ajax/suggest_create.php';
   var _default = _exports.default = {
     init(modal, courseid) {
       let currentsection = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
+      const SUGGEST_AJAX = _config.default.wwwroot + '/ai/placement/modgen/ajax/suggest.php';
+      const CREATE_AJAX = _config.default.wwwroot + '/ai/placement/modgen/ajax/suggest_create.php';
       const LAURILLARD_COLORS = {
         'acquisition': 'rgba(66, 139, 202, 0.9)',
         'inquiry': 'rgba(255, 152, 0, 0.9)',
@@ -154,15 +155,7 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
         const $modalEl = root.closest('.modal');
         if ($modalEl && $modalEl.length) {
           $modalEl.on('hidden.bs.modal', function () {
-            const $dialog = root.closest('.modal-dialog');
-            if ($dialog && $dialog.length) {
-              $dialog.removeClass('aiplacement-modgen-xxl');
-              try {
-                $dialog.each(function () {
-                  this.style.removeProperty('max-width');
-                });
-              } catch (e) {}
-            }
+            $modalEl.removeClass('aiplacement-modgen-modal-wide');
           });
         }
       } catch (e) {}
@@ -233,7 +226,7 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
         const params = new URLSearchParams();
         params.append('courseid', courseid);
         params.append('section', section);
-        params.append('sesskey', M.cfg.sesskey);
+        params.append('sesskey', _config.default.sesskey);
         fetch(SUGGEST_AJAX, {
           method: 'POST',
           headers: {
@@ -274,16 +267,7 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
               $results.append('<div class="alert alert-info">' + M.util.get_string('suggest_noresults', 'aiplacement_modgen') + '</div>');
               $createBtn.prop('disabled', true);
               root.find('#suggest-summary').hide();
-              try {
-                const $dialog = root.closest('.modal-dialog');
-                if ($dialog && $dialog.length) {
-                  $dialog.each(function () {
-                    try {
-                      this.style.removeProperty('max-width');
-                    } catch (e) {}
-                  });
-                }
-              } catch (e) {}
+              root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
               return;
             }
             const $list = (0, _jquery.default)('<div/>').addClass('list-group');
@@ -326,16 +310,7 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
             });
             $results.append($list);
             root.find('#suggest-summary').show();
-            try {
-              const $dialog = root.closest('.modal-dialog');
-              if ($dialog && $dialog.length) {
-                $dialog.each(function () {
-                  try {
-                    this.style.setProperty('max-width', '1200px', 'important');
-                  } catch (e) {}
-                });
-              }
-            } catch (e) {}
+            root.closest('.modal').addClass('aiplacement-modgen-modal-wide');
             const scheduleChartUpdate = () => {
               if (updateTimeout) {
                 clearTimeout(updateTimeout);
@@ -356,31 +331,13 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
             _notification.default.exception(new Error(data.error || 'No suggestions'));
             $results.append('<div class="alert alert-danger">' + (data.error || 'Error fetching suggestions') + '</div>');
             root.find('#suggest-summary').hide();
-            try {
-              const $dialog = root.closest('.modal-dialog');
-              if ($dialog && $dialog.length) {
-                $dialog.each(function () {
-                  try {
-                    this.style.removeProperty('max-width');
-                  } catch (e) {}
-                });
-              }
-            } catch (e) {}
+            root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
           }
         }).catch(err => {
           showLoading(false);
           _notification.default.exception(err);
           root.find('#suggest-summary').hide();
-          try {
-            const $dialog = root.closest('.modal-dialog');
-            if ($dialog && $dialog.length) {
-              $dialog.each(function () {
-                try {
-                  this.style.removeProperty('max-width');
-                } catch (e) {}
-              });
-            }
-          } catch (e) {}
+          root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
         });
       });
       root.on('click', '#suggest-create-selected', ev => {
@@ -415,7 +372,7 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
         params.append('courseid', courseid);
         params.append('section', $select.val());
         params.append('selected', JSON.stringify(selected));
-        params.append('sesskey', M.cfg.sesskey);
+        params.append('sesskey', _config.default.sesskey);
         showLoading(true);
         fetch(CREATE_AJAX, {
           method: 'POST',
@@ -443,16 +400,7 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
             }
             $results.html(html);
             root.find('#suggest-summary').hide();
-            try {
-              const $dialog = root.closest('.modal-dialog');
-              if ($dialog && $dialog.length) {
-                $dialog.each(function () {
-                  try {
-                    this.style.removeProperty('max-width');
-                  } catch (e) {}
-                });
-              }
-            } catch (e) {}
+            root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
             $createBtn.prop('disabled', true);
           } else {
             _notification.default.exception(new Error(data.error || 'Creation failed'));

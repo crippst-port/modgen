@@ -65,17 +65,22 @@ class url implements activity_type {
 
         // Extract URL from various possible field names
         $externalurl = trim($activitydata->externalurl ?? $activitydata->url ?? '');
-        
-        if ($externalurl === '') {
-            return null;
-        }
 
-        // Validate that this actually looks like a URL, not random text
-        if (!$this->is_valid_url($externalurl)) {
-            return null;
+        // Track if we're using a placeholder URL
+        $usingPlaceholder = false;
+
+        // If no URL provided or invalid, use a placeholder that prompts user to edit
+        if ($externalurl === '' || !$this->is_valid_url($externalurl)) {
+            $externalurl = 'https://example.com/edit-this-url';
+            $usingPlaceholder = true;
         }
 
         $intro = trim($activitydata->intro ?? '');
+
+        // If using placeholder URL, add a note to the intro
+        if ($usingPlaceholder) {
+            $intro = '<p><strong>Note: Please edit this activity to set the correct URL.</strong></p>' . $intro;
+        }
 
         // Validate and ensure URL has a protocol (use Moodle's function)
         $externalurl = url_fix_submitted_url($externalurl);
@@ -107,15 +112,22 @@ class url implements activity_type {
 
         try {
             $cm = create_module($moduleinfo);
-            
+
             if (!isset($cm->coursemodule) || !isset($cm->instance)) {
                 return null;
             }
 
-            return [
+            $result = [
                 'coursemodule' => $cm->coursemodule,
                 'instance' => $cm->instance
             ];
+
+            // Add a custom message if using placeholder URL to inform the user
+            if ($usingPlaceholder) {
+                $result['message'] = get_string('url_created_placeholder', 'aiplacement_modgen', $name);
+            }
+
+            return $result;
         } catch (\Exception $e) {
             return null;
         } catch (\Throwable $t) {

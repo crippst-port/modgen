@@ -1305,30 +1305,43 @@ class ai_service {
                 $idx = $s['section'] ?? ($s['id'] ?? '');
                 $title = $s['name'] ?? ($s['title'] ?? '');
                 $summary = isset($s['summary']) ? substr($s['summary'], 0, 1000) : '';
-                $sectionsummary .= "Section: {$idx} - {$title}\nSummary: {$summary}\n\n";
+                $sectionsummary .= "Section {$idx}: {$title}\n";
+                if ($summary) {
+                    $sectionsummary .= "Description: {$summary}\n";
+                }
+                $sectionsummary .= "\n";
             }
 
-            $prompt = "You are an expert learning designer. Given the course section context below, propose up to 6 suggested Moodle activities for the selected section. RETURN ONLY a JSON array of suggestion objects. Each suggestion object MUST include the following keys:\n" .
-                "- id: string (unique within this list)\n" .
-                "- activity: { type: '<one of the allowed activity type keys>', name: '<activity name>' }\n" .
-                "- rationale: '<2-4 sentence pedagogical rationale explaining why this activity is appropriate>'\n" .
-                "- laurillard_type: '<one of: Acquisition, Inquiry, Practice, Discussion, Collaboration, Production>'\n" .
-                "- laurillard_rationale: '<1-2 sentence explanation linking the activity to the Laurillard learning type>'\n" .
-                "- supported: true|false\n\n" .
-                "IMPORTANT: Use only the allowed activity type keys listed below in the activity.type field — do NOT invent new activity type keys. Do NOT include any other commentary or text outside the JSON array.\n\nAllowed activity types (key => description):\n";
+            // If section context is empty, provide generic guidance
+            if (empty(trim($sectionsummary))) {
+                $sectionsummary = "Generic course section requiring learning activities.\n";
+            }
+
+            $prompt = "ROLE: Expert learning designer specializing in pedagogical activity design.\n\n" .
+                "TASK: Suggest 5-6 Moodle learning activities for this course section.\n\n" .
+                "CONSTRAINTS:\n" .
+                "1. Return ONLY a JSON array (no other text)\n" .
+                "2. Use ONLY these activity types: " . implode(', ', $allowedtypes) . "\n" .
+                "3. Each activity must be different\n\n" .
+                "FORMAT: Each suggestion is a JSON object with:\n" .
+                "  id (string): unique ID\n" .
+                "  activity (object): { type, name }\n" .
+                "  rationale (string): why this activity works (2-3 sentences)\n" .
+                "  laurillard_type (string): one of [Acquisition, Inquiry, Practice, Discussion, Collaboration, Production]\n" .
+                "  laurillard_rationale (string): pedagogical explanation (1-2 sentences)\n\n" .
+                "SECTION CONTEXT:\n" .
+                $sectionsummary . "\n" .
+                "ACTIVITY TYPES AVAILABLE:\n";
             foreach ($allowedtypes as $t) {
-                $prompt .= "- {$t} => " . ($supported[$t]['description'] ?? '') . "\n";
+                $prompt .= "  • {$t}: " . ($supported[$t]['description'] ?? '') . "\n";
             }
-            $prompt .= "\nContext:\n\n";
-            $prompt .= $sectionsummary;
+            $prompt .= "\nPEDAGOGICAL GUIDANCE:\n" .
+                "• Balance learning types across the section\n" .
+                "• Prioritize activities that complement existing section content\n" .
+                "• Match activities to pedagogical intent of the section\n" .
+                "• Vary interactive and passive learning opportunities\n\n" .
+                "OUTPUT: JSON array only, starting with [ and ending with ]";
 
-            // Add guidance about Laurillard learning types and mix balancing
-            $prompt .= "\nPEDAGOGICAL GUIDANCE (Laurillard & Mix):\n";
-            $prompt .= "For each suggested activity, include a 'laurillard_type' field with one of these values: Acquisition, Inquiry, Practice, Discussion, Collaboration, Production.\n";
-            $prompt .= "Provide a short 'laurillard_rationale' (1-2 sentences) that explains how the activity exemplifies the chosen Laurillard learning type.\n";
-            $prompt .= "When selecting up to 6 suggestions, aim to produce a balanced mix across these learning types for the SECTION as a whole.\n";
-            $prompt .= "If the section context already shows an imbalance (for example many Acquisition-type resources), favour suggestions that increase the diversity of learning types (e.g., add Practice, Discussion, or Collaboration) — this preference should be strongly weighted in your selection.\n";
-            $prompt .= "Return activities that are pedagogically appropriate for the section context and explicitly explain the fit in the 'rationale' field.\n\n";
 
             $action = new \core_ai\aiactions\generate_text($contextid, $USER->id, $prompt);
             $response = $aimanager->process_action($action);
@@ -1339,19 +1352,43 @@ class ai_service {
                 return ['success' => false, 'error' => 'AI returned no text'];
             }
 
+            // Log AI response for debugging suggestions
+            error_log('[MODGEN-SUGGEST] AI Response received, length=' . strlen($text));
+
             // Try to decode JSON from the response
             $decoded = json_decode($text, true);
             if (!is_array($decoded)) {
                 // Try to extract JSON block from code fences or inline
                 if (preg_match('/```(?:json)?\s*(\[.*\])\s*```/s', $text, $m)) {
                     $decoded = json_decode($m[1], true);
+                    error_log('[MODGEN-SUGGEST] Extracted from code fence, count=' . (is_array($decoded) ? count($decoded) : 'not-array'));
                 } elseif (preg_match('/(\[\s*\{.*\}\s*\])/s', $text, $m2)) {
                     $decoded = json_decode($m2[1], true);
+                    error_log('[MODGEN-SUGGEST] Extracted from inline pattern, count=' . (is_array($decoded) ? count($decoded) : 'not-array'));
+                } else {
+                    // Try to find JSON array anywhere in the text, even with text before/after
+                    $stripped = trim($text);
+                    $start = strpos($stripped, '[');
+                    $end = strrpos($stripped, ']');
+                    if ($start !== false && $end !== false && $end > $start) {
+                        $jsonstr = substr($stripped, $start, $end - $start + 1);
+                        $decoded = json_decode($jsonstr, true);
+                        if (is_array($decoded)) {
+                            error_log('[MODGEN-SUGGEST] Extracted from text boundaries, count=' . count($decoded));
+                        }
+                    }
                 }
+            } else {
+                error_log('[MODGEN-SUGGEST] Direct JSON parse successful, count=' . (is_array($decoded) ? count($decoded) : 'not-array'));
             }
 
             if (!is_array($decoded)) {
+                error_log('[MODGEN-SUGGEST] Final parse failed. Raw response: ' . substr($text, 0, 500));
                 return ['success' => false, 'error' => 'Unable to parse AI suggestions', 'raw' => $text];
+            }
+
+            if (empty($decoded)) {
+                error_log('[MODGEN-SUGGEST] AI returned empty array');
             }
 
             // Normalize suggestions to expected shape and restrict to supported types
@@ -1391,6 +1428,12 @@ class ai_service {
                     $type_to_use = $rawtype ?: '';
                 }
 
+                // Skip suggestions with completely empty/missing activity type
+                if (empty($type_to_use) && empty($rawtype)) {
+                    error_log('[MODGEN-SUGGEST] Skipping suggestion ' . $id . ' - no activity type provided');
+                    continue;
+                }
+
                 $out[] = [
                     'id' => $id,
                     'activity' => (object)[
@@ -1405,6 +1448,7 @@ class ai_service {
                 ];
             }
 
+            error_log('[MODGEN-SUGGEST] Processing complete. Generated ' . count($out) . ' suggestions from ' . count($decoded) . ' AI items');
             return ['success' => true, 'suggestions' => $out, 'raw' => $text];
         } catch (\Throwable $e) {
             return ['success' => false, 'error' => $e->getMessage()];

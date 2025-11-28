@@ -61,6 +61,7 @@ $string['activity_created_cmid'] = 'Activity created (cmid: {$a})';
 $string['unsupported_label'] = 'Unsupported';
 $string['suggest_noresults'] = 'No suggestions were generated for this section.';
 $string['creation_warnings'] = 'Creation warnings';
+$string['url_created_placeholder'] = 'URL activity "{$a}" created with placeholder URL - please edit to set the correct link';
 $string['aigenlabel'] = 'AI Generated Label';
 $string['aigenquiz'] = 'AI Generated Quiz';
 $string['labelcreated'] = 'Label created (cmid: {$a})';

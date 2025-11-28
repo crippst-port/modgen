@@ -1,11 +1,12 @@
 import Notification from 'core/notification';
+import Config from 'core/config';
 import $ from 'jquery';
-
-const SUGGEST_AJAX = M.cfg.wwwroot + '/ai/placement/modgen/ajax/suggest.php';
-const CREATE_AJAX = M.cfg.wwwroot + '/ai/placement/modgen/ajax/suggest_create.php';
 
 export default {
     init(modal, courseid, currentsection = 0) {
+        // Build AJAX URLs using Moodle config (proper ES6 module way)
+        const SUGGEST_AJAX = Config.wwwroot + '/ai/placement/modgen/ajax/suggest.php';
+        const CREATE_AJAX = Config.wwwroot + '/ai/placement/modgen/ajax/suggest_create.php';
         // Colour mapping for Laurillard learning types — keep consistent with Explore report palette
         const LAURILLARD_COLORS = {
             'acquisition': 'rgba(66, 139, 202, 0.9)',   // blue (Narrative)
@@ -136,11 +137,7 @@ export default {
             const $modalEl = root.closest('.modal');
             if ($modalEl && $modalEl.length) {
                 $modalEl.on('hidden.bs.modal', function() {
-                    const $dialog = root.closest('.modal-dialog');
-                    if ($dialog && $dialog.length) {
-                        $dialog.removeClass('aiplacement-modgen-xxl');
-                        try { $dialog.each(function() { this.style.removeProperty('max-width'); }); } catch (e) { /* ignore */ }
-                    }
+                    $modalEl.removeClass('aiplacement-modgen-modal-wide');
                 });
             }
         } catch (e) {
@@ -205,7 +202,7 @@ export default {
             const params = new URLSearchParams();
             params.append('courseid', courseid);
             params.append('section', section);
-            params.append('sesskey', M.cfg.sesskey);
+            params.append('sesskey', Config.sesskey);
 
             fetch(SUGGEST_AJAX, {
                 method: 'POST',
@@ -252,13 +249,8 @@ export default {
                         $createBtn.prop('disabled', true);
                         // No suggestions -> keep summary hidden
                         root.find('#suggest-summary').hide();
-                        // Remove any inline modal max-width we may have set earlier
-                        try {
-                            const $dialog = root.closest('.modal-dialog');
-                            if ($dialog && $dialog.length) {
-                                $dialog.each(function() { try { this.style.removeProperty('max-width'); } catch (e) {} });
-                            }
-                        } catch (e) { /* ignore */ }
+                        // Remove wide modal class if no suggestions
+                        root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
                         return;
                     }
 
@@ -316,17 +308,8 @@ export default {
                     $results.append($list);
                     // Show summary area now that suggestion results are present
                     root.find('#suggest-summary').show();
-                    // Ensure modal is wide enough for chart + list: set inline max-width with !important
-                    try {
-                        const $dialog = root.closest('.modal-dialog');
-                        if ($dialog && $dialog.length) {
-                            $dialog.each(function() {
-                                try { this.style.setProperty('max-width', '1200px', 'important'); } catch (e) { /* ignore */ }
-                            });
-                        }
-                    } catch (e) {
-                        // ignore
-                    }
+                    // Make modal wide enough for chart + list
+                    root.closest('.modal').addClass('aiplacement-modgen-modal-wide');
                     // Debounced chart updater to avoid rapid re-renders when toggling
                     const scheduleChartUpdate = () => {
                         if (updateTimeout) {
@@ -354,26 +337,16 @@ export default {
                     $results.append('<div class="alert alert-danger">' + (data.error || 'Error fetching suggestions') + '</div>');
                     // Error or no data -> hide summary
                     root.find('#suggest-summary').hide();
-                    // Remove any inline modal max-width set earlier
-                    try {
-                        const $dialog = root.closest('.modal-dialog');
-                        if ($dialog && $dialog.length) {
-                            $dialog.each(function() { try { this.style.removeProperty('max-width'); } catch (e) {} });
-                        }
-                    } catch (e) { /* ignore */ }
+                    // Remove wide modal class on error
+                    root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
                 }
             }).catch(err => {
                 showLoading(false);
                 Notification.exception(err);
                 // On network/error, ensure summary is hidden
                 root.find('#suggest-summary').hide();
-                // Remove inline modal max-width if present
-                try {
-                    const $dialog = root.closest('.modal-dialog');
-                    if ($dialog && $dialog.length) {
-                        $dialog.each(function() { try { this.style.removeProperty('max-width'); } catch (e) {} });
-                    }
-                } catch (e) { /* ignore */ }
+                // Remove wide modal class on error
+                root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
             });
         });
 
@@ -412,7 +385,7 @@ export default {
             params.append('courseid', courseid);
             params.append('section', $select.val());
             params.append('selected', JSON.stringify(selected));
-            params.append('sesskey', M.cfg.sesskey);
+            params.append('sesskey', Config.sesskey);
 
             showLoading(true);
             fetch(CREATE_AJAX, {
@@ -441,13 +414,8 @@ export default {
                     $results.html(html);
                     // After creating, suggestion list is replaced by result HTML -> hide summary
                     root.find('#suggest-summary').hide();
-                    // Remove inline modal max-width set for suggestion view so dialog returns to normal
-                    try {
-                        const $dialog = root.closest('.modal-dialog');
-                        if ($dialog && $dialog.length) {
-                            $dialog.each(function() { try { this.style.removeProperty('max-width'); } catch (e) {} });
-                        }
-                    } catch (e) { /* ignore */ }
+                    // Remove wide modal class after creation
+                    root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
                     $createBtn.prop('disabled', true);
                 } else {
                     Notification.exception(new Error(data.error || 'Creation failed'));

@@ -55,7 +55,9 @@ function aiplacement_modgen_extend_navigation_course(
         // Only show explore if BOTH admin settings are enabled
         $ai_generation_enabled = !empty(get_config('aiplacement_modgen', 'enable_ai'));
         $explore_enabled = !empty(get_config('aiplacement_modgen', 'enable_exploration'));
+        $suggest_enabled = !empty(get_config('aiplacement_modgen', 'enable_suggest'));
         $showexplore = $ai_generation_enabled && $explore_enabled;
+        $showsuggest = $ai_generation_enabled && $suggest_enabled;
         
                 // Only render nav bar if at least one tool is available
         if ($showgenerator || $showexplore) {
@@ -71,6 +73,7 @@ function aiplacement_modgen_extend_navigation_course(
                 'contextid' => $context->id,
                 'showgenerator' => $showgenerator,
                 'showexplore' => $showexplore,
+                'showsuggest' => $showsuggest,
                 'currentsection' => $currentsection,
             ]]);
         }
@@ -130,7 +133,7 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     require_capability('moodle/course:update', $context);
     
     // Create the toolbar renderable
-    $toolbar = new \aiplacement_modgen\output\course_toolbar($courseid, $showgenerator, $showexplore);
+    $toolbar = new \aiplacement_modgen\output\course_toolbar($courseid, $showgenerator, $showexplore, !empty($args['showsuggest']));
     
     // Get the plugin renderer and render the toolbar
     $renderer = $PAGE->get_renderer('aiplacement_modgen');
@@ -192,6 +195,30 @@ function aiplacement_modgen_output_fragment_generator_form(array $args): string 
     // Return rendered form.
     // Fragment API automatically handles JavaScript initialization.
     return $form->render();
+}
+
+/**
+ * Fragment callback to render a simple Suggest placeholder form in a modal.
+ *
+ * @param array $args Fragment arguments containing courseid
+ * @return string Rendered HTML
+ */
+function aiplacement_modgen_output_fragment_form_suggest(array $args): string {
+    global $PAGE, $CFG;
+
+    // Validate parameters and permissions
+    $courseid = clean_param($args['courseid'], PARAM_INT);
+    $context = context_course::instance($courseid);
+    require_capability('moodle/course:update', $context);
+
+    // Simple placeholder HTML - will be replaced by a richer flow later
+    $html = '<div class="p-3">';
+    $html .= '<h4>' . get_string('suggest', 'aiplacement_modgen') . '</h4>';
+    $html .= '<p>' . get_string('suggestheading_desc', 'aiplacement_modgen') . '</p>';
+    $html .= '<p><button class="btn btn-primary" disabled>' . get_string('suggestactivities', 'aiplacement_modgen') . '</button></p>';
+    $html .= '</div>';
+
+    return $html;
 }
 
 /**

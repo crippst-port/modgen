@@ -21,7 +21,9 @@ define(["exports", "core/fragment", "core/notification", "aiplacement_modgen/mod
     _fragment.default.loadFragment('aiplacement_modgen', 'course_toolbar', config.contextid, {
       courseid: config.courseid,
       showgenerator: config.showgenerator ? 1 : 0,
-      showexplore: config.showexplore ? 1 : 0
+      showexplore: config.showexplore ? 1 : 0,
+      showsuggest: config.showsuggest ? 1 : 0,
+      currentsection: config.currentsection
     }).then(html => {
       const regionMain = document.querySelector('#region-main');
       if (regionMain) {

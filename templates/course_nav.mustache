@@ -44,6 +44,19 @@
           {{/showgenerator}}
         </div>
       </li>
+      
+      {{#showsuggest}}
+      <li class="nav-item dropdown ml-2">
+        <a class="nav-link dropdown-toggle btn btn-secondary btn-sm" href="#" role="button" data-toggle="dropdown" aria-expanded="false">
+          <i class="fa fa-lightbulb mr-1"></i> {{#str}}suggest, aiplacement_modgen{{/str}}
+        </a>
+        <div class="dropdown-menu">
+          <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="suggest" data-title="{{#str}}suggest, aiplacement_modgen{{/str}}">
+            <i class="fas fa-bolt"></i> {{#str}}suggestactivities, aiplacement_modgen{{/str}}
+          </a>
+        </div>
+      </li>
+      {{/showsuggest}}
            
            
             

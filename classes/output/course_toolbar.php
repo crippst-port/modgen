@@ -42,6 +42,8 @@ class course_toolbar implements renderable, templatable {
     
     /** @var bool Whether to show explore button */
     private $showexplore;
+    /** @var bool Whether to show suggest button */
+    private $showsuggest;
 
     /**
      * Constructor.
@@ -49,11 +51,13 @@ class course_toolbar implements renderable, templatable {
      * @param int $courseid Course ID
      * @param bool $showgenerator Whether to show generator button
      * @param bool $showexplore Whether to show explore button
+     * @param bool $showsuggest Whether to show suggest button
      */
-    public function __construct(int $courseid, bool $showgenerator, bool $showexplore) {
+    public function __construct(int $courseid, bool $showgenerator, bool $showexplore, bool $showsuggest = false) {
         $this->courseid = $courseid;
         $this->showgenerator = $showgenerator;
         $this->showexplore = $showexplore;
+        $this->showsuggest = $showsuggest;
     }
 
     /**
@@ -66,6 +70,7 @@ class course_toolbar implements renderable, templatable {
         $data = new stdClass();
         $data->showgenerator = $this->showgenerator;
         $data->showexplore = $this->showexplore;
+        $data->showsuggest = $this->showsuggest;
         
         if ($this->showgenerator) {
             $generatorurl = new moodle_url('/ai/placement/modgen/modal.php', ['id' => $this->courseid]);

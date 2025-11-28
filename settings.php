@@ -107,6 +107,19 @@ if ($hassiteconfig) {
             new lang_string('enableexploration_desc', 'aiplacement_modgen'),
             0
         ));
+        // Suggest toolbar button control
+        $settings->add(new admin_setting_heading(
+            'aiplacement_modgen/suggestheading',
+            new lang_string('suggestheading', 'aiplacement_modgen'),
+            new lang_string('suggestheading_desc', 'aiplacement_modgen')
+        ));
+
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_suggest',
+            new lang_string('enablesuggest', 'aiplacement_modgen'),
+            new lang_string('enablesuggest_desc', 'aiplacement_modgen'),
+            1
+        ));
         // Add file upload or other settings as needed.
     }
 }

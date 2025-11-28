@@ -47,6 +47,8 @@ export const init = (config) => {
         courseid: config.courseid,
         showgenerator: config.showgenerator ? 1 : 0,
         showexplore: config.showexplore ? 1 : 0,
+        showsuggest: config.showsuggest ? 1 : 0,
+        currentsection: config.currentsection,
     })
     .then((html) => {
         // Insert toolbar at top of region-main using vanilla JS

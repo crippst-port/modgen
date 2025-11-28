@@ -21,10 +21,12 @@
 
     <div id="suggest-summary" class="mb-3 suggest-summary" style="display:none;">
       <h5>{{#str}}explorelearningtypes, aiplacement_modgen{{/str}}</h5>
-      <div class="d-flex align-items-center lt--chart">
-        <canvas id="suggest-learning-types-chart" width="200" height="200" style="max-width:260px; width:100%;"></canvas>
-        <div id="suggest-learning-types-legend" class="ml-3"></div>
-      </div>
+        <div class="lt--chart">
+          <div class="chart-canvas-wrap">
+            <canvas id="suggest-learning-types-chart" width="200" height="200" style="max-width:260px; width:100%;"></canvas>
+          </div>
+          <div id="suggest-learning-types-legend" class="mt-2"></div>
+        </div>
     </div>
   </div>
 
@@ -38,6 +40,16 @@
   max-height: 15rem;
   width: auto;
   padding: 1rem;
+}
+
+.lt--chart .chart-canvas-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.lt--chart #suggest-learning-types-legend {
+  display: block;
 }
 
 /* Responsive layout: place results and chart side-by-side on wide viewports */

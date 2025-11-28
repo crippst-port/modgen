@@ -16,6 +16,25 @@ export default {
             'production': 'rgba(220, 53, 69, 0.9)',     // red (Productive)
         };
         const root = modal.getRoot();
+        // Try to make the modal dialog a bit wider for this tool so chart + list can sit side-by-side.
+        try {
+            const $dialog = root.closest('.modal-dialog');
+            if ($dialog && $dialog.length) {
+                // Remove any existing Bootstrap modal size classes (eg. modal-xl) so
+                // our xxl variant takes effect cleanly.
+                try {
+                    $dialog.removeClass(function(index, className) {
+                        return (className || '').split(/\s+/).filter(function(c) { return /^modal-/.test(c); }).join(' ');
+                    });
+                } catch (e) {
+                    // fallback: explicitly remove common classes
+                    $dialog.removeClass('modal-sm modal-lg modal-xl modal-xxl modal-fullscreen modal-fullscreen-sm-down modal-fullscreen-md-down modal-fullscreen-lg-down');
+                }
+                $dialog.addClass('aiplacement-modgen-xxl');
+            }
+        } catch (e) {
+            // ignore if DOM structure differs
+        }
         const $select = root.find('#suggest-section-select');
         const $loading = root.find('#suggest-loading');
         const $results = root.find('#suggest-results');
@@ -27,11 +46,160 @@ export default {
             }
         };
 
+        // Chart state
+        let learningTypesChart = null;
+        let baseChartData = null; // { labels: [], data: [], colors: [] }
+        let updateTimeout = null; // debounce handle
+
+        const createLearningTypesChart = (chartData) => {
+            if (!chartData || !chartData.labels) {
+                return;
+            }
+
+            // Initialize baseline chart data only once (server-provided baseline).
+            if (!baseChartData) {
+                baseChartData = {
+                    labels: chartData.labels.slice(),
+                    data: chartData.data.slice(),
+                    colors: chartData.colors.slice()
+                };
+            }
+
+            // Use the supplied chartData for rendering/update, but preserve baseline.
+            const chartToApply = {
+                labels: chartData.labels.slice(),
+                data: chartData.data.slice(),
+                colors: chartData.colors.slice()
+            };
+
+            require(['jquery', 'core/chartjs'], function($, ChartJS) {
+                const canvas = document.getElementById('suggest-learning-types-chart');
+                if (!canvas) {
+                    return;
+                }
+                const ctx = canvas.getContext('2d');
+
+                // Update existing chart in-place for smooth animation.
+                if (learningTypesChart) {
+                    try {
+                        learningTypesChart.data.labels = chartToApply.labels;
+                        if (learningTypesChart.data.datasets && learningTypesChart.data.datasets.length) {
+                            learningTypesChart.data.datasets[0].data = chartToApply.data;
+                            learningTypesChart.data.datasets[0].backgroundColor = chartToApply.colors;
+                        } else {
+                            learningTypesChart.data.datasets = [{ data: chartToApply.data, backgroundColor: chartToApply.colors, borderColor: '#fff', borderWidth: 2 }];
+                        }
+                        // gentle animation on update
+                        if (learningTypesChart.options) {
+                            learningTypesChart.options.animation = { duration: 400, easing: 'easeOutQuart' };
+                        }
+                        learningTypesChart.update();
+                    } catch (e) {
+                        try { learningTypesChart.destroy(); } catch (ex) { /* ignore */ }
+                        learningTypesChart = null;
+                    }
+                }
+
+                if (!learningTypesChart) {
+                    const config = {
+                        type: 'pie',
+                        data: {
+                            labels: chartToApply.labels,
+                            datasets: [{ data: chartToApply.data, backgroundColor: chartToApply.colors, borderColor: '#fff', borderWidth: 2 }]
+                        },
+                        options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { display: false } }, animation: { duration: 400, easing: 'easeOutQuart' } }
+                    };
+
+                    try {
+                        learningTypesChart = new Chart(ctx, config);
+                    } catch (e) {
+                        console.error('Chart render failed', e);
+                    }
+                }
+
+                // Render legend next to the chart (use chartToApply counts)
+                const $legend = $('#suggest-learning-types-legend');
+                $legend.empty();
+                chartToApply.labels.forEach((label, idx) => {
+                    const color = chartToApply.colors[idx] || '#ccc';
+                    const count = chartToApply.data[idx] || 0;
+                    const $item = $('<div/>').addClass('mb-1');
+                    const $sw = $('<span/>').css({ display: 'inline-block', width: '12px', height: '12px', 'background-color': color, 'margin-right': '8px', 'vertical-align': 'middle' });
+                    $item.append($sw).append(document.createTextNode(' ' + label + ': ' + count));
+                    $legend.append($item);
+                });
+            });
+        };
+
+        // Remove the wide dialog class when modal is closed to avoid leaking style.
+        try {
+            const $modalEl = root.closest('.modal');
+            if ($modalEl && $modalEl.length) {
+                $modalEl.on('hidden.bs.modal', function() {
+                    const $dialog = root.closest('.modal-dialog');
+                    if ($dialog && $dialog.length) {
+                        $dialog.removeClass('aiplacement-modgen-xxl');
+                        try { $dialog.each(function() { this.style.removeProperty('max-width'); }); } catch (e) { /* ignore */ }
+                    }
+                });
+            }
+        } catch (e) {
+            // ignore if event system not present
+        }
+
+        const updateChartWithSelections = () => {
+            if (!baseChartData) {
+                return;
+            }
+            // Deep copy base counts
+            const newData = baseChartData.data.slice();
+            const labels = baseChartData.labels;
+
+            // For each selected suggestion, add 1 to the corresponding laurillard label if known
+            $results.find('.list-group-item').each(function() {
+                const $card = $(this);
+                const $cb = $card.find('input.suggest-checkbox');
+                if ($cb.length && $cb.prop('checked')) {
+                    const s = $card.data('suggestion');
+                    if (!s) { return; }
+                    const lt = (s.laurillard_type || s.laurillardType || '').toString().trim().toLowerCase();
+                    if (!lt) {
+                        // Try mapping from activity.type
+                        const at = (s.activity && s.activity.type) ? s.activity.type.toString().toLowerCase() : '';
+                        // Map common activity types to Laurillard types
+                        const mapping = {
+                            'page': 'acquisition', 'book': 'acquisition', 'resource': 'acquisition', 'label': 'acquisition', 'url': 'acquisition',
+                            'forum': 'discussion', 'chat': 'discussion',
+                            'choice': 'inquiry', 'survey': 'inquiry', 'workshop': 'inquiry',
+                            'lesson': 'practice', 'feedback': 'practice',
+                            'assign': 'production', 'assignment': 'production', 'quiz': 'production', 'scorm': 'production',
+                            'bigbluebuttonbn': 'collaboration', 'zoom': 'collaboration'
+                        };
+                        const mapped = mapping[at] || '';
+                        if (mapped) {
+                            lt = mapped;
+                        }
+                    }
+                    if (lt) {
+                        const idx = labels.findIndex(l => l.toString().toLowerCase() === lt);
+                        if (idx >= 0) {
+                            newData[idx] = (newData[idx] || 0) + 1;
+                        }
+                    }
+                }
+            });
+
+            const newChart = { labels: baseChartData.labels, data: newData, colors: baseChartData.colors };
+            createLearningTypesChart(newChart);
+        };
+
         root.on('click', '#suggest-scan-btn', (ev) => {
             ev.preventDefault();
             const section = $select.val();
             showLoading(true);
             $results.empty();
+            // Hide the summary until we have suggestion results to display
+            root.find('#suggest-summary').hide();
             $createBtn.prop('disabled', true);
 
             const params = new URLSearchParams();
@@ -66,10 +234,31 @@ export default {
                 }
                 if (data.success) {
                     const suggestions = data.suggestions || [];
+                    // Initialize chart data from server-provided summary if present
+                    if (data.current_learning_types) {
+                        baseChartData = {
+                            labels: data.current_learning_types.labels || [],
+                            data: data.current_learning_types.data || [],
+                            colors: data.current_learning_types.colors || []
+                        };
+                        // Create initial chart
+                        createLearningTypesChart(baseChartData);
+                    } else {
+                        baseChartData = null;
+                    }
                     $results.empty();
                     if (!suggestions.length) {
                         $results.append('<div class="alert alert-info">' + M.util.get_string('suggest_noresults','aiplacement_modgen') + '</div>');
                         $createBtn.prop('disabled', true);
+                        // No suggestions -> keep summary hidden
+                        root.find('#suggest-summary').hide();
+                        // Remove any inline modal max-width we may have set earlier
+                        try {
+                            const $dialog = root.closest('.modal-dialog');
+                            if ($dialog && $dialog.length) {
+                                $dialog.each(function() { try { this.style.removeProperty('max-width'); } catch (e) {} });
+                            }
+                        } catch (e) { /* ignore */ }
                         return;
                     }
 
@@ -78,9 +267,6 @@ export default {
                         const id = s.id || '';
                         const $card = $('<div/>').addClass('list-group-item');
                         const $cb = $('<input/>').attr('type','checkbox').addClass('mr-2 suggest-checkbox').val(id);
-                        if (s.supported !== false) {
-                            $cb.prop('checked', true);
-                        }
                         const activityName = (s.activity && s.activity.name ? s.activity.name : 'Activity');
                         const activityType = (s.activity && s.activity.type ? s.activity.type : '?');
                         const $title = $('<strong/>').text(activityName + ' (' + activityType + ')');
@@ -128,14 +314,66 @@ export default {
                     });
 
                     $results.append($list);
-                    $createBtn.prop('disabled', false);
+                    // Show summary area now that suggestion results are present
+                    root.find('#suggest-summary').show();
+                    // Ensure modal is wide enough for chart + list: set inline max-width with !important
+                    try {
+                        const $dialog = root.closest('.modal-dialog');
+                        if ($dialog && $dialog.length) {
+                            $dialog.each(function() {
+                                try { this.style.setProperty('max-width', '1200px', 'important'); } catch (e) { /* ignore */ }
+                            });
+                        }
+                    } catch (e) {
+                        // ignore
+                    }
+                    // Debounced chart updater to avoid rapid re-renders when toggling
+                    const scheduleChartUpdate = () => {
+                        if (updateTimeout) {
+                            clearTimeout(updateTimeout);
+                        }
+                        updateTimeout = setTimeout(() => {
+                            updateChartWithSelections();
+                            updateTimeout = null;
+                        }, 150);
+                    };
+
+                    // Attach change handler to checkboxes to update the chart dynamically (debounced)
+                    $results.find('input.suggest-checkbox').on('change', function() {
+                        scheduleChartUpdate();
+                        // Enable Create button only when at least one suggestion is checked
+                        const anyChecked = $results.find('input.suggest-checkbox:checked').length > 0;
+                        $createBtn.prop('disabled', !anyChecked);
+                    });
+                    // Immediately schedule an update to include any pre-checked suggestions (none by default)
+                    scheduleChartUpdate();
+                    // Ensure create button is disabled until user selects items
+                    $createBtn.prop('disabled', true);
                 } else {
                     Notification.exception(new Error(data.error || 'No suggestions'));
                     $results.append('<div class="alert alert-danger">' + (data.error || 'Error fetching suggestions') + '</div>');
+                    // Error or no data -> hide summary
+                    root.find('#suggest-summary').hide();
+                    // Remove any inline modal max-width set earlier
+                    try {
+                        const $dialog = root.closest('.modal-dialog');
+                        if ($dialog && $dialog.length) {
+                            $dialog.each(function() { try { this.style.removeProperty('max-width'); } catch (e) {} });
+                        }
+                    } catch (e) { /* ignore */ }
                 }
             }).catch(err => {
                 showLoading(false);
                 Notification.exception(err);
+                // On network/error, ensure summary is hidden
+                root.find('#suggest-summary').hide();
+                // Remove inline modal max-width if present
+                try {
+                    const $dialog = root.closest('.modal-dialog');
+                    if ($dialog && $dialog.length) {
+                        $dialog.each(function() { try { this.style.removeProperty('max-width'); } catch (e) {} });
+                    }
+                } catch (e) { /* ignore */ }
             });
         });
 
@@ -201,6 +439,15 @@ export default {
                         html += '</ul></div>';
                     }
                     $results.html(html);
+                    // After creating, suggestion list is replaced by result HTML -> hide summary
+                    root.find('#suggest-summary').hide();
+                    // Remove inline modal max-width set for suggestion view so dialog returns to normal
+                    try {
+                        const $dialog = root.closest('.modal-dialog');
+                        if ($dialog && $dialog.length) {
+                            $dialog.each(function() { try { this.style.removeProperty('max-width'); } catch (e) {} });
+                        }
+                    } catch (e) { /* ignore */ }
                     $createBtn.prop('disabled', true);
                 } else {
                     Notification.exception(new Error(data.error || 'Creation failed'));

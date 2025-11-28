@@ -126,6 +126,131 @@ try {
 
     $result = $serviceClass::generate_suggestions_from_map($sectionmap, $courseid);
 
+    // Compute current learning-type mix for the requested section (if any)
+    // Map common module names to Laurillard learning types to keep consistent with Explore report.
+    $learningtype_map = [
+        // Acquisition-like resources
+        'page' => 'Acquisition', 'book' => 'Acquisition', 'resource' => 'Acquisition', 'label' => 'Acquisition', 'url' => 'Acquisition',
+        // Discussion/dialogic
+        'forum' => 'Discussion', 'chat' => 'Discussion',
+        // Inquiry/interactive
+        'choice' => 'Inquiry', 'survey' => 'Inquiry', 'workshop' => 'Inquiry', 'hsuforum' => 'Inquiry',
+        // Practice/adaptive
+        'lesson' => 'Practice', 'feedback' => 'Practice',
+        // Production/collaborative
+        'assign' => 'Production', 'assignment' => 'Production', 'quiz' => 'Production', 'scorm' => 'Production',
+        // Collaboration (webconferencing)
+        'bigbluebuttonbn' => 'Collaboration', 'zoom' => 'Collaboration'
+    ];
+
+    $learning_counts = [
+        'Acquisition' => 0,
+        'Discussion' => 0,
+        'Inquiry' => 0,
+        'Practice' => 0,
+        'Collaboration' => 0,
+        'Production' => 0,
+    ];
+
+    $hasactivities = false;
+    if (!empty($section) && is_int($section) && $section > 0) {
+        // Find course_sections record for this section number
+        $sectionrec = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $section]);
+        if ($sectionrec) {
+                // Try to obtain the course modules for this section using the already-loaded
+                // $modinfo (fast, avoids extra DB queries). If that fails fall back to a
+                // direct DB query for course_modules linked to this section id.
+                $cms = [];
+                try {
+                    $sections = $modinfo->get_section_info_all();
+                    $target = null;
+                    foreach ($sections as $s) {
+                        $secnum = isset($s->section) ? (int)$s->section : (int)($s->id ?? 0);
+                        if ($secnum === (int)$section) {
+                            $target = $s;
+                            break;
+                        }
+                    }
+                    if ($target && !empty($target->sequence)) {
+                        $cmids = array_filter(array_map('intval', explode(',', $target->sequence)));
+                        // modinfo may expose cms as an array of cm_info objects.
+                        if (!empty($modinfo->cms) && is_array($modinfo->cms)) {
+                            foreach ($cmids as $cmid) {
+                                if (isset($modinfo->cms[$cmid])) {
+                                    $cms[] = $modinfo->cms[$cmid];
+                                } else if (method_exists($modinfo, 'get_cm')) {
+                                    $maybe = $modinfo->get_cm($cmid);
+                                    if ($maybe) {
+                                        $cms[] = $maybe;
+                                    }
+                                }
+                            }
+                        } else {
+                            // As a last resort build lightweight cms array from DB course_modules
+                            $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
+                            foreach ($dbcms as $dcm) {
+                                $modname = $DB->get_field('modules', 'name', ['id' => $dcm->module]);
+                                $dcm->modname = $modname ?: '';
+                                $cms[] = $dcm;
+                            }
+                        }
+                    } else {
+                        // No sequence on the section (empty section) - try DB fallback
+                        $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
+                        foreach ($dbcms as $dcm) {
+                            $modname = $DB->get_field('modules', 'name', ['id' => $dcm->module]);
+                            $dcm->modname = $modname ?: '';
+                            $cms[] = $dcm;
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    // If anything goes wrong, fall back to querying course_modules directly
+                    $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
+                    foreach ($dbcms as $dcm) {
+                        $modname = $DB->get_field('modules', 'name', ['id' => $dcm->module]);
+                        $dcm->modname = $modname ?: '';
+                        $cms[] = $dcm;
+                    }
+                }
+
+                if (!empty($cms) && is_array($cms)) {
+                    foreach ($cms as $cm) {
+                        $modname = '';
+                        if (!empty($cm->modname)) {
+                            $modname = strtolower($cm->modname);
+                        } else if (!empty($cm->module) && is_string($cm->module)) {
+                            $modname = strtolower($cm->module);
+                        }
+                        $lt = $learningtype_map[$modname] ?? 'Production';
+                        if (!isset($learning_counts[$lt])) {
+                            $learning_counts[$lt] = 0;
+                        }
+                        $learning_counts[$lt]++;
+                        $hasactivities = true;
+                    }
+                }
+        }
+    }
+
+    // Provide chart-friendly arrays
+    $labels = array_keys($learning_counts);
+    $data = array_values($learning_counts);
+    $colors = [
+        'Acquisition' => 'rgba(66, 139, 202, 0.9)',
+        'Discussion' => 'rgba(40, 167, 69, 0.9)',
+        'Inquiry' => 'rgba(255, 152, 0, 0.9)',
+        'Practice' => 'rgba(255, 193, 7, 0.9)',
+        'Collaboration' => 'rgba(75, 192, 192, 0.9)',
+        'Production' => 'rgba(220, 53, 69, 0.9)',
+    ];
+
+    $result['current_learning_types'] = [
+        'labels' => $labels,
+        'data' => $data,
+        'colors' => array_map(function($k) use ($colors) { return $colors[$k]; }, $labels),
+        'hasActivities' => $hasactivities,
+    ];
+
     // Discard any accidental output and return JSON
     $extra = @ob_get_clean();
     if ($extra !== false && trim($extra) !== '') {

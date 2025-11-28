@@ -22,6 +22,21 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
         'production': 'rgba(220, 53, 69, 0.9)'
       };
       const root = modal.getRoot();
+      try {
+        const $dialog = root.closest('.modal-dialog');
+        if ($dialog && $dialog.length) {
+          try {
+            $dialog.removeClass(function (index, className) {
+              return (className || '').split(/\s+/).filter(function (c) {
+                return /^modal-/.test(c);
+              }).join(' ');
+            });
+          } catch (e) {
+            $dialog.removeClass('modal-sm modal-lg modal-xl modal-xxl modal-fullscreen modal-fullscreen-sm-down modal-fullscreen-md-down modal-fullscreen-lg-down');
+          }
+          $dialog.addClass('aiplacement-modgen-xxl');
+        }
+      } catch (e) {}
       const $select = root.find('#suggest-section-select');
       const $loading = root.find('#suggest-loading');
       const $results = root.find('#suggest-results');
@@ -31,11 +46,189 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
           $loading.toggle(show);
         }
       };
+      let learningTypesChart = null;
+      let baseChartData = null;
+      let updateTimeout = null;
+      const createLearningTypesChart = chartData => {
+        if (!chartData || !chartData.labels) {
+          return;
+        }
+        if (!baseChartData) {
+          baseChartData = {
+            labels: chartData.labels.slice(),
+            data: chartData.data.slice(),
+            colors: chartData.colors.slice()
+          };
+        }
+        const chartToApply = {
+          labels: chartData.labels.slice(),
+          data: chartData.data.slice(),
+          colors: chartData.colors.slice()
+        };
+        require(['jquery', 'core/chartjs'], function ($, ChartJS) {
+          const canvas = document.getElementById('suggest-learning-types-chart');
+          if (!canvas) {
+            return;
+          }
+          const ctx = canvas.getContext('2d');
+          if (learningTypesChart) {
+            try {
+              learningTypesChart.data.labels = chartToApply.labels;
+              if (learningTypesChart.data.datasets && learningTypesChart.data.datasets.length) {
+                learningTypesChart.data.datasets[0].data = chartToApply.data;
+                learningTypesChart.data.datasets[0].backgroundColor = chartToApply.colors;
+              } else {
+                learningTypesChart.data.datasets = [{
+                  data: chartToApply.data,
+                  backgroundColor: chartToApply.colors,
+                  borderColor: '#fff',
+                  borderWidth: 2
+                }];
+              }
+              if (learningTypesChart.options) {
+                learningTypesChart.options.animation = {
+                  duration: 400,
+                  easing: 'easeOutQuart'
+                };
+              }
+              learningTypesChart.update();
+            } catch (e) {
+              try {
+                learningTypesChart.destroy();
+              } catch (ex) {}
+              learningTypesChart = null;
+            }
+          }
+          if (!learningTypesChart) {
+            const config = {
+              type: 'pie',
+              data: {
+                labels: chartToApply.labels,
+                datasets: [{
+                  data: chartToApply.data,
+                  backgroundColor: chartToApply.colors,
+                  borderColor: '#fff',
+                  borderWidth: 2
+                }]
+              },
+              options: {
+                responsive: true,
+                maintainAspectRatio: true,
+                plugins: {
+                  legend: {
+                    display: false
+                  }
+                },
+                animation: {
+                  duration: 400,
+                  easing: 'easeOutQuart'
+                }
+              }
+            };
+            try {
+              learningTypesChart = new Chart(ctx, config);
+            } catch (e) {
+              console.error('Chart render failed', e);
+            }
+          }
+          const $legend = $('#suggest-learning-types-legend');
+          $legend.empty();
+          chartToApply.labels.forEach((label, idx) => {
+            const color = chartToApply.colors[idx] || '#ccc';
+            const count = chartToApply.data[idx] || 0;
+            const $item = $('<div/>').addClass('mb-1');
+            const $sw = $('<span/>').css({
+              display: 'inline-block',
+              width: '12px',
+              height: '12px',
+              'background-color': color,
+              'margin-right': '8px',
+              'vertical-align': 'middle'
+            });
+            $item.append($sw).append(document.createTextNode(' ' + label + ': ' + count));
+            $legend.append($item);
+          });
+        });
+      };
+      try {
+        const $modalEl = root.closest('.modal');
+        if ($modalEl && $modalEl.length) {
+          $modalEl.on('hidden.bs.modal', function () {
+            const $dialog = root.closest('.modal-dialog');
+            if ($dialog && $dialog.length) {
+              $dialog.removeClass('aiplacement-modgen-xxl');
+              try {
+                $dialog.each(function () {
+                  this.style.removeProperty('max-width');
+                });
+              } catch (e) {}
+            }
+          });
+        }
+      } catch (e) {}
+      const updateChartWithSelections = () => {
+        if (!baseChartData) {
+          return;
+        }
+        const newData = baseChartData.data.slice();
+        const labels = baseChartData.labels;
+        $results.find('.list-group-item').each(function () {
+          const $card = (0, _jquery.default)(this);
+          const $cb = $card.find('input.suggest-checkbox');
+          if ($cb.length && $cb.prop('checked')) {
+            const s = $card.data('suggestion');
+            if (!s) {
+              return;
+            }
+            const lt = (s.laurillard_type || s.laurillardType || '').toString().trim().toLowerCase();
+            if (!lt) {
+              const at = s.activity && s.activity.type ? s.activity.type.toString().toLowerCase() : '';
+              const mapping = {
+                'page': 'acquisition',
+                'book': 'acquisition',
+                'resource': 'acquisition',
+                'label': 'acquisition',
+                'url': 'acquisition',
+                'forum': 'discussion',
+                'chat': 'discussion',
+                'choice': 'inquiry',
+                'survey': 'inquiry',
+                'workshop': 'inquiry',
+                'lesson': 'practice',
+                'feedback': 'practice',
+                'assign': 'production',
+                'assignment': 'production',
+                'quiz': 'production',
+                'scorm': 'production',
+                'bigbluebuttonbn': 'collaboration',
+                'zoom': 'collaboration'
+              };
+              const mapped = mapping[at] || '';
+              if (mapped) {
+                lt = mapped;
+              }
+            }
+            if (lt) {
+              const idx = labels.findIndex(l => l.toString().toLowerCase() === lt);
+              if (idx >= 0) {
+                newData[idx] = (newData[idx] || 0) + 1;
+              }
+            }
+          }
+        });
+        const newChart = {
+          labels: baseChartData.labels,
+          data: newData,
+          colors: baseChartData.colors
+        };
+        createLearningTypesChart(newChart);
+      };
       root.on('click', '#suggest-scan-btn', ev => {
         ev.preventDefault();
         const section = $select.val();
         showLoading(true);
         $results.empty();
+        root.find('#suggest-summary').hide();
         $createBtn.prop('disabled', true);
         const params = new URLSearchParams();
         params.append('courseid', courseid);
@@ -66,10 +259,31 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
           }
           if (data.success) {
             const suggestions = data.suggestions || [];
+            if (data.current_learning_types) {
+              baseChartData = {
+                labels: data.current_learning_types.labels || [],
+                data: data.current_learning_types.data || [],
+                colors: data.current_learning_types.colors || []
+              };
+              createLearningTypesChart(baseChartData);
+            } else {
+              baseChartData = null;
+            }
             $results.empty();
             if (!suggestions.length) {
               $results.append('<div class="alert alert-info">' + M.util.get_string('suggest_noresults', 'aiplacement_modgen') + '</div>');
               $createBtn.prop('disabled', true);
+              root.find('#suggest-summary').hide();
+              try {
+                const $dialog = root.closest('.modal-dialog');
+                if ($dialog && $dialog.length) {
+                  $dialog.each(function () {
+                    try {
+                      this.style.removeProperty('max-width');
+                    } catch (e) {}
+                  });
+                }
+              } catch (e) {}
               return;
             }
             const $list = (0, _jquery.default)('<div/>').addClass('list-group');
@@ -77,9 +291,6 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
               const id = s.id || '';
               const $card = (0, _jquery.default)('<div/>').addClass('list-group-item');
               const $cb = (0, _jquery.default)('<input/>').attr('type', 'checkbox').addClass('mr-2 suggest-checkbox').val(id);
-              if (s.supported !== false) {
-                $cb.prop('checked', true);
-              }
               const activityName = s.activity && s.activity.name ? s.activity.name : 'Activity';
               const activityType = s.activity && s.activity.type ? s.activity.type : '?';
               const $title = (0, _jquery.default)('<strong/>').text(activityName + ' (' + activityType + ')');
@@ -114,14 +325,62 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
               $list.append($card);
             });
             $results.append($list);
-            $createBtn.prop('disabled', false);
+            root.find('#suggest-summary').show();
+            try {
+              const $dialog = root.closest('.modal-dialog');
+              if ($dialog && $dialog.length) {
+                $dialog.each(function () {
+                  try {
+                    this.style.setProperty('max-width', '1200px', 'important');
+                  } catch (e) {}
+                });
+              }
+            } catch (e) {}
+            const scheduleChartUpdate = () => {
+              if (updateTimeout) {
+                clearTimeout(updateTimeout);
+              }
+              updateTimeout = setTimeout(() => {
+                updateChartWithSelections();
+                updateTimeout = null;
+              }, 150);
+            };
+            $results.find('input.suggest-checkbox').on('change', function () {
+              scheduleChartUpdate();
+              const anyChecked = $results.find('input.suggest-checkbox:checked').length > 0;
+              $createBtn.prop('disabled', !anyChecked);
+            });
+            scheduleChartUpdate();
+            $createBtn.prop('disabled', true);
           } else {
             _notification.default.exception(new Error(data.error || 'No suggestions'));
             $results.append('<div class="alert alert-danger">' + (data.error || 'Error fetching suggestions') + '</div>');
+            root.find('#suggest-summary').hide();
+            try {
+              const $dialog = root.closest('.modal-dialog');
+              if ($dialog && $dialog.length) {
+                $dialog.each(function () {
+                  try {
+                    this.style.removeProperty('max-width');
+                  } catch (e) {}
+                });
+              }
+            } catch (e) {}
           }
         }).catch(err => {
           showLoading(false);
           _notification.default.exception(err);
+          root.find('#suggest-summary').hide();
+          try {
+            const $dialog = root.closest('.modal-dialog');
+            if ($dialog && $dialog.length) {
+              $dialog.each(function () {
+                try {
+                  this.style.removeProperty('max-width');
+                } catch (e) {}
+              });
+            }
+          } catch (e) {}
         });
       });
       root.on('click', '#suggest-create-selected', ev => {
@@ -183,6 +442,17 @@ define(["exports", "core/notification", "jquery"], function (_exports, _notifica
               html += '</ul></div>';
             }
             $results.html(html);
+            root.find('#suggest-summary').hide();
+            try {
+              const $dialog = root.closest('.modal-dialog');
+              if ($dialog && $dialog.length) {
+                $dialog.each(function () {
+                  try {
+                    this.style.removeProperty('max-width');
+                  } catch (e) {}
+                });
+              }
+            } catch (e) {}
             $createBtn.prop('disabled', true);
           } else {
             _notification.default.exception(new Error(data.error || 'Creation failed'));

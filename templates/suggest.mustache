@@ -16,9 +16,64 @@
     <span id="suggest-loading" style="display:none; margin-left:8px;">{{loadingthinking}}</span>
   </div>
 
-  <div id="suggest-results"></div>
+  <div class="suggest-body">
+    <div id="suggest-results" class="suggest-list"></div>
+
+    <div id="suggest-summary" class="mb-3 suggest-summary" style="display:none;">
+      <h5>{{#str}}explorelearningtypes, aiplacement_modgen{{/str}}</h5>
+      <div class="d-flex align-items-center lt--chart">
+        <canvas id="suggest-learning-types-chart" width="200" height="200" style="max-width:260px; width:100%;"></canvas>
+        <div id="suggest-learning-types-legend" class="ml-3"></div>
+      </div>
+    </div>
+  </div>
 
   <div class="mt-3">
     <button class="btn btn-success" id="suggest-create-selected" disabled>{{approveandcreate}}</button>
   </div>
 </div>
+
+<style>
+.lt--chart {
+  max-height: 15rem;
+  width: auto;
+  padding: 1rem;
+}
+
+/* Responsive layout: place results and chart side-by-side on wide viewports */
+.suggest-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.suggest-list {
+  flex: 1 1 auto;
+}
+.suggest-summary {
+  flex: 0 0 auto;
+}
+
+@media (min-width: 900px) {
+  .suggest-body {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+  .suggest-list {
+    margin-right: 1rem;
+  }
+  .suggest-summary {
+    width: 320px;
+    flex: 0 0 320px;
+  }
+  #suggest-learning-types-chart { max-width: 260px; }
+}
+</style>
+<style>
+/* Widen the modal dialog when our class is present (XXL variant) */
+.aiplacement-modgen-xxl {
+  max-width: 1300px !important;
+}
+@media (max-width: 959px) {
+  .aiplacement-modgen-xxl { max-width: 100% !important; }
+}
+</style>

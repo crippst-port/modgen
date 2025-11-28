@@ -11,6 +11,8 @@ if (!file_exists($configpath)) {
 require_once($configpath);
 require_once(__DIR__ . '/../lib.php');
 
+use aiplacement_modgen\local\ajax_response;
+
 // Ensure the ai_service class is available. The class historically lives in
 // `classes/local/ai_service.php` but its namespace may be `aiplacement_modgen`
 // (not `...\local`). Detect which is present and require the file if needed.
@@ -35,9 +37,7 @@ defined('MOODLE_INTERNAL') || die();
 
 // If we couldn't locate the ai_service class, return a JSON error immediately.
 if ($serviceClass === null) {
-    @header('Content-Type: application/json');
-    echo json_encode(['success' => false, 'error' => 'ai_service class not found']);
-    exit(0);
+    ajax_response::error('ai_service class not found', 'service_not_found');
 }
 
 // Prevent PHP from outputting HTML errors directly to the response
@@ -58,7 +58,7 @@ try {
     $sesskey = optional_param('sesskey', '', PARAM_RAW);
 
     if (!confirm_sesskey($sesskey)) {
-        throw new \moodle_exception('invalidsesskey', 'error');
+        ajax_response::error('Invalid session key', 'invalidsesskey');
     }
 
     $context = context_course::instance($courseid);
@@ -257,18 +257,12 @@ try {
         $result['debug_extra_base64'] = base64_encode($extra);
     }
 
-    echo json_encode($result);
+    ajax_response::success($result);
 } catch (\Throwable $e) {
     // Capture any buffered output, include in error response for debugging
     $buffered = '';
     if (ob_get_length() !== false) {
         $buffered = @ob_get_clean();
     }
-    @header('Content-Type: application/json');
-    $msg = $e->getMessage();
-    $error = ['success' => false, 'error' => $msg];
-    if (!empty($buffered)) {
-        $error['debug_extra_base64'] = base64_encode($buffered);
-    }
-    echo json_encode($error);
+    ajax_response::error($e->getMessage(), 'exception', !empty($buffered) ? base64_encode($buffered) : null);
 }

@@ -27,26 +27,16 @@ define('AJAX_SCRIPT', true);
 require_once(__DIR__ . '/../../../../config.php');
 require_once($CFG->dirroot . '/course/lib.php');
 
-// Log everything for debugging
-error_log('=== create_sections.php called ===');
-error_log('POST: ' . print_r($_POST, true));
-error_log('GET: ' . print_r($_GET, true));
-error_log('REQUEST: ' . print_r($_REQUEST, true));
+use aiplacement_modgen\local\ajax_response;
 
 // Require login and valid session.
 require_login();
 require_sesskey();
 
-// Debug logging - remove after testing
-error_log('create_sections.php - POST data: ' . print_r($_POST, true));
-error_log('create_sections.php - GET data: ' . print_r($_GET, true));
-
 // Get parameters.
 $courseid = required_param('courseid', PARAM_INT);
 $action = required_param('action', PARAM_ALPHAEXT); // 'create_themes' or 'create_weeks' (ALPHAEXT allows underscores)
 $parentsection = optional_param('parentsection', 0, PARAM_INT); // Current section to add content within
-
-error_log("create_sections.php - courseid: $courseid, action: $action, parentsection: $parentsection");
 
 // Verify course access and permissions.
 $context = context_course::instance($courseid);
@@ -54,14 +44,6 @@ require_capability('moodle/course:update', $context);
 
 // Set page context (required by some Moodle functions).
 $PAGE->set_context($context);
-
-// Prepare response structure.
-$response = [
-    'success' => false,
-    'message' => '',
-    'messages' => [],
-    'error' => '',
-];
 
 try {
     require_once(__DIR__ . '/../classes/local/theme_builder.php');
@@ -73,20 +55,19 @@ try {
 
         // Validate.
         if ($themecount < 1 || $themecount > 10) {
-            throw new moodle_exception('invalidcount', 'aiplacement_modgen');
+            ajax_response::error('Invalid theme count', 'invalidcount');
         }
         if ($weeksperTheme < 1 || $weeksperTheme > 10) {
-            throw new moodle_exception('invalidcount', 'aiplacement_modgen');
+            ajax_response::error('Invalid weeks per theme', 'invalidcount');
         }
 
         // Create themes within current section.
         $result = \aiplacement_modgen\local\theme_builder::create_themes($courseid, $themecount, $weeksperTheme, $parentsection);
 
-        if ($result['success']) {
-            $response['success'] = true;
-            $response['message'] = get_string('themescreated', 'aiplacement_modgen', $themecount);
-            $response['messages'] = $result['messages'];
-        }
+        ajax_response::success([
+            'message' => get_string('themescreated', 'aiplacement_modgen', $themecount),
+            'messages' => $result['messages'] ?? []
+        ]);
 
     } else if ($action === 'create_weeks') {
         // Get week parameters.
@@ -94,27 +75,21 @@ try {
 
         // Validate.
         if ($weekcount < 1 || $weekcount > 10) {
-            throw new moodle_exception('invalidcount', 'aiplacement_modgen');
+            ajax_response::error('Invalid week count', 'invalidcount');
         }
 
         // Create weeks within current section.
         $result = \aiplacement_modgen\local\theme_builder::create_weeks($courseid, $weekcount, $parentsection);
 
-        if ($result['success']) {
-            $response['success'] = true;
-            $response['message'] = get_string('weekscreated', 'aiplacement_modgen', $weekcount);
-            $response['messages'] = $result['messages'];
-        }
+        ajax_response::success([
+            'message' => get_string('weekscreated', 'aiplacement_modgen', $weekcount),
+            'messages' => $result['messages'] ?? []
+        ]);
 
     } else {
-        throw new moodle_exception('invalidaction', 'error');
+        ajax_response::error('Invalid action', 'invalidaction');
     }
 
 } catch (Exception $e) {
-    $response['success'] = false;
-    $response['error'] = $e->getMessage();
+    ajax_response::error($e->getMessage(), 'exception');
 }
-
-// Return JSON response.
-header('Content-Type: application/json');
-echo json_encode($response);

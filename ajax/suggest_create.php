@@ -11,6 +11,7 @@ require_once($configpath);
 require_once(__DIR__ . '/../lib.php');
 
 use aiplacement_modgen\activitytype\registry;
+use aiplacement_modgen\local\ajax_response;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -36,7 +37,7 @@ try {
 
     $sesskey = required_param('sesskey', PARAM_RAW);
     if (!confirm_sesskey($sesskey)) {
-        throw new \moodle_exception('invalidsesskey', 'error');
+        ajax_response::error('Invalid session key', 'invalidsesskey');
     }
 
     $course = get_course($courseid);
@@ -44,7 +45,7 @@ try {
     // Decode selected JSON
     $items = json_decode($selected, true);
     if (!is_array($items)) {
-        throw new Exception('Invalid selected data');
+        ajax_response::error('Invalid selected data', 'invalid_json');
     }
 
     // Normalize incoming suggestions to the flat activity shape expected by the registry.
@@ -81,42 +82,28 @@ try {
     $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');
     $lock = $lockfactory->get_lock('course_edit_' . $courseid, 600);
     if (!$lock) {
-        throw new \moodle_exception('erroracquiringlock', 'aiplacement_modgen');
+        ajax_response::error('Could not acquire course editing lock', 'lock_failed');
     }
 
     try {
-        // Log original and normalized incoming selected items for debugging
-        file_put_contents('/tmp/modgen_suggest_create_incoming.json', "--- ORIGINAL\n" . json_encode($selected, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n--- NORMALIZED\n" . json_encode($items, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND);
-
         // Create activities using the shared registry helper
         $result = registry::create_for_section($items, $course, $section);
-
-        // Log result for debugging
-        file_put_contents('/tmp/modgen_suggest_create_result.json', json_encode($result, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), FILE_APPEND);
     } finally {
         $lock->release();
     }
 
     // Capture any accidental output
     $extra = @ob_get_clean();
-    $response = ['success' => true, 'created' => $result['created'] ?? [], 'warnings' => $result['warnings'] ?? []];
+    $response = ['created' => $result['created'] ?? [], 'warnings' => $result['warnings'] ?? []];
     if ($extra !== false && trim($extra) !== '') {
-        file_put_contents('/tmp/modgen_suggest_create_extra_output.log', $extra, FILE_APPEND);
         $response['debug_extra_base64'] = base64_encode($extra);
     }
 
-    echo json_encode($response);
+    ajax_response::success($response);
 } catch (\Throwable $e) {
     $buffered = '';
     if (ob_get_length() !== false) {
         $buffered = @ob_get_clean();
     }
-    @header('Content-Type: application/json');
-    $msg = $e->getMessage();
-    file_put_contents('/tmp/modgen_suggest_create_error.log', $msg . "\n" . $e->getTraceAsString() . "\nBufferedOutput:\n" . $buffered . "\n", FILE_APPEND);
-    $error = ['success' => false, 'error' => $msg];
-    if (!empty($buffered)) {
-        $error['debug_extra_base64'] = base64_encode($buffered);
-    }
-    echo json_encode($error);
+    ajax_response::error($e->getMessage(), 'exception', !empty($buffered) ? base64_encode($buffered) : null);
 }

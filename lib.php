@@ -51,13 +51,10 @@ function aiplacement_modgen_extend_navigation_course(
     if ($PAGE->user_is_editing()) {
         // Show generator to anyone who can edit the course
         $showgenerator = true;
-        
-        // Only show explore if BOTH admin settings are enabled
-        $ai_generation_enabled = !empty(get_config('aiplacement_modgen', 'enable_ai'));
-        $explore_enabled = !empty(get_config('aiplacement_modgen', 'enable_exploration'));
-        $suggest_enabled = !empty(get_config('aiplacement_modgen', 'enable_suggest'));
-        $showexplore = $ai_generation_enabled && $explore_enabled;
-        $showsuggest = $ai_generation_enabled && $suggest_enabled;
+
+        // Check admin settings using helper
+        $showexplore = \aiplacement_modgen\local\settings_helper::is_explore_enabled();
+        $showsuggest = \aiplacement_modgen\local\settings_helper::is_suggest_enabled();
         
                 // Only render nav bar if at least one tool is available
         if ($showgenerator || $showexplore) {
@@ -79,11 +76,8 @@ function aiplacement_modgen_extend_navigation_course(
         }
     }
 
-    // Module exploration - also add to course navigation menu when BOTH admin settings are enabled
-    $ai_generation_enabled = !empty(get_config('aiplacement_modgen', 'enable_ai'));
-    $explore_enabled = !empty(get_config('aiplacement_modgen', 'enable_exploration'));
-    
-    if ($ai_generation_enabled && $explore_enabled) {
+    // Module exploration - also add to course navigation menu when enabled
+    if (\aiplacement_modgen\local\settings_helper::is_explore_enabled()) {
         $exploreurl = new moodle_url('/ai/placement/modgen/explore.php', ['id' => $course->id]);
         $navigation->add(
             get_string('exploremenuitem', 'aiplacement_modgen'),

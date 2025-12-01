@@ -23,6 +23,8 @@
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+defined('MOODLE_INTERNAL') || die();
+
 // Note: formslib.php and filelib.php are loaded by the calling context (lib.php fragment callback)
 // Classes in classes/* are autoloaded and should not require_once global dependencies
 

@@ -36,7 +36,7 @@ if (!$courseid) {
     $courseid = optional_param('courseid', 0, PARAM_INT);
 }
 if (!$courseid) {
-    print_error('missingcourseid', 'aiplacement_modgen');
+    throw new moodle_exception('missingcourseid', 'aiplacement_modgen');
 }
 
 // Verify user has access to this course
@@ -487,31 +487,34 @@ if ($acceptpolicy && confirm_sesskey()) {
 $manager = \core\di::get(\core_ai\manager::class);
 if (!$manager->get_user_policy_status($USER->id)) {
     // User hasn't accepted AI policy yet.
-    if ($ajax) {
-        // For AJAX requests, return policy acceptance form.
-        $body = '
-            <div class="ai-policy-acceptance">
-                <h4>' . get_string('aipolicyacceptance', 'aiplacement_modgen') . '</h4>
-                <div class="alert alert-info">
-                    <p>' . get_string('aipolicyinfo', 'aiplacement_modgen') . '</p>
-                </div>
-                <div class="form-check mb-3">
-                    <input class="form-check-input" type="checkbox" id="acceptpolicy">
-                    <label class="form-check-label" for="acceptpolicy">
-                        ' . get_string('acceptaipolicy', 'aiplacement_modgen') . '
-                    </label>
-                </div>
-                <form id="ai-policy-form" method="post">
-                    <input type="hidden" name="courseid" value="' . $courseid . '">
-                    <input type="hidden" name="acceptpolicy" value="1">
-                    <input type="hidden" name="embedded" value="' . ($embedded ? 1 : 0) . '">
-                    <input type="hidden" name="ajax" value="1">
-                    <input type="hidden" name="sesskey" value="' . sesskey() . '">
-                    <button type="submit" id="hidden-submit-btn" style="display: none;">Submit</button>
-                </form>
+    // Build the policy acceptance form HTML
+    $policyformhtml = '
+        <div class="ai-policy-acceptance">
+            <h4>' . get_string('aipolicyacceptance', 'aiplacement_modgen') . '</h4>
+            <div class="alert alert-info">
+                <p>' . get_string('aipolicyinfo', 'aiplacement_modgen') . '</p>
             </div>
-        ';
-        
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="acceptpolicy">
+                <label class="form-check-label" for="acceptpolicy">
+                    ' . get_string('acceptaipolicy', 'aiplacement_modgen') . '
+                </label>
+            </div>
+            <form id="ai-policy-form" method="post">
+                <input type="hidden" name="courseid" value="' . $courseid . '">
+                <input type="hidden" name="acceptpolicy" value="1">
+                <input type="hidden" name="embedded" value="' . ($embedded ? 1 : 0) . '">
+                <input type="hidden" name="ajax" value="' . ($ajax ? 1 : 0) . '">
+                <input type="hidden" name="sesskey" value="' . sesskey() . '">
+                <button type="submit" id="ai-policy-submit-btn" class="btn btn-primary">
+                    ' . get_string('accept') . '
+                </button>
+            </form>
+        </div>
+    ';
+    
+    if ($ajax) {
+        // For AJAX requests, return policy acceptance form with modal footer.
         $footer = aiplacement_modgen_render_modal_footer([
             [
                 'label' => get_string('accept'),
@@ -543,11 +546,28 @@ if (!$manager->get_user_policy_status($USER->id)) {
             });
         </script>';
         
-        aiplacement_modgen_send_ajax_response($body . $js, $footer);
+        aiplacement_modgen_send_ajax_response($policyformhtml . $js, $footer);
     } else {
-        // For regular requests, show error.
-        print_error('aipolicynotaccepted', 'aiplacement_modgen');
+        // For regular page requests, show the policy acceptance form as a full page
+        // Set up page context first
+        $pageparams = ['id' => $courseid];
+        if ($embedded) {
+            $pageparams['embedded'] = 1;
+        }
+        $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', $pageparams));
+        $PAGE->set_context($context);
+        $PAGE->set_course(get_course($courseid));
+        $PAGE->set_title(get_string('pluginname', 'aiplacement_modgen'));
+        $PAGE->set_heading(get_string('pluginname', 'aiplacement_modgen'));
+        if ($embedded) {
+            $PAGE->set_pagelayout('embedded');
+        }
+        
+        echo $OUTPUT->header();
+        echo html_writer::div($policyformhtml, 'aiplacement-modgen__content');
+        echo $OUTPUT->footer();
     }
+    exit;
 }
 
 $pageparams = ['id' => $courseid];

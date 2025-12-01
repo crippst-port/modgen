@@ -185,6 +185,10 @@ function aiplacement_modgen_output_fragment_generator_form(array $args): string 
     
     // Create form with embedded flag
     require_once(__DIR__ . '/classes/form/generator_form.php');
+    
+    // Create a draft file area for supporting files
+    $draftitemid = file_get_unused_draft_itemid();
+    
     $formdata = [
         'courseid' => $courseid,
         'embedded' => 1,

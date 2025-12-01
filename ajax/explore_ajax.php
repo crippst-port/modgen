@@ -430,13 +430,8 @@ function generate_learning_types_chart(array $moduledata): array {
     }
     
     // Convert to chart.js format
-    $colors = [
-        'Narrative' => 'rgba(66, 139, 202, 0.8)',      // Blue
-        'Dialogic' => 'rgba(40, 167, 69, 0.8)',        // Green
-        'Adaptive' => 'rgba(255, 193, 7, 0.8)',        // Yellow
-        'Interactive' => 'rgba(255, 152, 0, 0.8)',     // Orange
-        'Productive' => 'rgba(220, 53, 69, 0.8)',      // Red
-    ];
+    // Use centralized color configuration
+    $colors = \aiplacement_modgen\local\learning_type_colors::get_learning_type_colors();
     
     return [
         'labels' => array_keys($learning_type_counts),

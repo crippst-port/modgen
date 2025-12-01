@@ -14,14 +14,6 @@ define(["exports", "core/notification", "core/config", "jquery"], function (_exp
       let currentsection = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
       const SUGGEST_AJAX = _config.default.wwwroot + '/ai/placement/modgen/ajax/suggest.php';
       const CREATE_AJAX = _config.default.wwwroot + '/ai/placement/modgen/ajax/suggest_create.php';
-      const LAURILLARD_COLORS = {
-        'acquisition': 'rgba(66, 139, 202, 0.9)',
-        'inquiry': 'rgba(255, 152, 0, 0.9)',
-        'practice': 'rgba(255, 193, 7, 0.9)',
-        'discussion': 'rgba(40, 167, 69, 0.9)',
-        'collaboration': 'rgba(75, 192, 192, 0.9)',
-        'production': 'rgba(220, 53, 69, 0.9)'
-      };
       const root = modal.getRoot();
       try {
         const $dialog = root.closest('.modal-dialog');
@@ -50,6 +42,7 @@ define(["exports", "core/notification", "core/config", "jquery"], function (_exp
       let learningTypesChart = null;
       let baseChartData = null;
       let updateTimeout = null;
+      let activityTypeColors = {};
       const createLearningTypesChart = chartData => {
         if (!chartData || !chartData.labels) {
           return;
@@ -258,6 +251,12 @@ define(["exports", "core/notification", "core/config", "jquery"], function (_exp
                 data: data.current_learning_types.data || [],
                 colors: data.current_learning_types.colors || []
               };
+              const labels = data.current_learning_types.labels || [];
+              const colors = data.current_learning_types.colors || [];
+              labels.forEach((label, idx) => {
+                const key = String(label).toLowerCase().trim();
+                activityTypeColors[key] = colors[idx] || null;
+              });
               createLearningTypesChart(baseChartData);
             } else {
               baseChartData = null;
@@ -281,7 +280,7 @@ define(["exports", "core/notification", "core/config", "jquery"], function (_exp
               const lauri = s.laurillard_type || s.laurillardType || '';
               if (lauri) {
                 const lc = String(lauri).toLowerCase().trim();
-                const color = LAURILLARD_COLORS[lc] || null;
+                const color = activityTypeColors[lc] || null;
                 const $lauriBadge = (0, _jquery.default)('<span/>').addClass('ml-2').attr('title', lauri).text(lauri);
                 if (color) {
                   $lauriBadge.css({

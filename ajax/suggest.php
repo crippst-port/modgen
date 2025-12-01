@@ -231,17 +231,22 @@ try {
         }
     }
 
-    // Provide chart-friendly arrays
+    // Provide chart-friendly arrays using centralized color configuration
     $labels = array_keys($learning_counts);
     $data = array_values($learning_counts);
-    $colors = [
-        'Acquisition' => 'rgba(66, 139, 202, 0.9)',
-        'Discussion' => 'rgba(40, 167, 69, 0.9)',
-        'Inquiry' => 'rgba(255, 152, 0, 0.9)',
-        'Practice' => 'rgba(255, 193, 7, 0.9)',
-        'Collaboration' => 'rgba(75, 192, 192, 0.9)',
-        'Production' => 'rgba(220, 53, 69, 0.9)',
-    ];
+    
+    // Use centralized learning type colors instead of hardcoded array
+    $colorclass = 'aiplacement_modgen\\local\\learning_type_colors';
+    if (!class_exists($colorclass)) {
+        require_once(__DIR__ . '/../classes/local/learning_type_colors.php');
+    }
+    $allcolors = $colorclass::get_activity_type_colors();
+    // Map activity type names to colors (lowercase keys in config match display names)
+    $colors = [];
+    foreach ($labels as $label) {
+        $key = strtolower($label);
+        $colors[$label] = $allcolors[$key] ?? 'rgba(128, 128, 128, 0.9)';
+    }
 
     $result['current_learning_types'] = [
         'labels' => $labels,

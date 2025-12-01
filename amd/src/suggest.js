@@ -7,15 +7,7 @@ export default {
         // Build AJAX URLs using Moodle config (proper ES6 module way)
         const SUGGEST_AJAX = Config.wwwroot + '/ai/placement/modgen/ajax/suggest.php';
         const CREATE_AJAX = Config.wwwroot + '/ai/placement/modgen/ajax/suggest_create.php';
-        // Colour mapping for Laurillard learning types — keep consistent with Explore report palette
-        const LAURILLARD_COLORS = {
-            'acquisition': 'rgba(66, 139, 202, 0.9)',   // blue (Narrative)
-            'inquiry': 'rgba(255, 152, 0, 0.9)',        // orange (Interactive)
-            'practice': 'rgba(255, 193, 7, 0.9)',       // yellow (Adaptive)
-            'discussion': 'rgba(40, 167, 69, 0.9)',     // green (Dialogic)
-            'collaboration': 'rgba(75, 192, 192, 0.9)', // teal (custom within palette)
-            'production': 'rgba(220, 53, 69, 0.9)',     // red (Productive)
-        };
+        // Note: Colors are now retrieved from the server via AJAX (centralized in learning_type_colors.php)
         const root = modal.getRoot();
         // Try to make the modal dialog a bit wider for this tool so chart + list can sit side-by-side.
         try {
@@ -51,6 +43,7 @@ export default {
         let learningTypesChart = null;
         let baseChartData = null; // { labels: [], data: [], colors: [] }
         let updateTimeout = null; // debounce handle
+        let activityTypeColors = {}; // Store colors fetched from server for badge styling
 
         const createLearningTypesChart = (chartData) => {
             if (!chartData || !chartData.labels) {
@@ -238,6 +231,13 @@ export default {
                             data: data.current_learning_types.data || [],
                             colors: data.current_learning_types.colors || []
                         };
+                        // Also store activity type colors for badge styling (map labels to colors)
+                        const labels = data.current_learning_types.labels || [];
+                        const colors = data.current_learning_types.colors || [];
+                        labels.forEach((label, idx) => {
+                            const key = String(label).toLowerCase().trim();
+                            activityTypeColors[key] = colors[idx] || null;
+                        });
                         // Create initial chart
                         createLearningTypesChart(baseChartData);
                     } else {
@@ -267,7 +267,7 @@ export default {
                         const lauri = s.laurillard_type || s.laurillardType || '';
                         if (lauri) {
                             const lc = String(lauri).toLowerCase().trim();
-                            const color = LAURILLARD_COLORS[lc] || null;
+                            const color = activityTypeColors[lc] || null;
                             const $lauriBadge = $('<span/>')
                                 .addClass('ml-2')
                                 .attr('title', lauri)

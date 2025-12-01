@@ -1,6 +1,7 @@
 import Notification from 'core/notification';
 import Config from 'core/config';
 import $ from 'jquery';
+import Templates from 'core/templates';
 
 export default {
     init(modal, courseid, currentsection = 0) {
@@ -146,7 +147,7 @@ export default {
             const labels = baseChartData.labels;
 
             // For each selected suggestion, add 1 to the corresponding laurillard label if known
-            $results.find('.list-group-item').each(function() {
+            $results.find('.suggest-item').each(function() {
                 const $card = $(this);
                 const $cb = $card.find('input.suggest-checkbox');
                 if ($cb.length && $cb.prop('checked')) {
@@ -255,83 +256,76 @@ export default {
                     }
 
                     const $list = $('<div/>').addClass('list-group');
-                    suggestions.forEach(s => {
-                        const id = s.id || '';
-                        const $card = $('<div/>').addClass('list-group-item');
-                        const $cb = $('<input/>').attr('type','checkbox').addClass('mr-2 suggest-checkbox').val(id);
+                    
+                    // Render each suggestion using template
+                    const renderPromises = suggestions.map(s => {
                         const activityName = (s.activity && s.activity.name ? s.activity.name : 'Activity');
                         const activityType = (s.activity && s.activity.type ? s.activity.type : '?');
-                        const $title = $('<strong/>').text(activityName + ' (' + activityType + ')');
-
-                        // Show Laurillard learning type badge if provided
                         const lauri = s.laurillard_type || s.laurillardType || '';
-                        if (lauri) {
-                            const lc = String(lauri).toLowerCase().trim();
-                            const color = activityTypeColors[lc] || null;
-                            const $lauriBadge = $('<span/>')
-                                .addClass('ml-2')
-                                .attr('title', lauri)
-                                .text(lauri);
-                            if (color) {
-                                $lauriBadge.css({
-                                    'background-color': color,
-                                    'color': '#fff',
-                                    'padding': '0.25em 0.5em',
-                                    'border-radius': '0.25rem',
-                                    'font-size': '0.75em'
-                                });
-                            } else {
-                                $lauriBadge.addClass('badge badge-info');
+                        const lc = lauri ? String(lauri).toLowerCase().trim() : '';
+                        const color = lc ? activityTypeColors[lc] : null;
+                        
+                        const context = {
+                            id: s.id || '',
+                            activity: {
+                                name: activityName,
+                                type: activityType
+                            },
+                            laurillard_type: lauri,
+                            laurillard_color: color || '',
+                            supported: s.supported !== false,
+                            raw_type: s.raw_type || activityType || '',
+                            rationale: s.rationale || '',
+                            laurillard_rationale: s.laurillard_rationale || s.laurillardRationale || ''
+                        };
+                        
+                        return Templates.renderForPromise('aiplacement_modgen/suggest_item', context)
+                            .then(result => {
+                                const $card = $(result.html);
+                                $card.data('suggestion', s);
+                                $list.append($card);
+                                return result;
+                            });
+                    });
+                    
+                    // Wait for all templates to render
+                    Promise.all(renderPromises).then(() => {
+                        $results.append($list);
+                        // Show summary area now that suggestion results are present
+                        root.find('#suggest-summary').show();
+                        // Make modal wide enough for chart + list
+                        root.closest('.modal').addClass('aiplacement-modgen-modal-wide');
+                        // Debounced chart updater to avoid rapid re-renders when toggling
+                        const scheduleChartUpdate = () => {
+                            if (updateTimeout) {
+                                clearTimeout(updateTimeout);
                             }
-                            $title.append($lauriBadge);
-                        }
+                            updateTimeout = setTimeout(() => {
+                                updateChartWithSelections();
+                                updateTimeout = null;
+                            }, 150);
+                        };
 
-                        // If suggestion is unsupported, show a visible badge and leave checkbox unchecked.
-                        if (s.supported === false) {
-                            const raw = s.raw_type || activityType || '';
-                            const $badge = $('<span/>')
-                                .addClass('badge badge-warning ml-2')
-                                .attr('title', raw)
-                                .text(M.util.get_string('unsupported_label','aiplacement_modgen') || 'Unsupported');
-                            $title.append($badge);
-                        }
-
-                        const $rationale = $('<p/>').addClass('mb-0 small text-muted').text(s.rationale || '');
-                        // Show laurillard rationale beneath the main rationale, if present
-                        const lauriRationale = s.laurillard_rationale || s.laurillardRationale || '';
-                        const $lauriRationale = lauriRationale ? $('<p/>').addClass('mb-0 small font-italic text-muted').text(lauriRationale) : $();
-                        $card.append($cb).append($title).append('<br/>').append($rationale).append($lauriRationale);
-                        $card.data('suggestion', s);
-                        $list.append($card);
-                    });
-
-                    $results.append($list);
-                    // Show summary area now that suggestion results are present
-                    root.find('#suggest-summary').show();
-                    // Make modal wide enough for chart + list
-                    root.closest('.modal').addClass('aiplacement-modgen-modal-wide');
-                    // Debounced chart updater to avoid rapid re-renders when toggling
-                    const scheduleChartUpdate = () => {
-                        if (updateTimeout) {
-                            clearTimeout(updateTimeout);
-                        }
-                        updateTimeout = setTimeout(() => {
-                            updateChartWithSelections();
-                            updateTimeout = null;
-                        }, 150);
-                    };
-
-                    // Attach change handler to checkboxes to update the chart dynamically (debounced)
-                    $results.find('input.suggest-checkbox').on('change', function() {
+                        // Attach change handler to checkboxes to update the chart dynamically (debounced)
+                        $results.find('input.suggest-checkbox').on('change', function() {
+                            const isChecked = $(this).is(':checked');
+                            const $item = $(this).closest('[role="option"]');
+                            $item.attr('aria-selected', isChecked);
+                            scheduleChartUpdate();
+                            // Enable Create button only when at least one suggestion is checked
+                            const anyChecked = $results.find('input.suggest-checkbox:checked').length > 0;
+                            $createBtn.prop('disabled', !anyChecked);
+                        });
+                        // Immediately schedule an update to include any pre-checked suggestions (none by default)
                         scheduleChartUpdate();
-                        // Enable Create button only when at least one suggestion is checked
-                        const anyChecked = $results.find('input.suggest-checkbox:checked').length > 0;
-                        $createBtn.prop('disabled', !anyChecked);
+                        // Ensure create button is disabled until user selects items
+                        $createBtn.prop('disabled', true);
+                    }).catch(err => {
+                        Notification.exception(err);
+                        $results.append('<div class="alert alert-danger">Error rendering suggestions: ' + err.message + '</div>');
+                        root.find('#suggest-summary').hide();
+                        root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
                     });
-                    // Immediately schedule an update to include any pre-checked suggestions (none by default)
-                    scheduleChartUpdate();
-                    // Ensure create button is disabled until user selects items
-                    $createBtn.prop('disabled', true);
                 } else {
                     Notification.exception(new Error(data.error || 'No suggestions'));
                     $results.append('<div class="alert alert-danger">' + (data.error || 'Error fetching suggestions') + '</div>');
@@ -354,7 +348,7 @@ export default {
             ev.preventDefault();
             const selected = [];
             const skipped = [];
-            $results.find('.list-group-item').each(function() {
+            $results.find('.suggest-item').each(function() {
                 const $card = $(this);
                 const $cb = $card.find('input.suggest-checkbox');
                 if ($cb.length && $cb.prop('checked')) {

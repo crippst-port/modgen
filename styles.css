@@ -821,3 +821,127 @@
 .aiplacement-modgen-modal-wide .modal-dialog {
     max-width: 1200px !important;
 }
+
+/* Suggest Item Component - Custom styling without Bootstrap utility classes */
+.suggest-item {
+    display: block;
+    padding: 0.75rem 1rem;
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+    background-color: #fff;
+    transition: background-color 0.15s ease-in-out, border-color 0.15s ease-in-out;
+}
+
+.suggest-item + .suggest-item {
+    margin-top: -1px;
+}
+
+.suggest-item[aria-selected="true"] {
+    background-color: #e7f3ff;
+    border-color: #0078b4;
+}
+
+.suggest-item:hover {
+    background-color: #f8f9fa;
+}
+
+.suggest-item[aria-selected="true"]:hover {
+    background-color: #d4e7f7;
+}
+
+.suggest-item__checkbox-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+}
+
+.suggest-item__checkbox {
+    margin-top: 0.25rem;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.suggest-item__content {
+    flex-grow: 1;
+    min-width: 0;
+}
+
+.suggest-item__title-row {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.suggest-item__title {
+    display: inline;
+    margin: 0;
+    font-weight: 600;
+    font-size: 1rem;
+    line-height: 1.4;
+    cursor: pointer;
+    color: #333;
+}
+
+.suggest-item__type {
+    color: #666;
+    font-weight: 400;
+    margin-left: 0.25rem;
+}
+
+.suggest-item__badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.suggest-item__badge {
+    display: inline-block;
+    padding: 0.25em 0.5em;
+    border-radius: 0.25rem;
+    font-size: 0.75em;
+    font-weight: 500;
+    color: #fff;
+    word-break: break-word;
+}
+
+.suggest-item__badge--learning {
+    /* Background color set inline from server */
+}
+
+.suggest-item__badge--warning {
+    background-color: #ffc107;
+    color: #333;
+}
+
+.suggest-item__rationale {
+    margin: 0.5rem 0 0 0;
+    font-size: 0.875rem;
+    color: #666;
+    line-height: 1.4;
+}
+
+.suggest-item__rationale-secondary {
+    margin: 0.25rem 0 0 0;
+    font-size: 0.875rem;
+    color: #666;
+    font-style: italic;
+    line-height: 1.4;
+}
+
+/* List group container for suggestions */
+.suggest-list .list-group {
+    border: 1px solid #dee2e6;
+    border-radius: 0.25rem;
+}
+
+.suggest-list .suggest-item {
+    border: none;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.suggest-list .suggest-item:last-child {
+    border-bottom: none;
+}
+

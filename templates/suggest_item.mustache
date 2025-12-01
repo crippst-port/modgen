@@ -1,0 +1,47 @@
+{{!
+    Template for a single suggested activity in the Suggest feature.
+    WCAG 2.2 Accessible version with proper semantics and attributes.
+    
+    Context data:
+    - id: Suggestion ID
+    - activity: Object with name and type properties
+    - laurillard_type: Learning type (Acquisition, Discussion, etc)
+    - laurillard_color: RGBA color for the badge
+    - supported: Boolean indicating if activity type is supported
+    - raw_type: Raw activity type if unsupported
+    - rationale: Main rationale text
+    - laurillard_rationale: Learning type specific rationale
+}}
+<div class="suggest-item" role="option" aria-selected="false">
+    <div class="suggest-item__checkbox-container">
+        <input type="checkbox" class="suggest-item__checkbox suggest-checkbox" value="{{id}}" id="suggest-{{id}}" aria-labelledby="suggest-title-{{id}}" />
+        <div class="suggest-item__content">
+            <div class="suggest-item__title-row">
+                <label for="suggest-{{id}}" id="suggest-title-{{id}}" class="suggest-item__title">
+                    {{activity.name}}
+                    <span class="suggest-item__type">({{activity.type}})</span>
+                </label>
+                {{#laurillard_type}}
+                    <span class="suggest-item__badge suggest-item__badge--learning" style="{{#laurillard_color}}background-color: {{laurillard_color}};{{/laurillard_color}}{{^laurillard_color}}background-color: #17a2b8;{{/laurillard_color}}" aria-label="Learning type: {{laurillard_type}}">
+                        {{laurillard_type}}
+                    </span>
+                {{/laurillard_type}}
+            </div>
+            <div class="suggest-item__badges">
+                {{^supported}}
+                    <span class="suggest-item__badge suggest-item__badge--warning" aria-label="Unsupported activity type: {{raw_type}}">
+                        {{#str}}unsupported_label, aiplacement_modgen{{/str}}
+                    </span>
+                {{/supported}}
+            </div>
+            {{#rationale}}
+                <p class="suggest-item__rationale">{{rationale}}</p>
+            {{/rationale}}
+            {{#laurillard_rationale}}
+                <p class="suggest-item__rationale-secondary">{{laurillard_rationale}}</p>
+            {{/laurillard_rationale}}
+        </div>
+    </div>
+</div>
+
+

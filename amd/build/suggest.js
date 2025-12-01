@@ -1,4 +1,4 @@
-define(["exports", "core/notification", "core/config", "jquery"], function (_exports, _notification, _config, _jquery) {
+define(["exports", "core/notification", "core/config", "jquery", "core/templates"], function (_exports, _notification, _config, _jquery, _templates) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -8,6 +8,7 @@ define(["exports", "core/notification", "core/config", "jquery"], function (_exp
   _notification = _interopRequireDefault(_notification);
   _config = _interopRequireDefault(_config);
   _jquery = _interopRequireDefault(_jquery);
+  _templates = _interopRequireDefault(_templates);
   function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
   var _default = _exports.default = {
     init(modal, courseid) {
@@ -158,7 +159,7 @@ define(["exports", "core/notification", "core/config", "jquery"], function (_exp
         }
         const newData = baseChartData.data.slice();
         const labels = baseChartData.labels;
-        $results.find('.list-group-item').each(function () {
+        $results.find('.suggest-item').each(function () {
           const $card = (0, _jquery.default)(this);
           const $cb = $card.find('input.suggest-checkbox');
           if ($cb.length && $cb.prop('checked')) {
@@ -270,62 +271,61 @@ define(["exports", "core/notification", "core/config", "jquery"], function (_exp
               return;
             }
             const $list = (0, _jquery.default)('<div/>').addClass('list-group');
-            suggestions.forEach(s => {
-              const id = s.id || '';
-              const $card = (0, _jquery.default)('<div/>').addClass('list-group-item');
-              const $cb = (0, _jquery.default)('<input/>').attr('type', 'checkbox').addClass('mr-2 suggest-checkbox').val(id);
+            const renderPromises = suggestions.map(s => {
               const activityName = s.activity && s.activity.name ? s.activity.name : 'Activity';
               const activityType = s.activity && s.activity.type ? s.activity.type : '?';
-              const $title = (0, _jquery.default)('<strong/>').text(activityName + ' (' + activityType + ')');
               const lauri = s.laurillard_type || s.laurillardType || '';
-              if (lauri) {
-                const lc = String(lauri).toLowerCase().trim();
-                const color = activityTypeColors[lc] || null;
-                const $lauriBadge = (0, _jquery.default)('<span/>').addClass('ml-2').attr('title', lauri).text(lauri);
-                if (color) {
-                  $lauriBadge.css({
-                    'background-color': color,
-                    'color': '#fff',
-                    'padding': '0.25em 0.5em',
-                    'border-radius': '0.25rem',
-                    'font-size': '0.75em'
-                  });
-                } else {
-                  $lauriBadge.addClass('badge badge-info');
+              const lc = lauri ? String(lauri).toLowerCase().trim() : '';
+              const color = lc ? activityTypeColors[lc] : null;
+              const context = {
+                id: s.id || '',
+                activity: {
+                  name: activityName,
+                  type: activityType
+                },
+                laurillard_type: lauri,
+                laurillard_color: color || '',
+                supported: s.supported !== false,
+                raw_type: s.raw_type || activityType || '',
+                rationale: s.rationale || '',
+                laurillard_rationale: s.laurillard_rationale || s.laurillardRationale || ''
+              };
+              return _templates.default.renderForPromise('aiplacement_modgen/suggest_item', context).then(result => {
+                const $card = (0, _jquery.default)(result.html);
+                $card.data('suggestion', s);
+                $list.append($card);
+                return result;
+              });
+            });
+            Promise.all(renderPromises).then(() => {
+              $results.append($list);
+              root.find('#suggest-summary').show();
+              root.closest('.modal').addClass('aiplacement-modgen-modal-wide');
+              const scheduleChartUpdate = () => {
+                if (updateTimeout) {
+                  clearTimeout(updateTimeout);
                 }
-                $title.append($lauriBadge);
-              }
-              if (s.supported === false) {
-                const raw = s.raw_type || activityType || '';
-                const $badge = (0, _jquery.default)('<span/>').addClass('badge badge-warning ml-2').attr('title', raw).text(M.util.get_string('unsupported_label', 'aiplacement_modgen') || 'Unsupported');
-                $title.append($badge);
-              }
-              const $rationale = (0, _jquery.default)('<p/>').addClass('mb-0 small text-muted').text(s.rationale || '');
-              const lauriRationale = s.laurillard_rationale || s.laurillardRationale || '';
-              const $lauriRationale = lauriRationale ? (0, _jquery.default)('<p/>').addClass('mb-0 small font-italic text-muted').text(lauriRationale) : (0, _jquery.default)();
-              $card.append($cb).append($title).append('<br/>').append($rationale).append($lauriRationale);
-              $card.data('suggestion', s);
-              $list.append($card);
-            });
-            $results.append($list);
-            root.find('#suggest-summary').show();
-            root.closest('.modal').addClass('aiplacement-modgen-modal-wide');
-            const scheduleChartUpdate = () => {
-              if (updateTimeout) {
-                clearTimeout(updateTimeout);
-              }
-              updateTimeout = setTimeout(() => {
-                updateChartWithSelections();
-                updateTimeout = null;
-              }, 150);
-            };
-            $results.find('input.suggest-checkbox').on('change', function () {
+                updateTimeout = setTimeout(() => {
+                  updateChartWithSelections();
+                  updateTimeout = null;
+                }, 150);
+              };
+              $results.find('input.suggest-checkbox').on('change', function () {
+                const isChecked = (0, _jquery.default)(this).is(':checked');
+                const $item = (0, _jquery.default)(this).closest('[role="option"]');
+                $item.attr('aria-selected', isChecked);
+                scheduleChartUpdate();
+                const anyChecked = $results.find('input.suggest-checkbox:checked').length > 0;
+                $createBtn.prop('disabled', !anyChecked);
+              });
               scheduleChartUpdate();
-              const anyChecked = $results.find('input.suggest-checkbox:checked').length > 0;
-              $createBtn.prop('disabled', !anyChecked);
+              $createBtn.prop('disabled', true);
+            }).catch(err => {
+              _notification.default.exception(err);
+              $results.append('<div class="alert alert-danger">Error rendering suggestions: ' + err.message + '</div>');
+              root.find('#suggest-summary').hide();
+              root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
             });
-            scheduleChartUpdate();
-            $createBtn.prop('disabled', true);
           } else {
             _notification.default.exception(new Error(data.error || 'No suggestions'));
             $results.append('<div class="alert alert-danger">' + (data.error || 'Error fetching suggestions') + '</div>');
@@ -343,7 +343,7 @@ define(["exports", "core/notification", "core/config", "jquery"], function (_exp
         ev.preventDefault();
         const selected = [];
         const skipped = [];
-        $results.find('.list-group-item').each(function () {
+        $results.find('.suggest-item').each(function () {
           const $card = (0, _jquery.default)(this);
           const $cb = $card.find('input.suggest-checkbox');
           if ($cb.length && $cb.prop('checked')) {

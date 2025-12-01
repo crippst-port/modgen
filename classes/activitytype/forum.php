@@ -81,6 +81,7 @@ class forum implements activity_type {
         
         // Forum-specific fields
         $moduleinfo->introformat = 1;
+        $moduleinfo->showdescription = 1;  // Display description on course page
         $moduleinfo->type = $forumtype;  // general, news, qanda
         $moduleinfo->daystokeep = 0;  // Keep all posts
         $moduleinfo->displaywordcount = 0;  // Don't display word count

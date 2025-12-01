@@ -59,6 +59,7 @@ class label implements activity_type {
             
             // Label-specific fields
             $moduleinfo->introformat = 1;
+            $moduleinfo->showdescription = 1;  // Display description on course page
 
             file_put_contents('/tmp/modgen_debug.log', "Label module info prepared: " . print_r($moduleinfo, true) . "\n", FILE_APPEND);
 

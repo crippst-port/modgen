@@ -81,7 +81,8 @@ class assignment implements activity_type {
 
         // Assignment-specific fields with sensible defaults
         $moduleinfo->introformat = 1;
-        $moduleinfo->alwaysshowdescription = 1;  // Always show description to students
+        $moduleinfo->showdescription = 1;  // Display description on course page (coursemodule setting)
+        $moduleinfo->alwaysshowdescription = 1;  // Always show description even before submissions allowed
         $moduleinfo->submissiondrafts = 1;  // Allow students to save drafts
         $moduleinfo->sendnotifications = 1;  // Notify teachers of submissions
         $moduleinfo->sendstudentnotifications = 1;  // Notify students of grading

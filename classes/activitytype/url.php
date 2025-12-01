@@ -102,6 +102,7 @@ class url implements activity_type {
         ];
         
         // URL-specific required fields
+        $moduleinfo->showdescription = 1;  // Display description on course page
         $moduleinfo->externalurl = $externalurl;
         $moduleinfo->display = RESOURCELIB_DISPLAY_AUTO;
         

@@ -356,7 +356,13 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
               skipped.push(s.activity && (s.activity.name || s.activity.type) ? s.activity.name || s.activity.type : '(unknown)');
               return;
             }
-            selected.push(s);
+            const aiGenBadge = '<span class="badge badge-info"><i class="fas fa-star"></i> AI Suggested</span>';
+            const description = s.rationale || '';
+            const descriptionWithBadge = aiGenBadge + (description ? '<p>' + description + '</p>' : '');
+            const suggestionWithIntro = Object.assign({}, s);
+            suggestionWithIntro.activity = Object.assign({}, s.activity);
+            suggestionWithIntro.activity.intro = descriptionWithBadge;
+            selected.push(suggestionWithIntro);
           }
         });
         if (selected.length === 0) {

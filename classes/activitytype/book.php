@@ -86,6 +86,7 @@ class book implements activity_type {
         
         // Book-specific fields
         $moduleinfo->introformat = 1;
+        $moduleinfo->showdescription = 1;  // Display description on course page
         $moduleinfo->numbering = 0;  // 0 = no numbering
         $moduleinfo->customtitles = 0;  // 0 = standard numbering
 

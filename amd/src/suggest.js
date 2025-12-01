@@ -362,7 +362,18 @@ export default {
                         skipped.push(s.activity && (s.activity.name || s.activity.type) ? (s.activity.name || s.activity.type) : '(unknown)');
                         return;
                     }
-                    selected.push(s);
+                    
+                    // Add AI-generated badge to intro/description
+                    const aiGenBadge = '<span class="badge badge-info"><i class="fas fa-star"></i> AI Suggested</span>';
+                    const description = s.rationale || '';
+                    const descriptionWithBadge = aiGenBadge + (description ? '<p>' + description + '</p>' : '');
+                    
+                    // Clone the suggestion and add intro to the activity sub-object
+                    const suggestionWithIntro = Object.assign({}, s);
+                    suggestionWithIntro.activity = Object.assign({}, s.activity);
+                    suggestionWithIntro.activity.intro = descriptionWithBadge;
+                    
+                    selected.push(suggestionWithIntro);
                 }
             });
 

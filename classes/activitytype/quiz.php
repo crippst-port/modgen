@@ -59,6 +59,7 @@ class quiz implements activity_type {
             
             // Minimal quiz-specific fields
             $moduleinfo->introformat = 1;
+            $moduleinfo->showdescription = 1;  // Display description on course page
             $moduleinfo->preferredbehaviour = 'deferredfeedback';
             $moduleinfo->questionsperpage = 1;
             $moduleinfo->navmethod = 'free';

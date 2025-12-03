@@ -36,11 +36,6 @@ defined('MOODLE_INTERNAL') || die();
  */
 class aiplacement_modgen_generator_form extends moodleform {
 
-    /**
-     * @var array Module type options available for this form
-     */
-    private $_moduletypeoptions = [];
-
     public function definition() {
         $mform = $this->_form;
         $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
@@ -48,17 +43,6 @@ class aiplacement_modgen_generator_form extends moodleform {
         if (!empty($this->_customdata['embedded'])) {
             $mform->addElement('hidden', 'embedded', 1);
             $mform->setType('embedded', PARAM_BOOL);
-        }
-        
-        // Add module type selection
-        $moduletypeoptions = [];
-        
-        // Add Connected Curriculum format options if flexsections is installed
-        $pluginmanager = core_plugin_manager::instance();
-        $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
-        if (!empty($flexsectionsplugin)) {
-            $moduletypeoptions['connected_weekly'] = get_string('moduletype_connected_weekly', 'aiplacement_modgen');
-            $moduletypeoptions['connected_theme'] = get_string('moduletype_connected_theme', 'aiplacement_modgen');
         }
         
         // === TEMPLATE SETUP SECTION ===
@@ -78,17 +62,6 @@ class aiplacement_modgen_generator_form extends moodleform {
             $mform->setType('existing_modules', PARAM_SEQUENCE);
             $mform->addHelpButton('existing_modules', 'existingmodule', 'aiplacement_modgen');
         }
-        
-        // Module type selection - ONLY show if AI is enabled
-        if ($ai_enabled) {
-            $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
-            $mform->setType('moduletype', PARAM_ALPHANUMEXT);
-            $mform->setDefault('moduletype', 'connected_weekly');
-            $mform->addHelpButton('moduletype', 'moduletype', 'aiplacement_modgen');
-        }
-        
-        // Store the module type options in customdata for validation
-        $this->_moduletypeoptions = $moduletypeoptions;
 
         // File upload for CSV structure file (optional) - using filemanager for standalone pages
         // Note: The modal version uses a simple HTML input instead
@@ -96,15 +69,6 @@ class aiplacement_modgen_generator_form extends moodleform {
             array('subdirs' => 0, 'maxbytes' => 10485760, 'maxfiles' => 5, 'accepted_types' => array('.csv')));
         $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
         
-        // Main content prompt - only show if AI is enabled
-        if ($ai_enabled) {
-            $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), 'rows="4" cols="60"');
-            $mform->setType('prompt', PARAM_TEXT);
-            // Prompt is conditionally required - either prompt OR files must be provided
-            // Actual validation is in validation() method
-            $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
-        }
-
         // === SUGGESTED CONTENT SECTION === (only if AI enabled)
         if ($ai_enabled) {
         $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
@@ -154,23 +118,6 @@ class aiplacement_modgen_generator_form extends moodleform {
         global $USER;
         $errors = parent::validation($data, $files);
         
-        // Rebuild the moduletype options to match what's in definition()
-        $moduletypeoptions = [
-            'weekly' => get_string('moduletype_weekly', 'aiplacement_modgen'),
-        ];
-        
-        $pluginmanager = core_plugin_manager::instance();
-        $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
-        if (!empty($flexsectionsplugin)) {
-            $moduletypeoptions['connected_weekly'] = get_string('moduletype_connected_weekly', 'aiplacement_modgen');
-            $moduletypeoptions['connected_theme'] = get_string('moduletype_connected_theme', 'aiplacement_modgen');
-        }
-        
-        // Validate moduletype is in the allowed options
-        if (!empty($data['moduletype']) && !isset($moduletypeoptions[$data['moduletype']])) {
-            $errors['moduletype'] = 'Invalid module type selected';
-        }
-        
         // Either prompt, files, or existing module must be provided
         $hasPrompt = !empty(trim($data['prompt'] ?? ''));
         // For filemanager, check if draft area has files
@@ -190,25 +137,6 @@ class aiplacement_modgen_generator_form extends moodleform {
         return $errors;
     }
     
-    public function get_data($slashed = true) {
-        $data = parent::get_data($slashed);
-        
-        // Return null if form wasn't submitted (parent returns null)
-        if ($data === null) {
-            return null;
-        }
-        
-        // Manually add the moduletype from POST if it's missing from $data
-        // This handles the case where the select field validation filters it out
-        if (!isset($data->moduletype) || empty($data->moduletype)) {
-            if (!empty($_POST['moduletype'])) {
-                $data->moduletype = $_POST['moduletype'];
-            }
-        }
-        
-        return $data;
-    }
-
     /**
      * Get list of courses the user can edit, formatted as options for select dropdown.
      *

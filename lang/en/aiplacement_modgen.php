@@ -28,6 +28,7 @@ defined('MOODLE_INTERNAL') || die();
 $string['pluginname'] = 'Module Assistant';
 
 $string['existingmodule'] = 'Base on existing module';
+$string['templatefromprompt'] = 'Template from prompt';
 $string['addtemplate'] = 'Add another template';
 $string['createfromscratch'] = 'Create from scratch';
 $string['existingmodule_help'] = 'Optionally select one or more existing modules to use as templates for AI generation. The AI will analyze the structure, activities, and content of the selected modules to create similar content for your prompt. Choose "Create from scratch" to generate content without using any existing template. You can add up to 3 templates, and the AI will merge their structures.';

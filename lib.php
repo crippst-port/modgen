@@ -347,3 +347,43 @@ function aiplacement_modgen_output_fragment_form_add_week(array $args): string {
     // Submission will be handled by JavaScript AJAX to create_sections.php
     return $form->render();
 }
+
+/**
+ * Fragment callback to render the template_from_prompt form in a modal.
+ *
+ * @param array $args Fragment arguments containing courseid
+ * @return string Rendered form HTML
+ */
+function aiplacement_modgen_output_fragment_form_template_from_prompt(array $args): string {
+    global $PAGE, $CFG;
+
+    // Ensure required libraries are loaded.
+    require_once($CFG->libdir . '/formslib.php');
+
+    // Validate parameters.
+    $courseid = clean_param($args['courseid'], PARAM_INT);
+    $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
+
+    if ($contextid) {
+        $context = context::instance_by_id($contextid);
+    } else {
+        $context = context_course::instance($courseid);
+    }
+
+    // Verify permission.
+    require_capability('moodle/course:update', $context);
+
+    // Set page context for proper JS/CSS loading.
+    $PAGE->set_context($context);
+
+    // Create form using moodleform.
+    require_once(__DIR__ . '/classes/form/prompt_form.php');
+    $formdata = ['courseid' => $courseid];
+    $form = new \aiplacement_modgen_prompt_form(null, $formdata);
+
+    // Set default data.
+    $form->set_data((object)$formdata);
+
+    // Return rendered form HTML.
+    return $form->render();
+}

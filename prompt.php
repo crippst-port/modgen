@@ -1147,11 +1147,19 @@ if ($approvedjsonparam !== null) {
     } // Close the if ($approveform && ($adata = $approveform->get_data())) block
 
 // Generator form: Create and display for standalone page access
-$promptform = new aiplacement_modgen_generator_form(null, [
-    'courseid' => $courseid,
-    'embedded' => 0,
-    'contextid' => context_course::instance((int)$courseid)->id,
-]);
+// Check which form is being submitted
+$is_prompt_form = optional_param('_qf__aiplacement_modgen_prompt_form', 0, PARAM_BOOL);
+
+if ($is_prompt_form) {
+    require_once($CFG->dirroot . '/ai/placement/modgen/classes/form/prompt_form.php');
+    $promptform = new \aiplacement_modgen_prompt_form(null, ['courseid' => $courseid]);
+} else {
+    $promptform = new aiplacement_modgen_generator_form(null, [
+        'courseid' => $courseid,
+        'embedded' => 0,
+        'contextid' => context_course::instance((int)$courseid)->id,
+    ]);
+}
 
 // Render the generator form as a standalone page (only if form is not being submitted).
 if (!$promptform->is_submitted()) {

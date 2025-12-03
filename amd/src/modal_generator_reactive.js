@@ -262,6 +262,68 @@ class ModalGeneratorComponent extends BaseComponent {
     }
 
     /**
+     * Handle submission for the prompt form.
+     *
+     * @param {Object} modal The modal instance
+     * @param {FormData} formData The form data
+     */
+    handlePromptSubmission(modal, formData) {
+        // Show loading indicator
+        modal.setBody('<div class="text-center p-5">' +
+            '<div class="spinner-border" role="status">' +
+            '<span class="sr-only">Loading...</span>' +
+            '</div>' +
+            '<p class="mt-2">Generating content... this may take a minute.</p>' +
+            '</div>');
+
+        // Add required params for prompt.php
+        formData.append('ajax', '1');
+        formData.append('embedded', '1');
+        formData.append('courseid', this.courseid);
+
+        // POST to prompt.php
+        fetch(M.cfg.wwwroot + '/ai/placement/modgen/prompt.php', {
+            method: 'POST',
+            body: formData,
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.body) {
+                modal.setBody(data.body);
+                if (data.footer) {
+                    modal.setFooter(data.footer);
+                }
+                
+                // Check for close button action
+                modal.getRoot().find('[data-action="aiplacement-modgen-close"]').on('click', () => {
+                    modal.destroy();
+                    if (data.refresh) {
+                        window.location.reload();
+                    }
+                });
+
+                // If the response contains the approval form, we need to handle its submission too.
+                // The approval form usually submits to prompt.php as well.
+                // We can attach a listener to the new form in the modal body.
+                const newForm = modal.getRoot().find('form');
+                if (newForm.length) {
+                    newForm.on('submit', (e) => {
+                        e.preventDefault();
+                        const approvalFormData = new FormData(e.target);
+                        this.handlePromptSubmission(modal, approvalFormData);
+                    });
+                }
+
+            } else if (data.error) {
+                 modal.setBody('<div class="alert alert-danger">' + data.error + '</div>');
+            }
+        })
+        .catch(error => {
+            Notification.exception(error);
+        });
+    }
+
+    /**
      * Setup form submission handler for modal forms.
      *
      * Submits form via AJAX to create_sections.php endpoint.
@@ -289,6 +351,12 @@ class ModalGeneratorComponent extends BaseComponent {
             
             const form = e.target;
             const formData = new FormData(form);
+
+            // Handle prompt form specifically
+            if (formName === 'template_from_prompt') {
+                this.handlePromptSubmission(modal, formData);
+                return;
+            }
             
             // Determine action based on form name
             const action = formName === 'add_theme' ? 'create_themes' : 'create_weeks';

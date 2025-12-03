@@ -151,6 +151,41 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         return modal;
       }).catch(_notification.default.exception);
     }
+    handlePromptSubmission(modal, formData) {
+      modal.setBody('<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">Loading...</span>' + '</div>' + '<p class="mt-2">Generating content... this may take a minute.</p>' + '</div>');
+      formData.append('ajax', '1');
+      formData.append('embedded', '1');
+      formData.append('courseid', this.courseid);
+      fetch(M.cfg.wwwroot + '/ai/placement/modgen/prompt.php', {
+        method: 'POST',
+        body: formData
+      }).then(response => response.json()).then(data => {
+        if (data.body) {
+          modal.setBody(data.body);
+          if (data.footer) {
+            modal.setFooter(data.footer);
+          }
+          modal.getRoot().find('[data-action="aiplacement-modgen-close"]').on('click', () => {
+            modal.destroy();
+            if (data.refresh) {
+              window.location.reload();
+            }
+          });
+          const newForm = modal.getRoot().find('form');
+          if (newForm.length) {
+            newForm.on('submit', e => {
+              e.preventDefault();
+              const approvalFormData = new FormData(e.target);
+              this.handlePromptSubmission(modal, approvalFormData);
+            });
+          }
+        } else if (data.error) {
+          modal.setBody('<div class="alert alert-danger">' + data.error + '</div>');
+        }
+      }).catch(error => {
+        _notification.default.exception(error);
+      });
+    }
     setupFormSubmission(modal, formName) {
       const modalRoot = modal.getRoot();
       let clickedButton = null;
@@ -165,6 +200,10 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         }
         const form = e.target;
         const formData = new FormData(form);
+        if (formName === 'template_from_prompt') {
+          this.handlePromptSubmission(modal, formData);
+          return;
+        }
         const action = formName === 'add_theme' ? 'create_themes' : 'create_weeks';
         const params = {
           courseid: this.courseid,

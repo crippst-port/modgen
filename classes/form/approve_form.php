@@ -65,7 +65,8 @@ class aiplacement_modgen_approve_form extends moodleform {
         // Add regenerate button if AI is enabled
         if (get_config('aiplacement_modgen', 'enable_ai')) {
             $buttonarray = [];
-            $buttonarray[] = &$mform->createElement('button', 'regeneratebutton', get_string('regenerate', 'aiplacement_modgen'));
+            // Explicitly set type="button" so it's not treated as a submit button by the modal handler
+            $buttonarray[] = &$mform->createElement('button', 'regeneratebutton', get_string('regenerate', 'aiplacement_modgen'), ['type' => 'button']);
             $buttonarray[] = &$mform->createElement('submit', 'submitbutton', get_string('approveandcreate', 'aiplacement_modgen'));
             $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);
             $mform->registerNoSubmitButton('regeneratebutton');

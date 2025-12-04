@@ -317,8 +317,11 @@ function aiplacement_modgen_build_module_preview(array $moduledata, string $stru
                     ];
 
                     $sessionLabels = ['presession' => 'Pre-session', 'session' => 'Session', 'postsession' => 'Post-session'];
+                    $orderedSessionTypes = ['presession', 'session', 'postsession'];
 
-                    foreach ($sessionsData as $sessiontype => $sessiondata) {
+                    foreach ($orderedSessionTypes as $sessiontype) {
+                        $sessiondata = $sessionsData[$sessiontype] ?? [];
+                        
                         // Handle both formats:
                         // 1. Sessions object with {presession: {activities: [...]}}
                         // 2. Direct activities array [{type, name, ...}]
@@ -333,28 +336,22 @@ function aiplacement_modgen_build_module_preview(array $moduledata, string $stru
                             }
                         }
 
-                        // Track that this session type exists (even if empty)
-                        if (!empty($activities) || (is_array($sessiondata) && isset($sessiondata['activities']))) {
-                            $sessionActivities = [];
-                            foreach ($activities as $activity) {
-                                if (!is_array($activity)) {
-                                    continue;
-                                }
-
-                                $sessionActivities[] = [
-                                    'name' => !empty($activity['name']) ? s($activity['name']) : '',
-                                    'type' => !empty($activity['type']) ? s($activity['type']) : '',
-                                    'session' => $sessiontype,
-                                ];
-
-                                // Also add to the flat activities list for backward compatibility
-                                $weekitem['activities'][] = [
-                                    'name' => !empty($activity['name']) ? s($activity['name']) : '',
-                                    'type' => !empty($activity['type']) ? s($activity['type']) : '',
-                                    'session' => $sessiontype,
-                                ];
+                        // Build activities array for this session
+                        $sessionActivities = [];
+                        foreach ($activities as $activity) {
+                            if (!is_array($activity)) {
+                                continue;
                             }
 
+                            $sessionActivities[] = [
+                                'name' => !empty($activity['name']) ? s($activity['name']) : '',
+                                'type' => !empty($activity['type']) ? s($activity['type']) : '',
+                                'session' => $sessiontype,
+                            ];
+                        }
+
+                        // Add session to the array (even if empty, to show the session structure)
+                        if (!empty($sessionActivities) || (is_array($sessiondata) && isset($sessiondata['activities']))) {
                             $weekitem['sessions'][] = [
                                 'type' => $sessiontype,
                                 'label' => $sessionLabels[$sessiontype] ?? $sessiontype,
@@ -365,6 +362,11 @@ function aiplacement_modgen_build_module_preview(array $moduledata, string $stru
                     }
 
                     if (!empty($weekitem['activities'])) {
+                        $weekitem['hasactivities'] = true;
+                    }
+                    
+                    // If sessions are present, also mark as having activities
+                    if (!empty($weekitem['sessions'])) {
                         $weekitem['hasactivities'] = true;
                     }
 
@@ -400,8 +402,11 @@ function aiplacement_modgen_build_module_preview(array $moduledata, string $stru
             if (!empty($section['sessions']) && is_array($section['sessions'])) {
                 $sessionsData = $section['sessions'];
                 $sessionLabels = ['presession' => 'Pre-session', 'session' => 'Session', 'postsession' => 'Post-session'];
+                $orderedSessionTypes = ['presession', 'session', 'postsession'];
                 
-                foreach ($sessionsData as $sessiontype => $sessiondata) {
+                foreach ($orderedSessionTypes as $sessiontype) {
+                    $sessiondata = $sessionsData[$sessiontype] ?? [];
+                    
                     // Handle both formats:
                     // 1. Sessions object with {presession: {activities: [...]}}
                     // 2. Direct activities array [{type, name, ...}]
@@ -416,28 +421,22 @@ function aiplacement_modgen_build_module_preview(array $moduledata, string $stru
                         }
                     }
 
-                    // Track that this session type exists (even if empty)
-                    if (!empty($activities) || (is_array($sessiondata) && isset($sessiondata['activities']))) {
-                        $sessionActivities = [];
-                        foreach ($activities as $activity) {
-                            if (!is_array($activity)) {
-                                continue;
-                            }
-
-                            $sessionActivities[] = [
-                                'name' => !empty($activity['name']) ? s($activity['name']) : '',
-                                'type' => !empty($activity['type']) ? s($activity['type']) : '',
-                                'session' => $sessiontype,
-                            ];
-
-                            // Also add to the flat activities list for backward compatibility
-                            $weekitem['activities'][] = [
-                                'name' => !empty($activity['name']) ? s($activity['name']) : '',
-                                'type' => !empty($activity['type']) ? s($activity['type']) : '',
-                                'session' => $sessiontype,
-                            ];
+                    // Build activities array for this session
+                    $sessionActivities = [];
+                    foreach ($activities as $activity) {
+                        if (!is_array($activity)) {
+                            continue;
                         }
 
+                        $sessionActivities[] = [
+                            'name' => !empty($activity['name']) ? s($activity['name']) : '',
+                            'type' => !empty($activity['type']) ? s($activity['type']) : '',
+                            'session' => $sessiontype,
+                        ];
+                    }
+
+                    // Add session to the array (even if empty, to show the session structure)
+                    if (!empty($sessionActivities) || (is_array($sessiondata) && isset($sessiondata['activities']))) {
                         $weekitem['sessions'][] = [
                             'type' => $sessiontype,
                             'label' => $sessionLabels[$sessiontype] ?? $sessiontype,
@@ -460,6 +459,11 @@ function aiplacement_modgen_build_module_preview(array $moduledata, string $stru
             }
 
             if (!empty($weekitem['activities'])) {
+                $weekitem['hasactivities'] = true;
+            }
+            
+            // If sessions are present, also mark as having activities
+            if (!empty($weekitem['sessions'])) {
                 $weekitem['hasactivities'] = true;
             }
 
@@ -868,6 +872,27 @@ if ($approvedjsonparam !== null) {
             
             // Check if this section has a sessions structure (connected_weekly mode)
             $hassessions = !empty($sectiondata['sessions']) && is_array($sectiondata['sessions']);
+            
+            // Enforce connected_weekly structure if that module type is selected
+            if ($moduletype === 'connected_weekly') {
+                $hassessions = true;
+                
+                // If sessions structure is missing, initialize it
+                if (empty($sectiondata['sessions']) || !is_array($sectiondata['sessions'])) {
+                    $sectiondata['sessions'] = [
+                        'presession' => ['description' => '', 'activities' => []],
+                        'session' => ['description' => '', 'activities' => []],
+                        'postsession' => ['description' => '', 'activities' => []]
+                    ];
+                    
+                    // If there are top-level activities, move them to the main session
+                    if (!empty($sectiondata['activities']) && is_array($sectiondata['activities'])) {
+                        $sectiondata['sessions']['session']['activities'] = $sectiondata['activities'];
+                        // Clear top-level activities to avoid duplication
+                        unset($sectiondata['activities']);
+                    }
+                }
+            }
             
             // For connected_weekly with sessions, use flexsections create_new_section to support nesting
             if ($hassessions) {

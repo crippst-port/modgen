@@ -311,10 +311,10 @@ $string['modulestructureinfo'] = 'This preview shows the structure and organisat
 // Quick add forms
 $string['title'] = 'Title';
 $string['summary'] = 'Summary';
-$string['addtheme'] = 'Add Theme';
-$string['addweek'] = 'Add Week';
-$string['newtheme'] = 'New Theme';
-$string['newweek'] = 'New Week';
+$string['addtheme'] = 'Add Theme(s)';
+$string['addweek'] = 'Add Week(s)';
+$string['newtheme'] = 'New Theme(s)';
+$string['newweek'] = 'New Week(s)';
 $string['quickadd'] = 'Quick Add';
 $string['themecount'] = 'How many themes do you want to create?';
 $string['weekcount'] = 'How many weeks do you want to create?';

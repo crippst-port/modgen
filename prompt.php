@@ -350,8 +350,8 @@ function aiplacement_modgen_build_module_preview(array $moduledata, string $stru
                             ];
                         }
 
-                        // Add session to the array (even if empty, to show the session structure)
-                        if (!empty($sessionActivities) || (is_array($sessiondata) && isset($sessiondata['activities']))) {
+                        // Add session to the array if it has activities
+                        if (!empty($sessionActivities)) {
                             $weekitem['sessions'][] = [
                                 'type' => $sessiontype,
                                 'label' => $sessionLabels[$sessiontype] ?? $sessiontype,
@@ -435,8 +435,8 @@ function aiplacement_modgen_build_module_preview(array $moduledata, string $stru
                         ];
                     }
 
-                    // Add session to the array (even if empty, to show the session structure)
-                    if (!empty($sessionActivities) || (is_array($sessiondata) && isset($sessiondata['activities']))) {
+                    // Add session to the array if it has activities
+                    if (!empty($sessionActivities)) {
                         $weekitem['sessions'][] = [
                             'type' => $sessiontype,
                             'label' => $sessionLabels[$sessiontype] ?? $sessiontype,

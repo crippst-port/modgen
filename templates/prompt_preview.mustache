@@ -23,8 +23,8 @@
         
         <p class="aiplacement-modgen-legend">
             <strong>Key:</strong>
-            <i class="fa fa-folder" style="color: #4055cc;"></i> Theme,
-            <i class="fa fa-calendar" style="color: #764ba2;"></i> Week,
+            <i class="fas fa-book" style="color: #4055cc;"></i> Theme,
+            <i class="fas fa-calendar" style="color: #764ba2;"></i> Week,
             <i class="fa fa-graduation-cap" style="color: #4055cc;"></i> Session
         </p>
         
@@ -33,7 +33,7 @@
             {{#themes}}
             <details class="aiplacement-modgen-theme-details" open>
                 <summary class="aiplacement-modgen-theme-summary">
-                    <i class="fa fa-folder aiplacement-modgen-theme-icon"></i>
+                    <i class="fas fa-book aiplacement-modgen-theme-icon"></i>
                     <span class="aiplacement-modgen-theme-title">{{title}}</span>
                 </summary>
                 <div class="aiplacement-modgen-theme-content">
@@ -44,7 +44,7 @@
                         {{#weeks}}
                         <details class="aiplacement-modgen-week-details">
                             <summary class="aiplacement-modgen-week-summary">
-                                <i class="fa fa-calendar aiplacement-modgen-week-icon"></i>
+                                <i class="fas fa-calendar aiplacement-modgen-week-icon"></i>
                                 <span class="aiplacement-modgen-week-title">{{title}}</span>
                             </summary>
                             <div class="aiplacement-modgen-week-content">
@@ -114,7 +114,7 @@
             {{#weeks}}
             <details class="aiplacement-modgen-week-details" open>
                 <summary class="aiplacement-modgen-week-summary">
-                    <i class="fa fa-calendar aiplacement-modgen-week-icon"></i>
+                    <i class="fas fa-calendar aiplacement-modgen-week-icon"></i>
                     <span class="aiplacement-modgen-week-title">{{title}}</span>
                 </summary>
                 <div class="aiplacement-modgen-week-content">
@@ -123,15 +123,32 @@
                     {{#hassessions}}
                     <div class="aiplacement-modgen-week__sessions">
                         {{#sessions}}
-                        <div class="aiplacement-modgen-session-header">
-                            <i class="fa fa-graduation-cap" style="color: #4055cc;"></i>
-                            <span>{{label}}</span>
+                        <div class="aiplacement-modgen-session">
+                            <div class="aiplacement-modgen-session-header">
+                                <i class="fa fa-graduation-cap" style="color: #4055cc;"></i>
+                                <span>{{label}}</span>
+                            </div>
+                            <div class="aiplacement-modgen-session-content">
+                                {{#activities}}
+                                <div class="aiplacement-modgen-activity">
+                                    <i class="fa fa-pencil aiplacement-modgen-activity__icon" style="color: #4055cc;"></i>
+                                    <div class="aiplacement-modgen-activity__content">
+                                        <span class="aiplacement-modgen-activity__name">{{name}}</span>
+                                        {{#type}}<span class="aiplacement-modgen-activity__type">({{type}})</span>{{/type}}
+                                    </div>
+                                </div>
+                                {{/activities}}
+                                {{^activities}}
+                                <p class="aiplacement-modgen-activity-none">No activities</p>
+                                {{/activities}}
+                            </div>
                         </div>
                         {{/sessions}}
                     </div>
                     {{/hassessions}}
                     
                     {{#hasactivities}}
+                    {{^hassessions}}
                     <div class="aiplacement-modgen-week__activities">
                         {{#activities}}
                         <div class="aiplacement-modgen-activity">
@@ -143,6 +160,7 @@
                         </div>
                         {{/activities}}
                     </div>
+                    {{/hassessions}}
                     {{/hasactivities}}
                     {{^hasactivities}}
                     <p class="aiplacement-modgen-activity-none">No activities in this week</p>

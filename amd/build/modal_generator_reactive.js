@@ -141,7 +141,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       }
     }
     isAiWorkflowForm(formName) {
-      const aiWorkflowForms = ['template_from_prompt', 'prompt'];
+      const aiWorkflowForms = ['template_from_prompt', 'prompt', 'suggest'];
       return aiWorkflowForms.includes(formName);
     }
     loadFormInModal(formName, title) {
@@ -159,6 +159,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         this.modal = modal;
         this.modal.getRoot().on(_modal_events.default.hidden, () => {
           this.reactive.dispatch('closeModal');
+          window.location.reload();
         });
         this.setupFormSubmission(modal, formName);
         this.reactive.dispatch('formLoaded');
@@ -523,6 +524,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         this.modal = modal;
         this.modal.getRoot().on(_modal_events.default.hidden, () => {
           this.reactive.dispatch('closeModal');
+          window.location.reload();
         });
         this.modal.show();
         return modal;

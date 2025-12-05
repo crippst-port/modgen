@@ -10,12 +10,84 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
   _jquery = _interopRequireDefault(_jquery);
   _templates = _interopRequireDefault(_templates);
   function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
+  const SUGGEST_STEPS = {
+    SELECT: 1,
+    SCANNING: 2,
+    REVIEW: 3,
+    CREATING: 4
+  };
+  const SUGGEST_STEP_LABELS = {
+    1: 'Select section',
+    2: 'Scanning',
+    3: 'Review',
+    4: 'Creating'
+  };
+  const buildSuggestProgressHeader = currentStep => {
+    const steps = [{
+      num: SUGGEST_STEPS.SELECT,
+      label: SUGGEST_STEP_LABELS[SUGGEST_STEPS.SELECT],
+      icon: 'fa-list'
+    }, {
+      num: SUGGEST_STEPS.SCANNING,
+      label: SUGGEST_STEP_LABELS[SUGGEST_STEPS.SCANNING],
+      icon: 'fa-search'
+    }, {
+      num: SUGGEST_STEPS.REVIEW,
+      label: SUGGEST_STEP_LABELS[SUGGEST_STEPS.REVIEW],
+      icon: 'fa-eye'
+    }, {
+      num: SUGGEST_STEPS.CREATING,
+      label: SUGGEST_STEP_LABELS[SUGGEST_STEPS.CREATING],
+      icon: 'fa-check'
+    }];
+    let html = '<div class="modgen-progress-header mb-3">';
+    html += '<div class="d-flex justify-content-between align-items-center">';
+    steps.forEach((step, index) => {
+      const isActive = step.num === currentStep;
+      const isComplete = step.num < currentStep;
+      const isPending = step.num > currentStep;
+      let stepClass = 'modgen-step';
+      if (isActive) {
+        stepClass += ' modgen-step-active';
+      }
+      if (isComplete) {
+        stepClass += ' modgen-step-complete';
+      }
+      if (isPending) {
+        stepClass += ' modgen-step-pending';
+      }
+      let iconClass = step.icon;
+      if (isComplete) {
+        iconClass = 'fa-check';
+      }
+      html += "<div class=\"".concat(stepClass, " text-center flex-fill\">");
+      html += "<div class=\"modgen-step-icon mb-1\">";
+      html += "<i class=\"fa ".concat(iconClass, "\"></i>");
+      html += "</div>";
+      html += "<div class=\"modgen-step-label small\">".concat(step.label, "</div>");
+      html += "</div>";
+      if (index < steps.length - 1) {
+        const lineClass = isComplete ? 'modgen-step-line-complete' : 'modgen-step-line';
+        html += "<div class=\"".concat(lineClass, " flex-fill\" style=\"height: 2px; margin-top: -1rem;\"></div>");
+      }
+    });
+    html += '</div>';
+    html += '</div>';
+    return html;
+  };
+  const updateProgressHeader = (root, step) => {
+    const $header = root.find('.modgen-progress-header');
+    if ($header.length) {
+      $header.replaceWith(buildSuggestProgressHeader(step));
+    }
+  };
   var _default = _exports.default = {
     init(modal, courseid) {
       let currentsection = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
       const SUGGEST_AJAX = _config.default.wwwroot + '/ai/placement/modgen/ajax/suggest.php';
       const CREATE_AJAX = _config.default.wwwroot + '/ai/placement/modgen/ajax/suggest_create.php';
       const root = modal.getRoot();
+      let currentStep = SUGGEST_STEPS.SELECT;
       try {
         const $dialog = root.closest('.modal-dialog');
         if ($dialog && $dialog.length) {
@@ -34,10 +106,37 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
       const $select = root.find('#suggest-section-select');
       const $loading = root.find('#suggest-loading');
       const $results = root.find('#suggest-results');
-      const $createBtn = root.find('#suggest-create-selected');
       const showLoading = show => {
         if ($loading && $loading.length) {
           $loading.toggle(show);
+        }
+        if (show) {
+          modal.setFooter('');
+        }
+      };
+      const updateFooterForStep = function (step) {
+        let createEnabled = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+        let footerHtml = '';
+        if (step === SUGGEST_STEPS.SELECT) {
+          const scanLabel = M.util.get_string('suggestactivities', 'aiplacement_modgen') || 'Scan for suggestions';
+          footerHtml = '<button class="btn btn-primary" id="suggest-scan-btn-footer">' + scanLabel + '</button>';
+        } else if (step === SUGGEST_STEPS.REVIEW) {
+          const createLabel = M.util.get_string('approveandcreate', 'aiplacement_modgen') || 'Create selected';
+          const disabledAttr = createEnabled ? '' : 'disabled';
+          footerHtml = '<button class="btn btn-success" id="suggest-create-footer" ' + disabledAttr + '>' + createLabel + '</button>';
+        }
+        if (footerHtml) {
+          modal.setFooter(footerHtml);
+          const newFooter = modal.getFooter();
+          newFooter.find('#suggest-scan-btn-footer').on('click', handleScan);
+          newFooter.find('#suggest-create-footer').on('click', handleCreate);
+        }
+      };
+      const updateCreateButtonState = enabled => {
+        const newFooter = modal.getFooter();
+        const $btn = newFooter.find('#suggest-create-footer');
+        if ($btn.length) {
+          $btn.prop('disabled', !enabled);
         }
       };
       let learningTypesChart = null;
@@ -210,13 +309,14 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
         };
         createLearningTypesChart(newChart);
       };
-      root.on('click', '#suggest-scan-btn', ev => {
+      const handleScan = ev => {
         ev.preventDefault();
         const section = $select.val();
+        currentStep = SUGGEST_STEPS.SCANNING;
+        updateProgressHeader(root, currentStep);
         showLoading(true);
         $results.empty();
         root.find('#suggest-summary').hide();
-        $createBtn.prop('disabled', true);
         const params = new URLSearchParams();
         params.append('courseid', courseid);
         params.append('section', section);
@@ -265,7 +365,9 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
             $results.empty();
             if (!suggestions.length) {
               $results.append('<div class="alert alert-info">' + M.util.get_string('suggest_noresults', 'aiplacement_modgen') + '</div>');
-              $createBtn.prop('disabled', true);
+              currentStep = SUGGEST_STEPS.SELECT;
+              updateProgressHeader(root, currentStep);
+              updateFooterForStep(currentStep);
               root.find('#suggest-summary').hide();
               root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
               return;
@@ -301,6 +403,9 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
               $results.append($list);
               root.find('#suggest-summary').show();
               root.closest('.modal').addClass('aiplacement-modgen-modal-wide');
+              currentStep = SUGGEST_STEPS.REVIEW;
+              updateProgressHeader(root, currentStep);
+              updateFooterForStep(currentStep, false);
               const scheduleChartUpdate = () => {
                 if (updateTimeout) {
                   clearTimeout(updateTimeout);
@@ -316,30 +421,38 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
                 $item.attr('aria-selected', isChecked);
                 scheduleChartUpdate();
                 const anyChecked = $results.find('input.suggest-checkbox:checked').length > 0;
-                $createBtn.prop('disabled', !anyChecked);
+                updateCreateButtonState(anyChecked);
               });
               scheduleChartUpdate();
-              $createBtn.prop('disabled', true);
             }).catch(err => {
               _notification.default.exception(err);
               $results.append('<div class="alert alert-danger">Error rendering suggestions: ' + err.message + '</div>');
               root.find('#suggest-summary').hide();
               root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
+              currentStep = SUGGEST_STEPS.SELECT;
+              updateProgressHeader(root, currentStep);
+              updateFooterForStep(currentStep);
             });
           } else {
             _notification.default.exception(new Error(data.error || 'No suggestions'));
             $results.append('<div class="alert alert-danger">' + (data.error || 'Error fetching suggestions') + '</div>');
             root.find('#suggest-summary').hide();
             root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
+            currentStep = SUGGEST_STEPS.SELECT;
+            updateProgressHeader(root, currentStep);
+            updateFooterForStep(currentStep);
           }
         }).catch(err => {
           showLoading(false);
           _notification.default.exception(err);
           root.find('#suggest-summary').hide();
           root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
+          currentStep = SUGGEST_STEPS.SELECT;
+          updateProgressHeader(root, currentStep);
+          updateFooterForStep(currentStep);
         });
-      });
-      root.on('click', '#suggest-create-selected', ev => {
+      };
+      const handleCreate = ev => {
         ev.preventDefault();
         const selected = [];
         const skipped = [];
@@ -378,6 +491,8 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
         params.append('section', $select.val());
         params.append('selected', JSON.stringify(selected));
         params.append('sesskey', _config.default.sesskey);
+        currentStep = SUGGEST_STEPS.CREATING;
+        updateProgressHeader(root, currentStep);
         showLoading(true);
         fetch(CREATE_AJAX, {
           method: 'POST',
@@ -406,7 +521,7 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
             $results.html(html);
             root.find('#suggest-summary').hide();
             root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
-            $createBtn.prop('disabled', true);
+            modal.setFooter('<button class="btn btn-primary" data-action="hide">Close</button>');
           } else {
             _notification.default.exception(new Error(data.error || 'Creation failed'));
             $results.append('<div class="alert alert-danger">' + (data.error || 'Creation failed') + '</div>');
@@ -416,12 +531,21 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
                 $results.append('<pre class="mt-2">' + (0, _jquery.default)('<div/>').text(decoded).html() + '</pre>');
               } catch (e) {}
             }
+            currentStep = SUGGEST_STEPS.REVIEW;
+            updateProgressHeader(root, currentStep);
+            updateFooterForStep(currentStep, true);
           }
         }).catch(err => {
           showLoading(false);
           _notification.default.exception(err);
+          currentStep = SUGGEST_STEPS.REVIEW;
+          updateProgressHeader(root, currentStep);
+          updateFooterForStep(currentStep, true);
         });
-      });
+      };
+      updateFooterForStep(SUGGEST_STEPS.SELECT);
+      root.on('click', '#suggest-scan-btn', handleScan);
+      root.on('click', '#suggest-create-selected', handleCreate);
     }
   };
 });

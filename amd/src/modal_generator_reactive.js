@@ -248,7 +248,7 @@ class ModalGeneratorComponent extends BaseComponent {
      * @returns {boolean} True if this is an AI workflow form
      */
     isAiWorkflowForm(formName) {
-        const aiWorkflowForms = ['template_from_prompt', 'prompt'];
+        const aiWorkflowForms = ['template_from_prompt', 'prompt', 'suggest'];
         return aiWorkflowForms.includes(formName);
     }
 
@@ -281,6 +281,8 @@ class ModalGeneratorComponent extends BaseComponent {
             // Listen for modal hide/close events and update reactive state
             this.modal.getRoot().on(ModalEvents.hidden, () => {
                 this.reactive.dispatch('closeModal');
+                // Always refresh page when modal closes to update UI
+                window.location.reload();
             });
 
             // Handle form submission via AJAX instead of Fragment reload
@@ -859,6 +861,8 @@ class ModalGeneratorComponent extends BaseComponent {
             // Listen for modal hide/close events and update reactive state
             this.modal.getRoot().on(ModalEvents.hidden, () => {
                 this.reactive.dispatch('closeModal');
+                // Always refresh page when modal closes to update UI
+                window.location.reload();
             });
 
             this.modal.show();

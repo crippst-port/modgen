@@ -3,6 +3,89 @@ import Config from 'core/config';
 import $ from 'jquery';
 import Templates from 'core/templates';
 
+// Step constants for suggest workflow
+const SUGGEST_STEPS = {
+    SELECT: 1,
+    SCANNING: 2,
+    REVIEW: 3,
+    CREATING: 4,
+};
+
+const SUGGEST_STEP_LABELS = {
+    1: 'Select section',
+    2: 'Scanning',
+    3: 'Review',
+    4: 'Creating',
+};
+
+/**
+ * Build progress header HTML for suggest workflow.
+ * @param {number} currentStep Current step number
+ * @returns {string} HTML for progress header
+ */
+const buildSuggestProgressHeader = (currentStep) => {
+    const steps = [
+        {num: SUGGEST_STEPS.SELECT, label: SUGGEST_STEP_LABELS[SUGGEST_STEPS.SELECT], icon: 'fa-list'},
+        {num: SUGGEST_STEPS.SCANNING, label: SUGGEST_STEP_LABELS[SUGGEST_STEPS.SCANNING], icon: 'fa-search'},
+        {num: SUGGEST_STEPS.REVIEW, label: SUGGEST_STEP_LABELS[SUGGEST_STEPS.REVIEW], icon: 'fa-eye'},
+        {num: SUGGEST_STEPS.CREATING, label: SUGGEST_STEP_LABELS[SUGGEST_STEPS.CREATING], icon: 'fa-check'},
+    ];
+
+    let html = '<div class="modgen-progress-header mb-3">';
+    html += '<div class="d-flex justify-content-between align-items-center">';
+
+    steps.forEach((step, index) => {
+        const isActive = step.num === currentStep;
+        const isComplete = step.num < currentStep;
+        const isPending = step.num > currentStep;
+
+        let stepClass = 'modgen-step';
+        if (isActive) {
+            stepClass += ' modgen-step-active';
+        }
+        if (isComplete) {
+            stepClass += ' modgen-step-complete';
+        }
+        if (isPending) {
+            stepClass += ' modgen-step-pending';
+        }
+
+        let iconClass = step.icon;
+        if (isComplete) {
+            iconClass = 'fa-check';
+        }
+
+        html += `<div class="${stepClass} text-center flex-fill">`;
+        html += `<div class="modgen-step-icon mb-1">`;
+        html += `<i class="fa ${iconClass}"></i>`;
+        html += `</div>`;
+        html += `<div class="modgen-step-label small">${step.label}</div>`;
+        html += `</div>`;
+
+        if (index < steps.length - 1) {
+            const lineClass = isComplete ? 'modgen-step-line-complete' : 'modgen-step-line';
+            html += `<div class="${lineClass} flex-fill" style="height: 2px; margin-top: -1rem;"></div>`;
+        }
+    });
+
+    html += '</div>';
+    html += '</div>';
+
+    return html;
+};
+
+/**
+ * Update the progress header in the modal body.
+ * @param {Object} root jQuery root element
+ * @param {number} step Current step
+ */
+const updateProgressHeader = (root, step) => {
+    const $header = root.find('.modgen-progress-header');
+    if ($header.length) {
+        $header.replaceWith(buildSuggestProgressHeader(step));
+    }
+};
+
 export default {
     init(modal, courseid, currentsection = 0) {
         // Build AJAX URLs using Moodle config (proper ES6 module way)
@@ -10,6 +93,10 @@ export default {
         const CREATE_AJAX = Config.wwwroot + '/ai/placement/modgen/ajax/suggest_create.php';
         // Note: Colors are now retrieved from the server via AJAX (centralized in learning_type_colors.php)
         const root = modal.getRoot();
+        
+        // Current step tracking
+        let currentStep = SUGGEST_STEPS.SELECT;
+        
         // Try to make the modal dialog a bit wider for this tool so chart + list can sit side-by-side.
         try {
             const $dialog = root.closest('.modal-dialog');
@@ -32,11 +119,55 @@ export default {
         const $select = root.find('#suggest-section-select');
         const $loading = root.find('#suggest-loading');
         const $results = root.find('#suggest-results');
-        const $createBtn = root.find('#suggest-create-selected');
 
         const showLoading = (show) => {
             if ($loading && $loading.length) {
                 $loading.toggle(show);
+            }
+            // Clear footer during loading
+            if (show) {
+                modal.setFooter('');
+            }
+        };
+        
+        /**
+         * Update footer buttons based on current step.
+         * @param {number} step Current step
+         * @param {boolean} createEnabled Whether create button should be enabled
+         */
+        const updateFooterForStep = (step, createEnabled = false) => {
+            let footerHtml = '';
+            
+            if (step === SUGGEST_STEPS.SELECT) {
+                // Show scan button only
+                const scanLabel = M.util.get_string('suggestactivities', 'aiplacement_modgen') || 'Scan for suggestions';
+                footerHtml = '<button class="btn btn-primary" id="suggest-scan-btn-footer">' + scanLabel + '</button>';
+            } else if (step === SUGGEST_STEPS.REVIEW) {
+                // Show create button
+                const createLabel = M.util.get_string('approveandcreate', 'aiplacement_modgen') || 'Create selected';
+                const disabledAttr = createEnabled ? '' : 'disabled';
+                footerHtml = '<button class="btn btn-success" id="suggest-create-footer" ' + disabledAttr + '>' + createLabel + '</button>';
+            }
+            // For SCANNING and CREATING steps, footer stays empty (cleared by showLoading)
+            
+            if (footerHtml) {
+                modal.setFooter(footerHtml);
+                // Re-bind event handlers
+                const newFooter = modal.getFooter();
+                newFooter.find('#suggest-scan-btn-footer').on('click', handleScan);
+                newFooter.find('#suggest-create-footer').on('click', handleCreate);
+            }
+        };
+        
+        /**
+         * Update create button enabled state in footer.
+         * @param {boolean} enabled Whether button should be enabled
+         */
+        const updateCreateButtonState = (enabled) => {
+            const newFooter = modal.getFooter();
+            const $btn = newFooter.find('#suggest-create-footer');
+            if ($btn.length) {
+                $btn.prop('disabled', !enabled);
             }
         };
 
@@ -184,14 +315,22 @@ export default {
             createLearningTypesChart(newChart);
         };
 
-        root.on('click', '#suggest-scan-btn', (ev) => {
+        /**
+         * Handle scan button click - fetches suggestions from AI.
+         * @param {Event} ev Click event
+         */
+        const handleScan = (ev) => {
             ev.preventDefault();
             const section = $select.val();
+            
+            // Update step and progress header
+            currentStep = SUGGEST_STEPS.SCANNING;
+            updateProgressHeader(root, currentStep);
+            
             showLoading(true);
             $results.empty();
             // Hide the summary until we have suggestion results to display
             root.find('#suggest-summary').hide();
-            $createBtn.prop('disabled', true);
 
             const params = new URLSearchParams();
             params.append('courseid', courseid);
@@ -247,7 +386,10 @@ export default {
                     $results.empty();
                     if (!suggestions.length) {
                         $results.append('<div class="alert alert-info">' + M.util.get_string('suggest_noresults','aiplacement_modgen') + '</div>');
-                        $createBtn.prop('disabled', true);
+                        // No suggestions -> back to select step
+                        currentStep = SUGGEST_STEPS.SELECT;
+                        updateProgressHeader(root, currentStep);
+                        updateFooterForStep(currentStep);
                         // No suggestions -> keep summary hidden
                         root.find('#suggest-summary').hide();
                         // Remove wide modal class if no suggestions
@@ -295,6 +437,12 @@ export default {
                         root.find('#suggest-summary').show();
                         // Make modal wide enough for chart + list
                         root.closest('.modal').addClass('aiplacement-modgen-modal-wide');
+                        
+                        // Update to review step
+                        currentStep = SUGGEST_STEPS.REVIEW;
+                        updateProgressHeader(root, currentStep);
+                        updateFooterForStep(currentStep, false);
+                        
                         // Debounced chart updater to avoid rapid re-renders when toggling
                         const scheduleChartUpdate = () => {
                             if (updateTimeout) {
@@ -314,17 +462,19 @@ export default {
                             scheduleChartUpdate();
                             // Enable Create button only when at least one suggestion is checked
                             const anyChecked = $results.find('input.suggest-checkbox:checked').length > 0;
-                            $createBtn.prop('disabled', !anyChecked);
+                            updateCreateButtonState(anyChecked);
                         });
                         // Immediately schedule an update to include any pre-checked suggestions (none by default)
                         scheduleChartUpdate();
-                        // Ensure create button is disabled until user selects items
-                        $createBtn.prop('disabled', true);
                     }).catch(err => {
                         Notification.exception(err);
                         $results.append('<div class="alert alert-danger">Error rendering suggestions: ' + err.message + '</div>');
                         root.find('#suggest-summary').hide();
                         root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
+                        // Back to select step on error
+                        currentStep = SUGGEST_STEPS.SELECT;
+                        updateProgressHeader(root, currentStep);
+                        updateFooterForStep(currentStep);
                     });
                 } else {
                     Notification.exception(new Error(data.error || 'No suggestions'));
@@ -333,6 +483,10 @@ export default {
                     root.find('#suggest-summary').hide();
                     // Remove wide modal class on error
                     root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
+                    // Back to select step
+                    currentStep = SUGGEST_STEPS.SELECT;
+                    updateProgressHeader(root, currentStep);
+                    updateFooterForStep(currentStep);
                 }
             }).catch(err => {
                 showLoading(false);
@@ -341,10 +495,18 @@ export default {
                 root.find('#suggest-summary').hide();
                 // Remove wide modal class on error
                 root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
+                // Back to select step
+                currentStep = SUGGEST_STEPS.SELECT;
+                updateProgressHeader(root, currentStep);
+                updateFooterForStep(currentStep);
             });
-        });
+        };
 
-        root.on('click', '#suggest-create-selected', (ev) => {
+        /**
+         * Handle create button click - creates selected activities.
+         * @param {Event} ev Click event
+         */
+        const handleCreate = (ev) => {
             ev.preventDefault();
             const selected = [];
             const skipped = [];
@@ -392,6 +554,10 @@ export default {
             params.append('selected', JSON.stringify(selected));
             params.append('sesskey', Config.sesskey);
 
+            // Update to creating step
+            currentStep = SUGGEST_STEPS.CREATING;
+            updateProgressHeader(root, currentStep);
+            
             showLoading(true);
             fetch(CREATE_AJAX, {
                 method: 'POST',
@@ -421,7 +587,8 @@ export default {
                     root.find('#suggest-summary').hide();
                     // Remove wide modal class after creation
                     root.closest('.modal').removeClass('aiplacement-modgen-modal-wide');
-                    $createBtn.prop('disabled', true);
+                    // Keep step at CREATING (completed state) - show close button in footer
+                    modal.setFooter('<button class="btn btn-primary" data-action="hide">Close</button>');
                 } else {
                     Notification.exception(new Error(data.error || 'Creation failed'));
                     $results.append('<div class="alert alert-danger">' + (data.error || 'Creation failed') + '</div>');
@@ -433,11 +600,26 @@ export default {
                             // ignore
                         }
                     }
+                    // Back to review step on error
+                    currentStep = SUGGEST_STEPS.REVIEW;
+                    updateProgressHeader(root, currentStep);
+                    updateFooterForStep(currentStep, true);
                 }
             }).catch(err => {
                 showLoading(false);
                 Notification.exception(err);
+                // Back to review step on error
+                currentStep = SUGGEST_STEPS.REVIEW;
+                updateProgressHeader(root, currentStep);
+                updateFooterForStep(currentStep, true);
             });
-        });
+        };
+        
+        // Initialize footer with scan button
+        updateFooterForStep(SUGGEST_STEPS.SELECT);
+        
+        // Also listen for clicks on the original buttons in the body (in case they're still there)
+        root.on('click', '#suggest-scan-btn', handleScan);
+        root.on('click', '#suggest-create-selected', handleCreate);
     }
 };

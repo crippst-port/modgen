@@ -66,6 +66,8 @@ function aiplacement_modgen_extend_navigation_course(
                 'creation_warnings',
                 'suggest_noresults',
                 'unsupported_label',
+                'suggestactivities',
+                'approveandcreate',
             ], 'aiplacement_modgen');
 
             // Get current section from URL (for context-aware creation)

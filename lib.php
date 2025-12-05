@@ -61,13 +61,16 @@ function aiplacement_modgen_extend_navigation_course(
             // Load CSS
             $PAGE->requires->css('/ai/placement/modgen/styles.css');
 
-            // Load strings needed by suggest.js (must be in main page context, not fragment)
+            // Load strings needed by JS modules (must be in main page context, not fragment)
             $PAGE->requires->strings_for_js([
                 'creation_warnings',
                 'suggest_noresults',
                 'unsupported_label',
                 'suggestactivities',
                 'approveandcreate',
+                'aigenerated',
+                'aigenerated_tooltip',
+                'aigenmarker_tooltip',
             ], 'aiplacement_modgen');
 
             // Get current section from URL (for context-aware creation)
@@ -82,6 +85,9 @@ function aiplacement_modgen_extend_navigation_course(
                 'showsuggest' => $showsuggest,
                 'currentsection' => $currentsection,
             ]]);
+
+            // Initialize AI-generated activity markers
+            $PAGE->requires->js_call_amd('aiplacement_modgen/aigen_marker', 'init', [$course->id]);
         }
     }
 

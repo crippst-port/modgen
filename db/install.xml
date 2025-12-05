@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="/ai/placement/modgen/db" VERSION="20250101" COMMENT="Cache table for aiplacement_modgen">
+<XMLDB PATH="/ai/placement/modgen/db" VERSION="20250105" COMMENT="Tables for aiplacement_modgen">
     <TABLES>
         <TABLE NAME="aiplacement_modgen_cache" COMMENT="Cache for explore insights">
             <FIELDS>
@@ -10,6 +10,19 @@
             </FIELDS>
             <KEYS>
                 <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="courseid_fk" TYPE="foreign" FIELDS="courseid" REFTABLE="course" REFFIELDS="id"/>
+            </KEYS>
+        </TABLE>
+        <TABLE NAME="aiplacement_modgen_aigen" COMMENT="Tracks AI-generated course modules">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="cmid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Course module ID"/>
+                <FIELD NAME="courseid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="Course ID"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="When record was created"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+                <KEY NAME="cmid_uk" TYPE="unique" FIELDS="cmid"/>
                 <KEY NAME="courseid_fk" TYPE="foreign" FIELDS="courseid" REFTABLE="course" REFFIELDS="id"/>
             </KEYS>
         </TABLE>

@@ -1,5 +1,5 @@
 <?php
-// This file is part of Moodle - https://moodle.org/
+// This file is part of Moodle - http://moodle.org/
 //
 // Moodle is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -12,20 +12,25 @@
 // GNU General Public License for more details.
 //
 // You should have received a copy of the GNU General Public License
-// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+// along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
 /**
- * Plugin version and other meta-data are defined here.
+ * Event observers for aiplacement_modgen.
  *
  * @package     aiplacement_modgen
  * @copyright   2025 Tom Cripps <tom.cripps@port.ac.uk>
- * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'aiplacement_modgen';
-$plugin->release = '0.2.3';
-$plugin->version = 2025201603;
-$plugin->requires = 2022112800;
-$plugin->maturity = MATURITY_ALPHA;
+$observers = [
+    [
+        'eventname' => '\core\event\course_module_updated',
+        'callback' => '\aiplacement_modgen\event\observer::course_module_updated',
+    ],
+    [
+        'eventname' => '\core\event\course_module_deleted',
+        'callback' => '\aiplacement_modgen\event\observer::course_module_deleted',
+    ],
+];

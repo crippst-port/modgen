@@ -81,6 +81,12 @@ class registry {
                     continue;
                 }
 
+                // Track AI-generated activities.
+                $cmid = $result['cmid'] ?? $result['coursemodule'] ?? null;
+                if ($cmid) {
+                    \aiplacement_modgen\aigen_tracker::mark_as_aigenerated((int)$cmid, $course->id);
+                }
+
                 $results[] = $result;
             } catch (\Exception $e) {
                 $error = "Exception creating $type: " . $e->getMessage();

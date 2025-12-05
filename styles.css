@@ -15,6 +15,21 @@
  */
 
 /**
+ * AI-generated activity marker - positioned absolute so tooltip is accessible
+ */
+.activityname {
+    position: relative;
+}
+
+.aiplacement-modgen-aigen-marker {
+    position: absolute;
+    right: -20px;
+    top: 50%;
+    transform: translateY(-50%);
+    cursor: help;
+}
+
+/**
  * Course navigation bar for Module Assistant tools
  */
 .aiplacement-modgen-navbar {

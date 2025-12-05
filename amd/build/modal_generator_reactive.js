@@ -46,6 +46,12 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       stateManager.state.modal.isLoading = false;
       stateManager.state.modal.formName = null;
       stateManager.state.modal.title = '';
+      stateManager.state.modal.currentStep = STEPS.PROMPT;
+      stateManager.setReadOnly(true);
+    }
+    setStep(stateManager, step) {
+      stateManager.setReadOnly(false);
+      stateManager.state.modal.currentStep = step;
       stateManager.setReadOnly(true);
     }
     formLoaded(stateManager) {
@@ -54,6 +60,18 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       stateManager.setReadOnly(true);
     }
   }
+  const STEPS = {
+    PROMPT: 1,
+    GENERATING: 2,
+    PREVIEW: 3,
+    CREATING: 4
+  };
+  const STEP_LABELS = {
+    1: 'Enter prompt',
+    2: 'Generating',
+    3: 'Review',
+    4: 'Creating'
+  };
   const reactiveInstance = new _reactive.Reactive({
     name: 'ModalGenerator',
     eventName: eventTypes.stateChanged,
@@ -63,7 +81,8 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         isOpen: false,
         isLoading: false,
         formName: null,
-        title: ''
+        title: '',
+        currentStep: STEPS.PROMPT
       },
       form: {
         isValid: false,
@@ -109,6 +128,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       } = _ref2;
       if (this.modal && state.modal.isLoading) {
         this.modal.setBody('<div class="spinner-border" role="status"><span class="sr-only">Loading...</span></div>');
+        this.modal.setFooter('');
       }
     }
     createModal() {
@@ -120,15 +140,22 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         this.showGeneratorLink(title);
       }
     }
+    isAiWorkflowForm(formName) {
+      const aiWorkflowForms = ['template_from_prompt', 'prompt'];
+      return aiWorkflowForms.includes(formName);
+    }
     loadFormInModal(formName, title) {
       _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
         courseid: this.courseid,
         contextid: this.contextid
-      }).then(html => _modal.default.create({
-        title: title,
-        body: html,
-        large: false
-      })).then(modal => {
+      }).then(html => {
+        const bodyHtml = this.isAiWorkflowForm(formName) ? this.buildProgressHeader(STEPS.PROMPT) + html : html;
+        return _modal.default.create({
+          title: title,
+          body: bodyHtml,
+          large: false
+        });
+      }).then(modal => {
         this.modal = modal;
         this.modal.getRoot().on(_modal_events.default.hidden, () => {
           this.reactive.dispatch('closeModal');
@@ -227,7 +254,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       });
     }
     handlePromptSubmission(modal, formData) {
-      modal.setBody('<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">Loading...</span>' + '</div>' + '<p class="mt-2">Generating content... this may take a minute.</p>' + '</div>');
+      this.reactive.dispatch('setStep', STEPS.GENERATING);
+      modal.setBody(this.buildProgressHeader(STEPS.GENERATING) + '<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">Loading...</span>' + '</div>' + '<p class="mt-2">Generating content... this may take a minute.</p>' + '</div>');
+      modal.setFooter('');
       formData.append('ajax', '1');
       formData.append('embedded', '1');
       formData.append('courseid', this.courseid);
@@ -236,7 +265,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         body: formData
       }).then(response => response.json()).then(data => {
         if (data.body) {
-          modal.setBody(data.body);
+          const step = data.refresh ? STEPS.CREATING : STEPS.PREVIEW;
+          this.reactive.dispatch('setStep', step);
+          modal.setBody(this.buildProgressHeader(step) + data.body);
           if (data.buttons && data.buttons.length > 0) {
             this.renderFooterButtons(modal, data.buttons);
           } else if (data.footer) {
@@ -297,12 +328,16 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       const form = bodyNode ? bodyNode.querySelector('form') : null;
       switch (action) {
         case 'submit':
+          this.reactive.dispatch('setStep', STEPS.CREATING);
+          modal.setBody(this.buildProgressHeader(STEPS.CREATING) + '<div class=\"text-center p-5\">' + '<div class=\"spinner-border\" role=\"status\">' + '<span class=\"sr-only\">Creating...</span>' + '</div>' + '<p class=\"mt-2\">Creating activities... please wait.</p>' + '</div>');
+          modal.setFooter('');
           if (form) {
             const formData = new FormData(form);
             this.handlePromptSubmission(modal, formData);
           }
           break;
         case 'regenerate':
+          this.reactive.dispatch('setStep', STEPS.PROMPT);
           this.reactive.dispatch('openModalWithForm', 'template_from_prompt', 'Template from prompt');
           break;
         case 'close':
@@ -336,18 +371,91 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         btn.style.display = 'none';
       });
     }
+    buildProgressHeader(currentStep) {
+      const steps = [{
+        num: STEPS.PROMPT,
+        label: STEP_LABELS[STEPS.PROMPT],
+        icon: 'fa-edit'
+      }, {
+        num: STEPS.GENERATING,
+        label: STEP_LABELS[STEPS.GENERATING],
+        icon: 'fa-cog'
+      }, {
+        num: STEPS.PREVIEW,
+        label: STEP_LABELS[STEPS.PREVIEW],
+        icon: 'fa-eye'
+      }, {
+        num: STEPS.CREATING,
+        label: STEP_LABELS[STEPS.CREATING],
+        icon: 'fa-check'
+      }];
+      let html = '<div class="modgen-progress-header mb-3">';
+      html += '<div class="d-flex justify-content-between align-items-center">';
+      steps.forEach((step, index) => {
+        const isActive = step.num === currentStep;
+        const isComplete = step.num < currentStep;
+        const isPending = step.num > currentStep;
+        let stepClass = 'modgen-step';
+        if (isActive) {
+          stepClass += ' modgen-step-active';
+        }
+        if (isComplete) {
+          stepClass += ' modgen-step-complete';
+        }
+        if (isPending) {
+          stepClass += ' modgen-step-pending';
+        }
+        let iconClass = step.icon;
+        if (isComplete) {
+          iconClass = 'fa-check';
+        }
+        html += "<div class=\"".concat(stepClass, " text-center flex-fill\">");
+        html += "<div class=\"modgen-step-icon mb-1\">";
+        html += "<i class=\"fa ".concat(iconClass, "\"></i>");
+        html += "</div>";
+        html += "<div class=\"modgen-step-label small\">".concat(step.label, "</div>");
+        html += "</div>";
+        if (index < steps.length - 1) {
+          const lineClass = isComplete ? 'modgen-step-line-complete' : 'modgen-step-line';
+          html += "<div class=\"".concat(lineClass, " flex-fill\" style=\"height: 2px; margin-top: -1rem;\"></div>");
+        }
+      });
+      html += '</div>';
+      html += '</div>';
+      return html;
+    }
     setupFormSubmission(modal, formName) {
       const modalRoot = modal.getRoot();
       let clickedButton = null;
-      modalRoot.on('click', 'input[type="submit"]', function () {
+      modalRoot.on('click', 'input[type="submit"], button[type="submit"]', function () {
         clickedButton = this.getAttribute('name');
       });
+      modalRoot.on('click', '[data-form-button-index]', function () {
+        const index = this.getAttribute('data-form-button-index');
+        const body = modal.getBody();
+        const bodyNode = body && body.length ? body.get(0) : null;
+        if (bodyNode) {
+          const form = bodyNode.querySelector('form');
+          if (form) {
+            const buttons = form.querySelectorAll('button, input[type="submit"], input[type="button"]');
+            const originalButton = buttons[index];
+            if (originalButton) {
+              clickedButton = originalButton.getAttribute('name');
+            }
+          }
+        }
+      });
       modalRoot.on('submit', 'form', e => {
+        var _e$originalEvent;
         e.preventDefault();
-        if (clickedButton === 'cancel') {
+        const submitter = (_e$originalEvent = e.originalEvent) === null || _e$originalEvent === void 0 ? void 0 : _e$originalEvent.submitter;
+        const buttonName = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('name')) || clickedButton;
+        if (buttonName === 'cancel') {
           modal.destroy();
+          clickedButton = null;
           return;
         }
+        clickedButton = null;
         const form = e.target;
         const formData = new FormData(form);
         if (formName === 'template_from_prompt') {

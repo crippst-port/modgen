@@ -92,6 +92,19 @@ class ModalMutations {
         stateManager.state.modal.isLoading = false;
         stateManager.state.modal.formName = null;
         stateManager.state.modal.title = '';
+        stateManager.state.modal.currentStep = STEPS.PROMPT;
+        stateManager.setReadOnly(true);
+    }
+
+    /**
+     * Set the current step in the workflow.
+     *
+     * @param {StateManager} stateManager The state manager
+     * @param {number} step The step number
+     */
+    setStep(stateManager, step) {
+        stateManager.setReadOnly(false);
+        stateManager.state.modal.currentStep = step;
         stateManager.setReadOnly(true);
     }
 
@@ -107,6 +120,21 @@ class ModalMutations {
     }
 }
 
+// Step constants for progress tracking
+const STEPS = {
+    PROMPT: 1,
+    GENERATING: 2,
+    PREVIEW: 3,
+    CREATING: 4,
+};
+
+const STEP_LABELS = {
+    1: 'Enter prompt',
+    2: 'Generating',
+    3: 'Review',
+    4: 'Creating',
+};
+
 // Create the reactive instance immediately when module loads
 const reactiveInstance = new Reactive({
         name: 'ModalGenerator',
@@ -119,6 +147,7 @@ const reactiveInstance = new Reactive({
                 isLoading: false,
                 formName: null,
                 title: '',
+                currentStep: STEPS.PROMPT,
             },
             form: {
                 isValid: false,
@@ -191,6 +220,8 @@ class ModalGeneratorComponent extends BaseComponent {
     handleLoadingChange({state}) {
         if (this.modal && state.modal.isLoading) {
             this.modal.setBody('<div class="spinner-border" role="status"><span class="sr-only">Loading...</span></div>');
+            // Clear footer during loading
+            this.modal.setFooter('');
         }
     }
 
@@ -211,6 +242,17 @@ class ModalGeneratorComponent extends BaseComponent {
     }
 
     /**
+     * Check if a form uses AI generation workflow (needs progress stepper).
+     *
+     * @param {string} formName Form fragment name
+     * @returns {boolean} True if this is an AI workflow form
+     */
+    isAiWorkflowForm(formName) {
+        const aiWorkflowForms = ['template_from_prompt', 'prompt'];
+        return aiWorkflowForms.includes(formName);
+    }
+
+    /**
      * Load a form in the modal using Fragment API to render moodleform.
      *
      * @param {string} formName Form fragment name (e.g., 'add_theme', 'add_week')
@@ -222,11 +264,17 @@ class ModalGeneratorComponent extends BaseComponent {
             courseid: this.courseid,
             contextid: this.contextid,
         })
-        .then((html) => ModgenModal.create({
-            title: title,
-            body: html,
-            large: false,
-        }))
+        .then((html) => {
+            // Only show progress header for AI workflow forms
+            const bodyHtml = this.isAiWorkflowForm(formName)
+                ? this.buildProgressHeader(STEPS.PROMPT) + html
+                : html;
+            return ModgenModal.create({
+                title: title,
+                body: bodyHtml,
+                large: false,
+            });
+        })
         .then((modal) => {
             this.modal = modal;
 
@@ -383,13 +431,20 @@ class ModalGeneratorComponent extends BaseComponent {
      * @param {FormData} formData The form data
      */
     handlePromptSubmission(modal, formData) {
-        // Show loading indicator
-        modal.setBody('<div class="text-center p-5">' +
+        // Update step to generating
+        this.reactive.dispatch('setStep', STEPS.GENERATING);
+
+        // Show loading indicator with progress header
+        modal.setBody(this.buildProgressHeader(STEPS.GENERATING) +
+            '<div class="text-center p-5">' +
             '<div class="spinner-border" role="status">' +
             '<span class="sr-only">Loading...</span>' +
             '</div>' +
             '<p class="mt-2">Generating content... this may take a minute.</p>' +
             '</div>');
+
+        // Clear footer during generation
+        modal.setFooter('');
 
         // Add required params for prompt.php
         formData.append('ajax', '1');
@@ -404,7 +459,12 @@ class ModalGeneratorComponent extends BaseComponent {
         .then(response => response.json())
         .then(data => {
             if (data.body) {
-                modal.setBody(data.body);
+                // Determine which step we're at based on response
+                const step = data.refresh ? STEPS.CREATING : STEPS.PREVIEW;
+                this.reactive.dispatch('setStep', step);
+
+                // Add progress header to body
+                modal.setBody(this.buildProgressHeader(step) + data.body);
                 
                 // Handle footer - prefer server-driven buttons, then HTML footer, then extract from form
                 if (data.buttons && data.buttons.length > 0) {
@@ -500,6 +560,17 @@ class ModalGeneratorComponent extends BaseComponent {
         
         switch (action) {
             case 'submit':
+                // Show creating step with loading indicator
+                this.reactive.dispatch('setStep', STEPS.CREATING);
+                modal.setBody(this.buildProgressHeader(STEPS.CREATING) +
+                    '<div class=\"text-center p-5\">' +
+                    '<div class=\"spinner-border\" role=\"status\">' +
+                    '<span class=\"sr-only\">Creating...</span>' +
+                    '</div>' +
+                    '<p class=\"mt-2\">Creating activities... please wait.</p>' +
+                    '</div>');
+                modal.setFooter('');
+
                 // Submit the form
                 if (form) {
                     const formData = new FormData(form);
@@ -508,7 +579,8 @@ class ModalGeneratorComponent extends BaseComponent {
                 break;
                 
             case 'regenerate':
-                // Reload the prompt form
+                // Reset step and reload the prompt form
+                this.reactive.dispatch('setStep', STEPS.PROMPT);
                 this.reactive.dispatch('openModalWithForm', 'template_from_prompt', 'Template from prompt');
                 break;
                 
@@ -558,6 +630,65 @@ class ModalGeneratorComponent extends BaseComponent {
     }
 
     /**
+     * Build a progress header showing the current step in the workflow.
+     *
+     * @param {number} currentStep The current step number
+     * @returns {string} HTML for the progress header
+     */
+    buildProgressHeader(currentStep) {
+        const steps = [
+            {num: STEPS.PROMPT, label: STEP_LABELS[STEPS.PROMPT], icon: 'fa-edit'},
+            {num: STEPS.GENERATING, label: STEP_LABELS[STEPS.GENERATING], icon: 'fa-cog'},
+            {num: STEPS.PREVIEW, label: STEP_LABELS[STEPS.PREVIEW], icon: 'fa-eye'},
+            {num: STEPS.CREATING, label: STEP_LABELS[STEPS.CREATING], icon: 'fa-check'},
+        ];
+
+        let html = '<div class="modgen-progress-header mb-3">';
+        html += '<div class="d-flex justify-content-between align-items-center">';
+
+        steps.forEach((step, index) => {
+            const isActive = step.num === currentStep;
+            const isComplete = step.num < currentStep;
+            const isPending = step.num > currentStep;
+
+            let stepClass = 'modgen-step';
+            if (isActive) {
+                stepClass += ' modgen-step-active';
+            }
+            if (isComplete) {
+                stepClass += ' modgen-step-complete';
+            }
+            if (isPending) {
+                stepClass += ' modgen-step-pending';
+            }
+
+            // Choose icon based on state
+            let iconClass = step.icon;
+            if (isComplete) {
+                iconClass = 'fa-check';
+            }
+
+            html += `<div class="${stepClass} text-center flex-fill">`;
+            html += `<div class="modgen-step-icon mb-1">`;
+            html += `<i class="fa ${iconClass}"></i>`;
+            html += `</div>`;
+            html += `<div class="modgen-step-label small">${step.label}</div>`;
+            html += `</div>`;
+
+            // Add connector line between steps (except after last)
+            if (index < steps.length - 1) {
+                const lineClass = isComplete ? 'modgen-step-line-complete' : 'modgen-step-line';
+                html += `<div class="${lineClass} flex-fill" style="height: 2px; margin-top: -1rem;"></div>`;
+            }
+        });
+
+        html += '</div>';
+        html += '</div>';
+
+        return html;
+    }
+
+    /**
      * Setup form submission handler for modal forms.
      *
      * Submits form via AJAX to create_sections.php endpoint.
@@ -568,20 +699,48 @@ class ModalGeneratorComponent extends BaseComponent {
     setupFormSubmission(modal, formName) {
         const modalRoot = modal.getRoot();
         
-        // Track which button was clicked
+        // Track which button was clicked (works for both form buttons and footer buttons)
         let clickedButton = null;
-        modalRoot.on('click', 'input[type="submit"]', function() {
+        
+        // Track clicks on original form buttons
+        modalRoot.on('click', 'input[type="submit"], button[type="submit"]', function() {
             clickedButton = this.getAttribute('name');
+        });
+        
+        // Track clicks on footer buttons that proxy to form buttons
+        modalRoot.on('click', '[data-form-button-index]', function() {
+            // The footer button will trigger the original button, so find it
+            const index = this.getAttribute('data-form-button-index');
+            const body = modal.getBody();
+            const bodyNode = body && body.length ? body.get(0) : null;
+            if (bodyNode) {
+                const form = bodyNode.querySelector('form');
+                if (form) {
+                    const buttons = form.querySelectorAll('button, input[type="submit"], input[type="button"]');
+                    const originalButton = buttons[index];
+                    if (originalButton) {
+                        clickedButton = originalButton.getAttribute('name');
+                    }
+                }
+            }
         });
         
         modalRoot.on('submit', 'form', (e) => {
             e.preventDefault();
             
+            // Check submitter first (modern browsers), then fall back to tracked button
+            const submitter = e.originalEvent?.submitter;
+            const buttonName = submitter?.getAttribute('name') || clickedButton;
+            
             // If cancel button was clicked, just close modal
-            if (clickedButton === 'cancel') {
+            if (buttonName === 'cancel') {
                 modal.destroy();
+                clickedButton = null;
                 return;
             }
+            
+            // Reset for next submission
+            clickedButton = null;
             
             const form = e.target;
             const formData = new FormData(form);

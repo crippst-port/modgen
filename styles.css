@@ -103,6 +103,75 @@
     }
 }
 
+/* Progress Header for Multi-Step Workflow */
+.modgen-progress-header {
+    padding: 1rem;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-radius: 0.5rem;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.modgen-step {
+    position: relative;
+    padding: 0 0.5rem;
+    transition: all 0.3s ease;
+}
+
+.modgen-step-icon {
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto;
+    font-size: 1rem;
+    transition: all 0.3s ease;
+}
+
+.modgen-step-pending .modgen-step-icon {
+    background-color: #e9ecef;
+    color: #6c757d;
+    border: 2px solid #dee2e6;
+}
+
+.modgen-step-pending .modgen-step-label {
+    color: #6c757d;
+}
+
+.modgen-step-active .modgen-step-icon {
+    background-color: #0d6efd;
+    color: white;
+    border: 2px solid #0d6efd;
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.2);
+}
+
+.modgen-step-active .modgen-step-label {
+    color: #0d6efd;
+    font-weight: 600;
+}
+
+.modgen-step-complete .modgen-step-icon {
+    background-color: #198754;
+    color: white;
+    border: 2px solid #198754;
+}
+
+.modgen-step-complete .modgen-step-label {
+    color: #198754;
+}
+
+.modgen-step-line {
+    background-color: #dee2e6;
+    align-self: center;
+}
+
+.modgen-step-line-complete {
+    background-color: #198754;
+    height: 2px;
+    align-self: center;
+}
+
 /* Form state transitions */
 .modgen-form-container {
     transition: opacity 0.3s ease, transform 0.3s ease;

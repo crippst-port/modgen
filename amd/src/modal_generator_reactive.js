@@ -405,11 +405,15 @@ class ModalGeneratorComponent extends BaseComponent {
         .then(data => {
             if (data.body) {
                 modal.setBody(data.body);
-                if (data.footer) {
+                
+                // Handle footer - prefer server-driven buttons, then HTML footer, then extract from form
+                if (data.buttons && data.buttons.length > 0) {
+                    // Server-driven buttons approach
+                    this.renderFooterButtons(modal, data.buttons);
+                } else if (data.footer) {
                     modal.setFooter(data.footer);
                 } else {
-                    // If no footer provided, extract buttons from the form
-                    // Use setTimeout to ensure DOM is fully rendered
+                    // Fallback: extract buttons from the form
                     setTimeout(() => {
                         this.updateFooterFromForm(modal);
                     }, 100);
@@ -434,6 +438,13 @@ class ModalGeneratorComponent extends BaseComponent {
                         this.handlePromptSubmission(modal, approvalFormData);
                     });
                 }
+                
+                // Hide form buttons since we're using footer buttons
+                if (data.buttons && data.buttons.length > 0) {
+                    setTimeout(() => {
+                        this.hideFormButtons(modal);
+                    }, 50);
+                }
 
             } else if (data.error) {
                  modal.setBody('<div class="alert alert-danger">' + data.error + '</div>');
@@ -441,6 +452,108 @@ class ModalGeneratorComponent extends BaseComponent {
         })
         .catch(error => {
             Notification.exception(error);
+        });
+    }
+    
+    /**
+     * Render footer buttons from server-provided button definitions.
+     *
+     * @param {Object} modal The modal instance
+     * @param {Array} buttons Array of button definitions from server
+     */
+    renderFooterButtons(modal, buttons) {
+        const footerHtml = buttons.map((btn, index) => {
+            const classes = `btn ${btn.class || 'btn-secondary'}`;
+            return `<button type="button" class="${classes}" data-action="${btn.action}" data-button-index="${index}">
+                ${btn.label}
+            </button>`;
+        }).join('');
+        
+        modal.setFooter(footerHtml);
+        
+        // Wire up button handlers
+        const footer = modal.getFooter();
+        const footerNode = footer && footer.length ? footer.get(0) : null;
+        if (!footerNode) {
+            return;
+        }
+        
+        footerNode.querySelectorAll('[data-action]').forEach((btn) => {
+            btn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const action = btn.getAttribute('data-action');
+                this.handleFooterButtonAction(modal, action);
+            });
+        });
+    }
+    
+    /**
+     * Handle footer button actions.
+     *
+     * @param {Object} modal The modal instance
+     * @param {string} action The button action
+     */
+    handleFooterButtonAction(modal, action) {
+        const body = modal.getBody();
+        const bodyNode = body && body.length ? body.get(0) : null;
+        const form = bodyNode ? bodyNode.querySelector('form') : null;
+        
+        switch (action) {
+            case 'submit':
+                // Submit the form
+                if (form) {
+                    const formData = new FormData(form);
+                    this.handlePromptSubmission(modal, formData);
+                }
+                break;
+                
+            case 'regenerate':
+                // Reload the prompt form
+                this.reactive.dispatch('openModalWithForm', 'template_from_prompt', 'Template from prompt');
+                break;
+                
+            case 'close':
+                modal.destroy();
+                break;
+                
+            default:
+                // For any other action, try to find and click a matching button in the form
+                if (form) {
+                    const formBtn = form.querySelector(`[name="${action}"], [data-action="${action}"]`);
+                    if (formBtn) {
+                        formBtn.click();
+                    }
+                }
+        }
+    }
+    
+    /**
+     * Hide form buttons when using server-driven footer buttons.
+     *
+     * @param {Object} modal The modal instance
+     */
+    hideFormButtons(modal) {
+        const body = modal.getBody();
+        const bodyNode = body && body.length ? body.get(0) : null;
+        if (!bodyNode) {
+            return;
+        }
+        
+        const form = bodyNode.querySelector('form');
+        if (!form) {
+            return;
+        }
+        
+        // Hide all button containers
+        const buttonContainers = form.querySelectorAll('.form-submit, .form-buttons, .buttons, [class*="buttonar"]');
+        buttonContainers.forEach(container => {
+            container.style.display = 'none';
+        });
+        
+        // Also hide individual buttons not in containers
+        const buttons = form.querySelectorAll('button, input[type="submit"], input[type="button"]');
+        buttons.forEach(btn => {
+            btn.style.display = 'none';
         });
     }
 

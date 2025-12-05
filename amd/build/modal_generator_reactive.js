@@ -237,7 +237,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       }).then(response => response.json()).then(data => {
         if (data.body) {
           modal.setBody(data.body);
-          if (data.footer) {
+          if (data.buttons && data.buttons.length > 0) {
+            this.renderFooterButtons(modal, data.buttons);
+          } else if (data.footer) {
             modal.setFooter(data.footer);
           } else {
             setTimeout(() => {
@@ -258,11 +260,80 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
               this.handlePromptSubmission(modal, approvalFormData);
             });
           }
+          if (data.buttons && data.buttons.length > 0) {
+            setTimeout(() => {
+              this.hideFormButtons(modal);
+            }, 50);
+          }
         } else if (data.error) {
           modal.setBody('<div class="alert alert-danger">' + data.error + '</div>');
         }
       }).catch(error => {
         _notification.default.exception(error);
+      });
+    }
+    renderFooterButtons(modal, buttons) {
+      const footerHtml = buttons.map((btn, index) => {
+        const classes = "btn ".concat(btn.class || 'btn-secondary');
+        return "<button type=\"button\" class=\"".concat(classes, "\" data-action=\"").concat(btn.action, "\" data-button-index=\"").concat(index, "\">\n                ").concat(btn.label, "\n            </button>");
+      }).join('');
+      modal.setFooter(footerHtml);
+      const footer = modal.getFooter();
+      const footerNode = footer && footer.length ? footer.get(0) : null;
+      if (!footerNode) {
+        return;
+      }
+      footerNode.querySelectorAll('[data-action]').forEach(btn => {
+        btn.addEventListener('click', e => {
+          e.preventDefault();
+          const action = btn.getAttribute('data-action');
+          this.handleFooterButtonAction(modal, action);
+        });
+      });
+    }
+    handleFooterButtonAction(modal, action) {
+      const body = modal.getBody();
+      const bodyNode = body && body.length ? body.get(0) : null;
+      const form = bodyNode ? bodyNode.querySelector('form') : null;
+      switch (action) {
+        case 'submit':
+          if (form) {
+            const formData = new FormData(form);
+            this.handlePromptSubmission(modal, formData);
+          }
+          break;
+        case 'regenerate':
+          this.reactive.dispatch('openModalWithForm', 'template_from_prompt', 'Template from prompt');
+          break;
+        case 'close':
+          modal.destroy();
+          break;
+        default:
+          if (form) {
+            const formBtn = form.querySelector("[name=\"".concat(action, "\"], [data-action=\"").concat(action, "\"]"));
+            if (formBtn) {
+              formBtn.click();
+            }
+          }
+      }
+    }
+    hideFormButtons(modal) {
+      const body = modal.getBody();
+      const bodyNode = body && body.length ? body.get(0) : null;
+      if (!bodyNode) {
+        return;
+      }
+      const form = bodyNode.querySelector('form');
+      if (!form) {
+        return;
+      }
+      const buttonContainers = form.querySelectorAll('.form-submit, .form-buttons, .buttons, [class*="buttonar"]');
+      buttonContainers.forEach(container => {
+        container.style.display = 'none';
+      });
+      const buttons = form.querySelectorAll('button, input[type="submit"], input[type="button"]');
+      buttons.forEach(btn => {
+        btn.style.display = 'none';
       });
     }
     setupFormSubmission(modal, formName) {

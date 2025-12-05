@@ -90,6 +90,23 @@ function aiplacement_modgen_send_ajax_response(string $body, string $footer = ''
 }
 
 /**
+ * Build button definitions for modal footer.
+ * 
+ * @param array $buttons Array of button definitions with keys: action, label, class, formaction (optional)
+ * @return array Button definitions for JSON response
+ */
+function aiplacement_modgen_build_footer_buttons(array $buttons): array {
+    return array_map(function($btn) {
+        return [
+            'action' => $btn['action'] ?? 'submit',
+            'label' => $btn['label'] ?? 'Submit',
+            'class' => $btn['class'] ?? 'btn-secondary',
+            'formaction' => $btn['formaction'] ?? null,
+        ];
+    }, $buttons);
+}
+
+/**
  * Render the standard modal footer actions template.
  *
  * @param array $actions Action definitions for the footer.
@@ -2302,10 +2319,27 @@ if ($pdata = $promptform->get_data()) {
     $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/prompt_preview', $previewdata);
     $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
 
-    // No footer buttons on preview page - let the JavaScript extract buttons from the form
-    // Pass false for $includeclose so the footer is completely empty, triggering updateFooterFromForm
+    // Define footer buttons for the preview step - server-driven approach
     if ($ajax) {
-        aiplacement_modgen_send_ajax_response($bodyhtml, '', false, ['title' => get_string('pluginname', 'aiplacement_modgen')]);
+        $buttons = [];
+        if (get_config('aiplacement_modgen', 'enable_ai')) {
+            $buttons[] = [
+                'action' => 'regenerate',
+                'label' => get_string('regenerate', 'aiplacement_modgen'),
+                'class' => 'btn-secondary',
+            ];
+        }
+        $buttons[] = [
+            'action' => 'submit',
+            'label' => get_string('approveandcreate', 'aiplacement_modgen'),
+            'class' => 'btn-primary',
+        ];
+        
+        aiplacement_modgen_send_ajax_response($bodyhtml, '', false, [
+            'title' => get_string('pluginname', 'aiplacement_modgen'),
+            'buttons' => aiplacement_modgen_build_footer_buttons($buttons),
+            'step' => 'preview',
+        ]);
         exit;
     }
     

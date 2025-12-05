@@ -135,6 +135,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         });
         this.setupFormSubmission(modal, formName);
         this.reactive.dispatch('formLoaded');
+        this.updateFooterFromForm(modal);
         if (formName === 'suggest') {
           try {
             require(['aiplacement_modgen/suggest'], suggest => {
@@ -151,6 +152,80 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         return modal;
       }).catch(_notification.default.exception);
     }
+    updateFooterFromForm(modal) {
+      const body = modal.getBody();
+      const bodyNode = body && body.length ? body.get(0) : null;
+      if (!bodyNode) {
+        return;
+      }
+      const form = bodyNode.querySelector('form');
+      if (!form) {
+        return;
+      }
+      const buttons = form.querySelectorAll('button, input[type="submit"], input[type="button"]');
+      if (buttons.length === 0) {
+        return;
+      }
+      const actionButtons = Array.from(buttons).filter(btn => {
+        if (btn.style.display === 'none' || btn.hidden) {
+          return false;
+        }
+        if (btn.getAttribute('type') === 'hidden') {
+          return false;
+        }
+        return true;
+      });
+      if (actionButtons.length === 0) {
+        return;
+      }
+      let footerHtml = '<div class="aiplacement-modgen-form-footer-buttons">';
+      actionButtons.forEach((button, index) => {
+        const label = button.tagName === 'INPUT' ? button.value || button.getAttribute('aria-label') || 'Submit' : button.textContent.trim();
+        const classes = (button.className || 'btn btn-secondary').trim();
+        footerHtml += "<button type=\"button\" class=\"".concat(classes, "\" data-form-button-index=\"").concat(index, "\">\n                ").concat(label, "\n            </button>");
+      });
+      footerHtml += '</div>';
+      modal.setFooter(footerHtml);
+      const footer = modal.getFooter();
+      const footerNode = footer && footer.length ? footer.get(0) : null;
+      if (!footerNode) {
+        return;
+      }
+      footerNode.querySelectorAll('[data-form-button-index]').forEach((footerBtn, index) => {
+        footerBtn.addEventListener('click', e => {
+          e.preventDefault();
+          const originalButton = actionButtons[index];
+          if (originalButton && originalButton.type === 'submit') {
+            if (typeof form.requestSubmit === 'function') {
+              form.requestSubmit(originalButton);
+            } else {
+              originalButton.click();
+            }
+          } else if (originalButton) {
+            originalButton.click();
+          }
+        });
+      });
+      actionButtons.forEach(btn => {
+        btn.style.display = 'none';
+        let current = btn.parentElement;
+        while (current && current !== form) {
+          const children = Array.from(current.children).filter(child => {
+            return window.getComputedStyle(child).display !== 'none';
+          });
+          const onlyHasButtons = children.every(child => {
+            const isButton = child.tagName === 'BUTTON' || child.tagName === 'INPUT' && (child.type === 'submit' || child.type === 'button');
+            const isButtonContainer = child.classList.toString().includes('button') || child.classList.toString().includes('submit') || child.classList.toString().includes('action') || child.classList.toString().includes('form-');
+            return isButton || isButtonContainer;
+          });
+          if (onlyHasButtons && children.length > 0) {
+            current.style.display = 'none';
+            break;
+          }
+          current = current.parentElement;
+        }
+      });
+    }
     handlePromptSubmission(modal, formData) {
       modal.setBody('<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">Loading...</span>' + '</div>' + '<p class="mt-2">Generating content... this may take a minute.</p>' + '</div>');
       formData.append('ajax', '1');
@@ -164,6 +239,10 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           modal.setBody(data.body);
           if (data.footer) {
             modal.setFooter(data.footer);
+          } else {
+            setTimeout(() => {
+              this.updateFooterFromForm(modal);
+            }, 100);
           }
           modal.getRoot().find('[data-action="aiplacement-modgen-close"]').on('click', () => {
             modal.destroy();

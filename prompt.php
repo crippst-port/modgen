@@ -2302,20 +2302,15 @@ if ($pdata = $promptform->get_data()) {
     $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/prompt_preview', $previewdata);
     $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
 
-    $footeractions = [[
-        'label' => get_string('reenterprompt', 'aiplacement_modgen'),
-        'classes' => 'btn btn-secondary',
-        'isbutton' => true,
-        'action' => 'aiplacement-modgen-reenter',
-    ], [
-        'label' => get_string('approveandcreate', 'aiplacement_modgen'),
-        'classes' => 'btn btn-primary',
-        'isbutton' => true,
-        'action' => 'aiplacement-modgen-submit',
-        'index' => 0,
-        'hasindex' => true,
-    ]];
-
+    // No footer buttons on preview page - let the JavaScript extract buttons from the form
+    // Pass false for $includeclose so the footer is completely empty, triggering updateFooterFromForm
+    if ($ajax) {
+        aiplacement_modgen_send_ajax_response($bodyhtml, '', false, ['title' => get_string('pluginname', 'aiplacement_modgen')]);
+        exit;
+    }
+    
+    // For non-AJAX, use the normal response with form buttons
+    $footeractions = [];
     aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
     exit;
 }

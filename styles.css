@@ -945,3 +945,24 @@
     border-bottom: none;
 }
 
+/* Sticky form buttons at bottom of modal */
+.aiplacement-modgen__content form {
+    display: flex;
+    flex-direction: column;
+}
+
+.aiplacement-modgen__content form .form-submit,
+.aiplacement-modgen__content form .form-buttons,
+.aiplacement-modgen__content form .form-group:has(button[type="submit"]),
+.aiplacement-modgen__content form .buttons {
+    margin-top: auto;
+    padding-top: 1.5rem;
+    border-top: 1px solid #dee2e6;
+    background-color: #f8f9fa;
+    margin: -1rem -1rem 0 -1rem;
+    padding: 1.5rem 1rem;
+    sticky: bottom;
+    position: sticky;
+    bottom: 0;
+}
+

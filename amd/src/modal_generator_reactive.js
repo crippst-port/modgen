@@ -240,6 +240,9 @@ class ModalGeneratorComponent extends BaseComponent {
 
             this.reactive.dispatch('formLoaded');
 
+            // Extract and display form buttons in the modal footer
+            this.updateFooterFromForm(modal);
+
             // If this is the suggest form, initialize the suggest client module
             if (formName === 'suggest') {
                 try {
@@ -259,6 +262,118 @@ class ModalGeneratorComponent extends BaseComponent {
             return modal;
         })
         .catch(Notification.exception);
+    }
+
+    /**
+     * Extract form buttons and display them in the modal footer.
+     *
+     * @param {Object} modal The modal instance
+     */
+    updateFooterFromForm(modal) {
+        const body = modal.getBody();
+        const bodyNode = body && body.length ? body.get(0) : null;
+        if (!bodyNode) {
+            return;
+        }
+
+        const form = bodyNode.querySelector('form');
+        if (!form) {
+            return;
+        }
+
+        // Find all action buttons in the form
+        const buttons = form.querySelectorAll('button, input[type="submit"], input[type="button"]');
+        if (buttons.length === 0) {
+            return;
+        }
+
+        // Filter to only visible action buttons
+        const actionButtons = Array.from(buttons).filter(btn => {
+            // Skip if already hidden
+            if (btn.style.display === 'none' || btn.hidden) {
+                return false;
+            }
+            // Skip if it's a data button used for other purposes
+            if (btn.getAttribute('type') === 'hidden') {
+                return false;
+            }
+            return true;
+        });
+
+        if (actionButtons.length === 0) {
+            return;
+        }
+
+        // Build footer HTML with extracted buttons
+        let footerHtml = '<div class="aiplacement-modgen-form-footer-buttons">';
+        actionButtons.forEach((button, index) => {
+            const label = button.tagName === 'INPUT' 
+                ? (button.value || button.getAttribute('aria-label') || 'Submit')
+                : button.textContent.trim();
+            const classes = (button.className || 'btn btn-secondary').trim();
+            
+            footerHtml += `<button type="button" class="${classes}" data-form-button-index="${index}">
+                ${label}
+            </button>`;
+        });
+        footerHtml += '</div>';
+
+        // Set the footer
+        modal.setFooter(footerHtml);
+
+        // Wire up footer button clicks to form submission
+        const footer = modal.getFooter();
+        const footerNode = footer && footer.length ? footer.get(0) : null;
+        if (!footerNode) {
+            return;
+        }
+
+        footerNode.querySelectorAll('[data-form-button-index]').forEach((footerBtn, index) => {
+            footerBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                const originalButton = actionButtons[index];
+                if (originalButton && originalButton.type === 'submit') {
+                    if (typeof form.requestSubmit === 'function') {
+                        form.requestSubmit(originalButton);
+                    } else {
+                        originalButton.click();
+                    }
+                } else if (originalButton) {
+                    originalButton.click();
+                }
+            });
+        });
+
+        // Hide all buttons and their containing elements
+        actionButtons.forEach((btn) => {
+            btn.style.display = 'none';
+            
+            // Walk up the DOM tree and hide containers that only contain buttons
+            let current = btn.parentElement;
+            while (current && current !== form) {
+                // Get all visible children
+                const children = Array.from(current.children).filter(child => {
+                    return window.getComputedStyle(child).display !== 'none';
+                });
+                
+                // If this container only has buttons/inputs, hide it
+                const onlyHasButtons = children.every(child => {
+                    const isButton = child.tagName === 'BUTTON' || 
+                                   (child.tagName === 'INPUT' && (child.type === 'submit' || child.type === 'button'));
+                    const isButtonContainer = child.classList.toString().includes('button') || 
+                                            child.classList.toString().includes('submit') ||
+                                            child.classList.toString().includes('action') ||
+                                            child.classList.toString().includes('form-');
+                    return isButton || isButtonContainer;
+                });
+                
+                if (onlyHasButtons && children.length > 0) {
+                    current.style.display = 'none';
+                    break;
+                }
+                current = current.parentElement;
+            }
+        });
     }
 
     /**
@@ -292,6 +407,12 @@ class ModalGeneratorComponent extends BaseComponent {
                 modal.setBody(data.body);
                 if (data.footer) {
                     modal.setFooter(data.footer);
+                } else {
+                    // If no footer provided, extract buttons from the form
+                    // Use setTimeout to ensure DOM is fully rendered
+                    setTimeout(() => {
+                        this.updateFooterFromForm(modal);
+                    }, 100);
                 }
                 
                 // Check for close button action

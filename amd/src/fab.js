@@ -429,19 +429,42 @@ define([
                     }
                     const indexValue = button.getAttribute('data-button-index');
                     const index = indexValue ? parseInt(indexValue, 10) : NaN;
-                    if (Number.isNaN(index)) {
+                    
+                    // Try to submit via binding first
+                    if (!Number.isNaN(index) && footerButtonBindings[index]) {
+                        const binding = footerButtonBindings[index];
+                        if (binding.submitter && binding.form) {
+                            const form = binding.form;
+                            const submitter = binding.submitter;
+                            if (typeof form.requestSubmit === 'function') {
+                                form.requestSubmit(submitter);
+                                return;
+                            } else {
+                                submitter.click();
+                                return;
+                            }
+                        }
+                    }
+                    
+                    // Fallback: Find first form and first submit button
+                    const body = modalInstance.getBody();
+                    const bodyNode = body && body.length ? body.get(0) : null;
+                    if (!bodyNode) {
                         return;
                     }
-                    const binding = footerButtonBindings[index];
-                    if (!binding || !binding.submitter || !binding.form) {
+                    
+                    const form = bodyNode.querySelector('form');
+                    if (!form) {
                         return;
                     }
-                    const form = binding.form;
-                    const submitter = binding.submitter;
-                    if (typeof form.requestSubmit === 'function') {
-                        form.requestSubmit(submitter);
-                    } else {
-                        submitter.click();
+                    
+                    const submitter = form.querySelector('button[type="submit"], input[type="submit"]');
+                    if (submitter) {
+                        if (typeof form.requestSubmit === 'function') {
+                            form.requestSubmit(submitter);
+                        } else {
+                            submitter.click();
+                        }
                     }
                 });
 

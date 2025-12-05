@@ -18,7 +18,7 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
   };
   const SUGGEST_STEP_LABELS = {
     1: 'Select section',
-    2: 'Scanning',
+    2: 'Suggesting',
     3: 'Review',
     4: 'Creating'
   };
@@ -88,6 +88,10 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
       const CREATE_AJAX = _config.default.wwwroot + '/ai/placement/modgen/ajax/suggest_create.php';
       const root = modal.getRoot();
       let currentStep = SUGGEST_STEPS.SELECT;
+      const $body = modal.getBody();
+      if ($body && $body.length) {
+        $body.prepend(buildSuggestProgressHeader(currentStep));
+      }
       try {
         const $dialog = root.closest('.modal-dialog');
         if ($dialog && $dialog.length) {
@@ -469,12 +473,10 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
               skipped.push(s.activity && (s.activity.name || s.activity.type) ? s.activity.name || s.activity.type : '(unknown)');
               return;
             }
-            const aiGenBadge = '<span class="badge badge-info"><i class="fas fa-star"></i> AI Suggested</span>';
             const description = s.rationale || '';
-            const descriptionWithBadge = aiGenBadge + (description ? '<p>' + description + '</p>' : '');
             const suggestionWithIntro = Object.assign({}, s);
             suggestionWithIntro.activity = Object.assign({}, s.activity);
-            suggestionWithIntro.activity.intro = descriptionWithBadge;
+            suggestionWithIntro.activity.intro = description;
             selected.push(suggestionWithIntro);
           }
         });

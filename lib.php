@@ -69,7 +69,6 @@ function aiplacement_modgen_extend_navigation_course(
                 'suggestactivities',
                 'approveandcreate',
                 'aigenerated',
-                'aigenerated_tooltip',
                 'aigenmarker_tooltip',
             ], 'aiplacement_modgen');
 

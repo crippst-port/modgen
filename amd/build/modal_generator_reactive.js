@@ -149,7 +149,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         courseid: this.courseid,
         contextid: this.contextid
       }).then(html => {
-        const bodyHtml = this.isAiWorkflowForm(formName) ? this.buildProgressHeader(STEPS.PROMPT) + html : html;
+        const bodyHtml = this.isAiWorkflowForm(formName) && formName !== 'suggest' ? this.buildProgressHeader(STEPS.PROMPT) + html : html;
         return _modal.default.create({
           title: title,
           body: bodyHtml,

@@ -265,8 +265,8 @@ class ModalGeneratorComponent extends BaseComponent {
             contextid: this.contextid,
         })
         .then((html) => {
-            // Only show progress header for AI workflow forms
-            const bodyHtml = this.isAiWorkflowForm(formName)
+            // Only show progress header for AI workflow forms (but not suggest - it has its own stepper)
+            const bodyHtml = (this.isAiWorkflowForm(formName) && formName !== 'suggest')
                 ? this.buildProgressHeader(STEPS.PROMPT) + html
                 : html;
             return ModgenModal.create({

@@ -13,7 +13,7 @@ const SUGGEST_STEPS = {
 
 const SUGGEST_STEP_LABELS = {
     1: 'Select section',
-    2: 'Scanning',
+    2: 'Suggesting',
     3: 'Review',
     4: 'Creating',
 };
@@ -96,6 +96,12 @@ export default {
         
         // Current step tracking
         let currentStep = SUGGEST_STEPS.SELECT;
+        
+        // Add the suggest progress header at the top of the modal body
+        const $body = modal.getBody();
+        if ($body && $body.length) {
+            $body.prepend(buildSuggestProgressHeader(currentStep));
+        }
         
         // Try to make the modal dialog a bit wider for this tool so chart + list can sit side-by-side.
         try {
@@ -525,15 +531,13 @@ export default {
                         return;
                     }
                     
-                    // Add AI-generated badge to intro/description
-                    const aiGenBadge = '<span class="badge badge-info"><i class="fas fa-star"></i> AI Suggested</span>';
+                    // Use rationale as intro/description
                     const description = s.rationale || '';
-                    const descriptionWithBadge = aiGenBadge + (description ? '<p>' + description + '</p>' : '');
                     
                     // Clone the suggestion and add intro to the activity sub-object
                     const suggestionWithIntro = Object.assign({}, s);
                     suggestionWithIntro.activity = Object.assign({}, s.activity);
-                    suggestionWithIntro.activity.intro = descriptionWithBadge;
+                    suggestionWithIntro.activity.intro = description;
                     
                     selected.push(suggestionWithIntro);
                 }

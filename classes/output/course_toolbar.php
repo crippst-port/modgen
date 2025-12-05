@@ -67,6 +67,8 @@ class course_toolbar implements renderable, templatable {
      * @return stdClass Template data
      */
     public function export_for_template(renderer_base $output): stdClass {
+        global $DB;
+        
         $data = new stdClass();
         $data->showgenerator = $this->showgenerator;
         $data->showexplore = $this->showexplore;
@@ -80,6 +82,16 @@ class course_toolbar implements renderable, templatable {
         if ($this->showexplore) {
             $exploreurl = new moodle_url('/ai/placement/modgen/explore.php', ['id' => $this->courseid]);
             $data->exploreurl = $exploreurl->out(false);
+        }
+        
+        // Get count of unedited AI-generated activities in this course.
+        $aigencount = $DB->count_records('aiplacement_modgen_aigen', ['courseid' => $this->courseid]);
+        $data->aigencount = $aigencount;
+        $data->hasaigen = $aigencount > 0;
+        
+        if ($data->hasaigen) {
+            $aigenlisturl = new moodle_url('/ai/placement/modgen/aigen_list.php', ['id' => $this->courseid]);
+            $data->aigenlisturl = $aigenlisturl->out(false);
         }
         
         return $data;

@@ -1,0 +1,126 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template aiplacement_modgen/aigen_list
+
+    List of unedited AI-generated activities.
+
+    Context variables required for this template:
+    * activities - Array of activity objects
+    * count - Total count of activities
+    * courseid - Course ID
+    * courseurl - URL to return to course
+
+    Example context (json):
+    {
+        "activities": [
+            {
+                "cmid": 123,
+                "name": "Introduction Quiz",
+                "modname": "Quiz",
+                "modicon": "quiz",
+                "sectionname": "Week 1",
+                "sectionnumber": 1,
+                "timecreated": "5 Dec 2025, 12:00",
+                "editurl": "#",
+                "viewurl": "#",
+                "iconurl": "/path/to/icon.svg"
+            }
+        ],
+        "count": 1,
+        "courseid": 2,
+        "courseurl": "/course/view.php?id=2"
+    }
+}}
+
+<div class="aiplacement-modgen-aigen-list">
+    <div class="alert alert-info d-flex align-items-center mb-4">
+        <i class="fa fa-bolt text-info fa-2x mr-3"></i>
+        <div>
+            <strong>{{count}}</strong> {{#str}}aigen_list_count, aiplacement_modgen{{/str}}
+            <br>
+            <small class="text-muted">{{#str}}aigen_list_hint, aiplacement_modgen{{/str}}</small>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-striped table-hover">
+            <thead class="thead-light">
+                <tr>
+                    <th scope="col">{{#str}}activity{{/str}}</th>
+                    <th scope="col">{{#str}}type, aiplacement_modgen{{/str}}</th>
+                    <th scope="col">{{#str}}section{{/str}}</th>
+                    <th scope="col" class="text-center">{{#str}}visibility, aiplacement_modgen{{/str}}</th>
+                    <th scope="col">{{#str}}created, aiplacement_modgen{{/str}}</th>
+                    <th scope="col" class="text-center">{{#str}}actions{{/str}}</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{#activities}}
+                <tr data-cmid="{{cmid}}">
+                    <td>
+                        <div class="d-flex align-items-center">
+                            <img src="{{iconurl}}" alt="" class="icon mr-2" style="width: 24px; height: 24px;">
+                            <a href="{{viewurl}}" class="activity-name font-weight-bold {{^visible}}text-muted{{/visible}}">{{name}}</a>
+                        </div>
+                    </td>
+                    <td>{{modname}}</td>
+                    <td>
+                        {{#hasparent}}
+                        <a href="{{parentsectionurl}}" class="text-muted">{{parentsectionname}}</a>
+                        <i class="fa fa-angle-right text-muted mx-1"></i>
+                        {{/hasparent}}
+                        <a href="{{sectionurl}}">{{sectionname}}</a>
+                    </td>
+                    <td class="text-center">
+                        <span class="visibility-status">
+                            {{#visible}}
+                            <span class="badge badge-success">{{#str}}visible{{/str}}</span>
+                            {{/visible}}
+                            {{^visible}}
+                            <span class="badge badge-secondary">{{#str}}hidden, aiplacement_modgen{{/str}}</span>
+                            {{/visible}}
+                        </span>
+                    </td>
+                    <td>{{timecreated}}</td>
+                    <td class="text-center text-nowrap">
+                        <a href="{{editurl}}" class="btn btn-link btn-sm p-1" title="{{#str}}edit{{/str}}">
+                            <i class="fa fa-pencil"></i>
+                        </a>
+                        <a href="{{viewurl}}" class="btn btn-link btn-sm p-1" title="{{#str}}view{{/str}}">
+                            <i class="fa fa-external-link"></i>
+                        </a>
+                        <button type="button" 
+                                class="btn btn-link btn-sm p-1 visibility-toggle" 
+                                data-cmid="{{cmid}}" 
+                                data-visible="{{#visible}}1{{/visible}}{{^visible}}0{{/visible}}"
+                                title="{{#visible}}{{#str}}aigen_hide_activity, aiplacement_modgen{{/str}}{{/visible}}{{^visible}}{{#str}}aigen_show_activity, aiplacement_modgen{{/str}}{{/visible}}">
+                            <i class="fa {{#visible}}fa-eye-slash{{/visible}}{{^visible}}fa-eye{{/visible}}"></i>
+                        </button>
+                    </td>
+                </tr>
+                {{/activities}}
+            </tbody>
+        </table>
+    </div>
+
+    <div class="mt-4">
+        <a href="{{courseurl}}" class="btn btn-secondary">
+            <i class="fa fa-arrow-left mr-1"></i> {{#str}}backtocourse, aiplacement_modgen{{/str}}
+        </a>
+    </div>
+</div>

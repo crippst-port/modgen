@@ -42,7 +42,8 @@ module.exports = function(grunt) {
                     'amd/build/course_toolbar.js': 'amd/src/course_toolbar.js',
                     'amd/build/modal_generator_reactive.js': 'amd/src/modal_generator_reactive.js',
                     'amd/build/suggest.js': 'amd/src/suggest.js',
-                    'amd/build/aigen_marker.js': 'amd/src/aigen_marker.js'
+                    'amd/build/aigen_marker.js': 'amd/src/aigen_marker.js',
+                    'amd/build/aigen_list.js': 'amd/src/aigen_list.js'
                 }
             }
         },
@@ -78,7 +79,8 @@ module.exports = function(grunt) {
                     'amd/build/course_toolbar.min.js': ['amd/build/course_toolbar.js'],
                     'amd/build/modal_generator_reactive.min.js': ['amd/build/modal_generator_reactive.js'],
                     'amd/build/suggest.min.js': ['amd/build/suggest.js'],
-                    'amd/build/aigen_marker.min.js': ['amd/build/aigen_marker.js']
+                    'amd/build/aigen_marker.min.js': ['amd/build/aigen_marker.js'],
+                    'amd/build/aigen_list.min.js': ['amd/build/aigen_list.js']
                 }
             }
         },

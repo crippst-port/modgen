@@ -57,6 +57,12 @@
           <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="suggest" data-title="{{#str}}suggestactivities, aiplacement_modgen{{/str}}">
             <i class="fas fa-bolt"></i> {{#str}}suggestactivities, aiplacement_modgen{{/str}}
           </a>
+          {{#hasaigen}}
+          <div class="dropdown-divider"></div>
+          <a href="{{aigenlisturl}}" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary">
+            <i class="fa fa-exclamation-circle text-warning mr-1"></i> {{#str}}aigen_view_count, aiplacement_modgen, {{aigencount}}{{/str}}
+          </a>
+          {{/hasaigen}}
         </div>
       </li>
       {{/showsuggest}}

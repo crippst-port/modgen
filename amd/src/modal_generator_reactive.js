@@ -418,6 +418,11 @@ class ModalGeneratorComponent extends BaseComponent {
             // Handle form submission via AJAX instead of Fragment reload
             this.setupFormSubmission(modal, formName);
 
+            // Setup dates preview if this is the dates form
+            if (formName === 'dates_for_sections') {
+                this.setupDatesPreview(modal);
+            }
+
             this.reactive.dispatch('formLoaded');
 
             // Extract and display form buttons in the modal footer
@@ -883,6 +888,192 @@ class ModalGeneratorComponent extends BaseComponent {
     }
 
     // =========================================================================
+    // DATES FOR SECTIONS WORKFLOW
+    // =========================================================================
+
+    /**
+     * Handle submission for the dates_for_sections form.
+     *
+     * @param {Object} modal The modal instance
+     * @param {FormData} formData The form data
+     */
+    handleDatesForSectionsSubmission(modal, formData) {
+        // Check if this is a remove dates request
+        const isRemove = formData.has('removedates');
+        
+        // Collect selected section IDs
+        const selectedSections = formData.getAll('selectedsections[]');
+        const includeparents = formData.get('includeparents') ? 1 : 0;
+
+        if (!selectedSections || selectedSections.length === 0) {
+            modal.setBody('<div class="alert alert-danger">Please select at least one section</div>');
+            return;
+        }
+
+        // Determine action and endpoint
+        const action = isRemove ? 'Removing dates from' : 'Applying dates to';
+        const endpoint = isRemove ? 
+            '/ai/placement/modgen/ajax/remove_section_dates.php' : 
+            '/ai/placement/modgen/ajax/apply_section_dates.php';
+
+        // Show loading indicator
+        modal.setBody('<div class="text-center p-5">' +
+            '<div class="spinner-border" role="status">' +
+            '<span class="sr-only">' + action + ' sections...</span>' +
+            '</div>' +
+            '<p class="mt-3">' + action + ' sections...</p>' +
+            '</div>');
+
+        // Build params
+        const params = new URLSearchParams();
+        params.append('courseid', this.courseid);
+        params.append('selectedsections', JSON.stringify(selectedSections));
+        if (!isRemove) {
+            params.append('includeparents', includeparents);
+        }
+        params.append('sesskey', M.cfg.sesskey);
+
+        // POST to appropriate endpoint
+        fetch(M.cfg.wwwroot + endpoint, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            body: params.toString()
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Show success message
+                let successHtml = '<div class="alert alert-success">';
+                successHtml += '<p>' + data.message + '</p>';
+                successHtml += '<p class="mt-3">';
+                successHtml += '<button type="button" class="btn btn-primary" id="reload-page-btn">';
+                successHtml += 'Return to course';
+                successHtml += '</button>';
+                successHtml += '</p>';
+                successHtml += '</div>';
+                
+                modal.setBody(successHtml);
+                
+                // Add click handler to reload button
+                modal.getRoot().find('#reload-page-btn').on('click', () => {
+                    window.location.reload();
+                });
+            } else {
+                const errorHtml = '<div class="alert alert-danger">' +
+                    '<p>' + (data.error || 'An error occurred') + '</p>' +
+                    '</div>';
+                modal.setBody(errorHtml);
+            }
+        })
+        .catch(error => {
+            window.console.error('Error processing dates:', error);
+            modal.setBody('<div class="alert alert-danger">An error occurred while processing dates</div>');
+        });
+    }
+
+    /**
+     * Setup dynamic date preview for the dates_for_sections form.
+     * 
+     * Listens for checkbox changes and recalculates dates in real-time.
+     *
+     * @param {Object} modal The modal instance
+     */
+    setupDatesPreview(modal) {
+        const modalRoot = modal.getRoot();
+        let debounceTimer = null;
+
+        // Helper to collect excluded sections
+        const getExcludedSections = () => {
+            const body = modal.getBody();
+            const bodyNode = body && body.length ? body.get(0) : null;
+            if (!bodyNode) {
+                return [];
+            }
+
+            const checkboxes = bodyNode.querySelectorAll('.dates-section-checkbox');
+            const excluded = [];
+            checkboxes.forEach(cb => {
+                if (!cb.checked) {
+                    excluded.push(parseInt(cb.dataset.sectionId));
+                }
+            });
+            return excluded;
+        };
+
+        // Helper to get includeparents value
+        const getIncludeParents = () => {
+            const body = modal.getBody();
+            const bodyNode = body && body.length ? body.get(0) : null;
+            if (!bodyNode) {
+                return 0;
+            }
+            const checkbox = bodyNode.querySelector('#includeparents-checkbox');
+            return checkbox && checkbox.checked ? 1 : 0;
+        };
+
+        // Preview dates with debounce
+        const previewDates = () => {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(() => {
+                const excludedSections = getExcludedSections();
+                const includeparents = getIncludeParents();
+
+                // Build params
+                const params = new URLSearchParams();
+                params.append('courseid', this.courseid);
+                params.append('excludedsections', JSON.stringify(excludedSections));
+                params.append('includeparents', includeparents);
+                params.append('sesskey', M.cfg.sesskey);
+
+                // Fetch preview
+                fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/preview_section_dates.php', {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    body: params.toString()
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.sections) {
+                        // Update proposed name cells
+                        const body = modal.getBody();
+                        const bodyNode = body && body.length ? body.get(0) : null;
+                        if (!bodyNode) {
+                            return;
+                        }
+
+                        data.sections.forEach(section => {
+                            const row = bodyNode.querySelector(`tr[data-section-id="${section.id}"]`);
+                            if (row) {
+                                const proposedCell = row.querySelector('.proposed-name-cell');
+                                if (proposedCell) {
+                                    proposedCell.textContent = section.proposed_name;
+                                }
+                            }
+                        });
+
+                        // Update ARIA live region
+                        const statusRegion = bodyNode.querySelector('#dates-status');
+                        if (statusRegion) {
+                            statusRegion.textContent = 'Dates recalculated';
+                            setTimeout(() => {
+                                statusRegion.textContent = '';
+                            }, 1000);
+                        }
+                    }
+                })
+                .catch(error => {
+                    window.console.error('Error previewing dates:', error);
+                });
+            }, 250); // 250ms debounce
+        };
+
+        // Listen for checkbox changes
+        modalRoot.on('change', '.dates-section-checkbox, #includeparents-checkbox', () => {
+            previewDates();
+        });
+    }
+
+    // =========================================================================
     // FORM SUBMISSION (Non-AI workflows)
     // =========================================================================
 
@@ -952,6 +1143,12 @@ class ModalGeneratorComponent extends BaseComponent {
             // Handle prompt form specifically
             if (formName === 'template_from_prompt') {
                 this.handlePromptSubmission(modal, formData);
+                return;
+            }
+
+            // Handle dates for sections form specifically
+            if (formName === 'dates_for_sections') {
+                this.handleDatesForSectionsSubmission(modal, formData);
                 return;
             }
             

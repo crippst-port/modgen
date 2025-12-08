@@ -344,3 +344,27 @@ $string['errorconvertingformat'] = 'Could not convert course to flexsections for
 $string['introductionsectionname'] = 'Introduction & General Information';
 $string['assessmentssectionname'] = 'Assessments';
 
+// Dates for sections feature
+$string['datesforsections'] = 'Dates for sections';
+$string['holidaydates'] = 'University Holiday Dates';
+$string['holidaydates_desc'] = 'Enter university holiday dates (one per line). Dates will be excluded when calculating weekly section dates. Format: Holiday Name: DDMMYYYY-DDMMYYYY. Examples accepted: 25122024-05012025, 25/12/2024-05/01/2025, or 25-12-2024 to 05-01-2025';
+$string['holidaydates_format_example'] = 'Example: Christmas Break: 25122024-05012025';
+$string['applydates'] = 'Apply Dates';
+$string['removealldates'] = 'Remove All Dates';
+$string['currentname'] = 'Current Name';
+$string['proposedname'] = 'Proposed Name (with dates)';
+$string['sectiontype'] = 'Type';
+$string['includeparentsections'] = 'Include parent sections';
+$string['includeparentsections_help'] = 'When enabled, parent/theme sections will also receive dates spanning from the first to last week within them';
+$string['selectsections'] = 'Select sections to apply dates';
+$string['datesappliedsuccess'] = '{$a} section(s) updated with dates';
+$string['datesremovedsuccess'] = 'Dates removed from {$a} section(s)';
+$string['datesrecalculated'] = 'Dates recalculated';
+$string['invaliddateformat'] = 'Invalid holiday date format on line {$a}. Expected format: Holiday Name: DDMMYYYY-DDMMYYYY';
+$string['nosectionsselected'] = 'Please select at least one section';
+$string['themesection'] = 'Theme';
+$string['parentsection'] = 'Parent';
+$string['weeksection'] = 'Week';
+$string['nosectionsavailable'] = 'No sections available for date assignment';
+$string['calculatingdates'] = 'Calculating dates...';
+

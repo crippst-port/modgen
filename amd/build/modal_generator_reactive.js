@@ -210,6 +210,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           window.location.reload();
         });
         this.setupFormSubmission(modal, formName);
+        if (formName === 'dates_for_sections') {
+          this.setupDatesPreview(modal);
+        }
         this.reactive.dispatch('formLoaded');
         this.updateFooterFromForm(modal);
         if (formName === 'suggest') {
@@ -473,6 +476,129 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       html += '</div>';
       return html;
     }
+    handleDatesForSectionsSubmission(modal, formData) {
+      const isRemove = formData.has('removedates');
+      const selectedSections = formData.getAll('selectedsections[]');
+      const includeparents = formData.get('includeparents') ? 1 : 0;
+      if (!selectedSections || selectedSections.length === 0) {
+        modal.setBody('<div class="alert alert-danger">Please select at least one section</div>');
+        return;
+      }
+      const action = isRemove ? 'Removing dates from' : 'Applying dates to';
+      const endpoint = isRemove ? '/ai/placement/modgen/ajax/remove_section_dates.php' : '/ai/placement/modgen/ajax/apply_section_dates.php';
+      modal.setBody('<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">' + action + ' sections...</span>' + '</div>' + '<p class="mt-3">' + action + ' sections...</p>' + '</div>');
+      const params = new URLSearchParams();
+      params.append('courseid', this.courseid);
+      params.append('selectedsections', JSON.stringify(selectedSections));
+      if (!isRemove) {
+        params.append('includeparents', includeparents);
+      }
+      params.append('sesskey', M.cfg.sesskey);
+      fetch(M.cfg.wwwroot + endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        },
+        body: params.toString()
+      }).then(response => response.json()).then(data => {
+        if (data.success) {
+          let successHtml = '<div class="alert alert-success">';
+          successHtml += '<p>' + data.message + '</p>';
+          successHtml += '<p class="mt-3">';
+          successHtml += '<button type="button" class="btn btn-primary" id="reload-page-btn">';
+          successHtml += 'Return to course';
+          successHtml += '</button>';
+          successHtml += '</p>';
+          successHtml += '</div>';
+          modal.setBody(successHtml);
+          modal.getRoot().find('#reload-page-btn').on('click', () => {
+            window.location.reload();
+          });
+        } else {
+          const errorHtml = '<div class="alert alert-danger">' + '<p>' + (data.error || 'An error occurred') + '</p>' + '</div>';
+          modal.setBody(errorHtml);
+        }
+      }).catch(error => {
+        window.console.error('Error processing dates:', error);
+        modal.setBody('<div class="alert alert-danger">An error occurred while processing dates</div>');
+      });
+    }
+    setupDatesPreview(modal) {
+      const modalRoot = modal.getRoot();
+      let debounceTimer = null;
+      const getExcludedSections = () => {
+        const body = modal.getBody();
+        const bodyNode = body && body.length ? body.get(0) : null;
+        if (!bodyNode) {
+          return [];
+        }
+        const checkboxes = bodyNode.querySelectorAll('.dates-section-checkbox');
+        const excluded = [];
+        checkboxes.forEach(cb => {
+          if (!cb.checked) {
+            excluded.push(parseInt(cb.dataset.sectionId));
+          }
+        });
+        return excluded;
+      };
+      const getIncludeParents = () => {
+        const body = modal.getBody();
+        const bodyNode = body && body.length ? body.get(0) : null;
+        if (!bodyNode) {
+          return 0;
+        }
+        const checkbox = bodyNode.querySelector('#includeparents-checkbox');
+        return checkbox && checkbox.checked ? 1 : 0;
+      };
+      const previewDates = () => {
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          const excludedSections = getExcludedSections();
+          const includeparents = getIncludeParents();
+          const params = new URLSearchParams();
+          params.append('courseid', this.courseid);
+          params.append('excludedsections', JSON.stringify(excludedSections));
+          params.append('includeparents', includeparents);
+          params.append('sesskey', M.cfg.sesskey);
+          fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/preview_section_dates.php', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: params.toString()
+          }).then(response => response.json()).then(data => {
+            if (data.success && data.sections) {
+              const body = modal.getBody();
+              const bodyNode = body && body.length ? body.get(0) : null;
+              if (!bodyNode) {
+                return;
+              }
+              data.sections.forEach(section => {
+                const row = bodyNode.querySelector("tr[data-section-id=\"".concat(section.id, "\"]"));
+                if (row) {
+                  const proposedCell = row.querySelector('.proposed-name-cell');
+                  if (proposedCell) {
+                    proposedCell.textContent = section.proposed_name;
+                  }
+                }
+              });
+              const statusRegion = bodyNode.querySelector('#dates-status');
+              if (statusRegion) {
+                statusRegion.textContent = 'Dates recalculated';
+                setTimeout(() => {
+                  statusRegion.textContent = '';
+                }, 1000);
+              }
+            }
+          }).catch(error => {
+            window.console.error('Error previewing dates:', error);
+          });
+        }, 250);
+      };
+      modalRoot.on('change', '.dates-section-checkbox, #includeparents-checkbox', () => {
+        previewDates();
+      });
+    }
     setupFormSubmission(modal, formName) {
       const modalRoot = modal.getRoot();
       let clickedButton = null;
@@ -509,6 +635,10 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         const formData = new FormData(form);
         if (formName === 'template_from_prompt') {
           this.handlePromptSubmission(modal, formData);
+          return;
+        }
+        if (formName === 'dates_for_sections') {
+          this.handleDatesForSectionsSubmission(modal, formData);
           return;
         }
         const action = formName === 'add_theme' ? 'create_themes' : 'create_weeks';

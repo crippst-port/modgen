@@ -378,3 +378,92 @@ function aiplacement_modgen_output_fragment_form_template_from_prompt(array $arg
     // Return rendered form HTML.
     return $form->render();
 }
+
+/**
+ * Fragment callback to render the dates_for_sections form in a modal.
+ *
+ * This renders the form for applying dates to course sections,
+ * with preview of proposed section names and date ranges.
+ *
+ * @param array $args Fragment arguments containing courseid
+ * @return string Rendered form HTML
+ */
+function aiplacement_modgen_output_fragment_form_dates_for_sections(array $args): string {
+    global $PAGE, $CFG;
+
+    // Ensure required libraries are loaded.
+    require_once($CFG->libdir . '/formslib.php');
+
+    // Validate parameters.
+    $courseid = clean_param($args['courseid'], PARAM_INT);
+    $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
+
+    if ($contextid) {
+        $context = context::instance_by_id($contextid);
+    } else {
+        $context = context_course::instance($courseid);
+    }
+
+    // Verify permission.
+    require_capability('moodle/course:update', $context);
+
+    // Set page context for proper JS/CSS loading.
+    $PAGE->set_context($context);
+
+    // Calculate initial section dates.
+    require_once(__DIR__ . '/classes/local/date_calculator.php');
+    // Start with includeparents = false (checkbox unchecked by default).
+    // Parents will still appear in the table but without dates initially.
+    $sectionsdata = \aiplacement_modgen\local\date_calculator::calculate_section_dates($courseid, [], false);
+
+    // Filter out section 0 and special sections.
+    $introsectionname = get_string('introductionsectionname', 'aiplacement_modgen');
+    $assessmentssectionname = get_string('assessmentssectionname', 'aiplacement_modgen');
+
+    $modinfo = get_fast_modinfo($courseid);
+    $allsections = $modinfo->get_section_info_all();
+
+    // Session names to skip.
+    $sessionnames = [
+        get_string('presession', 'aiplacement_modgen'),
+        get_string('session', 'aiplacement_modgen'),
+        get_string('postsession', 'aiplacement_modgen')
+    ];
+
+    $filteredsections = [];
+    foreach ($sectionsdata as $sectionid => $sectiondata) {
+        // Double-check section exists.
+        $sectionexists = false;
+        foreach ($allsections as $section) {
+            if ($section->id == $sectionid) {
+                $sectionexists = true;
+                break;
+            }
+        }
+
+        if ($sectionexists) {
+            // Skip special sections and session subsections.
+            $isspecial = ($sectiondata['name'] === $introsectionname || $sectiondata['name'] === $assessmentssectionname);
+            $issession = in_array($sectiondata['name'], $sessionnames);
+            
+            if (!$isspecial && !$issession) {
+                $filteredsections[] = $sectiondata;
+            }
+        }
+    }
+
+    // Create form.
+    require_once(__DIR__ . '/classes/form/dates_for_sections_form.php');
+    $formdata = [
+        'courseid' => $courseid,
+        'sections' => $filteredsections
+    ];
+    $form = new \aiplacement_modgen_dates_for_sections_form(null, $formdata);
+
+    // Set default data.
+    $form->set_data((object)['courseid' => $courseid]);
+
+    // Return rendered form HTML.
+    return $form->render();
+}
+

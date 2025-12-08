@@ -40,8 +40,6 @@ class course_toolbar implements renderable, templatable {
     /** @var bool Whether to show generator button */
     private $showgenerator;
     
-    /** @var bool Whether to show explore button */
-    private $showexplore;
     /** @var bool Whether to show suggest button */
     private $showsuggest;
 
@@ -50,13 +48,11 @@ class course_toolbar implements renderable, templatable {
      *
      * @param int $courseid Course ID
      * @param bool $showgenerator Whether to show generator button
-     * @param bool $showexplore Whether to show explore button
      * @param bool $showsuggest Whether to show suggest button
      */
-    public function __construct(int $courseid, bool $showgenerator, bool $showexplore, bool $showsuggest = false) {
+    public function __construct(int $courseid, bool $showgenerator, bool $showsuggest = false) {
         $this->courseid = $courseid;
         $this->showgenerator = $showgenerator;
-        $this->showexplore = $showexplore;
         $this->showsuggest = $showsuggest;
     }
 
@@ -71,17 +67,11 @@ class course_toolbar implements renderable, templatable {
         
         $data = new stdClass();
         $data->showgenerator = $this->showgenerator;
-        $data->showexplore = $this->showexplore;
         $data->showsuggest = $this->showsuggest;
         
         if ($this->showgenerator) {
             $generatorurl = new moodle_url('/ai/placement/modgen/modal.php', ['id' => $this->courseid]);
             $data->generatorurl = $generatorurl->out(false);
-        }
-        
-        if ($this->showexplore) {
-            $exploreurl = new moodle_url('/ai/placement/modgen/explore.php', ['id' => $this->courseid]);
-            $data->exploreurl = $exploreurl->out(false);
         }
         
         // Get count of unedited AI-generated activities in this course.

@@ -44,15 +44,6 @@ class settings_helper {
     }
 
     /**
-     * Check if exploration feature is enabled.
-     *
-     * @return bool True if both AI and exploration are enabled
-     */
-    public static function is_explore_enabled(): bool {
-        return self::is_ai_enabled() && self::get_bool('enable_exploration');
-    }
-
-    /**
      * Check if suggest feature is enabled.
      *
      * @return bool True if both AI and suggest are enabled

@@ -53,11 +53,10 @@ function aiplacement_modgen_extend_navigation_course(
         $showgenerator = true;
 
         // Check admin settings using helper
-        $showexplore = \aiplacement_modgen\local\settings_helper::is_explore_enabled();
         $showsuggest = \aiplacement_modgen\local\settings_helper::is_suggest_enabled();
         
                 // Only render nav bar if at least one tool is available
-        if ($showgenerator || $showexplore) {
+        if ($showgenerator) {
             // Load CSS
             $PAGE->requires->css('/ai/placement/modgen/styles.css');
 
@@ -80,7 +79,6 @@ function aiplacement_modgen_extend_navigation_course(
                 'courseid' => $course->id,
                 'contextid' => $context->id,
                 'showgenerator' => $showgenerator,
-                'showexplore' => $showexplore,
                 'showsuggest' => $showsuggest,
                 'currentsection' => $currentsection,
             ]]);
@@ -88,18 +86,6 @@ function aiplacement_modgen_extend_navigation_course(
             // Initialize AI-generated activity markers
             $PAGE->requires->js_call_amd('aiplacement_modgen/aigen_marker', 'init', [$course->id]);
         }
-    }
-
-    // Module exploration - also add to course navigation menu when enabled
-    if (\aiplacement_modgen\local\settings_helper::is_explore_enabled()) {
-        $exploreurl = new moodle_url('/ai/placement/modgen/explore.php', ['id' => $course->id]);
-        $navigation->add(
-            get_string('exploremenuitem', 'aiplacement_modgen'),
-            $exploreurl,
-            navigation_node::TYPE_SETTING,
-            null,
-            'aiplacement_modgen_explore'
-        );
     }
 
     // Add a direct generator page link into the course navigation
@@ -122,7 +108,6 @@ function aiplacement_modgen_extend_navigation_course(
  * @param array $args Fragment arguments containing:
  *                    - courseid: Course ID (required)
  *                    - showgenerator: Whether to show generator button
- *                    - showexplore: Whether to show explore button
  * @return string Rendered HTML
  */
 function aiplacement_modgen_output_fragment_course_toolbar(array $args): string {
@@ -132,7 +117,6 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     $courseid = clean_param($args['courseid'], PARAM_INT);
     $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
     $showgenerator = !empty($args['showgenerator']);
-    $showexplore = !empty($args['showexplore']);
 
     // Verify course exists and get context
     $course = get_course($courseid);
@@ -146,7 +130,7 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     require_capability('moodle/course:update', $context);
     
     // Create the toolbar renderable
-    $toolbar = new \aiplacement_modgen\output\course_toolbar($courseid, $showgenerator, $showexplore, !empty($args['showsuggest']));
+    $toolbar = new \aiplacement_modgen\output\course_toolbar($courseid, $showgenerator, !empty($args['showsuggest']));
     
     // Get the plugin renderer and render the toolbar
     $renderer = $PAGE->get_renderer('aiplacement_modgen');

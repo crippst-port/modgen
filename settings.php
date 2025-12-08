@@ -93,20 +93,6 @@ if ($hassiteconfig) {
             new lang_string('enableexistingmodules_desc', 'aiplacement_modgen') . "\n\nNote: AI generation must be enabled for this feature to work.",
             1
         ));
-
-        // Module exploration feature
-        $settings->add(new admin_setting_heading(
-            'aiplacement_modgen/explorationheading',
-            new lang_string('explorationheading', 'aiplacement_modgen'),
-            new lang_string('explorationheading_desc', 'aiplacement_modgen')
-        ));
-
-        $settings->add(new admin_setting_configcheckbox(
-            'aiplacement_modgen/enable_exploration',
-            new lang_string('enableexploration', 'aiplacement_modgen'),
-            new lang_string('enableexploration_desc', 'aiplacement_modgen'),
-            0
-        ));
         // Suggest toolbar button control
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/suggestheading',

@@ -86,5 +86,17 @@ function xmldb_aiplacement_modgen_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2025201603, 'aiplacement', 'modgen');
     }
 
+    // Upgrade path for version 2025201604 - remove explore cache table.
+    if ($oldversion < 2025201604) {
+        // Drop the aiplacement_modgen_cache table (explore insights cache).
+        $table = new xmldb_table('aiplacement_modgen_cache');
+        if ($dbman->table_exists($table)) {
+            $dbman->drop_table($table);
+        }
+
+        // Savepoint reached.
+        upgrade_plugin_savepoint(true, 2025201604, 'aiplacement', 'modgen');
+    }
+
     return true;
 }

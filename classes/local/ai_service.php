@@ -1335,11 +1335,17 @@ class ai_service {
             foreach ($allowedtypes as $t) {
                 $prompt .= "  • {$t}: " . ($supported[$t]['description'] ?? '') . "\n";
             }
-            $prompt .= "\nPEDAGOGICAL GUIDANCE:\n" .
-                "• Balance learning types across the section\n" .
-                "• Prioritize activities that complement existing section content\n" .
-                "• Match activities to pedagogical intent of the section\n" .
-                "• Vary interactive and passive learning opportunities\n\n" .
+            // Get configurable pedagogical guidance from settings, with fallback default.
+            $defaultguidance = "- Balance learning types across the section\n" .
+                "- Prioritize activities that complement existing section content\n" .
+                "- Match activities to pedagogical intent of the section\n" .
+                "- Vary interactive and passive learning opportunities";
+            $pedagogicalguidance = get_config('aiplacement_modgen', 'suggest_pedagogical_guidance');
+            if (empty($pedagogicalguidance)) {
+                $pedagogicalguidance = $defaultguidance;
+            }
+
+            $prompt .= "\nPEDAGOGICAL GUIDANCE:\n" . $pedagogicalguidance . "\n\n" .
                 "OUTPUT: JSON array only, starting with [ and ending with ]";
 
 

@@ -120,6 +120,21 @@ if ($hassiteconfig) {
             new lang_string('enablesuggest_desc', 'aiplacement_modgen'),
             1
         ));
+
+        $pedagogicalguidancedefault = "- Balance learning types across the section\n" .
+            "- Prioritize activities that complement existing section content\n" .
+            "- Match activities to pedagogical intent of the section\n" .
+            "- Vary interactive and passive learning opportunities";
+
+        $settings->add(new admin_setting_configtextarea(
+            'aiplacement_modgen/suggest_pedagogical_guidance',
+            new lang_string('suggestpedagogicalguidance', 'aiplacement_modgen'),
+            new lang_string('suggestpedagogicalguidance_desc', 'aiplacement_modgen'),
+            $pedagogicalguidancedefault,
+            PARAM_TEXT,
+            60,
+            6
+        ));
         // Add file upload or other settings as needed.
     }
 }

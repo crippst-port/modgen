@@ -341,4 +341,6 @@ $string['weekscreated'] = '{$a} week(s) successfully created';
 $string['returntocourseview'] = 'Return to course';
 $string['erroracquiringlock'] = 'Could not acquire course lock. Another user may be editing this course.';
 $string['errorconvertingformat'] = 'Could not convert course to flexsections format.';
+$string['introductionsectionname'] = 'Introduction & General Information';
+$string['assessmentssectionname'] = 'Assessments';
 

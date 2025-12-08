@@ -502,6 +502,9 @@ if ($approvedjsonparam !== null) {
             // Re-fetch the course format instance to ensure it reflects the updated format
             $courseformat = course_get_format($course);
 
+            // Initialize section 0 and create Assessments section.
+            \aiplacement_modgen\local\theme_builder::initialize_core_sections($courseid);
+
             $results = [];
             $needscacherefresh = false;
             $activitywarnings = [];

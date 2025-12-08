@@ -319,6 +319,95 @@ class theme_builder {
     }
 
     /**
+     * Initialize section 0 and create Assessments section if they don't already exist.
+     *
+     * Section 0 is renamed to 'Introduction & General Information' and an 'Assessments'
+     * section is created after it if it doesn't already exist.
+     *
+     * @param int $courseid Course ID
+     */
+    public static function initialize_core_sections($courseid) {
+        global $DB;
+
+        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+        $courseformat = course_get_format($course);
+
+        // Get section 0.
+        $section0 = $DB->get_record('course_sections', ['course' => $courseid, 'section' => 0], '*', MUST_EXIST);
+
+        // Check if section 0 already has the standard name - if so, assume already initialized.
+        $standardname = get_string('introductionsectionname', 'aiplacement_modgen');
+        if ($section0->name === $standardname) {
+            // Already initialized, check for Assessments section.
+            $assessmentsname = get_string('assessmentssectionname', 'aiplacement_modgen');
+            $existing = $DB->get_record('course_sections', [
+                'course' => $courseid,
+                'name' => $assessmentsname
+            ]);
+            if ($existing) {
+                // Both already exist, nothing to do.
+                return;
+            }
+        } else {
+            // Rename section 0.
+            $DB->update_record('course_sections', [
+                'id' => $section0->id,
+                'name' => $standardname,
+                'timemodified' => time()
+            ]);
+        }
+
+        // Create Assessments section if it doesn't exist.
+        $assessmentsname = get_string('assessmentssectionname', 'aiplacement_modgen');
+        $existing = $DB->get_record('course_sections', [
+            'course' => $courseid,
+            'name' => $assessmentsname
+        ]);
+
+        if (!$existing) {
+            // Create new section after section 0.
+            if (method_exists($courseformat, 'create_new_section')) {
+                // Flexsections format - create at top level.
+                $assessmentssectionnum = $courseformat->create_new_section(0, null);
+
+                // Update the section name.
+                $assessmentssection = $DB->get_record('course_sections', [
+                    'course' => $courseid,
+                    'section' => $assessmentssectionnum
+                ], '*', MUST_EXIST);
+
+                $DB->update_record('course_sections', [
+                    'id' => $assessmentssection->id,
+                    'name' => $assessmentsname,
+                    'summary' => '',
+                    'summaryformat' => FORMAT_HTML,
+                    'timemodified' => time()
+                ]);
+
+                // Move it to position 1 (right after section 0).
+                if (method_exists($courseformat, 'move_section')) {
+                    try {
+                        $courseformat->move_section($assessmentssectionnum, 0, 1);
+                    } catch (\Throwable $e) {
+                        // If move fails, section will remain at end but still be created.
+                        debugging('Failed to move Assessments section: ' . $e->getMessage(), DEBUG_DEVELOPER);
+                    }
+                }
+            } else {
+                // Standard format - use core function.
+                $assessmentssection = course_create_section($course, 1);
+                $DB->update_record('course_sections', [
+                    'id' => $assessmentssection->id,
+                    'name' => $assessmentsname,
+                    'timemodified' => time()
+                ]);
+            }
+
+            rebuild_course_cache($courseid, true);
+        }
+    }
+
+    /**
      * Ensure course is using flexsections format.
      *
      * Converts course to flexsections if needed.
@@ -347,5 +436,8 @@ class theme_builder {
                 throw new \moodle_exception('errorconvertingformat', 'aiplacement_modgen');
             }
         }
+
+        // Initialize core sections after ensuring flexsections format.
+        self::initialize_core_sections($courseid);
     }
 }

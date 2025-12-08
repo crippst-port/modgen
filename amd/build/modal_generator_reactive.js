@@ -13,6 +13,54 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
   /**
    * Reactive modal generator component.
    *
+   * This module provides a reactive modal system for the AI Module Generator plugin.
+   * It uses Moodle's core Reactive framework to manage state and trigger UI updates.
+   *
+   * ## Architecture Overview
+   *
+   * The module follows Moodle's reactive pattern with three main parts:
+   *
+   * 1. **State** - Centralized state object tracking modal visibility, loading status,
+   *    current form, and workflow step. State changes trigger automatic UI updates.
+   *
+   * 2. **Mutations** - Named functions that modify state (openModal, closeModal, setStep).
+   *    All state changes go through mutations to ensure consistency.
+   *
+   * 3. **Component** - ModalGeneratorComponent extends BaseComponent and watches for
+   *    state changes, updating the UI accordingly (creating/destroying modals, etc).
+   *
+   * ## Workflow Steps
+   *
+   * The AI generation workflow has four steps tracked by the progress header:
+   * - PROMPT (1): User enters their generation prompt
+   * - GENERATING (2): AI is processing the request
+   * - PREVIEW (3): User reviews generated content before creation
+   * - CREATING (4): Activities are being created in Moodle
+   *
+   * ## Form Types
+   *
+   * The modal can load different forms via Moodle's Fragment API:
+   * - `add_theme`: Create sections by theme names
+   * - `add_week`: Create sections by week range
+   * - `template_from_prompt`: AI-powered content generation from prompt
+   * - `suggest`: AI activity suggestions for existing sections
+   * - `prompt`: Legacy prompt form
+   *
+   * ## Usage
+   *
+   * ```javascript
+   * import {init} from 'aiplacement_modgen/modal_generator_reactive';
+   *
+   * // Initialize the component
+   * const generator = init(courseid, contextid, currentsection);
+   *
+   * // Open with a specific form
+   * generator.openWithForm('template_from_prompt', 'Generate from Template');
+   *
+   * // Or open the default generator
+   * generator.open();
+   * ```
+   *
    * @module     aiplacement_modgen/modal_generator_reactive
    * @copyright  2025 Tom Cripps <tom.cripps@port.ac.uk>
    * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later

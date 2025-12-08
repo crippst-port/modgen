@@ -16,10 +16,62 @@
 /**
  * Reactive modal generator component.
  *
+ * This module provides a reactive modal system for the AI Module Generator plugin.
+ * It uses Moodle's core Reactive framework to manage state and trigger UI updates.
+ *
+ * ## Architecture Overview
+ *
+ * The module follows Moodle's reactive pattern with three main parts:
+ *
+ * 1. **State** - Centralized state object tracking modal visibility, loading status,
+ *    current form, and workflow step. State changes trigger automatic UI updates.
+ *
+ * 2. **Mutations** - Named functions that modify state (openModal, closeModal, setStep).
+ *    All state changes go through mutations to ensure consistency.
+ *
+ * 3. **Component** - ModalGeneratorComponent extends BaseComponent and watches for
+ *    state changes, updating the UI accordingly (creating/destroying modals, etc).
+ *
+ * ## Workflow Steps
+ *
+ * The AI generation workflow has four steps tracked by the progress header:
+ * - PROMPT (1): User enters their generation prompt
+ * - GENERATING (2): AI is processing the request
+ * - PREVIEW (3): User reviews generated content before creation
+ * - CREATING (4): Activities are being created in Moodle
+ *
+ * ## Form Types
+ *
+ * The modal can load different forms via Moodle's Fragment API:
+ * - `add_theme`: Create sections by theme names
+ * - `add_week`: Create sections by week range
+ * - `template_from_prompt`: AI-powered content generation from prompt
+ * - `suggest`: AI activity suggestions for existing sections
+ * - `prompt`: Legacy prompt form
+ *
+ * ## Usage
+ *
+ * ```javascript
+ * import {init} from 'aiplacement_modgen/modal_generator_reactive';
+ *
+ * // Initialize the component
+ * const generator = init(courseid, contextid, currentsection);
+ *
+ * // Open with a specific form
+ * generator.openWithForm('template_from_prompt', 'Generate from Template');
+ *
+ * // Or open the default generator
+ * generator.open();
+ * ```
+ *
  * @module     aiplacement_modgen/modal_generator_reactive
  * @copyright  2025 Tom Cripps <tom.cripps@port.ac.uk>
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
+
+// =============================================================================
+// IMPORTS
+// =============================================================================
 
 import {Reactive, BaseComponent} from 'core/reactive';
 import {dispatchEvent} from 'core/event_dispatcher';
@@ -28,8 +80,13 @@ import ModgenModal from 'aiplacement_modgen/modal';
 import Notification from 'core/notification';
 import ModalEvents from 'core/modal_events';
 
+// =============================================================================
+// CONSTANTS & EVENT TYPES
+// =============================================================================
+
 /**
  * Event types for modal generator.
+ * Used by the reactive system to notify components of state changes.
  */
 const eventTypes = {
     stateChanged: 'aiplacement_modgen/statechanged',
@@ -38,6 +95,7 @@ const eventTypes = {
 /**
  * Dispatch state change event.
  * This wrapper function matches the signature expected by Moodle's reactive StateManager.
+ * When state changes occur, this dispatches a custom event that components can listen to.
  *
  * @param {Object} detail Event detail containing action and state
  * @param {HTMLElement} container The element to dispatch the event on
@@ -47,8 +105,19 @@ const notifyStateChanged = (detail, container) => {
     return dispatchEvent(eventTypes.stateChanged, detail, container);
 };
 
+// =============================================================================
+// STATE MUTATIONS
+// =============================================================================
+
 /**
  * Mutation handlers for modal state.
+ *
+ * Mutations are the only way to modify reactive state. Each mutation:
+ * 1. Sets state to read/write mode
+ * 2. Makes the necessary changes
+ * 3. Sets state back to read-only mode
+ *
+ * This ensures state changes are predictable and trackable.
  */
 class ModalMutations {
     /**
@@ -120,14 +189,29 @@ class ModalMutations {
     }
 }
 
-// Step constants for progress tracking
+// =============================================================================
+// WORKFLOW STEP CONSTANTS
+// =============================================================================
+
+/**
+ * Step constants for progress tracking.
+ * These represent the stages in the AI generation workflow.
+ */
 const STEPS = {
+    /** User is entering their prompt */
     PROMPT: 1,
+    /** AI is generating content */
     GENERATING: 2,
+    /** User is previewing/reviewing generated content */
     PREVIEW: 3,
+    /** Activities are being created in Moodle */
     CREATING: 4,
 };
 
+/**
+ * Human-readable labels for each step.
+ * Displayed in the progress header UI.
+ */
 const STEP_LABELS = {
     1: 'Enter prompt',
     2: 'Generating',
@@ -135,7 +219,19 @@ const STEP_LABELS = {
     4: 'Creating',
 };
 
-// Create the reactive instance immediately when module loads
+// =============================================================================
+// REACTIVE INSTANCE
+// =============================================================================
+
+/**
+ * Create the reactive instance immediately when module loads.
+ *
+ * This is the central state management object. It holds:
+ * - modal: State about the modal (open, loading, current form, step)
+ * - form: State about form validation (valid, dirty, submitting)
+ *
+ * Components register watchers on this state to react to changes.
+ */
 const reactiveInstance = new Reactive({
         name: 'ModalGenerator',
         eventName: eventTypes.stateChanged,
@@ -159,19 +255,39 @@ const reactiveInstance = new Reactive({
         mutations: new ModalMutations(),
     });
 
+// =============================================================================
+// MODAL GENERATOR COMPONENT
+// =============================================================================
+
 /**
  * Modal Generator Component extending BaseComponent.
+ *
+ * This is the main UI component that:
+ * - Watches for state changes via getWatchers()
+ * - Creates/destroys the modal based on state
+ * - Handles form loading via Fragment API
+ * - Manages form submission (AJAX to create_sections.php or prompt.php)
+ * - Displays progress header for AI workflow steps
+ * - Extracts form buttons to modal footer for consistent UX
  */
 class ModalGeneratorComponent extends BaseComponent {
     /**
      * Create method - called when component is instantiated.
+     * Stores course/context info needed for form loading and AJAX calls.
      *
      * @param {Object} descriptor Component descriptor
+     * @param {number} descriptor.courseid Moodle course ID
+     * @param {number} descriptor.contextid Moodle context ID
+     * @param {number} descriptor.currentsection Current section number (for adding content)
      */
     create(descriptor) {
+        /** @type {number} Course ID for form loading and AJAX */
         this.courseid = descriptor.courseid;
+        /** @type {number} Context ID for Fragment API calls */
         this.contextid = descriptor.contextid;
+        /** @type {number} Current section number - new content added here */
         this.currentsection = descriptor.currentsection || 0;
+        /** @type {ModgenModal|null} Reference to the active modal instance */
         this.modal = null;
     }
 
@@ -184,12 +300,17 @@ class ModalGeneratorComponent extends BaseComponent {
 
     /**
      * Get watchers for state changes.
+     * Watchers define which state properties to observe and which handler to call.
      *
-     * @returns {Array} Array of watchers
+     * Format: 'property.path:eventtype' where eventtype is 'updated', 'created', or 'deleted'
+     *
+     * @returns {Array} Array of watcher definitions
      */
     getWatchers() {
         return [
+            // Watch modal open/close state to create/destroy modal
             {watch: 'modal.isOpen:updated', handler: this.handleModalStateChange},
+            // Watch loading state to show/hide spinner
             {watch: 'modal.isLoading:updated', handler: this.handleLoadingChange},
         ];
     }
@@ -243,17 +364,26 @@ class ModalGeneratorComponent extends BaseComponent {
 
     /**
      * Check if a form uses AI generation workflow (needs progress stepper).
+     * AI workflow forms show a multi-step progress header during generation.
      *
      * @param {string} formName Form fragment name
      * @returns {boolean} True if this is an AI workflow form
      */
     isAiWorkflowForm(formName) {
+        // These forms involve AI generation and show the progress stepper
         const aiWorkflowForms = ['template_from_prompt', 'prompt', 'suggest'];
         return aiWorkflowForms.includes(formName);
     }
 
+    // =========================================================================
+    // FORM LOADING (Fragment API)
+    // =========================================================================
+
     /**
      * Load a form in the modal using Fragment API to render moodleform.
+     *
+     * Fragment API allows us to render server-side moodleform HTML via AJAX.
+     * The fragment name maps to a callback in classes/output/renderer.php.
      *
      * @param {string} formName Form fragment name (e.g., 'add_theme', 'add_week')
      * @param {string} title Modal title
@@ -314,8 +444,19 @@ class ModalGeneratorComponent extends BaseComponent {
         .catch(Notification.exception);
     }
 
+    // =========================================================================
+    // FOOTER BUTTON MANAGEMENT
+    // =========================================================================
+
     /**
      * Extract form buttons and display them in the modal footer.
+     *
+     * Moodleforms render submit buttons within the form body, but for better UX
+     * we extract them to the modal footer. This method:
+     * 1. Finds all visible buttons in the form
+     * 2. Creates corresponding buttons in the modal footer
+     * 3. Wires click handlers to trigger the original form buttons
+     * 4. Hides the original buttons
      *
      * @param {Object} modal The modal instance
      */
@@ -426,8 +567,24 @@ class ModalGeneratorComponent extends BaseComponent {
         });
     }
 
+    // =========================================================================
+    // AI PROMPT WORKFLOW
+    // =========================================================================
+
     /**
      * Handle submission for the prompt form.
+     *
+     * This is the core AI generation flow:
+     * 1. Update UI to show "Generating" step with spinner
+     * 2. POST form data to prompt.php via AJAX
+     * 3. Display the preview/approval form on success
+     * 4. Handle subsequent approval form submissions recursively
+     *
+     * The prompt.php endpoint returns JSON with:
+     * - body: HTML content to display (preview form or results)
+     * - footer: Optional footer HTML
+     * - buttons: Optional array of button definitions
+     * - refresh: Boolean indicating if page should reload after close
      *
      * @param {Object} modal The modal instance
      * @param {FormData} formData The form data
@@ -520,6 +677,17 @@ class ModalGeneratorComponent extends BaseComponent {
     /**
      * Render footer buttons from server-provided button definitions.
      *
+     * When prompt.php returns a `buttons` array, we use these definitions
+     * instead of extracting buttons from the form. This gives the server
+     * control over footer button appearance and actions.
+     *
+     * Button definition format:
+     * {
+     *   label: 'Button Text',
+     *   class: 'btn-primary',  // Bootstrap class (without 'btn' prefix)
+     *   action: 'submit'       // Action identifier for handleFooterButtonAction
+     * }
+     *
      * @param {Object} modal The modal instance
      * @param {Array} buttons Array of button definitions from server
      */
@@ -552,8 +720,14 @@ class ModalGeneratorComponent extends BaseComponent {
     /**
      * Handle footer button actions.
      *
+     * Maps action names to specific behaviors:
+     * - 'submit': Show creating step, submit the form
+     * - 'regenerate': Reset to prompt step, reload form
+     * - 'close': Destroy the modal
+     * - Other: Try to find and click a matching button in the form
+     *
      * @param {Object} modal The modal instance
-     * @param {string} action The button action
+     * @param {string} action The button action identifier
      */
     handleFooterButtonAction(modal, action) {
         const body = modal.getBody();
@@ -631,10 +805,28 @@ class ModalGeneratorComponent extends BaseComponent {
         });
     }
 
+    // =========================================================================
+    // PROGRESS HEADER UI
+    // =========================================================================
+
     /**
      * Build a progress header showing the current step in the workflow.
      *
-     * @param {number} currentStep The current step number
+     * Creates a horizontal stepper UI with icons and labels for each step.
+     * Steps can be in three states:
+     * - Complete (green check): Step number < current step
+     * - Active (highlighted): Step number === current step
+     * - Pending (muted): Step number > current step
+     *
+     * CSS classes used:
+     * - .modgen-progress-header: Container
+     * - .modgen-step: Individual step
+     * - .modgen-step-active: Currently active step
+     * - .modgen-step-complete: Completed step
+     * - .modgen-step-pending: Future step
+     * - .modgen-step-line: Connector line between steps
+     *
+     * @param {number} currentStep The current step number (from STEPS constant)
      * @returns {string} HTML for the progress header
      */
     buildProgressHeader(currentStep) {
@@ -690,13 +882,23 @@ class ModalGeneratorComponent extends BaseComponent {
         return html;
     }
 
+    // =========================================================================
+    // FORM SUBMISSION (Non-AI workflows)
+    // =========================================================================
+
     /**
      * Setup form submission handler for modal forms.
      *
-     * Submits form via AJAX to create_sections.php endpoint.
+     * Handles form submission for non-AI workflows (add_theme, add_week):
+     * 1. Intercepts form submit event
+     * 2. Determines which button was clicked (submit vs cancel)
+     * 3. POSTs to create_sections.php AJAX endpoint
+     * 4. Displays success/error message
+     *
+     * For AI workflows (template_from_prompt), delegates to handlePromptSubmission.
      *
      * @param {Object} modal The modal instance
-     * @param {string} formName Form name ('add_theme' or 'add_week')
+     * @param {string} formName Form name ('add_theme', 'add_week', or 'template_from_prompt')
      */
     setupFormSubmission(modal, formName) {
         const modalRoot = modal.getRoot();
@@ -834,8 +1036,16 @@ class ModalGeneratorComponent extends BaseComponent {
         });
     }
 
+    // =========================================================================
+    // LEGACY GENERATOR LINK
+    // =========================================================================
+
     /**
      * Show generator link in modal (legacy behavior).
+     *
+     * For cases where no specific form is requested, shows a simple
+     * modal with a link to open prompt.php in a new page.
+     * This is fallback behavior - most interactions use loadFormInModal.
      *
      * @param {string} title Modal title
      */
@@ -871,9 +1081,13 @@ class ModalGeneratorComponent extends BaseComponent {
         }).catch(Notification.exception);
     }
 
+    // =========================================================================
+    // PUBLIC API
+    // =========================================================================
+
     /**
      * Public method to open the modal.
-     * Fully reactive - modal creation triggered by watcher.
+     * Fully reactive - modal creation triggered by watcher on state.modal.isOpen.
      */
     open() {
         this.reactive.dispatch('openModal');
@@ -881,9 +1095,10 @@ class ModalGeneratorComponent extends BaseComponent {
 
     /**
      * Public method to open the modal with a specific form.
+     * Use this for toolbar buttons that need a specific form type.
      *
-     * @param {string} formName Form fragment name (e.g., 'add_theme', 'add_week')
-     * @param {string} title Modal title
+     * @param {string} formName Form fragment name (e.g., 'add_theme', 'add_week', 'template_from_prompt')
+     * @param {string} title Modal title to display
      */
     openWithForm(formName, title) {
         this.reactive.dispatch('openModalWithForm', formName, title);
@@ -891,19 +1106,34 @@ class ModalGeneratorComponent extends BaseComponent {
 
     /**
      * Public method to close the modal.
+     * Triggers state change which destroys the modal via watcher.
      */
     close() {
         this.reactive.dispatch('closeModal');
     }
 }
 
+// =============================================================================
+// MODULE INITIALIZATION
+// =============================================================================
+
 /**
  * Initialize the modal generator component.
  *
- * @param {number} courseid Course ID
- * @param {number} contextid Context ID
- * @param {number} currentsection Current section number
- * @returns {ModalGeneratorComponent} The component instance
+ * Creates a new ModalGeneratorComponent instance attached to document.body.
+ * The component uses the shared reactiveInstance for state management.
+ *
+ * @param {number} courseid Moodle course ID
+ * @param {number} contextid Moodle context ID (usually course context)
+ * @param {number} currentsection Current section number (default 0 = general section)
+ * @returns {ModalGeneratorComponent} The component instance for external control
+ *
+ * @example
+ * // In a Moodle page or another AMD module:
+ * require(['aiplacement_modgen/modal_generator_reactive'], function(generator) {
+ *     const component = generator.init(123, 456, 0);
+ *     component.openWithForm('template_from_prompt', 'Generate Content');
+ * });
  */
 export const init = (courseid, contextid, currentsection = 0) => {
     const component = new ModalGeneratorComponent({

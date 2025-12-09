@@ -89,14 +89,42 @@ class date_calculator {
                 continue;
             }
 
-            // Determine if this is a theme (top-level parent) or a week section.
-            // Theme: has children AND no parent (parent == 0)
-            // Week: has children (sessions) AND has a parent (nested under theme)
+            // Determine section type:
+            // - Theme with weeks: has children that are NOT sessions (has week children)
+            // - Theme without weeks: has children that ARE sessions (sessions are direct children)
+            // - Week: has a parent AND may have session children
+            // - Standalone week: no parent, no children (flat course structure)
+            
             $istheme = $isparent && empty($section->parent);
-            $isweek = $hasparent; // Week sections have a parent theme
+            
+            // Check if this theme has week children or session children
+            $hasweekchildren = false;
+            if ($istheme && isset($sectionhierarchy['parents'][$section->id])) {
+                foreach ($sectionhierarchy['parents'][$section->id] as $childid) {
+                    $childindex = $sectionhierarchy['id_to_index'][$childid];
+                    $childsection = $sections[$childindex];
+                    if (!in_array($childsection->name, $sessionnames)) {
+                        $hasweekchildren = true;
+                        break;
+                    }
+                }
+            }
+            
+            // Determine if this should be treated as a week for dating purposes
+            $istreatedasweek = false;
+            if ($istheme && !$hasweekchildren) {
+                // Theme with direct session children - treat as a week
+                $istreatedasweek = true;
+            } else if ($hasparent && !$istheme) {
+                // Has a parent - it's a week in a hierarchy
+                $istreatedasweek = true;
+            } else if (!$hasparent && !$isparent) {
+                // Standalone section (flat course)
+                $istreatedasweek = true;
+            }
 
-            // Only process week sections initially (not themes).
-            if ($isweek && !$istheme) {
+            // Process sections that should get week dates
+            if ($istreatedasweek) {
                 // Calculate week start date, skipping holidays.
                 $weekstartdate = self::calculate_week_start($currentdate, $holidays);
                 $weekenddate = strtotime('+6 days', $weekstartdate);
@@ -125,7 +153,7 @@ class date_calculator {
             }
         }
 
-        // Always process theme sections (top-level parents), but only calculate dates if enabled.
+        // Always process theme sections (top-level parents) for the list, but only add dates if enabled.
         if (!empty($sectionhierarchy['parents'])) {
             foreach ($sectionhierarchy['parents'] as $parentid => $children) {
                 $parentsection = $sections[$sectionhierarchy['id_to_index'][$parentid]];
@@ -168,12 +196,13 @@ class date_calculator {
                         ];
                     }
                 } else {
-                    // Include parent but without date calculation.
+                    // Include theme section in list but WITHOUT formatted date.
+                    // This ensures it appears in the form but won't have dates applied.
                     $results[$parentid] = [
                         'id' => $parentid,
                         'section' => $parentsection->section,
                         'name' => $cleanname,
-                        'formatted_date' => '', // No date when not included
+                        'formatted_date' => '', // Empty - no date will be applied
                         'week_number' => null,
                         'is_parent' => true,
                         'start_timestamp' => 0,

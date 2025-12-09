@@ -42,19 +42,6 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
         $mform->addElement('hidden', 'courseid');
         $mform->setType('courseid', PARAM_INT);
 
-        // Include parent sections checkbox.
-        $mform->addElement('advcheckbox', 'includeparents', 
-            get_string('includeparentsections', 'aiplacement_modgen'),
-            '',
-            ['id' => 'includeparents-checkbox'],
-            [0, 1]
-        );
-        $mform->addHelpButton('includeparents', 'includeparentsections', 'aiplacement_modgen');
-        $mform->setDefault('includeparents', 0);
-
-        // Add ARIA live region for dynamic updates.
-        $mform->addElement('html', '<div id="dates-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>');
-
         // Section selection intro.
         $mform->addElement('html', '<p class="mt-3">' . get_string('selectsections', 'aiplacement_modgen') . '</p>');
 
@@ -102,7 +89,6 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
         $html .= '<th scope="col" style="width: 50px;">' . 
             '<input type="checkbox" id="select-all-sections" aria-label="Select all sections" class="form-check-input">' .
             '</th>';
-        $html .= '<th scope="col">' . get_string('sectiontype', 'aiplacement_modgen') . '</th>';
         $html .= '<th scope="col">' . get_string('currentname', 'aiplacement_modgen') . '</th>';
         $html .= '<th scope="col">' . get_string('proposedname', 'aiplacement_modgen') . '</th>';
         $html .= '</tr>';
@@ -110,10 +96,6 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
         $html .= '<tbody>';
 
         foreach ($sections as $section) {
-            $sectiontype = !empty($section['is_parent']) ? 
-                get_string('themesection', 'aiplacement_modgen') : 
-                get_string('weeksection', 'aiplacement_modgen');
-
             $checkboxid = 'section-' . $section['id'];
             $nameid = 'section-name-' . $section['id'];
             $proposednameid = 'proposed-name-' . $section['id'];
@@ -134,14 +116,11 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
                 'id="' . $checkboxid . '" ' .
                 'name="selectedsections[]" ' .
                 'value="' . $section['id'] . '" ' .
-                'class="form-check-input dates-section-checkbox" ' .
+                'class="form-check-input section-checkbox" ' .
                 'data-section-id="' . $section['id'] . '" ' .
                 'aria-labelledby="' . $nameid . '" ' .
                 'checked>';
             $html .= '</td>';
-
-            // Type column.
-            $html .= '<td>' . $sectiontype . '</td>';
 
             // Current name column.
             $html .= '<td id="' . $nameid . '">' . $currentname . '</td>';
@@ -162,7 +141,7 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
                 const selectAll = document.getElementById("select-all-sections");
                 if (selectAll) {
                     selectAll.addEventListener("change", function() {
-                        const checkboxes = document.querySelectorAll(".dates-section-checkbox");
+                        const checkboxes = document.querySelectorAll(".section-checkbox");
                         checkboxes.forEach(cb => cb.checked = this.checked);
                     });
                 }

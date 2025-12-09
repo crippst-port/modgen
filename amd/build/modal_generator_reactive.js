@@ -425,6 +425,8 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       const buttons = form.querySelectorAll('button, input[type="submit"], input[type="button"]');
       buttons.forEach(btn => {
         btn.style.display = 'none';
+        btn.style.visibility = 'hidden';
+        btn.setAttribute('aria-hidden', 'true');
       });
     }
     buildProgressHeader(currentStep) {
@@ -486,12 +488,11 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       const bodyNode = body && body.length ? body.get(0) : null;
       const selectedSections = [];
       if (bodyNode) {
-        const checkboxes = bodyNode.querySelectorAll('.dates-section-checkbox:checked');
+        const checkboxes = bodyNode.querySelectorAll('.section-checkbox:checked');
         checkboxes.forEach(cb => {
           selectedSections.push(cb.value);
         });
       }
-      const includeparents = formData.get('includeparents') ? 1 : 0;
       if (!selectedSections || selectedSections.length === 0) {
         modal.setBody('<div class="alert alert-danger">Please select at least one section</div>');
         return;
@@ -499,6 +500,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       const action = isRemove ? 'Removing dates from' : 'Applying dates to';
       const endpoint = isRemove ? '/ai/placement/modgen/ajax/remove_section_dates.php' : '/ai/placement/modgen/ajax/apply_section_dates.php';
       modal.setBody('<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">' + action + ' sections...</span>' + '</div>' + '<p class="mt-3">' + action + ' sections...</p>' + '</div>');
+      const includeparents = 1;
       const params = new URLSearchParams();
       params.append('courseid', this.courseid);
       params.append('selectedsections', JSON.stringify(selectedSections));
@@ -544,7 +546,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         if (!bodyNode) {
           return [];
         }
-        const checkboxes = bodyNode.querySelectorAll('.dates-section-checkbox');
+        const checkboxes = bodyNode.querySelectorAll('.section-checkbox');
         const excluded = [];
         checkboxes.forEach(cb => {
           if (!cb.checked) {
@@ -553,24 +555,14 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         });
         return excluded;
       };
-      const getIncludeParents = () => {
-        const body = modal.getBody();
-        const bodyNode = body && body.length ? body.get(0) : null;
-        if (!bodyNode) {
-          return 0;
-        }
-        const checkbox = bodyNode.querySelector('#includeparents-checkbox');
-        return checkbox && checkbox.checked ? 1 : 0;
-      };
       const previewDates = () => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
           const excludedSections = getExcludedSections();
-          const includeparents = getIncludeParents();
           const params = new URLSearchParams();
           params.append('courseid', this.courseid);
           params.append('excludedsections', JSON.stringify(excludedSections));
-          params.append('includeparents', includeparents);
+          params.append('includeparents', 1);
           params.append('sesskey', M.cfg.sesskey);
           fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/preview_section_dates.php', {
             method: 'POST',
@@ -594,20 +586,13 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
                   }
                 }
               });
-              const statusRegion = bodyNode.querySelector('#dates-status');
-              if (statusRegion) {
-                statusRegion.textContent = 'Dates recalculated';
-                setTimeout(() => {
-                  statusRegion.textContent = '';
-                }, 1000);
-              }
             }
           }).catch(error => {
             window.console.error('Error previewing dates:', error);
           });
         }, 250);
       };
-      modalRoot.on('change', '.dates-section-checkbox, #includeparents-checkbox', () => {
+      modalRoot.on('change', '.section-checkbox', () => {
         previewDates();
       });
     }

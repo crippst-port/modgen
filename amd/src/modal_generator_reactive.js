@@ -807,6 +807,8 @@ class ModalGeneratorComponent extends BaseComponent {
         const buttons = form.querySelectorAll('button, input[type="submit"], input[type="button"]');
         buttons.forEach(btn => {
             btn.style.display = 'none';
+            btn.style.visibility = 'hidden';
+            btn.setAttribute('aria-hidden', 'true');
         });
     }
 
@@ -903,19 +905,16 @@ class ModalGeneratorComponent extends BaseComponent {
         const isRemove = buttonName === 'removedates';
         
         // Collect selected section IDs from checkboxes
-        // Need to query the DOM directly because FormData might not include unchecked checkboxes
         const body = modal.getBody();
         const bodyNode = body && body.length ? body.get(0) : null;
         const selectedSections = [];
         
         if (bodyNode) {
-            const checkboxes = bodyNode.querySelectorAll('.dates-section-checkbox:checked');
+            const checkboxes = bodyNode.querySelectorAll('.section-checkbox:checked');
             checkboxes.forEach(cb => {
                 selectedSections.push(cb.value);
             });
         }
-        
-        const includeparents = formData.get('includeparents') ? 1 : 0;
 
         if (!selectedSections || selectedSections.length === 0) {
             modal.setBody('<div class="alert alert-danger">Please select at least one section</div>');
@@ -935,6 +934,11 @@ class ModalGeneratorComponent extends BaseComponent {
             '</div>' +
             '<p class="mt-3">' + action + ' sections...</p>' +
             '</div>');
+
+        // Determine if includeparents should be true
+        // We need to check the actual section data to see if any selected sections are parents
+        // For now, always pass 1 to let the backend handle it based on section properties
+        const includeparents = 1;
 
         // Build params
         const params = new URLSearchParams();
@@ -1002,7 +1006,7 @@ class ModalGeneratorComponent extends BaseComponent {
                 return [];
             }
 
-            const checkboxes = bodyNode.querySelectorAll('.dates-section-checkbox');
+            const checkboxes = bodyNode.querySelectorAll('.section-checkbox');
             const excluded = [];
             checkboxes.forEach(cb => {
                 if (!cb.checked) {
@@ -1012,29 +1016,17 @@ class ModalGeneratorComponent extends BaseComponent {
             return excluded;
         };
 
-        // Helper to get includeparents value
-        const getIncludeParents = () => {
-            const body = modal.getBody();
-            const bodyNode = body && body.length ? body.get(0) : null;
-            if (!bodyNode) {
-                return 0;
-            }
-            const checkbox = bodyNode.querySelector('#includeparents-checkbox');
-            return checkbox && checkbox.checked ? 1 : 0;
-        };
-
         // Preview dates with debounce
         const previewDates = () => {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
                 const excludedSections = getExcludedSections();
-                const includeparents = getIncludeParents();
 
                 // Build params
                 const params = new URLSearchParams();
                 params.append('courseid', this.courseid);
                 params.append('excludedsections', JSON.stringify(excludedSections));
-                params.append('includeparents', includeparents);
+                params.append('includeparents', 1); // Always include all section types
                 params.append('sesskey', M.cfg.sesskey);
 
                 // Fetch preview
@@ -1062,15 +1054,6 @@ class ModalGeneratorComponent extends BaseComponent {
                                 }
                             }
                         });
-
-                        // Update ARIA live region
-                        const statusRegion = bodyNode.querySelector('#dates-status');
-                        if (statusRegion) {
-                            statusRegion.textContent = 'Dates recalculated';
-                            setTimeout(() => {
-                                statusRegion.textContent = '';
-                            }, 1000);
-                        }
                     }
                 })
                 .catch(error => {
@@ -1080,7 +1063,7 @@ class ModalGeneratorComponent extends BaseComponent {
         };
 
         // Listen for checkbox changes
-        modalRoot.on('change', '.dates-section-checkbox, #includeparents-checkbox', () => {
+        modalRoot.on('change', '.section-checkbox', () => {
             previewDates();
         });
     }

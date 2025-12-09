@@ -896,13 +896,25 @@ class ModalGeneratorComponent extends BaseComponent {
      *
      * @param {Object} modal The modal instance
      * @param {FormData} formData The form data
+     * @param {string} buttonName The name of the clicked submit button
      */
-    handleDatesForSectionsSubmission(modal, formData) {
-        // Check if this is a remove dates request
-        const isRemove = formData.has('removedates');
+    handleDatesForSectionsSubmission(modal, formData, buttonName) {
+        // Check if this is a remove dates request based on which button was clicked
+        const isRemove = buttonName === 'removedates';
         
-        // Collect selected section IDs
-        const selectedSections = formData.getAll('selectedsections[]');
+        // Collect selected section IDs from checkboxes
+        // Need to query the DOM directly because FormData might not include unchecked checkboxes
+        const body = modal.getBody();
+        const bodyNode = body && body.length ? body.get(0) : null;
+        const selectedSections = [];
+        
+        if (bodyNode) {
+            const checkboxes = bodyNode.querySelectorAll('.dates-section-checkbox:checked');
+            checkboxes.forEach(cb => {
+                selectedSections.push(cb.value);
+            });
+        }
+        
         const includeparents = formData.get('includeparents') ? 1 : 0;
 
         if (!selectedSections || selectedSections.length === 0) {
@@ -1148,7 +1160,7 @@ class ModalGeneratorComponent extends BaseComponent {
 
             // Handle dates for sections form specifically
             if (formName === 'dates_for_sections') {
-                this.handleDatesForSectionsSubmission(modal, formData);
+                this.handleDatesForSectionsSubmission(modal, formData, buttonName);
                 return;
             }
             

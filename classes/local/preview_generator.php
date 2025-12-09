@@ -200,10 +200,9 @@ class preview_generator {
             'postsession' => $weekdata['postsession'] ?? [],
         ];
 
-        // Filter out empty session types
-        $sessionsData = array_filter($sessionsData);
-
-        if (empty($sessionsData)) {
+        // Don't filter out empty sessions yet - we want to show them even if they have no activities
+        // Just check if we have the sessions object at all
+        if (empty($sessionsData) && !isset($weekdata['sessions'])) {
             return false;
         }
 
@@ -224,13 +223,12 @@ class preview_generator {
             // Extract activities from this session
             $activities = self::extract_activities_from_session($sessiondata);
 
-            if (!empty($activities)) {
-                $weekitem['sessions'][] = [
-                    'type' => $sessiontype,
-                    'label' => $sessionLabels[$sessiontype] ?? $sessiontype,
-                    'activities' => $activities,
-                ];
-            }
+            // Add session even if it has no activities (it might have a description or be a placeholder)
+            $weekitem['sessions'][] = [
+                'type' => $sessiontype,
+                'label' => $sessionLabels[$sessiontype] ?? $sessiontype,
+                'activities' => $activities,
+            ];
         }
 
         return !empty($weekitem['sessions']);
@@ -257,8 +255,11 @@ class preview_generator {
         $activityList = [];
         if (isset($sessiondata['activities']) && is_array($sessiondata['activities'])) {
             $activityList = $sessiondata['activities'];
-        } else if (!isset($sessiondata['activities']) && !isset($sessiondata['description'])) {
-            // Direct array of activities (no nested structure)
+        }
+        
+        // If no activities key found, try to treat the sessiondata itself as an array of activities
+        // (but skip this if the data has description or other metadata keys)
+        if (empty($activityList) && !isset($sessiondata['activities']) && !isset($sessiondata['description'])) {
             $activityList = $sessiondata;
         }
 

@@ -591,7 +591,9 @@ if ($approvedjsonparam !== null) {
                         if (!method_exists($courseformat, 'create_new_section')) {
                             throw new Exception('The flexsections course format is not properly supporting nested sections.');
                         }
-                        $weeksectionnum = $courseformat->create_new_section($themesectionnum, null);
+                        // flexsections create_new_section expects SECTION ID as parent, not section number
+                        $themesectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $themesectionnum]);
+                        $weeksectionnum = $courseformat->create_new_section($themesectionid, null);
                     } catch (Exception $e) {
                         $activitywarnings[] = "Failed to create week section: " . $e->getMessage();
                         continue;
@@ -816,10 +818,24 @@ if ($approvedjsonparam !== null) {
     }
 
         // Handle hiding existing sections and moving new ones to top if requested.
-        if ($hideexistingsections && !empty($existing_section_ids)) {
-            // Hide the old sections so only new content is visible
-            foreach ($existing_section_ids as $old_section_id) {
-                $DB->set_field('course_sections', 'visible', 0, ['id' => $old_section_id]);
+        if ($hideexistingsections) {
+            // Hide ALL sections except section 0 (general) and the newly created ones.
+            // This handles both the original pre-generation sections AND any sections from previous failed/test generations.
+            $allsections = $DB->get_records('course_sections', ['course' => $courseid], 'section ASC');
+            foreach ($allsections as $section) {
+                // Skip section 0 (general section) and all newly created sections
+                if ($section->section == 0 || in_array($section->id, $new_toplevel_section_ids, true)) {
+                    continue;
+                }
+                
+                // Also skip child sections of newly created top-level sections (they should stay visible)
+                // Check if this section's parent is in the new creation set
+                if (!empty($section->parent) && in_array($section->parent, $new_toplevel_section_ids, true)) {
+                    continue;
+                }
+                
+                // Hide this section (old content from any previous generation)
+                $DB->set_field('course_sections', 'visible', 0, ['id' => $section->id]);
             }
 
             // Move new top-level sections to the top (after section 0) using the course format API

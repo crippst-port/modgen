@@ -54,6 +54,14 @@ class session_creator {
             throw new \Exception('The flexsections course format is not properly supporting nested sections');
         }
         
+        // Get the parent section ID from the section number
+        // flexsections create_new_section() expects the parent SECTION ID, not the section number
+        $parentsectionid = null;
+        if ($parentsectionnum > 0) {
+            $parentsectionid = $DB->get_field('course_sections', 'id', 
+                ['course' => $courseid, 'section' => $parentsectionnum]);
+        }
+        
         // Define session types with language strings
         $sessiontypes = [
             'presession' => get_string('presession', 'aiplacement_modgen'),
@@ -64,10 +72,10 @@ class session_creator {
         $sessionsectionmap = [];
         
         foreach ($sessiontypes as $sessionkey => $sessionlabel) {
-            // CRITICAL: Always use the original parent section number, not a previously created section
-            // create_new_section($parent, $before) where $parent is the parent section number
+            // CRITICAL: Pass the parent SECTION ID (not section number) to create_new_section
+            // create_new_section($parent_id, $before) where $parent_id is the database ID of the parent section
             // and $before is null to append at the end
-            $sessionsectionnum = $courseformat->create_new_section($parentsectionnum, null);
+            $sessionsectionnum = $courseformat->create_new_section($parentsectionid, null);
             $sessionsectionmap[$sessionkey] = $sessionsectionnum;
             
             // Get the section ID for database updates

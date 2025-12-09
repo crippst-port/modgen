@@ -1,7 +1,7 @@
 <?php
 define('CLI_SCRIPT', true);
-require_once(__DIR__ . '/../../../../config.php');
-require_once(__DIR__ . '/../classes/local/date_calculator.php');
+require_once(__DIR__ . '/../../../../../config.php');
+require_once(__DIR__ . '/../../classes/local/date_calculator.php');
 
 $courseid = 2;
 $modinfo = get_fast_modinfo($courseid);

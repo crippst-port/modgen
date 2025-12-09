@@ -11,7 +11,7 @@
 
 define('CLI_SCRIPT', true);
 
-require_once(__DIR__ . '/../../../../config.php');
+require_once(__DIR__ . '/../../../../../config.php');
 require_once($CFG->dirroot . '/course/lib.php');
 
 use aiplacement_modgen\local\date_calculator;

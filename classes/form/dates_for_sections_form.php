@@ -82,72 +82,136 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
      * @return string HTML table
      */
     private function build_sections_table($sections) {
-        $html = '<div class="table-responsive mt-3">';
-        $html .= '<table class="table table-striped table-sm" id="dates-preview-table">';
-        $html .= '<thead>';
-        $html .= '<tr>';
-        $html .= '<th scope="col" style="width: 50px;">' . 
-            '<input type="checkbox" id="select-all-sections" aria-label="Select all sections" class="form-check-input">' .
-            '</th>';
-        $html .= '<th scope="col">' . get_string('currentname', 'aiplacement_modgen') . '</th>';
-        $html .= '<th scope="col">' . get_string('proposedname', 'aiplacement_modgen') . '</th>';
-        $html .= '</tr>';
-        $html .= '</thead>';
-        $html .= '<tbody>';
-
+        // Separate themes and weeks for better organization.
+        $themes = [];
+        $weeks = [];
+        
         foreach ($sections as $section) {
-            $checkboxid = 'section-' . $section['id'];
-            $nameid = 'section-name-' . $section['id'];
-            $proposednameid = 'proposed-name-' . $section['id'];
-
-            $currentname = !empty($section['name']) ? s($section['name']) : 
-                get_string('sectionname', 'moodle', $section['section']);
-            
-            $proposedname = $currentname;
-            if (!empty($section['formatted_date'])) {
-                $proposedname = s($section['formatted_date']) . ' ' . $currentname;
+            if (!empty($section['is_parent'])) {
+                $themes[] = $section;
+            } else {
+                $weeks[] = $section;
             }
-
-            $html .= '<tr data-section-id="' . $section['id'] . '">';
-            
-            // Checkbox column.
-            $html .= '<td>';
-            $html .= '<input type="checkbox" ' .
-                'id="' . $checkboxid . '" ' .
-                'name="selectedsections[]" ' .
-                'value="' . $section['id'] . '" ' .
-                'class="form-check-input section-checkbox" ' .
-                'data-section-id="' . $section['id'] . '" ' .
-                'aria-labelledby="' . $nameid . '" ' .
-                'checked>';
-            $html .= '</td>';
-
-            // Current name column.
-            $html .= '<td id="' . $nameid . '">' . $currentname . '</td>';
-
-            // Proposed name column.
-            $html .= '<td id="' . $proposednameid . '" class="proposed-name-cell">' . $proposedname . '</td>';
-
-            $html .= '</tr>';
         }
-
-        $html .= '</tbody>';
-        $html .= '</table>';
+        
+        $html = '<div class="table-responsive mt-3">';
+        
+        // Themes section (if any).
+        if (!empty($themes)) {
+            $html .= '<h5 class="mb-3">' . get_string('themedSections', 'aiplacement_modgen') . '</h5>';
+            $html .= '<table class="table table-striped table-sm mb-4" id="themes-preview-table">';
+            $html .= '<thead>';
+            $html .= '<tr>';
+            $html .= '<th scope="col" style="width: 50px;">' . 
+                '<input type="checkbox" id="select-all-themes" aria-label="Select all themes" class="form-check-input">' .
+                '</th>';
+            $html .= '<th scope="col">' . get_string('currentname', 'aiplacement_modgen') . '</th>';
+            $html .= '<th scope="col">' . get_string('proposedname', 'aiplacement_modgen') . '</th>';
+            $html .= '</tr>';
+            $html .= '</thead>';
+            $html .= '<tbody>';
+            
+            foreach ($themes as $section) {
+                $html .= $this->build_section_row($section, 'theme');
+            }
+            
+            $html .= '</tbody>';
+            $html .= '</table>';
+        }
+        
+        // Weeks section.
+        if (!empty($weeks)) {
+            $html .= '<h5 class="mb-3">' . get_string('weekSections', 'aiplacement_modgen') . '</h5>';
+            $html .= '<table class="table table-striped table-sm" id="weeks-preview-table">';
+            $html .= '<thead>';
+            $html .= '<tr>';
+            $html .= '<th scope="col" style="width: 50px;">' . 
+                '<input type="checkbox" id="select-all-weeks" aria-label="Select all weeks" class="form-check-input">' .
+                '</th>';
+            $html .= '<th scope="col">' . get_string('currentname', 'aiplacement_modgen') . '</th>';
+            $html .= '<th scope="col">' . get_string('proposedname', 'aiplacement_modgen') . '</th>';
+            $html .= '</tr>';
+            $html .= '</thead>';
+            $html .= '<tbody>';
+            
+            foreach ($weeks as $section) {
+                $html .= $this->build_section_row($section, 'week');
+            }
+            
+            $html .= '</tbody>';
+            $html .= '</table>';
+        }
+        
         $html .= '</div>';
 
         // Add select all functionality script.
         $html .= '<script>
             (function() {
-                const selectAll = document.getElementById("select-all-sections");
-                if (selectAll) {
-                    selectAll.addEventListener("change", function() {
-                        const checkboxes = document.querySelectorAll(".section-checkbox");
+                // Select all themes.
+                const selectAllThemes = document.getElementById("select-all-themes");
+                if (selectAllThemes) {
+                    selectAllThemes.addEventListener("change", function() {
+                        const checkboxes = document.querySelectorAll(".section-checkbox.theme-section");
+                        checkboxes.forEach(cb => cb.checked = this.checked);
+                    });
+                }
+                
+                // Select all weeks.
+                const selectAllWeeks = document.getElementById("select-all-weeks");
+                if (selectAllWeeks) {
+                    selectAllWeeks.addEventListener("change", function() {
+                        const checkboxes = document.querySelectorAll(".section-checkbox.week-section");
                         checkboxes.forEach(cb => cb.checked = this.checked);
                     });
                 }
             })();
         </script>';
 
+        return $html;
+    }
+
+    /**
+     * Build a single section row.
+     *
+     * @param array $section Section data
+     * @param string $type 'theme' or 'week'
+     * @return string HTML table row
+     */
+    private function build_section_row($section, $type) {
+        $checkboxid = 'section-' . $section['id'];
+        $nameid = 'section-name-' . $section['id'];
+        $proposednameid = 'proposed-name-' . $section['id'];
+
+        $currentname = !empty($section['name']) ? s($section['name']) : 
+            get_string('sectionname', 'moodle', $section['section']);
+        
+        $proposedname = $currentname;
+        if (!empty($section['formatted_date'])) {
+            $proposedname = s($section['formatted_date']) . ' ' . $currentname;
+        }
+
+        $html = '<tr data-section-id="' . $section['id'] . '" class="' . $type . '-row">';
+        
+        // Checkbox column.
+        $html .= '<td>';
+        $html .= '<input type="checkbox" ' .
+            'id="' . $checkboxid . '" ' .
+            'name="selectedsections[]" ' .
+            'value="' . $section['id'] . '" ' .
+            'class="form-check-input section-checkbox ' . $type . '-section" ' .
+            'data-section-id="' . $section['id'] . '" ' .
+            'aria-labelledby="' . $nameid . '" ' .
+            'checked>';
+        $html .= '</td>';
+
+        // Current name column.
+        $html .= '<td id="' . $nameid . '">' . $currentname . '</td>';
+
+        // Proposed name column.
+        $html .= '<td id="' . $proposednameid . '" class="proposed-name-cell">' . $proposedname . '</td>';
+
+        $html .= '</tr>';
+        
         return $html;
     }
 

@@ -7,7 +7,7 @@
 
 define('CLI_SCRIPT', true);
 
-require_once(__DIR__ . '/../../../../config.php');
+require_once(__DIR__ . '/../../../../../config.php');
 require_once($CFG->dirroot . '/course/lib.php');
 
 use aiplacement_modgen\local\date_calculator;
@@ -23,7 +23,7 @@ $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 echo "\n=== Form Section Debug for Course: {$course->fullname} (ID: {$courseid}) ===\n\n";
 
 // Replicate what lib.php does
-require_once(__DIR__ . '/../classes/local/date_calculator.php');
+require_once(__DIR__ . '/../../classes/local/date_calculator.php');
 $sectionsdata = date_calculator::calculate_section_dates($courseid, [], true);
 
 echo "Sections returned by calculate_section_dates():\n";

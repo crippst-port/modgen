@@ -5,7 +5,7 @@
  */
 
 // Setup Moodle environment
-$configpath = __DIR__ . '/../../../../config.php';
+$configpath = __DIR__ . '/../../../../../config.php';
 if (!file_exists($configpath)) {
     die("Error: config.php not found at $configpath\n");
 }
@@ -26,14 +26,14 @@ echo str_repeat("=", 80) . "\n\n";
 require_login();
 
 // Load the ai_service
-$aisvcpath = __DIR__ . '/../classes/local/ai_service.php';
+$aisvcpath = __DIR__ . '/../../classes/local/ai_service.php';
 if (!file_exists($aisvcpath)) {
     die("Error: ai_service.php not found at $aisvcpath\n");
 }
 require_once($aisvcpath);
 
 // Load registry for activity metadata
-$regpath = __DIR__ . '/../classes/activitytype/registry.php';
+$regpath = __DIR__ . '/../../classes/activitytype/registry.php';
 if (!file_exists($regpath)) {
     die("Error: registry.php not found at $regpath\n");
 }

@@ -32,7 +32,122 @@ defined('MOODLE_INTERNAL') || die();
 class date_calculator {
 
     /**
+     * Detect the layout type of a course module.
+     *
+     * @param int $courseid Course ID
+     * @return array Array with 'type', 'description', and 'details' keys
+     *               type: 'theme_based', 'week_based', or 'flat'
+     */
+    public static function detect_course_layout($courseid) {
+        $modinfo = get_fast_modinfo($courseid);
+        $sections = $modinfo->get_section_info_all();
+        
+        // Build section hierarchy.
+        $sectionhierarchy = self::build_section_hierarchy($sections);
+        
+        // Get session names for detection.
+        $sessionnames = [
+            get_string('presession', 'aiplacement_modgen'),
+            get_string('session', 'aiplacement_modgen'),
+            get_string('postsession', 'aiplacement_modgen')
+        ];
+        
+        $hasthemes = false;
+        $hasweeksunderThemes = false;
+        $hasstandaloneweeks = false;
+        $toplevelcount = 0;
+        
+        foreach ($sections as $section) {
+            // Skip section 0.
+            if ($section->section == 0) {
+                continue;
+            }
+            
+            // Skip Introduction & Assessments sections.
+            $introsectionname = get_string('introductionsectionname', 'aiplacement_modgen');
+            $assessmentssectionname = get_string('assessmentssectionname', 'aiplacement_modgen');
+            if ($section->name === $introsectionname || $section->name === $assessmentssectionname) {
+                continue;
+            }
+            
+            // Skip session subsections.
+            if (in_array($section->name, $sessionnames)) {
+                continue;
+            }
+            
+            $isparent = isset($sectionhierarchy['parents'][$section->id]);
+            $hasparent = !empty($section->parent);
+            
+            // Top-level section (no parent).
+            if (!$hasparent) {
+                $toplevelcount++;
+                
+                // Check if this top-level section has children.
+                if ($isparent) {
+                    $hasthemes = true;
+                    
+                    // Check what kind of children it has.
+                    foreach ($sectionhierarchy['parents'][$section->id] as $childid) {
+                        $childindex = $sectionhierarchy['id_to_index'][$childid];
+                        $childsection = $sections[$childindex];
+                        
+                        // If child is NOT a session, it's a week.
+                        if (!in_array($childsection->name, $sessionnames)) {
+                            $hasweeksunderThemes = true;
+                            break;
+                        }
+                    }
+                } else {
+                    // Top-level section with no children = standalone week.
+                    $hasstandaloneweeks = true;
+                }
+            }
+        }
+        
+        // Determine layout type based on what we found.
+        if ($hasthemes && $hasweeksunderThemes) {
+            return [
+                'type' => 'theme_based',
+                'description' => 'Theme-based layout with nested weeks',
+                'details' => [
+                    'has_themes' => true,
+                    'has_weeks_under_themes' => true,
+                    'top_level_sections' => $toplevelcount,
+                    'hierarchy_levels' => 3, // Theme → Week → Session
+                ]
+            ];
+        } else if ($hasthemes && !$hasweeksunderThemes) {
+            return [
+                'type' => 'week_based',
+                'description' => 'Week-based layout (themes treated as weeks)',
+                'details' => [
+                    'has_themes' => true,
+                    'has_weeks_under_themes' => false,
+                    'top_level_sections' => $toplevelcount,
+                    'hierarchy_levels' => 2, // Theme (as week) → Session
+                ]
+            ];
+        } else {
+            return [
+                'type' => 'flat',
+                'description' => 'Flat layout with standalone weeks/topics',
+                'details' => [
+                    'has_themes' => false,
+                    'has_weeks_under_themes' => false,
+                    'top_level_sections' => $toplevelcount,
+                    'hierarchy_levels' => 1, // Week only (may have sessions)
+                ]
+            ];
+        }
+    }
+
+    /**
      * Calculate dates for course sections with holiday exclusions.
+     *
+     * Uses layout detection to intelligently apply dates:
+     * - Theme-based: Dates on weeks only, not themes
+     * - Week-based: Dates on top-level sections (treated as weeks)
+     * - Flat: Dates on all standalone sections
      *
      * @param int $courseid Course ID
      * @param array $excludedsectionids Section IDs to exclude from calculation
@@ -46,6 +161,9 @@ class date_calculator {
         $modinfo = get_fast_modinfo($courseid);
         $sections = $modinfo->get_section_info_all();
 
+        // Detect course layout to determine which sections get dates.
+        $layout = self::detect_course_layout($courseid);
+
         // Parse holidays from config.
         $holidayconfig = get_config('aiplacement_modgen', 'holiday_dates');
         $holidays = self::parse_holidays($holidayconfig);
@@ -55,6 +173,13 @@ class date_calculator {
 
         // Build section hierarchy.
         $sectionhierarchy = self::build_section_hierarchy($sections);
+
+        // Get session names for detection.
+        $sessionnames = [
+            get_string('presession', 'aiplacement_modgen'),
+            get_string('session', 'aiplacement_modgen'),
+            get_string('postsession', 'aiplacement_modgen')
+        ];
 
         $results = [];
         $weekcounter = 1;
@@ -73,58 +198,45 @@ class date_calculator {
                 continue;
             }
 
-            $isparent = isset($sectionhierarchy['parents'][$section->id]);
-            $hasparent = !empty($section->parent);
-
-            // Detect if this is a session subsection (Pre-session, Session, Post-session).
-            $sessionnames = [
-                get_string('presession', 'aiplacement_modgen'),
-                get_string('session', 'aiplacement_modgen'),
-                get_string('postsession', 'aiplacement_modgen')
-            ];
+            // Skip session subsections.
             $issession = in_array($section->name, $sessionnames);
-
-            // Skip sessions - we only want weeks and theme sections.
             if ($issession) {
                 continue;
             }
 
-            // Determine section type:
-            // - Theme with weeks: has children that are NOT sessions (has week children)
-            // - Theme without weeks: has children that ARE sessions (sessions are direct children)
-            // - Week: has a parent AND may have session children
-            // - Standalone week: no parent, no children (flat course structure)
-            
-            $istheme = $isparent && empty($section->parent);
-            
-            // Check if this theme has week children or session children
-            $hasweekchildren = false;
-            if ($istheme && isset($sectionhierarchy['parents'][$section->id])) {
-                foreach ($sectionhierarchy['parents'][$section->id] as $childid) {
-                    $childindex = $sectionhierarchy['id_to_index'][$childid];
-                    $childsection = $sections[$childindex];
-                    if (!in_array($childsection->name, $sessionnames)) {
-                        $hasweekchildren = true;
-                        break;
+            $isparent = isset($sectionhierarchy['parents'][$section->id]);
+            $hasparent = !empty($section->parent);
+            $istoplevel = !$hasparent;
+
+            // Determine if this section should get week dates based on layout type.
+            $shouldgetdates = false;
+
+            switch ($layout['type']) {
+                case 'theme_based':
+                    // Only weeks (sections with parents that aren't sessions) get dates.
+                    // Themes (top-level parents) do NOT get dates.
+                    if ($hasparent && !$issession) {
+                        $shouldgetdates = true;
                     }
-                }
-            }
-            
-            // Determine if this should be treated as a week for dating purposes
-            $istreatedasweek = false;
-            if ($istheme && !$hasweekchildren) {
-                // Theme with direct session children - treat as a week
-                $istreatedasweek = true;
-            } else if ($hasparent && !$istheme) {
-                // Has a parent - it's a week in a hierarchy
-                $istreatedasweek = true;
-            } else if (!$hasparent && !$isparent) {
-                // Standalone section (flat course)
-                $istreatedasweek = true;
+                    break;
+
+                case 'week_based':
+                    // Top-level sections (themes treated as weeks) get dates.
+                    if ($istoplevel && $isparent) {
+                        $shouldgetdates = true;
+                    }
+                    break;
+
+                case 'flat':
+                    // All top-level sections get dates.
+                    if ($istoplevel) {
+                        $shouldgetdates = true;
+                    }
+                    break;
             }
 
-            // Process sections that should get week dates
-            if ($istreatedasweek) {
+            // Process sections that should get week dates.
+            if ($shouldgetdates) {
                 // Calculate week start date, skipping holidays.
                 $weekstartdate = self::calculate_week_start($currentdate, $holidays);
                 $weekenddate = strtotime('+6 days', $weekstartdate);
@@ -135,16 +247,21 @@ class date_calculator {
                 // Remove any existing date from the section name.
                 $cleanname = self::remove_existing_date($section->name);
 
+                // Determine if this should be marked as a parent for display purposes.
+                // In week_based layouts, top-level sections ARE parents but also get dates.
+                $markedasparent = ($layout['type'] === 'week_based' && $istoplevel && $isparent);
+
                 $results[$section->id] = [
                     'id' => $section->id,
                     'section' => $section->section,
                     'name' => $cleanname,
                     'formatted_date' => $formatteddate,
                     'week_number' => $weekcounter,
-                    'is_parent' => false,
+                    'is_parent' => $markedasparent,
                     'start_timestamp' => $weekstartdate,
                     'end_timestamp' => $weekenddate,
-                    'parent_id' => $section->parent ?? 0
+                    'parent_id' => $section->parent ?? 0,
+                    'layout_type' => $layout['type']
                 ];
 
                 // Move to next week (skip holidays).
@@ -153,8 +270,10 @@ class date_calculator {
             }
         }
 
-        // Always process theme sections (top-level parents) for the list, but only add dates if enabled.
-        if (!empty($sectionhierarchy['parents'])) {
+        // Process theme sections ONLY for theme-based layouts.
+        // In theme-based layouts, themes should NEVER get dates - they're just containers.
+        // However, we include them in the results list so they appear in the form.
+        if ($layout['type'] === 'theme_based' && !empty($sectionhierarchy['parents'])) {
             foreach ($sectionhierarchy['parents'] as $parentid => $children) {
                 $parentsection = $sections[$sectionhierarchy['id_to_index'][$parentid]];
 
@@ -163,53 +282,48 @@ class date_calculator {
                     continue; // Skip week sections that have children (sessions)
                 }
 
+                // Skip if theme already processed (shouldn't happen).
+                if (isset($results[$parentid])) {
+                    continue;
+                }
+
                 // Remove any existing date from parent section name.
                 $cleanname = self::remove_existing_date($parentsection->name);
 
-                if ($includeparents) {
-                    // Calculate date range from children.
-                    $childstartdates = [];
-                    $childenddates = [];
+                // Calculate date span from child weeks (first week start to last week end).
+                $childstartdates = [];
+                $childenddates = [];
 
-                    foreach ($children as $childid) {
-                        if (isset($results[$childid])) {
-                            $childstartdates[] = $results[$childid]['start_timestamp'];
-                            $childenddates[] = $results[$childid]['end_timestamp'];
-                        }
+                foreach ($children as $childid) {
+                    if (isset($results[$childid])) {
+                        $childstartdates[] = $results[$childid]['start_timestamp'];
+                        $childenddates[] = $results[$childid]['end_timestamp'];
                     }
-
-                    if (!empty($childstartdates)) {
-                        $parentstart = min($childstartdates);
-                        $parentend = max($childenddates);
-                        $formatteddate = self::format_date_range_uk($parentstart, $parentend);
-
-                        $results[$parentid] = [
-                            'id' => $parentid,
-                            'section' => $parentsection->section,
-                            'name' => $cleanname,
-                            'formatted_date' => $formatteddate,
-                            'week_number' => null,
-                            'is_parent' => true,
-                            'start_timestamp' => $parentstart,
-                            'end_timestamp' => $parentend,
-                            'parent_id' => $parentsection->parent ?? 0
-                        ];
-                    }
-                } else {
-                    // Include theme section in list but WITHOUT formatted date.
-                    // This ensures it appears in the form but won't have dates applied.
-                    $results[$parentid] = [
-                        'id' => $parentid,
-                        'section' => $parentsection->section,
-                        'name' => $cleanname,
-                        'formatted_date' => '', // Empty - no date will be applied
-                        'week_number' => null,
-                        'is_parent' => true,
-                        'start_timestamp' => 0,
-                        'end_timestamp' => 0,
-                        'parent_id' => $parentsection->parent ?? 0
-                    ];
                 }
+
+                $themespan = '';
+                $themestartts = 0;
+                $themeendts = 0;
+
+                if (!empty($childstartdates)) {
+                    $themestartts = min($childstartdates);
+                    $themeendts = max($childenddates);
+                    $themespan = self::format_date_range_uk($themestartts, $themeendts);
+                }
+
+                // Include theme with its date span (which can be optionally applied).
+                $results[$parentid] = [
+                    'id' => $parentid,
+                    'section' => $parentsection->section,
+                    'name' => $cleanname,
+                    'formatted_date' => $themespan, // Date span from first to last week
+                    'week_number' => null,
+                    'is_parent' => true,
+                    'start_timestamp' => $themestartts,
+                    'end_timestamp' => $themeendts,
+                    'parent_id' => $parentsection->parent ?? 0,
+                    'layout_type' => $layout['type']
+                ];
             }
         }
 
@@ -337,26 +451,42 @@ class date_calculator {
     public static function remove_existing_date($name) {
         $name = trim($name);
 
-        // Pattern 1: Current format "Dec 1–7:" or "Dec 28–Jan 3:"
-        $name = preg_replace('/^[A-Z][a-z]{2}\s+\d{1,2}–([A-Z][a-z]{2}\s+)?\d{1,2}:\s*/i', '', $name);
+        // Pattern 1: Month day range format "Dec 1–7:" or "Dec 28–Jan 3:" or "June 1–7:"
+        // Handles both short (Dec, Jan) and full (June, July) month names
+        $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}–([A-Z][a-z]+\s+)?\d{1,2}:\s*/i', '', $name);
 
-        // Pattern 2: Cross-month format "Nov 29 - Dec 5" or "Dec 28 - Jan 3"
-        $name = preg_replace('/^[A-Z][a-z]{2,9}\s+\d{1,2}\s*[-–—]\s*[A-Z][a-z]{2,9}\s+\d{1,2}\s*:?\s*/i', '', $name);
+        // Pattern 2: Cross-month format "Nov 29 - Dec 5" or "May 11–June 7"
+        // Handles various dash types and full month names
+        $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*[A-Z][a-z]+\s+\d{1,2}\s*:?\s*/i', '', $name);
 
         // Pattern 3: Old verbose format "Mon 20 Jan - Fri 24 Jan"
-        $name = preg_replace('/^[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]{2}\s*[-–—]\s*[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]{2}\s*:?\s*/i', '', $name);
+        $name = preg_replace('/^[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]+\s*[-–—]\s*[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]+\s*:?\s*/i', '', $name);
 
         // Pattern 4: Numeric format "20/01 - 24/01" or "20-01 - 24-01"
         $name = preg_replace('/^\d{1,2}[\/\-]\d{1,2}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}\s*:?\s*/i', '', $name);
 
-        // Pattern 5: Short format "Jan 20-24" or "Jan 20 - 24"
-        $name = preg_replace('/^[A-Z][a-z]{2}\s+\d{1,2}\s*[-–—]\s*\d{1,2}\s*:?\s*/i', '', $name);
+        // Pattern 5: Short format "Jan 20-24" or "June 20 - 24"
+        $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*\d{1,2}\s*:?\s*/i', '', $name);
 
-        // Pattern 6: Dates in parentheses at start "(Dec 1-7) "
+        // Pattern 6: Dates in parentheses at start "(Dec 1-7) " or "(June 1-7) "
         $name = preg_replace('/^\([^)]*\d{1,2}[^)]*\)\s*:?\s*/i', '', $name);
 
-        // Pattern 7: Dates in parentheses at end " (Dec 1-7)"
+        // Pattern 7: Dates in parentheses at end " (Dec 1-7)" or " (June 1-7)"
         $name = preg_replace('/\s*\([^)]*\d{1,2}[^)]*\)\s*$/i', '', $name);
+
+        // Apply patterns again to handle doubled dates (e.g., "June 1–7: June 1–7: Title")
+        // This ensures we remove all date prefixes if they were applied multiple times
+        $previousname = '';
+        $iterations = 0;
+        while ($name !== $previousname && $iterations < 5) {
+            $previousname = $name;
+            
+            $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}–([A-Z][a-z]+\s+)?\d{1,2}:\s*/i', '', $name);
+            $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*[A-Z][a-z]+\s+\d{1,2}\s*:?\s*/i', '', $name);
+            $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*\d{1,2}\s*:?\s*/i', '', $name);
+            
+            $iterations++;
+        }
 
         return trim($name);
     }

@@ -13,7 +13,7 @@
  */
 
 define('CLI_SCRIPT', true);
-require_once(__DIR__ . '/../../../../config.php');
+require_once(__DIR__ . '/../../../../../config.php');
 require_once($CFG->dirroot . '/course/lib.php');
 require_once($CFG->dirroot . '/ai/placement/modgen/classes/local/date_calculator.php');
 

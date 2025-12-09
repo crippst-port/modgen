@@ -591,9 +591,20 @@ if ($approvedjsonparam !== null) {
                         if (!method_exists($courseformat, 'create_new_section')) {
                             throw new Exception('The flexsections course format is not properly supporting nested sections.');
                         }
-                        // flexsections create_new_section expects SECTION ID as parent, not section number
-                        $themesectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $themesectionnum]);
-                        $weeksectionnum = $courseformat->create_new_section($themesectionid, null);
+                        
+                        // Create the week section at top level first
+                        $weeksectionnum = $courseformat->create_new_section(0, null);
+                        
+                        // Get the week section ID
+                        $weeksectionid = $DB->get_field('course_sections', 'id', 
+                            ['course' => $courseid, 'section' => $weeksectionnum]);
+                        
+                        // CRITICAL: Manually set parent relationship using update_section_format_options
+                        // The parent value should be the section NUMBER (not ID) of the theme section
+                        $courseformat->update_section_format_options([
+                            'id' => $weeksectionid,
+                            'parent' => $themesectionnum
+                        ]);
                     } catch (Exception $e) {
                         $activitywarnings[] = "Failed to create week section: " . $e->getMessage();
                         continue;

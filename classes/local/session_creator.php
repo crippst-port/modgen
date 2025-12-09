@@ -72,15 +72,22 @@ class session_creator {
         $sessionsectionmap = [];
         
         foreach ($sessiontypes as $sessionkey => $sessionlabel) {
-            // CRITICAL: Pass the parent SECTION ID (not section number) to create_new_section
-            // create_new_section($parent_id, $before) where $parent_id is the database ID of the parent section
-            // and $before is null to append at the end
-            $sessionsectionnum = $courseformat->create_new_section($parentsectionid, null);
+            // Create the section at top level first
+            $sessionsectionnum = $courseformat->create_new_section(0, null);
             $sessionsectionmap[$sessionkey] = $sessionsectionnum;
             
             // Get the section ID for database updates
             $sessionsectionid = $DB->get_field('course_sections', 'id', 
                 ['course' => $courseid, 'section' => $sessionsectionnum]);
+            
+            // CRITICAL: Manually set the parent relationship using update_section_format_options
+            // The parent value should be the section NUMBER (not ID) of the parent section
+            if ($parentsectionnum > 0) {
+                $courseformat->update_section_format_options([
+                    'id' => $sessionsectionid,
+                    'parent' => $parentsectionnum
+                ]);
+            }
             
             // Prepare section update data
             $sectionupdate = [

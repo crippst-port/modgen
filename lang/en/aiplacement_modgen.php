@@ -326,7 +326,7 @@ $string['addtheme'] = 'Add Theme(s)';
 $string['addweek'] = 'Add Week(s)';
 $string['newtheme'] = 'New Theme(s)';
 $string['newweek'] = 'New Week(s)';
-$string['quickadd'] = 'Quick Create';
+$string['quickadd'] = 'Quick Add';
 $string['themecount'] = 'How many themes do you want to create?';
 $string['weekcount'] = 'How many weeks do you want to create?';
 $string['weeksperTheme'] = 'How many weeks per theme?';
@@ -345,7 +345,7 @@ $string['introductionsectionname'] = 'Introduction & General Information';
 $string['assessmentssectionname'] = 'Assessments';
 
 // Dates for sections feature
-$string['datesforsections'] = 'Dates for sections';
+$string['datesforsections'] = 'Dates to section titles';
 $string['holidaydates'] = 'University Holiday Dates';
 $string['holidaydates_desc'] = 'Enter university holiday dates (one per line). Dates will be excluded when calculating weekly section dates. Format: Holiday Name: DDMMYYYY-DDMMYYYY. Examples accepted: 25122024-05012025, 25/12/2024-05/01/2025, or 25-12-2024 to 05-01-2025';
 $string['holidaydates_format_example'] = 'Example: Christmas Break: 25122024-05012025';

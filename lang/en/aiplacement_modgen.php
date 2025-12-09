@@ -365,8 +365,8 @@ $string['nosectionsselected'] = 'Please select at least one section';
 $string['themesection'] = 'Theme';
 $string['parentsection'] = 'Parent';
 $string['weeksection'] = 'Week';
-$string['themedSections'] = 'Themed Sections';
-$string['weekSections'] = 'Week Sections';
+$string['themedSections'] = 'Top Sections';
+$string['weekSections'] = 'Sub Sections';
 $string['nosectionsavailable'] = 'No sections available for date assignment';
 $string['calculatingdates'] = 'Calculating dates...';
 

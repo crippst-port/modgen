@@ -257,11 +257,11 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       if (actionButtons.length === 0) {
         return;
       }
-      let footerHtml = '<div class="aiplacement-modgen-form-footer-buttons">';
+      let footerHtml = '<div class="aiplacement-modgen-form-footer-buttons d-flex justify-content-end">';
       actionButtons.forEach((button, index) => {
         const label = button.tagName === 'INPUT' ? button.value || button.getAttribute('aria-label') || 'Submit' : button.textContent.trim();
         const classes = (button.className || 'btn btn-secondary').trim();
-        footerHtml += "<button type=\"button\" class=\"".concat(classes, "\" data-form-button-index=\"").concat(index, "\">\n                ").concat(label, "\n            </button>");
+        footerHtml += "<button type=\"button\" class=\"".concat(classes, " ").concat(index > 0 ? 'ml-2' : '', "\" data-form-button-index=\"").concat(index, "\">\n                ").concat(label, "\n            </button>");
       });
       footerHtml += '</div>';
       modal.setFooter(footerHtml);
@@ -287,21 +287,14 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       });
       actionButtons.forEach(btn => {
         btn.style.display = 'none';
-        let current = btn.parentElement;
-        while (current && current !== form) {
-          const children = Array.from(current.children).filter(child => {
-            return window.getComputedStyle(child).display !== 'none';
-          });
-          const onlyHasButtons = children.every(child => {
-            const isButton = child.tagName === 'BUTTON' || child.tagName === 'INPUT' && (child.type === 'submit' || child.type === 'button');
-            const isButtonContainer = child.classList.toString().includes('button') || child.classList.toString().includes('submit') || child.classList.toString().includes('action') || child.classList.toString().includes('form-');
-            return isButton || isButtonContainer;
-          });
-          if (onlyHasButtons && children.length > 0) {
-            current.style.display = 'none';
-            break;
-          }
-          current = current.parentElement;
+      });
+      const buttonContainers = form.querySelectorAll('.fitem_actionbuttons, .fitem_fgroup, [id*="fgroup_id_buttonar"], [id*="fitem_id_buttonar"]');
+      buttonContainers.forEach(container => {
+        const hasNonButtonContent = Array.from(container.querySelectorAll('*')).some(el => {
+          return el.tagName !== 'BUTTON' && el.tagName !== 'INPUT' && !el.classList.contains('form-group') && !el.classList.contains('fitem') && el.textContent.trim().length > 0;
+        });
+        if (!hasNonButtonContent) {
+          container.style.display = 'none';
         }
       });
     }
@@ -548,9 +541,15 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           bodyNode.querySelectorAll('.section-checkbox:not(:checked)').forEach(cb => {
             excluded.push(parseInt(cb.dataset.sectionId, 10));
           });
+          const sectionTypes = {};
+          bodyNode.querySelectorAll('.section-type-select').forEach(select => {
+            const sectionId = parseInt(select.dataset.sectionId, 10);
+            sectionTypes[sectionId] = select.value;
+          });
           const params = new URLSearchParams({
             courseid: this.courseid,
             excludedsections: JSON.stringify(excluded),
+            sectiontypes: JSON.stringify(sectionTypes),
             includeparents: 1,
             sesskey: M.cfg.sesskey
           });
@@ -580,7 +579,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           });
         }, 250);
       };
-      modalRoot.on('change', '.section-checkbox', previewDates);
+      modalRoot.on('change', '.section-checkbox, .section-type-select', previewDates);
     }
     setupFormSubmission(modal, formName) {
       const modalRoot = modal.getRoot();

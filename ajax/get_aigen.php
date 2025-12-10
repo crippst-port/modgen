@@ -42,17 +42,30 @@ require_capability('moodle/course:view', $context);
 header('Content-Type: application/json');
 
 try {
-    // Get all AI-generated cmids for this course.
-    $cmids = $DB->get_fieldset_select(
-        'aiplacement_modgen_aigen',
-        'cmid',
-        'courseid = :courseid',
-        ['courseid' => $courseid]
-    );
+    // Get all AI-generated records for this course.
+    // Use the same modinfo validation as course_toolbar and aigen_list to ensure consistency.
+    $sql = "SELECT ag.id, ag.cmid
+              FROM {aiplacement_modgen_aigen} ag
+              JOIN {course_modules} cm ON cm.id = ag.cmid
+             WHERE ag.courseid = :courseid
+               AND cm.deletioninprogress = 0";
+    
+    $records = $DB->get_records_sql($sql, ['courseid' => $courseid]);
+    $modinfo = get_fast_modinfo($course);
+    
+    $validcmids = [];
+    foreach ($records as $record) {
+        if (!isset($modinfo->cms[$record->cmid])) {
+            // Activity no longer exists in modinfo, clean up the record.
+            $DB->delete_records('aiplacement_modgen_aigen', ['id' => $record->id]);
+        } else {
+            $validcmids[] = (int)$record->cmid;
+        }
+    }
 
     echo json_encode([
         'success' => true,
-        'cmids' => array_map('intval', $cmids),
+        'cmids' => $validcmids,
     ]);
 } catch (Exception $e) {
     echo json_encode([

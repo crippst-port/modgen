@@ -412,8 +412,9 @@ function aiplacement_modgen_output_fragment_form_dates_for_sections(array $args)
 
     // Calculate initial section dates.
     require_once(__DIR__ . '/classes/local/date_calculator.php');
-    // Always include parents - the user selects which sections to update via checkboxes
-    $sectionsdata = \aiplacement_modgen\local\date_calculator::calculate_section_dates($courseid, [], true);
+    // Start with includeparents = false (checkbox unchecked by default).
+    // Parents will still appear in the table but without dates initially.
+    $sectionsdata = \aiplacement_modgen\local\date_calculator::calculate_section_dates($courseid, [], false);
 
     // Filter out section 0 and special sections.
     $introsectionname = get_string('introductionsectionname', 'aiplacement_modgen');

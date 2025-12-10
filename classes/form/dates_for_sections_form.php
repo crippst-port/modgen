@@ -71,6 +71,9 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
         $buttongroup[] = $mform->createElement('submit', 'removedates', 
             get_string('removealldates', 'aiplacement_modgen'),
             ['class' => 'btn btn-warning']);
+        $buttongroup[] = $mform->createElement('cancel', 'cancel', 
+            get_string('cancel'),
+            ['class' => 'btn btn-secondary']);
         
         $mform->addGroup($buttongroup, 'buttonar', '', [' '], false);
         $mform->setType('buttonar', PARAM_RAW);

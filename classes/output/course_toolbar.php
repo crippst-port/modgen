@@ -75,9 +75,29 @@ class course_toolbar implements renderable, templatable {
         }
         
         // Get count of unedited AI-generated activities in this course.
-        $aigencount = $DB->count_records('aiplacement_modgen_aigen', ['courseid' => $this->courseid]);
-        $data->aigencount = $aigencount;
-        $data->hasaigen = $aigencount > 0;
+        // Use the same logic as aigen_list.php - check if modules exist in modinfo and clean up orphans.
+        $sql = "SELECT ag.id, ag.cmid
+                  FROM {aiplacement_modgen_aigen} ag
+                  JOIN {course_modules} cm ON cm.id = ag.cmid
+                 WHERE ag.courseid = :courseid
+                   AND cm.deletioninprogress = 0";
+        
+        $records = $DB->get_records_sql($sql, ['courseid' => $this->courseid]);
+        $course = get_course($this->courseid);
+        $modinfo = get_fast_modinfo($course);
+        
+        $validcount = 0;
+        foreach ($records as $record) {
+            if (!isset($modinfo->cms[$record->cmid])) {
+                // Activity no longer exists in modinfo, clean up the record.
+                $DB->delete_records('aiplacement_modgen_aigen', ['id' => $record->id]);
+            } else {
+                $validcount++;
+            }
+        }
+        
+        $data->aigencount = $validcount;
+        $data->hasaigen = $validcount > 0;
         
         if ($data->hasaigen) {
             $aigenlisturl = new moodle_url('/ai/placement/modgen/aigen_list.php', ['id' => $this->courseid]);

@@ -1,0 +1,27 @@
+{{!
+    Row template for a single section in the dates_for_sections form.
+    
+    Context:
+    - id: Section ID
+    - section: Section number
+    - name: Current section name
+    - formatted_date: Formatted date string (or empty)
+    - is_parent: Boolean indicating if this is a parent/theme section
+    - currentname: HTML-escaped current name
+    - proposedname: HTML-escaped proposed name with date
+}}
+
+<tr data-section-id="{{id}}" class="{{#is_parent}}theme-row{{/is_parent}}{{^is_parent}}week-row{{/is_parent}}">
+    <td>
+        <input type="checkbox" 
+            id="section-{{id}}" 
+            name="selectedsections[]" 
+            value="{{id}}" 
+            class="section-checkbox {{#is_parent}}theme-section{{/is_parent}}{{^is_parent}}week-section{{/is_parent}}"
+            data-section-id="{{id}}" 
+            aria-labelledby="section-name-{{id}}" 
+            checked>
+    </td>
+    <td id="section-name-{{id}}">{{currentname}}</td>
+    <td id="proposed-name-{{id}}" class="proposed-name-cell">{{proposedname}}</td>
+</tr>

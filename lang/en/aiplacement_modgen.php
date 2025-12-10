@@ -369,4 +369,6 @@ $string['themedSections'] = 'Top Sections';
 $string['weekSections'] = 'Sub Sections';
 $string['nosectionsavailable'] = 'No sections available for date assignment';
 $string['calculatingdates'] = 'Calculating dates...';
+$string['selectallthemes'] = 'Select all top sections';
+$string['selectallweeks'] = 'Select all sub sections';
 

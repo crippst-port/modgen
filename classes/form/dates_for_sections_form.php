@@ -44,16 +44,6 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
         $mform->addElement('hidden', 'courseid');
         $mform->setType('courseid', PARAM_INT);
 
-        // Include parent sections checkbox.
-        $mform->addElement('advcheckbox', 'includeparents', 
-            get_string('includeparentsections', 'aiplacement_modgen'),
-            '',
-            ['id' => 'includeparents-checkbox'],
-            [0, 1]
-        );
-        $mform->addHelpButton('includeparents', 'includeparentsections', 'aiplacement_modgen');
-        $mform->setDefault('includeparents', 0);
-
         // Add ARIA live region for dynamic updates.
         $mform->addElement('html', '<div id="dates-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>');
 
@@ -95,9 +85,20 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
     private function render_sections_table($sections) {
         global $PAGE;
 
-        // Separate themes and weeks.
-        $themes = [];
-        $weeks = [];
+        // Sort sections by section number to maintain course order.
+        usort($sections, function($a, $b) {
+            return $a['section'] <=> $b['section'];
+        });
+
+        // Build a map of section IDs to section data for hierarchy lookup.
+        $sectionmap = [];
+        foreach ($sections as $section) {
+            $sectionmap[$section['id']] = $section;
+        }
+
+        // Group weeks under their parent themes, maintaining section order.
+        $themegroups = [];
+        $orphanweeks = [];
         
         foreach ($sections as $section) {
             // Prepare display data.
@@ -119,11 +120,33 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
             }
 
             if (!empty($section['is_parent'])) {
-                $themes[] = $sectiondata;
+                // This is a theme - create a new group.
+                $themegroups[$section['id']] = [
+                    'theme' => $sectiondata,
+                    'weeks' => [],
+                    'hasWeeks' => false,
+                    'section_order' => $section['section'], // Track order for sorting
+                ];
             } else {
-                $weeks[] = $sectiondata;
+                // This is a week - try to find its parent theme.
+                $parentid = $section['parent_id'] ?? null;
+                
+                if ($parentid && isset($themegroups[$parentid])) {
+                    // Add to parent theme's weeks.
+                    $themegroups[$parentid]['weeks'][] = $sectiondata;
+                    $themegroups[$parentid]['hasWeeks'] = true;
+                } else {
+                    // Orphan week (no parent theme found).
+                    $orphanweeks[] = $sectiondata;
+                }
             }
         }
+
+        // Sort theme groups by section order to maintain course structure.
+        $sortedthemegroups = $themegroups;
+        usort($sortedthemegroups, function($a, $b) {
+            return $a['section_order'] <=> $b['section_order'];
+        });
 
         // Prepare template data.
         $templatedata = [
@@ -131,12 +154,10 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
             'selectsections_label' => get_string('selectsections', 'aiplacement_modgen'),
             'currentname_label' => get_string('currentname', 'aiplacement_modgen'),
             'proposedname_label' => get_string('proposedname', 'aiplacement_modgen'),
-            'themedSections_label' => get_string('themedSections', 'aiplacement_modgen'),
-            'weekSections_label' => get_string('weekSections', 'aiplacement_modgen'),
-            'themes' => $themes,
-            'weeks' => $weeks,
-            'hasThemes' => !empty($themes),
-            'hasWeeks' => !empty($weeks),
+            'themegroups' => $sortedthemegroups,
+            'orphanweeks' => $orphanweeks,
+            'hasThemeGroups' => !empty($sortedthemegroups),
+            'hasOrphanWeeks' => !empty($orphanweeks),
             'nosectionsavailable' => !empty($sections) ? '' : get_string('nosectionsavailable', 'aiplacement_modgen'),
         ];
 

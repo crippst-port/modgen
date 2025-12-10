@@ -174,6 +174,12 @@ class date_calculator {
         // Build section hierarchy.
         $sectionhierarchy = self::build_section_hierarchy($sections);
 
+        // Build section number to ID mapping for parent_id conversion.
+        $sectionnumtoid = [];
+        foreach ($sections as $section) {
+            $sectionnumtoid[$section->section] = $section->id;
+        }
+
         // Get session names for detection.
         $sessionnames = [
             get_string('presession', 'aiplacement_modgen'),
@@ -251,6 +257,12 @@ class date_calculator {
                 // In week_based layouts, top-level sections ARE parents but also get dates.
                 $markedasparent = ($layout['type'] === 'week_based' && $istoplevel && $isparent);
 
+                // Convert parent section number to parent section ID.
+                $parentid = 0;
+                if (!empty($section->parent)) {
+                    $parentid = $sectionnumtoid[$section->parent] ?? 0;
+                }
+
                 $results[$section->id] = [
                     'id' => $section->id,
                     'section' => $section->section,
@@ -260,7 +272,7 @@ class date_calculator {
                     'is_parent' => $markedasparent,
                     'start_timestamp' => $weekstartdate,
                     'end_timestamp' => $weekenddate,
-                    'parent_id' => $section->parent ?? 0,
+                    'parent_id' => $parentid,
                     'layout_type' => $layout['type']
                 ];
 
@@ -311,6 +323,12 @@ class date_calculator {
                     $themespan = self::format_date_range_uk($themestartts, $themeendts);
                 }
 
+                // Convert parent section number to parent section ID.
+                $themeparentid = 0;
+                if (!empty($parentsection->parent)) {
+                    $themeparentid = $sectionnumtoid[$parentsection->parent] ?? 0;
+                }
+
                 // Include theme with its date span (which can be optionally applied).
                 $results[$parentid] = [
                     'id' => $parentid,
@@ -321,7 +339,7 @@ class date_calculator {
                     'is_parent' => true,
                     'start_timestamp' => $themestartts,
                     'end_timestamp' => $themeendts,
-                    'parent_id' => $parentsection->parent ?? 0,
+                    'parent_id' => $themeparentid,
                     'layout_type' => $layout['type']
                 ];
             }

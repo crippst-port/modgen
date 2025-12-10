@@ -990,7 +990,7 @@ class ModalGeneratorComponent extends BaseComponent {
     /**
      * Setup dynamic date preview for the dates_for_sections form.
      * 
-     * Listens for checkbox changes and recalculates dates in real-time.
+     * Listens for checkbox changes and updates date visibility in real-time.
      *
      * @param {Object} modal The modal instance
      */
@@ -998,38 +998,29 @@ class ModalGeneratorComponent extends BaseComponent {
         const modalRoot = modal.getRoot();
         let debounceTimer = null;
 
-        // Helper to collect excluded sections
-        const getExcludedSections = () => {
-            const body = modal.getBody();
-            const bodyNode = body && body.length ? body.get(0) : null;
-            if (!bodyNode) {
-                return [];
-            }
-
-            const checkboxes = bodyNode.querySelectorAll('.section-checkbox');
-            const excluded = [];
-            checkboxes.forEach(cb => {
-                if (!cb.checked) {
-                    excluded.push(parseInt(cb.dataset.sectionId));
-                }
-            });
-            return excluded;
-        };
-
-        // Preview dates with debounce
         const previewDates = () => {
             clearTimeout(debounceTimer);
             debounceTimer = setTimeout(() => {
-                const excludedSections = getExcludedSections();
+                const body = modal.getBody();
+                const bodyNode = body && body.length ? body.get(0) : null;
+                if (!bodyNode) {
+                    return;
+                }
 
-                // Build params
-                const params = new URLSearchParams();
-                params.append('courseid', this.courseid);
-                params.append('excludedsections', JSON.stringify(excludedSections));
-                params.append('includeparents', 1); // Always include all section types
-                params.append('sesskey', M.cfg.sesskey);
+                // Collect excluded section IDs
+                const excluded = [];
+                bodyNode.querySelectorAll('.section-checkbox:not(:checked)').forEach(cb => {
+                    excluded.push(parseInt(cb.dataset.sectionId, 10));
+                });
 
-                // Fetch preview
+                // Build and send request
+                const params = new URLSearchParams({
+                    courseid: this.courseid,
+                    excludedsections: JSON.stringify(excluded),
+                    includeparents: 1,
+                    sesskey: M.cfg.sesskey
+                });
+
                 fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/preview_section_dates.php', {
                     method: 'POST',
                     headers: {'Content-Type': 'application/x-www-form-urlencoded'},
@@ -1037,35 +1028,34 @@ class ModalGeneratorComponent extends BaseComponent {
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success && data.sections) {
-                        // Update proposed name cells
-                        const body = modal.getBody();
-                        const bodyNode = body && body.length ? body.get(0) : null;
-                        if (!bodyNode) {
+                    if (!data.success || !data.sections) {
+                        return;
+                    }
+
+                    // Update date prefixes efficiently
+                    data.sections.forEach(section => {
+                        // Find week rows
+                        const cell = bodyNode.querySelector(`tr[data-section-id="${section.id}"] .date-prefix`);
+                        if (cell) {
+                            cell.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
                             return;
                         }
-
-                        data.sections.forEach(section => {
-                            const row = bodyNode.querySelector(`tr[data-section-id="${section.id}"]`);
-                            if (row) {
-                                const proposedCell = row.querySelector('.proposed-name-cell');
-                                if (proposedCell) {
-                                    proposedCell.textContent = section.proposed_name;
-                                }
-                            }
-                        });
-                    }
+                        
+                        // Find theme labels
+                        const label = bodyNode.querySelector(`label[for="section-${section.id}"] .date-prefix`);
+                        if (label) {
+                            label.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
+                        }
+                    });
                 })
                 .catch(error => {
                     window.console.error('Error previewing dates:', error);
                 });
-            }, 250); // 250ms debounce
+            }, 250);
         };
 
-        // Listen for checkbox changes
-        modalRoot.on('change', '.section-checkbox', () => {
-            previewDates();
-        });
+        // Listen for checkbox changes (uses event delegation)
+        modalRoot.on('change', '.section-checkbox', previewDates);
     }
 
     // =========================================================================

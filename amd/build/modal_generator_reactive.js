@@ -536,30 +536,24 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
     setupDatesPreview(modal) {
       const modalRoot = modal.getRoot();
       let debounceTimer = null;
-      const getExcludedSections = () => {
-        const body = modal.getBody();
-        const bodyNode = body && body.length ? body.get(0) : null;
-        if (!bodyNode) {
-          return [];
-        }
-        const checkboxes = bodyNode.querySelectorAll('.section-checkbox');
-        const excluded = [];
-        checkboxes.forEach(cb => {
-          if (!cb.checked) {
-            excluded.push(parseInt(cb.dataset.sectionId));
-          }
-        });
-        return excluded;
-      };
       const previewDates = () => {
         clearTimeout(debounceTimer);
         debounceTimer = setTimeout(() => {
-          const excludedSections = getExcludedSections();
-          const params = new URLSearchParams();
-          params.append('courseid', this.courseid);
-          params.append('excludedsections', JSON.stringify(excludedSections));
-          params.append('includeparents', 1);
-          params.append('sesskey', M.cfg.sesskey);
+          const body = modal.getBody();
+          const bodyNode = body && body.length ? body.get(0) : null;
+          if (!bodyNode) {
+            return;
+          }
+          const excluded = [];
+          bodyNode.querySelectorAll('.section-checkbox:not(:checked)').forEach(cb => {
+            excluded.push(parseInt(cb.dataset.sectionId, 10));
+          });
+          const params = new URLSearchParams({
+            courseid: this.courseid,
+            excludedsections: JSON.stringify(excluded),
+            includeparents: 1,
+            sesskey: M.cfg.sesskey
+          });
           fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/preview_section_dates.php', {
             method: 'POST',
             headers: {
@@ -567,30 +561,26 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
             },
             body: params.toString()
           }).then(response => response.json()).then(data => {
-            if (data.success && data.sections) {
-              const body = modal.getBody();
-              const bodyNode = body && body.length ? body.get(0) : null;
-              if (!bodyNode) {
+            if (!data.success || !data.sections) {
+              return;
+            }
+            data.sections.forEach(section => {
+              const cell = bodyNode.querySelector("tr[data-section-id=\"".concat(section.id, "\"] .date-prefix"));
+              if (cell) {
+                cell.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
                 return;
               }
-              data.sections.forEach(section => {
-                const row = bodyNode.querySelector("tr[data-section-id=\"".concat(section.id, "\"]"));
-                if (row) {
-                  const proposedCell = row.querySelector('.proposed-name-cell');
-                  if (proposedCell) {
-                    proposedCell.textContent = section.proposed_name;
-                  }
-                }
-              });
-            }
+              const label = bodyNode.querySelector("label[for=\"section-".concat(section.id, "\"] .date-prefix"));
+              if (label) {
+                label.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
+              }
+            });
           }).catch(error => {
             window.console.error('Error previewing dates:', error);
           });
         }, 250);
       };
-      modalRoot.on('change', '.section-checkbox', () => {
-        previewDates();
-      });
+      modalRoot.on('change', '.section-checkbox', previewDates);
     }
     setupFormSubmission(modal, formName) {
       const modalRoot = modal.getRoot();

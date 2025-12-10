@@ -69,6 +69,9 @@ try {
     }
 
     if (empty($selectedids)) {
+        if ($lock) {
+            $lock->release();
+        }
         ajax_response::error(
             get_string('nosectionsselected', 'aiplacement_modgen'),
             'no_sections'
@@ -102,8 +105,16 @@ try {
         }
     }
 
-    // Rebuild course cache.
+    // Rebuild course cache (buffer any output).
+    ob_start();
     rebuild_course_cache($courseid, true);
+    ob_end_clean();
+
+    // Release lock BEFORE sending response (response calls exit/die).
+    if ($lock) {
+        $lock->release();
+        $lock = null;
+    }
 
     ajax_response::success([
         'updated' => $updatedcount,
@@ -112,9 +123,10 @@ try {
     ]);
 
 } catch (Exception $e) {
-    ajax_response::error($e->getMessage(), 'exception');
-} finally {
+    // Release lock before error response.
     if ($lock) {
         $lock->release();
+        $lock = null;
     }
+    ajax_response::error($e->getMessage(), 'exception');
 }

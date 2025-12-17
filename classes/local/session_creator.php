@@ -187,6 +187,49 @@ class session_creator {
     }
     
     /**
+     * Get session section numbers for a given parent week section.
+     *
+     * Retrieves the section numbers for presession, session, and postsession subsections
+     * that are children of the specified parent section.
+     *
+     * @param int $parentsectionnum The parent section number (week)
+     * @param int $courseid The course ID
+     * @return array Associative array mapping session type to section number
+     */
+    public static function get_session_sections($parentsectionnum, $courseid) {
+        global $DB;
+        
+        // Get all child sections of the parent
+        $sql = "SELECT cs.section, cs.name
+                FROM {course_sections} cs
+                JOIN {course_format_options} cfo ON cfo.sectionid = cs.id
+                WHERE cs.course = :courseid
+                AND cfo.name = 'parent'
+                AND cfo.value = :parentsection
+                ORDER BY cs.section ASC";
+        
+        $childsections = $DB->get_records_sql($sql, [
+            'courseid' => $courseid,
+            'parentsection' => $parentsectionnum
+        ]);
+        
+        $sessionsectionmap = [];
+        $sessiontypes = ['presession', 'session', 'postsession'];
+        
+        foreach ($childsections as $section) {
+            $name = strtolower(trim($section->name));
+            foreach ($sessiontypes as $type) {
+                if (strpos($name, $type) !== false) {
+                    $sessionsectionmap[$type] = $section->section;
+                    break;
+                }
+            }
+        }
+        
+        return $sessionsectionmap;
+    }
+
+    /**
      * Create activities in session subsections.
      *
      * @param array $sessiondata Session data with 'presession', 'session', 'postsession' keys

@@ -298,19 +298,6 @@ class theme_builder {
             ]);
         }
 
-        // Create learningactivity metadata module at the start of the theme.
-        $themecmid = self::create_learningactivity_metadata(
-            $courseid,
-            $themesectionnum,
-            'section',
-            $title,
-            $options['metadata'] ?? []
-        );
-        
-        if (!$themecmid) {
-            debugging("Failed to create learningactivity for theme: {$title} (section {$themesectionnum})", DEBUG_DEVELOPER);
-        }
-
         return $themesectionnum;
     }
 

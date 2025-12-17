@@ -35,7 +35,7 @@ defined('MOODLE_INTERNAL') || die();
 class learning_type_colors {
 
     /**
-     * Get colors for low-level activity types (acquisition, inquiry, practice, etc).
+     * Get colors for low-level activity types (acquisition, investigation, practice, etc).
      * Used by Suggest feature.
      *
      * @return array Associative array of activity type => rgba color
@@ -43,7 +43,7 @@ class learning_type_colors {
     public static function get_activity_type_colors(): array {
         return [
             'acquisition' => 'rgb(221, 60, 46)',   // blue (Narrative)
-            'inquiry' => 'rgb(181, 202, 75)',        // orange (Interactive)
+            'investigation' => 'rgb(181, 202, 75)',  // orange (Interactive)
             'practice' => 'rgb(43, 116, 184)',       // yellow (Adaptive)
             'discussion' => 'rgb(229, 182, 59)',     // green (Dialogic)
             'collaboration' => 'rgb(228, 144, 54)', // teal (custom within palette)

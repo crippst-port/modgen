@@ -132,8 +132,8 @@ try {
         'page' => 'Acquisition', 'book' => 'Acquisition', 'resource' => 'Acquisition', 'label' => 'Acquisition', 'url' => 'Acquisition',
         // Discussion/dialogic
         'forum' => 'Discussion', 'chat' => 'Discussion',
-        // Inquiry/interactive
-        'choice' => 'Inquiry', 'survey' => 'Inquiry', 'workshop' => 'Inquiry', 'hsuforum' => 'Inquiry',
+        // Investigation/interactive
+        'choice' => 'Investigation', 'survey' => 'Investigation', 'workshop' => 'Investigation', 'hsuforum' => 'Investigation',
         // Practice/adaptive
         'lesson' => 'Practice', 'feedback' => 'Practice',
         // Production/collaborative
@@ -145,7 +145,7 @@ try {
     $learning_counts = [
         'Acquisition' => 0,
         'Discussion' => 0,
-        'Inquiry' => 0,
+        'Investigation' => 0,
         'Practice' => 0,
         'Collaboration' => 0,
         'Production' => 0,

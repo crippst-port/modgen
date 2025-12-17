@@ -1327,7 +1327,7 @@ class ai_service {
                 "  id (string): unique ID\n" .
                 "  activity (object): { type, name }\n" .
                 "  rationale (string): why this activity works (2-3 sentences)\n" .
-                "  laurillard_type (string): one of [Acquisition, Inquiry, Practice, Discussion, Collaboration, Production]\n" .
+                "  laurillard_type (string): one of [Acquisition, Investigation, Practice, Discussion, Collaboration, Production]\n" .
                 "  laurillard_rationale (string): pedagogical explanation (1-2 sentences)\n\n" .
                 "SECTION CONTEXT:\n" .
                 $sectionsummary . "\n" .

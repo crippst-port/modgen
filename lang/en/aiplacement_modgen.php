@@ -190,6 +190,11 @@ $string['urldescription'] = 'Links to external websites, articles, videos, or re
 $string['activitytype_assignment'] = 'Assignment';
 $string['assignmentdescription'] = 'Student work submission activity for formative and summative assessments, essays, projects, and reflective tasks';
 
+// Learning activity (metadata module)
+$string['activitytype_learningactivity'] = 'Learning Activity';
+$string['learningactivity_created'] = 'Created learning activity metadata for {$a->name} (type: {$a->type})';
+$string['learningactivity_section'] = 'Section';
+
 $string['aipolicynotaccepted'] = 'You must accept the AI policy before using the Module Assistant.';
 $string['aipolicyacceptance'] = 'AI Policy Acceptance Required';
 $string['acceptaipolicy'] = 'I agree to the terms of AI use in this system';

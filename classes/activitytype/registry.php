@@ -32,6 +32,7 @@ class registry {
 
     /**
      * Return metadata for all discoverable activity handlers indexed by type.
+     * Excludes handlers marked as AI_CREATABLE = false.
      *
      * @return array<string, array{stringid: string, description: string}>
      */
@@ -39,6 +40,12 @@ class registry {
         $handlers = [];
 
         foreach (self::get_map() as $type => $class) {
+            // Check if handler has AI_CREATABLE constant and respect it
+            if (defined("$class::AI_CREATABLE") && !$class::AI_CREATABLE) {
+                // Skip handlers that are not AI-creatable
+                continue;
+            }
+            
             $handlers[$type] = [
                 'stringid' => $class::get_display_string_id(),
                 'description' => $class::get_prompt_description(),
@@ -147,6 +154,18 @@ class registry {
             'created' => $created,
             'warnings' => $outcome['warnings'],
         ];
+    }
+
+    /**
+     * Get handler class for a specific activity type.
+     * Useful for programmatically creating activities that aren't AI-creatable.
+     *
+     * @param string $type Activity type identifier (e.g., 'learningactivity')
+     * @return class-string<activity_type>|null Handler class or null if not found
+     */
+    public static function get_handler(string $type): ?string {
+        $type = self::normalise_type($type);
+        return self::get_map()[$type] ?? null;
     }
 
     /**

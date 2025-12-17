@@ -29,6 +29,8 @@
 
 namespace aiplacement_modgen\local;
 
+use aiplacement_modgen\activitytype\registry;
+
 defined('MOODLE_INTERNAL') || die();
 
 require_once($GLOBALS['CFG']->dirroot . '/course/lib.php');
@@ -37,6 +39,56 @@ require_once($GLOBALS['CFG']->dirroot . '/course/lib.php');
  * Theme builder service class.
  */
 class theme_builder {
+
+    /**
+     * Create a learningactivity module at the start of a section.
+     *
+     * This is a shared helper to add learning design metadata modules to themes and weeks.
+     *
+     * @param int $courseid Course ID
+     * @param int $sectionnumber Section number where activity should be created
+     * @param string $sectiontype 'section' for themes/weeks, 'activity' for session subsections
+     * @param string $name Section name (optional for sections)
+     * @param array $metadata Additional metadata (duration, learningmode, etc.)
+     * @return int|null CM ID of created activity or null on failure
+     */
+    private static function create_learningactivity_metadata($courseid, $sectionnumber, $sectiontype, $name = '', $metadata = []) {
+        global $DB;
+
+        // Get handler
+        $handler = registry::get_handler('learningactivity');
+        if (!$handler) {
+            debugging('learningactivity handler not found', DEBUG_DEVELOPER);
+            return null;
+        }
+
+        // Get course
+        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+
+        // Prepare activity data
+        $activitydata = new \stdClass();
+        $activitydata->sectiontype = $sectiontype;
+        $activitydata->name = $name;
+
+        // Merge additional metadata
+        foreach ($metadata as $key => $value) {
+            $activitydata->$key = $value;
+        }
+
+        // Create instance
+        try {
+            $instance = new $handler();
+            $result = $instance->create($activitydata, $course, $sectionnumber);
+
+            if ($result && isset($result['cmid'])) {
+                return $result['cmid'];
+            }
+        } catch (\Exception $e) {
+            debugging('Failed to create learningactivity: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
+
+        return null;
+    }
 
     /**
      * Create multiple themes with default structure (Quick Add workflow).
@@ -246,6 +298,19 @@ class theme_builder {
             ]);
         }
 
+        // Create learningactivity metadata module at the start of the theme.
+        $themecmid = self::create_learningactivity_metadata(
+            $courseid,
+            $themesectionnum,
+            'section',
+            $title,
+            $options['metadata'] ?? []
+        );
+        
+        if (!$themecmid) {
+            debugging("Failed to create learningactivity for theme: {$title} (section {$themesectionnum})", DEBUG_DEVELOPER);
+        }
+
         return $themesectionnum;
     }
 
@@ -304,6 +369,19 @@ class theme_builder {
                 'id' => $weeksectionid,
                 'collapsed' => $collapsed
             ]);
+        }
+
+        // Create learningactivity metadata module at the start of the week.
+        $weekcmid = self::create_learningactivity_metadata(
+            $courseid,
+            $weeksectionnum,
+            'section',
+            $title,
+            $options['metadata'] ?? []
+        );
+        
+        if (!$weekcmid) {
+            debugging("Failed to create learningactivity for week: {$title} (section {$weeksectionnum})", DEBUG_DEVELOPER);
         }
 
         // Create session subsections using shared helper.

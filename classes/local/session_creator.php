@@ -27,6 +27,8 @@
 
 namespace aiplacement_modgen\local;
 
+use aiplacement_modgen\activitytype\registry;
+
 /**
  * Session creator helper class.
  */
@@ -114,9 +116,74 @@ class session_creator {
                     'collapsed' => 0
                 ]);
             }
+
+            // Create learningactivity metadata module at the start of the session.
+            self::create_learningactivity_metadata(
+                $courseid,
+                $sessionsectionnum,
+                'activity',
+                $sessionlabel,
+                $sessiondata[$sessionkey] ?? []
+            );
         }
         
         return $sessionsectionmap;
+    }
+
+    /**
+     * Create a learningactivity module at the start of a session.
+     *
+     * This is a shared helper to add learning design metadata modules to session subsections.
+     *
+     * @param int $courseid Course ID
+     * @param int $sectionnumber Section number where activity should be created
+     * @param string $sectiontype 'activity' for session subsections
+     * @param string $name Session name
+     * @param array $metadata Additional metadata from session data
+     * @return int|null CM ID of created activity or null on failure
+     */
+    private static function create_learningactivity_metadata($courseid, $sectionnumber, $sectiontype, $name, $metadata) {
+        global $DB;
+
+        // Get handler
+        $handler = registry::get_handler('learningactivity');
+        if (!$handler) {
+            debugging('learningactivity handler not found', DEBUG_DEVELOPER);
+            return null;
+        }
+
+        // Get course
+        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+
+        // Prepare activity data
+        $activitydata = new \stdClass();
+        $activitydata->sectiontype = $sectiontype;
+        $activitydata->name = $name;
+
+        // Extract metadata fields if they exist
+        if (is_array($metadata)) {
+            // Duration, learningmode, instructions, etc.
+            foreach (['duration', 'learningmode', 'groupactivity', 'instructions', 
+                      'learningtypes', 'learningoutcomes', 'designnotes'] as $field) {
+                if (isset($metadata[$field])) {
+                    $activitydata->$field = $metadata[$field];
+                }
+            }
+        }
+
+        // Create instance
+        try {
+            $instance = new $handler();
+            $result = $instance->create($activitydata, $course, $sectionnumber);
+
+            if ($result && isset($result['cmid'])) {
+                return $result['cmid'];
+            }
+        } catch (\Exception $e) {
+            debugging('Failed to create learningactivity: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
+
+        return null;
     }
     
     /**

@@ -541,15 +541,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           bodyNode.querySelectorAll('.section-checkbox:not(:checked)').forEach(cb => {
             excluded.push(parseInt(cb.dataset.sectionId, 10));
           });
-          const sectionTypes = {};
-          bodyNode.querySelectorAll('.section-type-select').forEach(select => {
-            const sectionId = parseInt(select.dataset.sectionId, 10);
-            sectionTypes[sectionId] = select.value;
-          });
           const params = new URLSearchParams({
             courseid: this.courseid,
             excludedsections: JSON.stringify(excluded),
-            sectiontypes: JSON.stringify(sectionTypes),
             includeparents: 1,
             sesskey: M.cfg.sesskey
           });
@@ -579,7 +573,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           });
         }, 250);
       };
-      modalRoot.on('change', '.section-checkbox, .section-type-select', previewDates);
+      modalRoot.on('change', '.section-checkbox', previewDates);
     }
     setupFormSubmission(modal, formName) {
       const modalRoot = modal.getRoot();

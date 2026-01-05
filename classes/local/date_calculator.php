@@ -32,6 +32,47 @@ defined('MOODLE_INTERNAL') || die();
 class date_calculator {
 
     /**
+     * Check if a section contains a learningactivity module in 'section' mode.
+     * This is used to detect if a section is a week rather than a theme.
+     *
+     * @param object $sectioninfo Section info object from modinfo
+     * @return bool True if section contains a learningactivity in section mode
+     */
+    private static function section_contains_week_learningactivity($sectioninfo) {
+        global $DB;
+        
+        if (empty($sectioninfo->sequence)) {
+            return false;
+        }
+        
+        $cmids = explode(',', $sectioninfo->sequence);
+        
+        foreach ($cmids as $cmid) {
+            if (empty($cmid)) {
+                continue;
+            }
+            
+            // Get course module info
+            $cm = $DB->get_record('course_modules', ['id' => $cmid], 'id, module, instance');
+            if (!$cm) {
+                continue;
+            }
+            
+            // Check if it's a learningactivity module
+            $modulename = $DB->get_field('modules', 'name', ['id' => $cm->module]);
+            if ($modulename === 'learningactivity') {
+                // Check if it's in 'section' mode (week mode)
+                $sectiontype = $DB->get_field('learningactivity', 'sectiontype', ['id' => $cm->instance]);
+                if ($sectiontype === 'section') {
+                    return true;
+                }
+            }
+        }
+        
+        return false;
+    }
+
+    /**
      * Detect the layout type of a course module.
      *
      * @param int $courseid Course ID
@@ -214,32 +255,9 @@ class date_calculator {
             $hasparent = !empty($section->parent);
             $istoplevel = !$hasparent;
 
-            // Determine if this section should get week dates based on layout type.
-            $shouldgetdates = false;
-
-            switch ($layout['type']) {
-                case 'theme_based':
-                    // Only weeks (sections with parents that aren't sessions) get dates.
-                    // Themes (top-level parents) do NOT get dates.
-                    if ($hasparent && !$issession) {
-                        $shouldgetdates = true;
-                    }
-                    break;
-
-                case 'week_based':
-                    // Top-level sections (themes treated as weeks) get dates.
-                    if ($istoplevel && $isparent) {
-                        $shouldgetdates = true;
-                    }
-                    break;
-
-                case 'flat':
-                    // All top-level sections get dates.
-                    if ($istoplevel) {
-                        $shouldgetdates = true;
-                    }
-                    break;
-            }
+            // Determine if this section should get week dates.
+            // A section gets dates if it contains a learningactivity in 'section' mode.
+            $shouldgetdates = self::section_contains_week_learningactivity($section);
 
             // Process sections that should get week dates.
             if ($shouldgetdates) {

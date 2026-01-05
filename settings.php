@@ -122,6 +122,32 @@ if ($hassiteconfig) {
             6
         ));
 
+        // Help and Advice Links
+        $settings->add(new admin_setting_heading(
+            'aiplacement_modgen/helplinksheading',
+            new lang_string('helplinksheading', 'aiplacement_modgen'),
+            new lang_string('helplinksheading_desc', 'aiplacement_modgen')
+        ));
+
+        // Add 5 configurable help links
+        for ($i = 1; $i <= 5; $i++) {
+            $settings->add(new admin_setting_configtext(
+                "aiplacement_modgen/helplink{$i}_text",
+                new lang_string('helplinktext', 'aiplacement_modgen', $i),
+                new lang_string('helplinktext_desc', 'aiplacement_modgen'),
+                '',
+                PARAM_TEXT
+            ));
+
+            $settings->add(new admin_setting_configtext(
+                "aiplacement_modgen/helplink{$i}_url",
+                new lang_string('helplinkurl', 'aiplacement_modgen', $i),
+                new lang_string('helplinkurl_desc', 'aiplacement_modgen'),
+                '',
+                PARAM_URL
+            ));
+        }
+
         // Dates for sections - Holiday configuration
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/datesforsectionsheading',

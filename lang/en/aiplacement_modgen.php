@@ -377,3 +377,11 @@ $string['calculatingdates'] = 'Calculating dates...';
 $string['selectallthemes'] = 'Select all top sections';
 $string['selectallweeks'] = 'Select all sub sections';
 
+// Help and Advice Links
+$string['helpandadvice'] = 'Help and Advice';
+$string['helplinksheading'] = 'Help and Advice Links';
+$string['helplinksheading_desc'] = 'Configure up to 5 external help links that will appear in the Module Assistant toolbar dropdown menu. Links will only appear if both text and URL are provided.';
+$string['helplinktext'] = 'Help Link {$a} Text';
+$string['helplinktext_desc'] = 'Display text for the help link';
+$string['helplinkurl'] = 'Help Link {$a} URL';
+$string['helplinkurl_desc'] = 'Full URL for the help resource (must start with http:// or https://)';

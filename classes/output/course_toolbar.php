@@ -104,6 +104,24 @@ class course_toolbar implements renderable, templatable {
             $data->aigenlisturl = $aigenlisturl->out(false);
         }
         
+        // Get help links from settings
+        $helplinks = [];
+        for ($i = 1; $i <= 5; $i++) {
+            $text = get_config('aiplacement_modgen', "helplink{$i}_text");
+            $url = get_config('aiplacement_modgen', "helplink{$i}_url");
+            
+            // Only include links that have both text and URL
+            if (!empty($text) && !empty($url)) {
+                $helplinks[] = [
+                    'text' => $text,
+                    'url' => $url,
+                ];
+            }
+        }
+        
+        $data->helplinks = $helplinks;
+        $data->showhelplinks = !empty($helplinks);
+        
         return $data;
     }
 }

@@ -11,16 +11,18 @@
     <div class="collapse navbar-collapse" id="aimodgenNavbar">
         <ul class="navbar-nav ml-auto">
 
+{{#showhelplinks}}
 <li class="nav-item dropdown mx-3">
         <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-toggle="dropdown" aria-expanded="false">
-          Help and Advice
+          {{#str}}helpandadvice, aiplacement_modgen{{/str}}
         </a>
         <div class="dropdown-menu">
-          <a class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="#"><i class="fas fa-external-link-alt mr-1"></i>Building for the Connected Curriculum</a>
-          <a class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="#"><i class="fas fa-external-link-alt mr-1"></i>Creating Accessible Modules</a>
-          
+          {{#helplinks}}
+          <a class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="{{url}}" target="_blank" rel="noopener"><i class="fas fa-external-link-alt mr-1"></i>{{text}}</a>
+          {{/helplinks}}
         </div>
       </li>
+{{/showhelplinks}}
 
          <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle btn btn-secondary btn-sm" href="#" role="button" data-toggle="dropdown" aria-expanded="false">

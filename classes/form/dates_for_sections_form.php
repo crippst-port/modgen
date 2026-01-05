@@ -43,6 +43,10 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
         // Hidden course ID.
         $mform->addElement('hidden', 'courseid');
         $mform->setType('courseid', PARAM_INT);
+        
+        // Hidden field for selected sections (populated by JavaScript)
+        $mform->addElement('hidden', 'selectedsections');
+        $mform->setType('selectedsections', PARAM_RAW);
 
         // Add ARIA live region for dynamic updates.
         $mform->addElement('html', '<div id="dates-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>');
@@ -122,15 +126,18 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
                 $sectiondata['proposedname'] = s($section['name']);
             }
 
-            if (!empty($section['is_parent'])) {
-                // This is a theme - create a new group.
-                $themegroups[$section['id']] = [
-                    'theme' => $sectiondata,
-                    'weeks' => [],
-                    'hasWeeks' => false,
-                    'section_order' => $section['section'], // Track order for sorting
-                ];
-            } else {
+            // Themes have is_parent=true OR have parent_id but no formatted_date
+            // Weeks ALWAYS have formatted_date (from the date calculator)
+            $hasparent = !empty($section['parent_id']);
+            $ismarkedasparent = !empty($section['is_parent']);
+            $hasdate = !empty($section['formatted_date']);
+            
+            // A theme is a section that has children OR is marked as parent, but critically has NO formatted_date
+            // because only weeks get dates from the calculator
+            $istheme = ($ismarkedasparent || ($hasparent && !$hasdate));
+            
+            // Only sections with formatted_date are weeks that should get dates applied
+            if ($hasdate && !$istheme) {
                 // This is a week - try to find its parent theme.
                 $parentid = $section['parent_id'] ?? null;
                 
@@ -139,8 +146,18 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
                     $themegroups[$parentid]['weeks'][] = $sectiondata;
                     $themegroups[$parentid]['hasWeeks'] = true;
                 } else {
-                    // Orphan week (no parent theme found).
+                    // Orphan week (no parent theme found) - top-level week.
                     $orphanweeks[] = $sectiondata;
+                }
+            } else {
+                // This is a theme - create a new group only if not already exists
+                if (!isset($themegroups[$section['id']])) {
+                    $themegroups[$section['id']] = [
+                        'theme' => $sectiondata,
+                        'weeks' => [],
+                        'hasWeeks' => false,
+                        'section_order' => $section['section'], // Track order for sorting
+                    ];
                 }
             }
         }

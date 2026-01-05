@@ -76,14 +76,14 @@
         <h5 class="mb-3">{{#str}}weekSections, aiplacement_modgen{{/str}}</h5>
         <div class="table-responsive">
             <table class="table table-striped table-sm">
-                <thead>
+                <thead class="table-light">
                     <tr>
                         <th scope="col" style="width: 50px;">
                             <input type="checkbox" id="select-all-orphan-weeks" 
                                 aria-label="{{#str}}selectallweeks, aiplacement_modgen{{/str}}"
                                 checked>
                         </th>
-                        <th scope="col">{{currentname_label}}</th>
+                        <th scope="col">{{../currentname_label}}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -127,6 +127,24 @@
 <script>
 (function() {
     'use strict';
+    
+    // Collect selected sections before form submission
+    const form = document.querySelector('.dates-for-sections-form').closest('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Collect all checked week section IDs
+            const checkedSections = [];
+            document.querySelectorAll('.section-checkbox:checked').forEach(function(checkbox) {
+                checkedSections.push(checkbox.value);
+            });
+            
+            // Store in hidden field
+            const hiddenField = form.querySelector('input[name="selectedsections"]');
+            if (hiddenField) {
+                hiddenField.value = JSON.stringify(checkedSections);
+            }
+        });
+    }
     
     // Theme checkbox behavior - select/deselect all child weeks
     document.querySelectorAll('.theme-checkbox').forEach(function(themeCheckbox) {

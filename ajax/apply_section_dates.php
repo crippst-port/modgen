@@ -140,7 +140,7 @@ try {
     ajax_response::success([
         'updated' => $updatedcount,
         'sections' => $updatedsections,
-        'message' => get_string('datesappliedsuccess', 'aiplacement_modgen', $updatedcount)
+        'message' => get_string('datesappliedsuccess', 'aiplacement_modgen', $updatedcount),
     ]);
 
 } catch (Exception $e) {

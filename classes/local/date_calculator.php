@@ -41,6 +41,7 @@ class date_calculator {
     private static function section_contains_week_learningactivity($sectioninfo) {
         global $DB;
         
+        // Check sequence property - this contains comma-separated CM IDs
         if (empty($sectioninfo->sequence)) {
             return false;
         }
@@ -52,16 +53,19 @@ class date_calculator {
                 continue;
             }
             
-            // Get course module info
-            $cm = $DB->get_record('course_modules', ['id' => $cmid], 'id, module, instance');
+            // Get course module info and module name in one query
+            $sql = "SELECT cm.id, cm.instance, m.name as modulename
+                      FROM {course_modules} cm
+                      JOIN {modules} m ON m.id = cm.module
+                     WHERE cm.id = :cmid";
+            
+            $cm = $DB->get_record_sql($sql, ['cmid' => $cmid]);
             if (!$cm) {
                 continue;
             }
             
-            // Check if it's a learningactivity module
-            $modulename = $DB->get_field('modules', 'name', ['id' => $cm->module]);
-            if ($modulename === 'learningactivity') {
-                // Check if it's in 'section' mode (week mode)
+            // Check if it's a learningactivity module with sectiontype='section'
+            if ($cm->modulename === 'learningactivity') {
                 $sectiontype = $DB->get_field('learningactivity', 'sectiontype', ['id' => $cm->instance]);
                 if ($sectiontype === 'section') {
                     return true;

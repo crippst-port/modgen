@@ -49,41 +49,41 @@ function aiplacement_modgen_extend_navigation_course(
 
     // Navigation bar - only show in edit mode
     if ($PAGE->user_is_editing()) {
-        // Show generator to anyone who can edit the course
-        $showgenerator = true;
+        // Check if AI features are enabled in admin settings
+        $showgenerator = \aiplacement_modgen\local\settings_helper::is_ai_enabled();
 
         // Check admin settings using helper
         $showsuggest = \aiplacement_modgen\local\settings_helper::is_suggest_enabled();
         
-                // Only render nav bar if at least one tool is available
-        if ($showgenerator) {
-            // Load CSS
-            $PAGE->requires->css('/ai/placement/modgen/styles.css');
+        // Always show navbar in edit mode (it has non-AI features like Add Theme/Week)
+        // Load CSS
+        $PAGE->requires->css('/ai/placement/modgen/styles.css');
 
-            // Load strings needed by JS modules (must be in main page context, not fragment)
-            $PAGE->requires->strings_for_js([
-                'creation_warnings',
-                'suggest_noresults',
-                'unsupported_label',
-                'suggestactivities',
-                'approveandcreate',
-                'aigenerated',
-                'aigenmarker_tooltip',
-            ], 'aiplacement_modgen');
+        // Load strings needed by JS modules (must be in main page context, not fragment)
+        $PAGE->requires->strings_for_js([
+            'creation_warnings',
+            'suggest_noresults',
+            'unsupported_label',
+            'suggestactivities',
+            'approveandcreate',
+            'aigenerated',
+            'aigenmarker_tooltip',
+        ], 'aiplacement_modgen');
 
-            // Get current section from URL (for context-aware creation)
-            $currentsection = optional_param('section', 0, PARAM_INT);
+        // Get current section from URL (for context-aware creation)
+        $currentsection = optional_param('section', 0, PARAM_INT);
 
-            // Initialize toolbar via AMD module using Fragment API
-            $PAGE->requires->js_call_amd('aiplacement_modgen/course_toolbar', 'init', [[
-                'courseid' => $course->id,
-                'contextid' => $context->id,
-                'showgenerator' => $showgenerator,
-                'showsuggest' => $showsuggest,
-                'currentsection' => $currentsection,
-            ]]);
+        // Initialize toolbar via AMD module using Fragment API
+        $PAGE->requires->js_call_amd('aiplacement_modgen/course_toolbar', 'init', [[
+            'courseid' => $course->id,
+            'contextid' => $context->id,
+            'showgenerator' => $showgenerator,
+            'showsuggest' => $showsuggest,
+            'currentsection' => $currentsection,
+        ]]);
 
-            // Initialize AI-generated activity markers
+        // Initialize AI-generated activity markers (only if AI is enabled)
+        if ($showgenerator || $showsuggest) {
             $PAGE->requires->js_call_amd('aiplacement_modgen/aigen_marker', 'init', [$course->id]);
         }
     }

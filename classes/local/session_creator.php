@@ -118,11 +118,13 @@ class session_creator {
             }
 
             // Create learningactivity metadata module at the start of the session.
+            // Append " activity" to the name for the learningactivity module.
+            $activityname = $sessionlabel . ' activity';
             self::create_learningactivity_metadata(
                 $courseid,
                 $sessionsectionnum,
                 'activity',
-                $sessionlabel,
+                $activityname,
                 $sessiondata[$sessionkey] ?? []
             );
         }

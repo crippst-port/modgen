@@ -3,7 +3,12 @@
     @description Navigation bar for Module Assistant tools shown at top of course when editing
 }}
 <nav class="navbar navbar-expand-lg navbar-dark aiplacement-modgen-navbar px-3">
-    <a class="navbar-brand" href="#">{{#str}}navtitle, aiplacement_modgen{{/str}}</a>
+    <div class="logo-container">
+    <a class="navbar-brand d-flex align-items-center" href="#">
+        <img src="{{config.wwwroot}}/ai/placement/modgen/pix/compact_logo.png" alt="" class="mr-2 aiplacement-modgen-logo">
+        {{#str}}navtitle, aiplacement_modgen{{/str}}
+    </a>
+    </div>
     <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#aimodgenNavbar" aria-controls="aimodgenNavbar" aria-expanded="false" aria-label="Toggle navigation">
         <span class="navbar-toggler-icon"></span>
     </button>

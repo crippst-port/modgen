@@ -39,6 +39,19 @@
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+. aiplacement-modgen-navbar .logo-container {
+    overflow: hidden;
+} 
+
+.aiplacement-modgen-logo {
+    height: 300px;
+    position: absolute;
+    rotate: -20deg;
+    width: auto;
+    mix-blend-mode: soft-light;
+    opacity: .3;
+}
+
 .aiplacement-modgen-navbar .navbar-brand {
     font-weight: 600;
     font-size: 1.1rem;

@@ -46,6 +46,7 @@
 .aiplacement-modgen-logo {
     height: 300px;
     position: absolute;
+    top: -5rem;
     rotate: -20deg;
     width: auto;
     mix-blend-mode: soft-light;

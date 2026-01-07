@@ -105,10 +105,12 @@ class theme_builder {
         global $DB;
 
         $messages = [];
-        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 
         // Ensure flexsections format.
         self::ensure_flexsections_format($courseid);
+
+        // Get fresh course object after format conversion
+        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 
         // Get course format and acquire lock.
         $courseformat = course_get_format($course);
@@ -191,10 +193,12 @@ class theme_builder {
         global $DB;
 
         $messages = [];
-        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 
         // Ensure flexsections format.
         self::ensure_flexsections_format($courseid);
+
+        // Get fresh course object after format conversion
+        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 
         // Get course format and acquire lock.
         $courseformat = course_get_format($course);

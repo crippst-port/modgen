@@ -66,7 +66,7 @@ class aiplacement_modgen_generator_form extends moodleform {
         // File upload for CSV structure file (optional) - using filemanager for standalone pages
         // Note: The modal version uses a simple HTML input instead
         $mform->addElement('filemanager', 'supportingfiles', get_string('supportingfiles', 'aiplacement_modgen'), null,
-            array('subdirs' => 0, 'maxbytes' => 10485760, 'maxfiles' => 5, 'accepted_types' => array('.csv')));
+            array('subdirs' => 0, 'maxbytes' => 10485760, 'maxfiles' => 1, 'accepted_types' => array('.csv')));
         $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
         
         // === SUGGESTED CONTENT SECTION === (only if AI enabled)

@@ -69,10 +69,9 @@ class course_toolbar implements renderable, templatable {
         $data->showgenerator = $this->showgenerator;
         $data->showsuggest = $this->showsuggest;
         
-        if ($this->showgenerator) {
-            $generatorurl = new moodle_url('/ai/placement/modgen/modal.php', ['id' => $this->courseid]);
-            $data->generatorurl = $generatorurl->out(false);
-        }
+        // Always provide generator URL (needed for "Template from file" link)
+        $generatorurl = new moodle_url('/ai/placement/modgen/modal.php', ['id' => $this->courseid]);
+        $data->generatorurl = $generatorurl->out(false);
         
         // Get count of unedited AI-generated activities in this course.
         // Use the same logic as aigen_list.php - check if modules exist in modinfo and clean up orphans.

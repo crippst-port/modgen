@@ -100,7 +100,7 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
                 <label for="id_modal_supportingfiles_files">' . get_string('supportingfiles', 'aiplacement_modgen') . '</label>
             </div>
             <div class="col-md-9 form-inline align-items-start felement">
-                <input type="file" id="id_modal_supportingfiles_files" name="supportingfiles_files[]" accept=".csv" multiple class="form-control">
+                <input type="file" id="id_modal_supportingfiles_files" name="supportingfiles_files[]" accept=".csv" class="form-control">
                 <div class="form-control-feedback invalid-feedback" id="id_error_modal_supportingfiles"></div>
             </div>
         </div>');

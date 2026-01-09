@@ -47,8 +47,8 @@ function aiplacement_modgen_extend_navigation_course(
         return;
     }
 
-    // Navigation bar - only show in edit mode
-    if ($PAGE->user_is_editing()) {
+    // Navigation bar - only show in edit mode and on the course page
+    if ($PAGE->user_is_editing() && $PAGE->pagetype === 'course-view-flexsections') {
         // Check if AI features are enabled in admin settings
         $showgenerator = \aiplacement_modgen\local\settings_helper::is_ai_enabled();
 

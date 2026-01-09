@@ -41,6 +41,7 @@
 
 . aiplacement-modgen-navbar .logo-container {
     overflow: hidden;
+    position: relative;
 } 
 
 .aiplacement-modgen-logo {
@@ -51,6 +52,7 @@
     width: auto;
     mix-blend-mode: soft-light;
     opacity: .3;
+    pointer-events: none;
 }
 
 .aiplacement-modgen-navbar .navbar-brand {

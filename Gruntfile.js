@@ -78,8 +78,17 @@ module.exports = function(grunt) {
                     'amd/build/modal_generator_reactive.min.js': ['amd/build/modal_generator_reactive.js'],
                     'amd/build/suggest.min.js': ['amd/build/suggest.js'],
                     'amd/build/aigen_marker.min.js': ['amd/build/aigen_marker.js'],
-                    'amd/build/aigen_list.min.js': ['amd/build/aigen_list.js']
+                    'amd/build/aigen_list.min.js': ['amd/build/aigen_list.js'],
+                    'amd/build/template_selector.min.js': ['amd/build/template_selector.js']
                 }
+            }
+        },
+        
+        // Copy task for files that don't need transformation
+        copy: {
+            template_selector: {
+                src: 'amd/src/template_selector.js',
+                dest: 'amd/build/template_selector.js'
             }
         },
 
@@ -100,9 +109,10 @@ module.exports = function(grunt) {
     grunt.loadNpmTasks('grunt-babel');
     grunt.loadNpmTasks('grunt-contrib-uglify');
     grunt.loadNpmTasks('grunt-contrib-watch');
+    grunt.loadNpmTasks('grunt-contrib-copy');
 
     // Default task
-    grunt.registerTask('default', ['babel', 'uglify']);
+    grunt.registerTask('default', ['babel', 'copy', 'uglify']);
 
     // Development task (watch mode)
     grunt.registerTask('dev', ['watch']);

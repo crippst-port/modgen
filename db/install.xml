@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8" ?>
-<XMLDB PATH="/ai/placement/modgen/db" VERSION="20250108" COMMENT="Tables for aiplacement_modgen">
+<XMLDB PATH="/ai/placement/modgen/db" VERSION="20250109" COMMENT="Tables for aiplacement_modgen">
     <TABLES>
         <TABLE NAME="aiplacement_modgen_aigen" COMMENT="Tracks AI-generated course modules">
             <FIELDS>
@@ -14,6 +14,22 @@
                 <KEY NAME="courseid_fk" TYPE="foreign" FIELDS="courseid" REFTABLE="course" REFFIELDS="id"/>
             </KEYS>
         </TABLE>
+        <TABLE NAME="aiplacement_modgen_templates" COMMENT="CSV templates for module generation">
+            <FIELDS>
+                <FIELD NAME="id" TYPE="int" LENGTH="10" NOTNULL="true" SEQUENCE="true"/>
+                <FIELD NAME="name" TYPE="char" LENGTH="255" NOTNULL="true" COMMENT="Template name"/>
+                <FIELD NAME="description" TYPE="text" NOTNULL="false" COMMENT="Template description"/>
+                <FIELD NAME="fileid" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="File ID from mdl_files"/>
+                <FIELD NAME="sortorder" TYPE="int" LENGTH="10" NOTNULL="true" DEFAULT="0" COMMENT="Display order"/>
+                <FIELD NAME="timecreated" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="When record was created"/>
+                <FIELD NAME="timemodified" TYPE="int" LENGTH="10" NOTNULL="true" COMMENT="When record was last modified"/>
+            </FIELDS>
+            <KEYS>
+                <KEY NAME="primary" TYPE="primary" FIELDS="id"/>
+            </KEYS>
+            <INDEXES>
+                <INDEX NAME="sortorder" UNIQUE="false" FIELDS="sortorder"/>
+            </INDEXES>
+        </TABLE>
     </TABLES>
 </XMLDB>
-

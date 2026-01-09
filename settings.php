@@ -28,6 +28,7 @@ defined('MOODLE_INTERNAL') || die();
 use core_ai\admin\admin_settingspage_provider;
 
 if ($hassiteconfig) {
+    // Create settings page
     $settings = new admin_settingspage_provider(
         'aiplacement_modgen',
         new lang_string('pluginname', 'aiplacement_modgen'),
@@ -164,6 +165,20 @@ if ($hassiteconfig) {
             PARAM_TEXT,
             60,
             10
+        ));
+
+        // CSV Template Library
+        $settings->add(new admin_setting_heading(
+            'aiplacement_modgen/csvtemplateheading',
+            new lang_string('csvtemplatelibrary', 'aiplacement_modgen'),
+            new lang_string('csvtemplatelibrary_desc', 'aiplacement_modgen')
+        ));
+
+        $manageurl = new moodle_url('/ai/placement/modgen/manage_templates.php');
+        $settings->add(new admin_setting_description(
+            'aiplacement_modgen/managetemplates_link',
+            '',
+            new lang_string('managetemplates_desc', 'aiplacement_modgen', $manageurl->out())
         ));
 
         // Add file upload or other settings as needed.

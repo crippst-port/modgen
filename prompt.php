@@ -1602,6 +1602,35 @@ if ($pdata = $promptform->get_data()) {
     // Debug tracking
     $debuglog = [];
     
+    // ============================================
+    // STEP 1: Check if a CSV template was selected
+    // ============================================
+    $csvfile = null;
+    $selected_template_id = !empty($pdata->selected_template_id) ? $pdata->selected_template_id : 0;
+    if ($selected_template_id > 0) {
+        // Load template file from database
+        require_once(__DIR__ . '/classes/local/template_manager.php');
+        require_once(__DIR__ . '/classes/local/csv_parser.php');
+        
+        try {
+            $template = \aiplacement_modgen\local\template_manager::get_by_id($selected_template_id);
+            $fs = get_file_storage();
+            $csvfile = $fs->get_file_by_id($template->fileid);
+            
+            if (!$csvfile) {
+                throw new \Exception('Template file not found');
+            }
+            
+            $debuglog[] = 'Loaded CSV template: ' . $template->name;
+            
+        } catch (\Exception $e) {
+            throw new \Exception('Error loading template: ' . $e->getMessage());
+        }
+    }
+    
+    // ============================================
+    // STEP 2: Extract template from existing modules (if selected)
+    // ============================================
     if (!empty($existing_module) || !empty($existing_modules)) {
         try {
             $template_reader = new \aiplacement_modgen\local\template_reader();
@@ -1744,7 +1773,7 @@ if ($pdata = $promptform->get_data()) {
             $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
             $expand_on_themes = !empty($pdata->expandonthemes);
             $has_user_prompt = !empty($pdata->prompt) && trim($pdata->prompt) !== '';
-            $has_csv_file = !empty($pdata->supportingfiles);
+            $has_csv_file = !empty($pdata->supportingfiles) || !empty($csvfile);
             $generate_examples = !empty($pdata->generateexamplecontent);
             
             // Use pure CSV parsing only if: AI disabled OR (AI enabled + has CSV + no prompt + no expand + no examples)
@@ -1752,17 +1781,19 @@ if ($pdata = $promptform->get_data()) {
                 // Process uploaded CSV file directly without AI enhancement
                 require_once(__DIR__ . '/classes/local/csv_parser.php');
                 
-                // Get the first uploaded file from draft area (should be CSV)
-                $draftitemid = $pdata->supportingfiles;
-                $usercontext = context_user::instance($USER->id);
-                $fs = get_file_storage();
-                $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-                
-                if (empty($files)) {
-                    throw new Exception('No CSV file uploaded. A CSV file with the module structure is required.');
+                // Get CSV file - either from template (already loaded above) or uploaded file
+                if (empty($csvfile)) {
+                    $draftitemid = $pdata->supportingfiles;
+                    $usercontext = context_user::instance($USER->id);
+                    $fs = get_file_storage();
+                    $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
+                    
+                    if (empty($files)) {
+                        throw new Exception('No CSV file uploaded. A CSV file with the module structure is required.');
+                    }
+                    
+                    $csvfile = array_shift($files);
                 }
-                
-                $csvfile = array_shift($files);
                 
                 // Auto-detect CSV format if module type is not explicitly set or is default
                 if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
@@ -1779,14 +1810,19 @@ if ($pdata = $promptform->get_data()) {
                 if ($has_csv_file) {
                     require_once(__DIR__ . '/classes/local/csv_parser.php');
                     
-                    $draftitemid = $pdata->supportingfiles;
-                    $usercontext = context_user::instance($USER->id);
-                    $fs = get_file_storage();
-                    $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-                    
-                    if (!empty($files)) {
-                        $csvfile = array_shift($files);
+                    // Get CSV file - either from template (already loaded above) or uploaded file
+                    if (empty($csvfile)) {
+                        $draftitemid = $pdata->supportingfiles;
+                        $usercontext = context_user::instance($USER->id);
+                        $fs = get_file_storage();
+                        $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
                         
+                        if (!empty($files)) {
+                            $csvfile = array_shift($files);
+                        }
+                    }
+                    
+                    if (!empty($csvfile)) {
                         // Auto-detect CSV format if needed
                         if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
                             $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
@@ -1883,20 +1919,22 @@ if ($pdata = $promptform->get_data()) {
             
             // Use pure CSV parsing only if: AI disabled OR (AI enabled + has CSV + no prompt + no expand + no examples)
             if (!$ai_enabled || ($ai_enabled && $has_csv_file && !$has_user_prompt && !$expand_on_themes && !$generate_examples)) {
-                // Process uploaded CSV file directly without AI enhancement
+                // Process CSV file directly without AI enhancement
                 require_once(__DIR__ . '/classes/local/csv_parser.php');
                 
-                // Get the first uploaded file from draft area (should be CSV)
-                $draftitemid = $pdata->supportingfiles;
-                $usercontext = context_user::instance($USER->id);
-                $fs = get_file_storage();
-                $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-                
-                if (empty($files)) {
-                    throw new Exception('No CSV file uploaded. A CSV file with the module structure is required.');
+                // Get CSV file - either from template (already loaded above) or uploaded file
+                if (empty($csvfile)) {
+                    $draftitemid = $pdata->supportingfiles;
+                    $usercontext = context_user::instance($USER->id);
+                    $fs = get_file_storage();
+                    $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
+                    
+                    if (empty($files)) {
+                        throw new Exception('No CSV file uploaded. A CSV file with the module structure is required.');
+                    }
+                    
+                    $csvfile = array_shift($files);
                 }
-                
-                $csvfile = array_shift($files);
                 
                 // Auto-detect CSV format if module type is not explicitly set or is default
                 if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
@@ -1911,14 +1949,19 @@ if ($pdata = $promptform->get_data()) {
                 if ($has_csv_file) {
                     require_once(__DIR__ . '/classes/local/csv_parser.php');
                     
-                    $draftitemid = $pdata->supportingfiles;
-                    $usercontext = context_user::instance($USER->id);
-                    $fs = get_file_storage();
-                    $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-                    
-                    if (!empty($files)) {
-                        $csvfile = array_shift($files);
+                    // Get CSV file - either from template (already loaded above) or uploaded file
+                    if (empty($csvfile)) {
+                        $draftitemid = $pdata->supportingfiles;
+                        $usercontext = context_user::instance($USER->id);
+                        $fs = get_file_storage();
+                        $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
                         
+                        if (!empty($files)) {
+                            $csvfile = array_shift($files);
+                        }
+                    }
+                    
+                    if (!empty($csvfile)) {
                         if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
                             $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
                             $moduletype = $detectedformat;
@@ -2001,29 +2044,31 @@ if ($pdata = $promptform->get_data()) {
             }
         }
     } else {
-    // Simplified decision logic (same as above)
+    // No existing module template selected - use CSV template or uploaded file
     $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
     $expand_on_themes = !empty($pdata->expandonthemes);
     $has_user_prompt = !empty($pdata->prompt) && trim($pdata->prompt) !== '';
-    $has_csv_file = !empty($pdata->supportingfiles);
+    $has_csv_file = !empty($pdata->supportingfiles) || !empty($csvfile);
     $generate_examples = !empty($pdata->generateexamplecontent);
     
     // Use pure CSV parsing only if: AI disabled OR (AI enabled + has CSV + no prompt + no expand + no examples)
     if (!$ai_enabled || ($ai_enabled && $has_csv_file && !$has_user_prompt && !$expand_on_themes && !$generate_examples)) {
-        // Process uploaded CSV file directly without AI enhancement
+        // Process CSV file directly without AI enhancement
         require_once(__DIR__ . '/classes/local/csv_parser.php');
         
-        // Get the first uploaded file from draft area (should be CSV)
-        $draftitemid = $pdata->supportingfiles;
-        $usercontext = context_user::instance($USER->id);
-        $fs = get_file_storage();
-        $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-        
-        if (empty($files)) {
-            throw new Exception('No CSV file uploaded. A CSV file with the module structure is required.');
+        // Get CSV file - either from template (already loaded above) or uploaded file
+        if (empty($csvfile)) {
+            $draftitemid = $pdata->supportingfiles;
+            $usercontext = context_user::instance($USER->id);
+            $fs = get_file_storage();
+            $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
+            
+            if (empty($files)) {
+                throw new Exception('No CSV file uploaded. A CSV file with the module structure is required.');
+            }
+            
+            $csvfile = array_shift($files);
         }
-        
-        $csvfile = array_shift($files);
         
         // Auto-detect CSV format if module type is not explicitly set or is default
         if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
@@ -2038,14 +2083,19 @@ if ($pdata = $promptform->get_data()) {
         if ($has_csv_file) {
             require_once(__DIR__ . '/classes/local/csv_parser.php');
             
-            $draftitemid = $pdata->supportingfiles;
-            $usercontext = context_user::instance($USER->id);
-            $fs = get_file_storage();
-            $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-            
-            if (!empty($files)) {
-                $csvfile = array_shift($files);
+            // Get CSV file - either from template (already loaded above) or uploaded file
+            if (empty($csvfile)) {
+                $draftitemid = $pdata->supportingfiles;
+                $usercontext = context_user::instance($USER->id);
+                $fs = get_file_storage();
+                $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
                 
+                if (!empty($files)) {
+                    $csvfile = array_shift($files);
+                }
+            }
+            
+            if (!empty($csvfile)) {
                 if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
                     $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
                     $moduletype = $detectedformat;
@@ -2318,6 +2368,27 @@ if ($pdata = $promptform->get_data()) {
     // For non-AJAX, use the normal response with form buttons
     $footeractions = [];
     aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
+    exit;
+}
+
+// If form validation failed, redisplay the form with errors
+if ($promptform->is_submitted()) {
+    $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid]));
+    $PAGE->set_title(get_string('modgenmodalheading', 'aiplacement_modgen'));
+    $PAGE->set_heading(get_string('modgenmodalheading', 'aiplacement_modgen'));
+
+    echo $OUTPUT->header();
+    
+    // Render header template
+    $headerdata = [
+        'heading' => get_string('launchgenerator', 'aiplacement_modgen'),
+        'introduction' => get_string('generatorintroduction', 'aiplacement_modgen'),
+        'warning' => get_string('longquery', 'aiplacement_modgen'),
+    ];
+    echo $OUTPUT->render_from_template('aiplacement_modgen/generator_header', $headerdata);
+    
+    $promptform->display();
+    echo $OUTPUT->footer();
     exit;
 }
 

@@ -98,5 +98,34 @@ function xmldb_aiplacement_modgen_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2025201604, 'aiplacement', 'modgen');
     }
 
+    // Upgrade path for version 2026010900 - add CSV templates table.
+    if ($oldversion < 2026010900) {
+        // Define table aiplacement_modgen_templates to be created.
+        $table = new xmldb_table('aiplacement_modgen_templates');
+
+        // Adding fields to table.
+        $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
+        $table->add_field('name', XMLDB_TYPE_CHAR, '255', null, XMLDB_NOTNULL);
+        $table->add_field('description', XMLDB_TYPE_TEXT, null, null, null);
+        $table->add_field('fileid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_field('sortorder', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, null, '0');
+        $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+        $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
+
+        // Adding keys to table.
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, array('id'));
+
+        // Adding indexes to table.
+        $table->add_index('sortorder', XMLDB_INDEX_NOTUNIQUE, array('sortorder'));
+
+        // Create table if it doesn't exist.
+        if (!$dbman->table_exists($table)) {
+            $dbman->create_table($table);
+        }
+
+        // Savepoint reached.
+        upgrade_plugin_savepoint(true, 2026010900, 'aiplacement', 'modgen');
+    }
+
     return true;
 }

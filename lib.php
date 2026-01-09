@@ -467,3 +467,47 @@ function aiplacement_modgen_output_fragment_form_dates_for_sections(array $args)
     return $form->render();
 }
 
+/**
+ * Serves files from the plugin's file areas.
+ *
+ * @param stdClass $course Course object
+ * @param stdClass $cm Course module object
+ * @param context $context Context object
+ * @param string $filearea File area name
+ * @param array $args Extra arguments
+ * @param bool $forcedownload Whether to force download
+ * @param array $options Additional options
+ * @return bool|void False if file not found, nothing if file sent
+ */
+function aiplacement_modgen_pluginfile($course, $cm, $context, $filearea, $args, $forcedownload, array $options = []) {
+    // Check capability - users must be able to update courses to download templates
+    if (!has_capability('moodle/course:update', $context)) {
+        return false;
+    }
+
+    // Only serve files from csvtemplates filearea
+    if ($filearea !== 'csvtemplates') {
+        return false;
+    }
+
+    // Extract file info from args
+    $itemid = array_shift($args);
+    $filename = array_pop($args);
+    
+    if (empty($args)) {
+        $filepath = '/';
+    } else {
+        $filepath = '/' . implode('/', $args) . '/';
+    }
+
+    // Retrieve file
+    $fs = get_file_storage();
+    $file = $fs->get_file($context->id, 'aiplacement_modgen', $filearea, $itemid, $filepath, $filename);
+
+    if (!$file) {
+        return false;
+    }
+
+    // Send the file
+    send_stored_file($file, 86400, 0, $forcedownload, $options);
+}

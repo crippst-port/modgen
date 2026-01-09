@@ -28,6 +28,7 @@ defined('MOODLE_INTERNAL') || die();
 $string['pluginname'] = 'Module Assistant';
 
 $string['existingmodule'] = 'Base on existing module';
+$string['inputrequired'] = 'You must provide at least one of the following: a text prompt, upload a CSV file, select a template, or choose an existing module to base this on.';
 $string['templatefromprompt'] = 'Template from prompt';
 $string['addtemplate'] = 'Add another template';
 $string['createfromscratch'] = 'Create from scratch';
@@ -150,15 +151,15 @@ $string['aboutassessments'] = 'About Assessments';
 $string['aboutlearningoutcomes'] = 'About Learning Outcomes';
 $string['returntocourse'] = 'Return to course home';
 $string['promptsentheading'] = 'Prompt sent to AI subsystem';
-$string['launchgenerator'] = 'Generate Template';
+$string['launchgenerator'] = 'Template from file';
 $string['modgenmodalheading'] = 'Module Assistant';
 $string['modgenfabaria'] = 'Open Module Assistant';
 $string['navtitle'] = 'Module Assistant';
-$string['generatorbutton'] = 'Generate';
+$string['generatorbutton'] = 'Create';
 $string['generatorlabel'] = 'Template from file';
-$string['modalintro'] = 'Click below to open the Module Assistant and generate module content.';
+$string['modalintro'] = 'Click below to open the Module Creator and create module content.';
 $string['closemodgenmodal'] = 'Close and return to module';
-$string['modalinaccessible'] = 'To access the full Module Assistant form, please use the "Generate Template" link from the course navigation menu.';
+$string['modalinaccessible'] = 'To access the full Module Creator form, please use the "Create Module" link from the course navigation menu.';
 $string['missingcourseid'] = 'Course ID is required to use the Module Assistant.';
 
 // Tabbed interface
@@ -216,8 +217,41 @@ $string['moduletype_help'] = 'Choose how to structure your module:
 **Note**: If you upload a CSV file, the format will be automatically detected based on its contents (themes vs weekly structure). You can override the auto-detected format by selecting a specific option here.';
 
 // Form section headers
+$string['selecttemplate'] = 'Select Template';
+$string['uploadtemplatefile'] = 'Upload Template File';
 $string['templatesettings'] = 'Template Setup';
 $string['suggestedcontent'] = 'Suggest Content';
+
+// CSV Template Library
+$string['csvtemplatelibrary'] = 'CSV Template Library';
+$string['csvtemplatelibrary_desc'] = 'Manage pre-made CSV templates that users can select when generating modules.';
+$string['managetemplates'] = 'Manage CSV Templates';
+$string['managetemplates_desc'] = 'Upload, edit, and organize CSV templates. <a href="{$a}">Manage templates</a>';
+$string['templatename'] = 'Template name';
+$string['templatedescription'] = 'Description';
+$string['csvfile'] = 'CSV file';
+$string['csvtemplate'] = 'Select a pre-made template';
+$string['csvtemplate_help'] = 'Select a pre-made CSV template to use as your module structure. You can either apply it directly or download it to edit offline before uploading.';
+$string['notemplateselected'] = '-- None selected --';
+$string['downloadtemplate'] = 'Download to edit';
+$string['applytemplate'] = 'Use selected template';
+$string['addnewtemplate'] = 'Add new template';
+$string['edittemplate'] = 'Edit template';
+$string['deletetemplate'] = 'Delete template';
+$string['confirmdeletetemplate'] = 'Are you sure you want to delete the template "{$a}"? This cannot be undone.';
+$string['templatedeleted'] = 'Template deleted successfully';
+$string['templatesaved'] = 'Template saved successfully';
+$string['templatecreated'] = 'Template created successfully';
+$string['templateupdated'] = 'Template updated successfully';
+$string['notemplates'] = 'No templates available yet. Add your first template below.';
+$string['moveup'] = 'Move up';
+$string['movedown'] = 'Move down';
+$string['csvvalidationfailed'] = 'CSV validation failed: {$a}';
+$string['invalidcsvstructure'] = 'The uploaded CSV file does not have a valid structure.';
+$string['templatefilenotfound'] = 'Template file not found';
+$string['templatename_help'] = 'Give this template a descriptive name that users will see when selecting templates.';
+$string['templatedescription_help'] = 'Optionally provide a brief description of what this template contains or when it should be used.';
+$string['timecreated'] = 'Date created';
 
 // Generator introduction
 $string['generatorintroduction'] = 'Use the Module Generator to create the structure of your Connected Module. Use a Module Layout file to upload and generate your layout.';

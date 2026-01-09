@@ -62,8 +62,28 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
             $moduletypeoptions['connected_theme'] = get_string('moduletype_connected_theme', 'aiplacement_modgen');
         }
 
-        // === TEMPLATE SETUP SECTION ===
-        $mform->addElement('header', 'templatesettingsheader', get_string('templatesettings', 'aiplacement_modgen'));
+        // === SELECT TEMPLATE SECTION ===
+        $templates = $this->get_available_templates();
+        if (!empty($templates) && count($templates) > 1) { // More than just the "None selected" option
+            $mform->addElement('header', 'selecttemplateheader', get_string('selecttemplate', 'aiplacement_modgen'));
+            
+            $mform->addElement('select', 'selected_template_id', get_string('csvtemplate', 'aiplacement_modgen'), $templates);
+            $mform->setType('selected_template_id', PARAM_INT);
+            $mform->addHelpButton('selected_template_id', 'csvtemplate', 'aiplacement_modgen');
+            
+            // Download button only (form submit handles using the template)
+            $mform->addElement('html', '<div class="form-group row fitem">
+                <div class="col-md-3"></div>
+                <div class="col-md-9">
+                    <button type="button" class="btn btn-secondary" id="id_download_template" disabled>
+                        ' . get_string('downloadtemplate', 'aiplacement_modgen') . '
+                    </button>
+                </div>
+            </div>');
+        }
+
+        // === UPLOAD TEMPLATE FILE SECTION ===
+        $mform->addElement('header', 'uploadtemplatefileheader', get_string('uploadtemplatefile', 'aiplacement_modgen'));
 
         // Check if AI is enabled early so we can control visibility
         $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
@@ -140,6 +160,15 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
             $buttonarray[] = $mform->createElement('submit', 'debugbutton', 'DEBUG: Show Template Data');
         }
         $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);
+        
+        // Load template selector JavaScript if templates exist
+        $templates = $this->get_available_templates();
+        if (count($templates) > 1) {
+            global $PAGE;
+            $PAGE->requires->js_call_amd('aiplacement_modgen/template_selector', 'init', [
+                ['downloadUrl' => (new moodle_url('/ai/placement/modgen/download_template.php'))->out(false)]
+            ]);
+        }
     }
 
 
@@ -164,15 +193,16 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
             $errors['moduletype'] = 'Invalid module type selected';
         }
 
-        // Either prompt, files, or existing module must be provided
+        // Either prompt, files, template, or existing module must be provided
         $hasPrompt = !empty(trim($data['prompt'] ?? ''));
         // Check for uploaded files via standard HTML file input
         $hasFiles = !empty($_FILES['supportingfiles_files']['tmp_name'][0]) &&
                     is_uploaded_file($_FILES['supportingfiles_files']['tmp_name'][0]);
+        $hasTemplate = !empty($data['selected_template_id']) && $data['selected_template_id'] > 0;
         $hasExistingModules = !empty($data['existing_modules']) && is_array($data['existing_modules']) && count(array_filter($data['existing_modules'])) > 0;
 
-        if (!$hasPrompt && !$hasFiles && !$hasExistingModules) {
-            $errors['prompt'] = get_string('promptorrequired', 'aiplacement_modgen', 'Please provide a prompt, upload files, or select one or more existing modules to base this on');
+        if (!$hasPrompt && !$hasFiles && !$hasTemplate && !$hasExistingModules) {
+            $errors['prompt'] = get_string('inputrequired', 'aiplacement_modgen');
         }
 
         return $errors;
@@ -224,6 +254,25 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
             $options[$course->id] = $course->fullname . ' (' . $course->shortname . ')';
         }
 
+        return $options;
+    }
+
+    /**
+     * Get available CSV templates from database.
+     *
+     * @return array Template options [0 => 'None selected', id => name]
+     */
+    private function get_available_templates() {
+        global $DB;
+        
+        $options = [0 => get_string('notemplateselected', 'aiplacement_modgen')];
+        
+        $templates = $DB->get_records('aiplacement_modgen_templates', null, 'sortorder ASC');
+        foreach ($templates as $template) {
+            $description = !empty($template->description) ? ' - ' . substr($template->description, 0, 50) : '';
+            $options[$template->id] = $template->name . $description;
+        }
+        
         return $options;
     }
 }

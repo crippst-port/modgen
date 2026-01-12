@@ -285,6 +285,9 @@ class section_creation_service {
                     
                     $weektitle = $week['title'] ?? "Week " . ($weekindex + 1);
                     $weeksummary = $week['summary'] ?? '';
+                    $weekmetadata = !empty($week['learningactivity_metadata']) && is_array($week['learningactivity_metadata']) 
+                        ? $week['learningactivity_metadata'] 
+                        : [];
                     $sessions = !empty($week['sessions']) && is_array($week['sessions']) ? $week['sessions'] : [];
                     
                     try {
@@ -298,6 +301,7 @@ class section_creation_service {
                                 'collapsed' => 1,
                                 'sessiondata' => $sessions,
                                 'createactivities' => $createsuggestedactivities,
+                                'metadata' => $weekmetadata,
                             ]
                         );
                         
@@ -390,6 +394,10 @@ class section_creation_service {
             
             try {
                 $weekSessionData = $hassessions ? $sectiondata['sessions'] : null;
+                $weekmetadata = !empty($sectiondata['learningactivity_metadata']) && is_array($sectiondata['learningactivity_metadata']) 
+                    ? $sectiondata['learningactivity_metadata'] 
+                    : [];
+                    
                 $weeksectionnum = \aiplacement_modgen\local\theme_builder::create_week_section(
                     $course->id,
                     $courseformat,
@@ -400,6 +408,7 @@ class section_creation_service {
                         'collapsed' => $hassessions ? 1 : 0,
                         'sessiondata' => $weekSessionData,
                         'createactivities' => $createsuggestedactivities,
+                        'metadata' => $weekmetadata,
                     ]
                 );
                 

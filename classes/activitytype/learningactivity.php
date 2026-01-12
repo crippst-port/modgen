@@ -89,10 +89,12 @@ class learningactivity implements activity_type {
         
         // Learning design fields
         $moduleinfo->sectiontype = $activitydata->sectiontype ?? 'section';
+        $moduleinfo->activityicon = $activitydata->activityicon ?? '';
         $moduleinfo->duration = $activitydata->duration ?? '';
         $moduleinfo->learningmode = $activitydata->learningmode ?? '';
         $moduleinfo->groupactivity = $activitydata->groupactivity ?? 0;
         $moduleinfo->designnotes = $activitydata->designnotes ?? '';
+        $moduleinfo->learningoutcomes_weekly = $activitydata->learningoutcomes_weekly ?? '';
         
         // Instructions (can be text or editor array)
         if (isset($activitydata->instructions)) {

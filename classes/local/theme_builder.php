@@ -336,9 +336,20 @@ class theme_builder {
         // Create week section under parent.
         $weeksectionnum = $courseformat->create_new_section($parentsectionnum, null);
 
-        // Format title and summary.
+        // Format week title
         $weektitle = format_string($title, true, ['context' => $context]);
-        $weeksectionhtml = trim($summary) !== '' ? format_text($summary, FORMAT_HTML, ['context' => $context]) : '';
+        
+        // Prepare metadata for week-level learningactivity
+        // If metadata includes instructions, use that instead of setting summary on section
+        $weekmetadata = $options['metadata'] ?? [];
+        $usemetadataforintro = !empty($weekmetadata['instructions']);
+        
+        // If using metadata for intro, don't set summary on section (leave it minimal/empty)
+        // Otherwise, use the provided summary on the section
+        $weeksectionhtml = '';
+        if (!$usemetadataforintro && trim($summary) !== '') {
+            $weeksectionhtml = format_text($summary, FORMAT_HTML, ['context' => $context]);
+        }
 
         // Update week section.
         $weeksectionid = $DB->get_field('course_sections', 'id', [
@@ -363,12 +374,15 @@ class theme_builder {
         }
 
         // Create learningactivity metadata module at the start of the week.
+        // Use custom name from metadata if provided, otherwise use the week title
+        $weekactivityname = !empty($weekmetadata['name']) ? $weekmetadata['name'] : $title;
+        
         $weekcmid = self::create_learningactivity_metadata(
             $courseid,
             $weeksectionnum,
             'section',
-            $title,
-            $options['metadata'] ?? []
+            $weekactivityname,
+            $weekmetadata
         );
         
         if (!$weekcmid) {

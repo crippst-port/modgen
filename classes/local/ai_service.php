@@ -608,17 +608,52 @@ class ai_service {
                         "        {\n" .
                         "          \"title\": \"Oct 18 - 24: Introduction to Cloud Computing\",\n" .
                         "          \"summary\": \"Brief overview of the week's learning outcomes\",\n" .
+                        "          \"learningactivity_metadata\": {\n" .
+                        "            \"name\": \"Welcome to this week\",\n" .
+                        "            \"activityicon\": \"fa-graduation-cap\",\n" .
+                        "            \"instructions\": \"Week-level introduction providing context and guidance (5-8 sentences)\"\n" .
+                        "          },\n" .
                         "          \"sessions\": {\n" .
                         "            \"presession\": {\n" .
-                        "              \"description\": \"5-8 sentences of student-facing guidance for pre-session preparation\",\n" .
+                        "              \"description\": \"2-3 sentences describing this session phase for students\",\n" .
+                        "              \"learningactivity_metadata\": {\n" .
+                        "                \"name\": \"Pre-session Reading\",\n" .
+                        "                \"activityicon\": \"fa-book-open\",\n" .
+                        "                \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
+                        "                \"duration\": \"30\",\n" .
+                        "                \"learningmode\": \"Asynchronous\",\n" .
+                        "                \"groupactivity\": false,\n" .
+                        "                \"learningtypes\": \"Acquisition,Investigation\",\n" .
+                        "                \"learningoutcomes_weekly\": \"Identify key concepts\\nAnalyze reading material\\nSynthesize information\"\n" .
+                        "              },\n" .
                         "              \"activities\": [{\"type\": \"forum\", \"name\": \"Activity Name\"}]\n" .
                         "            },\n" .
                         "            \"session\": {\n" .
-                        "              \"description\": \"5-8 sentences of student-facing guidance for main session activities\",\n" .
+                        "              \"description\": \"2-3 sentences describing this session phase for students\",\n" .
+                        "              \"learningactivity_metadata\": {\n" .
+                        "                \"name\": \"Live Session Activity\",\n" .
+                        "                \"activityicon\": \"fa-chalkboard-user\",\n" .
+                        "                \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
+                        "                \"duration\": \"60\",\n" .
+                        "                \"learningmode\": \"Synchronous\",\n" .
+                        "                \"groupactivity\": false,\n" .
+                        "                \"learningtypes\": \"Discussion,Practice\",\n" .
+                        "                \"learningoutcomes_weekly\": \"Apply concepts through discussion\\nDemonstrate understanding\\nCollaborate with peers\"\n" .
+                        "              },\n" .
                         "              \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity Name\"}]\n" .
                         "            },\n" .
                         "            \"postsession\": {\n" .
-                        "              \"description\": \"5-8 sentences of student-facing guidance for post-session reflection\",\n" .
+                        "              \"description\": \"2-3 sentences describing this session phase for students\",\n" .
+                        "              \"learningactivity_metadata\": {\n" .
+                        "                \"name\": \"Post-session Reflection\",\n" .
+                        "                \"activityicon\": \"fa-pen-to-square\",\n" .
+                        "                \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
+                        "                \"duration\": \"45\",\n" .
+                        "                \"learningmode\": \"Asynchronous\",\n" .
+                        "                \"groupactivity\": false,\n" .
+                        "                \"learningtypes\": \"Production,Practice\",\n" .
+                        "                \"learningoutcomes_weekly\": \"Reflect on learning\\nEvaluate understanding\\nCreate new insights\"\n" .
+                        "              },\n" .
                         "              \"activities\": [{\"type\": \"assignment\", \"name\": \"Activity Name\"}]\n" .
                         "            }\n" .
                         "          }\n" .
@@ -632,7 +667,17 @@ class ai_service {
                         "- NEVER include JSON as a string value in any field (e.g., summary must NOT contain nested JSON)\n" .
                         "- Each theme.summary must be 2-3 plain sentences (NO JSON inside)\n" .
                         "- Each week.title must include date range AND descriptive topic: 'date: Topic Name'\n" .
-                        "- Each sessions.description must be 5-8 plain sentences (NO JSON inside)\n" .
+                        "- Week-level learningactivity_metadata.name should be welcoming (e.g., 'Welcome to this week', 'Week Overview')\n" .
+                        "- Week-level learningactivity_metadata.instructions should provide week introduction and context (5-8 sentences)\n" .
+                        "- Week-level learningactivity_metadata.activityicon should use 'fa-graduation-cap' or similar welcoming icon\n" .
+                        "- Each sessions.description must be 2-3 plain sentences describing the session phase\n" .
+                        "- Session-level learningactivity_metadata.name must be a descriptive activity name (e.g., 'Pre-session Reading', 'Live Discussion')\n" .
+                        "- learningactivity_metadata.activityicon MUST be one of: '', 'fa-book', 'fa-book-open', 'fa-graduation-cap', 'fa-chalkboard', 'fa-chalkboard-user', 'fa-flask', 'fa-microscope', 'fa-laptop-code', 'fa-pen-to-square', 'fa-comments', 'fa-users', 'fa-lightbulb', 'fa-puzzle-piece', 'fa-clipboard-check', 'fa-file-pen', 'fa-robot'\n" .
+                        "- Session-level learningactivity_metadata.instructions must be 5-8 detailed sentences for activity guidance\n" .
+                        "- learningactivity_metadata.learningmode MUST be one of: 'Synchronous', 'Asynchronous', 'Not specified'\n" .
+                        "- learningactivity_metadata.learningtypes MUST be comma-separated list from: 'Acquisition', 'Collaboration', 'Discussion', 'Investigation', 'Practice', 'Production'\n" .
+                        "- learningactivity_metadata.duration MUST be a number (minutes as string)\n" .
+                        "- learningactivity_metadata.groupactivity MUST be boolean (true/false)\n" .
                         "- All field values must be strings or arrays of objects, NEVER strings containing JSON\n" .
                         "- Themes array MUST contain all themes\n" .
                         "- Each theme MUST have a weeks array with complete week structures\n\n";
@@ -651,17 +696,52 @@ class ai_service {
                         "    {\n" .
                         "      \"title\": \"Week 1 (Oct 18 - 24): Introduction to Cloud Computing\",\n" .
                         "      \"summary\": \"Brief overview of the week's learning outcomes\",\n" .
+                        "      \"learningactivity_metadata\": {\n" .
+                        "        \"name\": \"Welcome to this week\",\n" .
+                        "        \"activityicon\": \"fa-graduation-cap\",\n" .
+                        "        \"instructions\": \"Week-level introduction providing context and guidance (5-8 sentences)\"\n" .
+                        "      },\n" .
                         "      \"sessions\": {\n" .
                         "        \"presession\": {\n" .
-                        "          \"description\": \"5-8 sentences of student-facing guidance for pre-session preparation\",\n" .
+                        "          \"description\": \"2-3 sentences describing this session phase for students\",\n" .
+                        "          \"learningactivity_metadata\": {\n" .
+                        "            \"name\": \"Pre-session Reading\",\n" .
+                        "            \"activityicon\": \"fa-book-open\",\n" .
+                        "            \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
+                        "            \"duration\": \"30\",\n" .
+                        "            \"learningmode\": \"Asynchronous\",\n" .
+                        "            \"groupactivity\": false,\n" .
+                        "            \"learningtypes\": \"Acquisition,Investigation\",\n" .
+                        "            \"learningoutcomes_weekly\": \"Identify key concepts\\nAnalyze reading material\\nSynthesize information\"\n" .
+                        "          },\n" .
                         "          \"activities\": [{\"type\": \"forum\", \"name\": \"Activity Name\"}]\n" .
                         "        },\n" .
                         "        \"session\": {\n" .
-                        "          \"description\": \"5-8 sentences of student-facing guidance for main session activities\",\n" .
+                        "          \"description\": \"2-3 sentences describing this session phase for students\",\n" .
+                        "          \"learningactivity_metadata\": {\n" .
+                        "            \"name\": \"Live Session Activity\",\n" .
+                        "            \"activityicon\": \"fa-chalkboard-user\",\n" .
+                        "            \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
+                        "            \"duration\": \"60\",\n" .
+                        "            \"learningmode\": \"Synchronous\",\n" .
+                        "            \"groupactivity\": false,\n" .
+                        "            \"learningtypes\": \"Discussion,Practice\",\n" .
+                        "            \"learningoutcomes_weekly\": \"Apply concepts through discussion\\nDemonstrate understanding\\nCollaborate with peers\"\n" .
+                        "          },\n" .
                         "          \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity Name\"}]\n" .
                         "        },\n" .
                         "        \"postsession\": {\n" .
-                        "          \"description\": \"5-8 sentences of student-facing guidance for post-session reflection\",\n" .
+                        "          \"description\": \"2-3 sentences describing this session phase for students\",\n" .
+                        "          \"learningactivity_metadata\": {\n" .
+                        "            \"name\": \"Post-session Reflection\",\n" .
+                        "            \"activityicon\": \"fa-pen-to-square\",\n" .
+                        "            \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
+                        "            \"duration\": \"45\",\n" .
+                        "            \"learningmode\": \"Asynchronous\",\n" .
+                        "            \"groupactivity\": false,\n" .
+                        "            \"learningtypes\": \"Production,Practice\",\n" .
+                        "            \"learningoutcomes_weekly\": \"Reflect on learning\\nEvaluate understanding\\nCreate new insights\"\n" .
+                        "          },\n" .
                         "          \"activities\": [{\"type\": \"assignment\", \"name\": \"Activity Name\"}]\n" .
                         "        }\n" .
                         "      }\n" .
@@ -673,7 +753,18 @@ class ai_service {
                         "- NEVER include JSON as a string value in any field\n" .
                         "- Each section.summary must be 2-3 plain sentences (NO JSON inside)\n" .
                         "- Each section.title must include date range AND descriptive topic: 'date: Topic Name'\n" .
-                        "- Each sessions.description must be 5-8 plain sentences (NO JSON inside)\n" .
+                        "- Section-level learningactivity_metadata.name should be welcoming (e.g., 'Welcome to this week', 'Week Overview')\n" .
+                        "- Section-level learningactivity_metadata.instructions should provide week introduction and context (5-8 sentences)\n" .
+                        "- Section-level learningactivity_metadata.activityicon should use 'fa-graduation-cap' or similar welcoming icon\n" .
+                        "- Each sessions.description must be 2-3 plain sentences describing the session phase\n" .
+                        "- Session-level learningactivity_metadata.name must be a descriptive activity name (e.g., 'Pre-session Reading', 'Live Discussion')\n" .
+                        "- learningactivity_metadata.activityicon MUST be one of: '', 'fa-book', 'fa-book-open', 'fa-graduation-cap', 'fa-chalkboard', 'fa-chalkboard-user', 'fa-flask', 'fa-microscope', 'fa-laptop-code', 'fa-pen-to-square', 'fa-comments', 'fa-users', 'fa-lightbulb', 'fa-puzzle-piece', 'fa-clipboard-check', 'fa-file-pen', 'fa-robot'\n" .
+                        "- Session-level learningactivity_metadata.instructions must be 5-8 detailed sentences for activity guidance\n" .
+                        "- learningactivity_metadata.learningmode MUST be one of: 'Synchronous', 'Asynchronous', 'Not specified'\n" .
+                        "- learningactivity_metadata.learningtypes MUST be comma-separated list from: 'Acquisition', 'Collaboration', 'Discussion', 'Investigation', 'Practice', 'Production'\n" .
+                        "- learningactivity_metadata.duration MUST be a number (minutes as string)\n" .
+                        "- learningactivity_metadata.groupactivity MUST be boolean (true/false)\n" .
+                        "- learningactivity_metadata.learningoutcomes_weekly MUST be 2-3 learning objectives separated by newlines (\\n)\n" .
                         "- All field values must be strings or arrays of objects, NEVER strings containing JSON\n" .
                         "- Sections array MUST contain all sections\n" .
                         "- Each section MUST have a sessions object with presession, session, and postsession\n\n";
@@ -1028,7 +1119,11 @@ class ai_service {
             $guidance .= "   - Activities under 'Learning Resources' labels → Pre-session (reading/preparation)\n";
             $guidance .= "   - Activities under 'Activities' labels → Session (main activities)\n";
             $guidance .= "   - Activities under 'Assessment' labels → Post-session (assignments/reflection)\n";
-            $guidance .= "7. If session instructions are requested, generate appropriate descriptions for pre/session/post sections\n\n";
+            $guidance .= "7. CRITICAL - Session Metadata Structure:\n";
+            $guidance .= "   - EVERY presession, session, and postsession MUST include a learningactivity_metadata object\n";
+            $guidance .= "   - Include: name, activityicon, instructions, duration, learningmode, groupactivity, learningtypes, learningoutcomes_weekly\n";
+            $guidance .= "   - Generate appropriate descriptions for pre/session/post sections in the 'description' field\n";
+            $guidance .= "   - Generate metadata suitable for each session type (e.g., Pre-session = Asynchronous reading)\n\n";
         } else {
             // Count the actual weeks in the template
             $template_week_count = 0;
@@ -1073,7 +1168,11 @@ class ai_service {
             $guidance .= "     * 'Learning Resources' → Pre-session (reading/preparation)\n";
             $guidance .= "     * 'Activities' → Session (main activities)\n";
             $guidance .= "     * 'Assessment' → Post-session (assignments/reflection)\n";
-            $guidance .= "5. If session instructions are requested, generate appropriate descriptions for pre/session/post sections\n";
+            $guidance .= "5. CRITICAL - Session Metadata Structure:\n";
+            $guidance .= "   - EVERY presession, session, and postsession MUST include a learningactivity_metadata object\n";
+            $guidance .= "   - Include: name, activityicon, instructions, duration, learningmode, groupactivity, learningtypes, learningoutcomes_weekly\n";
+            $guidance .= "   - Generate appropriate descriptions for pre/session/post sections in the 'description' field\n";
+            $guidance .= "   - Generate metadata suitable for each session type (e.g., Pre-session = Asynchronous reading)\n";
             $guidance .= "6. Use Moodle's flexible sections format for output\n\n";
         }
         

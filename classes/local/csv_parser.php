@@ -217,10 +217,51 @@ class csv_parser {
                 $week = [
                     'title' => $value,
                     'summary' => '',
+                    'learningactivity_metadata' => [
+                        'name' => '',
+                        'activityicon' => '',
+                        'instructions' => ''
+                    ],
                     'sessions' => [
-                        'presession' => ['description' => '', 'activities' => []],
-                        'session' => ['description' => '', 'activities' => []],
-                        'postsession' => ['description' => '', 'activities' => []]
+                        'presession' => [
+                            'description' => '',
+                            'learningactivity_metadata' => [
+                                'name' => '',
+                                'activityicon' => '',
+                                'instructions' => '',
+                                'duration' => null,
+                                'learningmode' => null,
+                                'groupactivity' => null,
+                                'learningtypes' => null
+                            ],
+                            'activities' => []
+                        ],
+                        'session' => [
+                            'description' => '',
+                            'learningactivity_metadata' => [
+                                'name' => '',
+                                'activityicon' => '',
+                                'instructions' => '',
+                                'duration' => null,
+                                'learningmode' => null,
+                                'groupactivity' => null,
+                                'learningtypes' => null
+                            ],
+                            'activities' => []
+                        ],
+                        'postsession' => [
+                            'description' => '',
+                            'learningactivity_metadata' => [
+                                'name' => '',
+                                'activityicon' => '',
+                                'instructions' => '',
+                                'duration' => null,
+                                'learningmode' => null,
+                                'groupactivity' => null,
+                                'learningtypes' => null
+                            ],
+                            'activities' => []
+                        ]
                     ]
                 ];
                 $current_theme['weeks'][] = $week;
@@ -289,10 +330,54 @@ class csv_parser {
                 $section = [
                     'title' => $value,
                     'summary' => '',
+                    'learningactivity_metadata' => [
+                        'name' => '',
+                        'activityicon' => '',
+                        'instructions' => ''
+                    ],
                     'sessions' => [
-                        'presession' => ['description' => '', 'activities' => []],
-                        'session' => ['description' => '', 'activities' => []],
-                        'postsession' => ['description' => '', 'activities' => []]
+                        'presession' => [
+                            'description' => '',
+                            'learningactivity_metadata' => [
+                                'name' => '',
+                                'activityicon' => '',
+                                'instructions' => '',
+                                'duration' => null,
+                                'learningmode' => null,
+                                'groupactivity' => null,
+                                'learningtypes' => null,
+                                'learningoutcomes_weekly' => ''
+                            ],
+                            'activities' => []
+                        ],
+                        'session' => [
+                            'description' => '',
+                            'learningactivity_metadata' => [
+                                'name' => '',
+                                'activityicon' => '',
+                                'instructions' => '',
+                                'duration' => null,
+                                'learningmode' => null,
+                                'groupactivity' => null,
+                                'learningtypes' => null,
+                                'learningoutcomes_weekly' => ''
+                            ],
+                            'activities' => []
+                        ],
+                        'postsession' => [
+                            'description' => '',
+                            'learningactivity_metadata' => [
+                                'name' => '',
+                                'activityicon' => '',
+                                'instructions' => '',
+                                'duration' => null,
+                                'learningmode' => null,
+                                'groupactivity' => null,
+                                'learningtypes' => null,
+                                'learningoutcomes_weekly' => ''
+                            ],
+                            'activities' => []
+                        ]
                     ]
                 ];
                 $sections[] = $section;

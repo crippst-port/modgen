@@ -97,7 +97,7 @@ class session_creator {
                 'name' => $sessionlabel,
             ];
             
-            // Add description if provided in session data
+            // Add description if provided in session data (backward compatible)
             if (!empty($sessiondata[$sessionkey]) && is_array($sessiondata[$sessionkey])) {
                 $data = $sessiondata[$sessionkey];
                 if (!empty($data['description'])) {
@@ -118,14 +118,31 @@ class session_creator {
             }
 
             // Create learningactivity metadata module at the start of the session.
-            // Append " activity" to the name for the learningactivity module.
-            $activityname = $sessionlabel . ' activity';
+            // Extract metadata - new structure or backward compatible
+            $metadata = [];
+            $activityname = $sessionlabel . ' activity'; // Default name
+            
+            if (!empty($sessiondata[$sessionkey]) && is_array($sessiondata[$sessionkey])) {
+                $data = $sessiondata[$sessionkey];
+                if (isset($data['learningactivity_metadata']) && is_array($data['learningactivity_metadata'])) {
+                    // New structure with separate metadata
+                    $metadata = $data['learningactivity_metadata'];
+                    // Use custom name if provided, otherwise use default
+                    if (!empty($metadata['name'])) {
+                        $activityname = $metadata['name'];
+                    }
+                } else if (!empty($data['description'])) {
+                    // Backward compatibility: use description as instructions
+                    $metadata['instructions'] = $data['description'];
+                }
+            }
+            
             self::create_learningactivity_metadata(
                 $courseid,
                 $sessionsectionnum,
                 'activity',
                 $activityname,
-                $sessiondata[$sessionkey] ?? []
+                $metadata
             );
         }
         
@@ -141,7 +158,7 @@ class session_creator {
      * @param int $sectionnumber Section number where activity should be created
      * @param string $sectiontype 'activity' for session subsections
      * @param string $name Session name
-     * @param array $metadata Additional metadata from session data
+     * @param array $metadata Learningactivity metadata (instructions, duration, learningmode, etc.)
      * @return int|null CM ID of created activity or null on failure
      */
     private static function create_learningactivity_metadata($courseid, $sectionnumber, $sectiontype, $name, $metadata) {
@@ -157,19 +174,18 @@ class session_creator {
         // Get course
         $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 
+        // Validate and sanitize metadata
+        $validatedmetadata = learningactivity_validator::validate_metadata($metadata);
+
         // Prepare activity data
         $activitydata = new \stdClass();
         $activitydata->sectiontype = $sectiontype;
         $activitydata->name = $name;
 
-        // Extract metadata fields if they exist
-        if (is_array($metadata)) {
-            // Duration, learningmode, instructions, etc.
-            foreach (['duration', 'learningmode', 'groupactivity', 'instructions', 
-                      'learningtypes', 'learningoutcomes', 'designnotes'] as $field) {
-                if (isset($metadata[$field])) {
-                    $activitydata->$field = $metadata[$field];
-                }
+        // Apply validated metadata fields
+        foreach ($validatedmetadata as $field => $value) {
+            if ($value !== null) {
+                $activitydata->$field = $value;
             }
         }
 

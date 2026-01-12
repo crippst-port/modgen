@@ -404,6 +404,9 @@ require_once(__DIR__ . '/classes/local/ai_service.php');
 require_once(__DIR__ . '/classes/activitytype/registry.php');
 require_once(__DIR__ . '/classes/local/template_reader.php');
 require_once(__DIR__ . '/classes/local/filehandler/file_processor.php');
+require_once(__DIR__ . '/classes/local/constants.php');
+require_once(__DIR__ . '/classes/local/file_processor_service.php');
+require_once(__DIR__ . '/classes/local/csv_processing_service.php');
 
 // Load course libraries once (used by approval form processing)
 require_once($CFG->dirroot . '/course/lib.php');
@@ -434,13 +437,21 @@ if ($approvedjsonparam !== null) {
 
     if ($approveform && ($adata = $approveform->get_data())) {
         // Create weekly sections from approved JSON.
+        // Validate JSON size and structure before decoding
+        if (strlen($adata->approvedjson) > \aiplacement_modgen\local\constants::MAX_FILE_CONTENT_LENGTH * 2) {
+            throw new \moodle_exception('jsontoolarge', 'aiplacement_modgen');
+        }
+        
         $json = json_decode($adata->approvedjson, true);
+        if ($json === null && json_last_error() !== JSON_ERROR_NONE) {
+            throw new \moodle_exception('invalidjson', 'aiplacement_modgen', '', json_last_error_msg());
+        }
         $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'connected_weekly';
         $hideexistingsections = !empty($adata->hideexistingsections);
         
         // Lock the course to prevent concurrent access during build
         $lockkey = 'aiplacement_modgen_building_' . $courseid;
-        $lock = \core\lock\lock_config::get_lock_factory('aiplacement_modgen')->get_lock($lockkey, 600); // 10 minute timeout
+        $lock = \core\lock\lock_config::get_lock_factory('aiplacement_modgen')->get_lock($lockkey, \aiplacement_modgen\local\constants::GENERATION_LOCK_TIMEOUT);
         
         try {
             // Track existing section numbers BEFORE creating new content
@@ -1393,204 +1404,14 @@ if ($pdata = $promptform->get_data()) {
         $compositeprompt .= "\n\n" . $filecontent;
     }
 
-    // Gather supporting files (if any) from the filemanager draft area and try to extract readable text
+    // Gather supporting files using the file processor service
     $supportingfiles = [];
-    // First, check for direct file uploads from a simple <input type="file" multiple> fallback
-    if (!empty($_FILES['supportingfiles_files']) && !empty($_FILES['supportingfiles_files']['tmp_name'])) {
-        $ff = $_FILES['supportingfiles_files'];
-        for ($i = 0; $i < count($ff['tmp_name']); $i++) {
-            if (empty($ff['tmp_name'][$i]) || !is_uploaded_file($ff['tmp_name'][$i])) {
-                continue;
-            }
-            $filename = $ff['name'][$i] ?? ('file' . $i);
-            $mimetype = $ff['type'][$i] ?? '';
-            $content = file_get_contents($ff['tmp_name'][$i]);
-
-            // reuse extraction logic below by creating a temporary file-like array
-            $extracted = '';
-            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-
-            if (in_array($ext, ['txt', 'md', 'html', 'htm'])) {
-                $extracted = is_string($content) ? $content : '';
-            } elseif ($ext === 'rtf' || $mimetype === 'application/rtf' || $mimetype === 'text/rtf') {
-                // Extract text from RTF by stripping RTF formatting codes
-                $extracted = is_string($content) ? $content : '';
-                // Remove RTF header and formatting commands
-                $extracted = preg_replace('/\{\\\?[^}]*\}/', '', $extracted);  // Remove \*\ blocks
-                $extracted = preg_replace('/\\\\[a-z]+\d*\s?/', '', $extracted);  // Remove control words like \f0, \fs30
-                $extracted = preg_replace('/\\\\["\047][0-9a-f]{2}/', '', $extracted);  // Remove hex chars
-                $extracted = preg_replace('/[{}]/', '', $extracted);  // Remove braces
-                $extracted = preg_replace('/\s+/', ' ', $extracted);  // Collapse whitespace
-                $extracted = trim($extracted);
-                // Clean up any remaining escaped characters (RTF em-dash and quote)
-                $extracted = str_replace(['\\\'97', '\\\'92'], ['-', '\''], $extracted);
-            } elseif ($ext === 'docx') {
-                $tmp = tempnam(sys_get_temp_dir(), 'modgen_docx_');
-                file_put_contents($tmp, $content);
-                $zip = new ZipArchive();
-                if ($zip->open($tmp) === true) {
-                    $index = $zip->locateName('word/document.xml');
-                    if ($index !== false) {
-                        $xml = $zip->getFromIndex($index);
-                        $xml = preg_replace('/<w:p[^>]*>/', "\n", $xml);
-                        $xml = preg_replace('/<br \/>/', "\n", $xml);
-                        $extracted = strip_tags($xml);
-                    }
-                    $zip->close();
-                }
-                @unlink($tmp);
-            } elseif ($ext === 'odt') {
-                $tmp = tempnam(sys_get_temp_dir(), 'modgen_odt_');
-                file_put_contents($tmp, $content);
-                $zip = new ZipArchive();
-                if ($zip->open($tmp) === true) {
-                    $index = $zip->locateName('content.xml');
-                    if ($index !== false) {
-                        $xml = $zip->getFromIndex($index);
-                        $xml = preg_replace('/<text:p[^>]*>/', "\n", $xml);
-                        $extracted = strip_tags($xml);
-                    }
-                    $zip->close();
-                }
-                @unlink($tmp);
-            } elseif (strpos($mimetype, 'text/') === 0 || strpos($mimetype, 'application/xml') === 0 || strpos($mimetype, 'application/json') === 0) {
-                $extracted = is_string($content) ? $content : '';
-            } elseif ($ext === 'pdf' || $mimetype === 'application/pdf') {
-                // Try to extract text from PDF using pdftotext if available on the server.
-                $tmp = tempnam(sys_get_temp_dir(), 'modgen_pdf_');
-                file_put_contents($tmp, $content);
-                $extracted = '';
-                if (function_exists('shell_exec')) {
-                    $pdftotext = trim(shell_exec('which pdftotext 2>/dev/null'));
-                    if (!empty($pdftotext)) {
-                        // Use -layout to preserve basic structure and output to stdout (-)
-                        $cmd = escapeshellcmd($pdftotext) . ' -layout ' . escapeshellarg($tmp) . ' - 2>/dev/null';
-                        $out = shell_exec($cmd);
-                        if (is_string($out) && trim($out) !== '') {
-                            $extracted = $out;
-                        }
-                    }
-                }
-                @unlink($tmp);
-                if ($extracted === '') {
-                    // Fallback placeholder so AI knows the PDF was provided.
-                    $extracted = '[PDF FILE: ' . $filename . ' (' . $mimetype . '); base64_preview=' . substr(base64_encode($content), 0, 1024) . ']';
-                }
-            } else {
-                $extracted = '[BINARY FILE: ' . $filename . ' (' . $mimetype . '); base64_preview=' . substr(base64_encode($content), 0, 1024) . ']';
-            }
-
-            if (is_string($extracted) && strlen($extracted) > 100000) {
-                $extracted = substr($extracted, 0, 100000) . "\n...[truncated]";
-            }
-
-            $supportingfiles[] = [
-                'filename' => $filename,
-                'mimetype' => $mimetype,
-                'content' => $extracted,
-            ];
-        }
-    }
-
+    $fileprocessor = new \aiplacement_modgen\local\file_processor_service();
+    
     if (!empty($pdata->supportingfiles)) {
         $draftitemid = $pdata->supportingfiles;
         $usercontext = context_user::instance($USER->id);
-        $fs = get_file_storage();
-        $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-        foreach ($files as $f) {
-            if ($f->is_directory()) {
-                continue;
-            }
-            $filename = $f->get_filename();
-            $mimetype = $f->get_mimetype();
-            $content = $f->get_content();
-
-            $extracted = '';
-            $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
-
-            // Try simple text extraction for common document types
-            if (in_array($ext, ['txt', 'md', 'html', 'htm'])) {
-                $extracted = is_string($content) ? $content : '';
-            } elseif ($ext === 'rtf' || $mimetype === 'application/rtf' || $mimetype === 'text/rtf') {
-                // Extract text from RTF by stripping RTF formatting codes
-                $extracted = is_string($content) ? $content : '';
-                // Remove RTF header and formatting commands
-                $extracted = preg_replace('/\{\\\?[^}]*\}/', '', $extracted);  // Remove \*\ blocks
-                $extracted = preg_replace('/\\\\[a-z]+\d*\s?/', '', $extracted);  // Remove control words like \f0, \fs30
-                $extracted = preg_replace('/\\\\["\047][0-9a-f]{2}/', '', $extracted);  // Remove hex chars
-                $extracted = preg_replace('/[{}]/', '', $extracted);  // Remove braces
-                $extracted = preg_replace('/\s+/', ' ', $extracted);  // Collapse whitespace
-                $extracted = trim($extracted);
-                // Clean up any remaining escaped characters (RTF em-dash and quote)
-                $extracted = str_replace(['\\\'97', '\\\'92'], ['-', '\''], $extracted);
-            } elseif ($ext === 'docx') {
-                // attempt to extract from docx
-                $tmp = tempnam(sys_get_temp_dir(), 'modgen_docx_');
-                file_put_contents($tmp, $content);
-                $zip = new ZipArchive();
-                if ($zip->open($tmp) === true) {
-                    $index = $zip->locateName('word/document.xml');
-                    if ($index !== false) {
-                        $xml = $zip->getFromIndex($index);
-                        // strip tags and convert common tags to newlines for readability
-                        $xml = preg_replace('/<w:p[^>]*>/', "\n", $xml);
-                        $xml = preg_replace('/<br \/>/', "\n", $xml);
-                        $extracted = strip_tags($xml);
-                    }
-                    $zip->close();
-                }
-                @unlink($tmp);
-            } elseif ($ext === 'odt') {
-                $tmp = tempnam(sys_get_temp_dir(), 'modgen_odt_');
-                file_put_contents($tmp, $content);
-                $zip = new ZipArchive();
-                if ($zip->open($tmp) === true) {
-                    $index = $zip->locateName('content.xml');
-                    if ($index !== false) {
-                        $xml = $zip->getFromIndex($index);
-                        $xml = preg_replace('/<text:p[^>]*>/', "\n", $xml);
-                        $extracted = strip_tags($xml);
-                    }
-                    $zip->close();
-                }
-                @unlink($tmp);
-            } elseif (strpos($mimetype, 'text/') === 0 || strpos($mimetype, 'application/xml') === 0 || strpos($mimetype, 'application/json') === 0) {
-                $extracted = is_string($content) ? $content : '';
-            } elseif ($ext === 'pdf' || $mimetype === 'application/pdf') {
-                // Try to extract text from PDF using pdftotext if available on the server.
-                $tmp = tempnam(sys_get_temp_dir(), 'modgen_pdf_');
-                file_put_contents($tmp, $content);
-                $extracted = '';
-                if (function_exists('shell_exec')) {
-                    $pdftotext = trim(shell_exec('which pdftotext 2>/dev/null'));
-                    if (!empty($pdftotext)) {
-                        $cmd = escapeshellcmd($pdftotext) . ' -layout ' . escapeshellarg($tmp) . ' - 2>/dev/null';
-                        $out = shell_exec($cmd);
-                        if (is_string($out) && trim($out) !== '') {
-                            $extracted = $out;
-                        }
-                    }
-                }
-                @unlink($tmp);
-                if ($extracted === '') {
-                    $extracted = '[PDF FILE: ' . $filename . ' (' . $mimetype . '); base64_preview=' . substr(base64_encode($content), 0, 1024) . ']';
-                }
-            } else {
-                // Fallback: include a small base64 summary so AI knows the file exists.
-                $extracted = '[BINARY FILE: ' . $filename . ' (' . $mimetype . '); base64_preview=' . substr(base64_encode($content), 0, 1024) . ']';
-            }
-
-            // Truncate large extracted content to a reasonable size (e.g., 100k chars)
-            if (is_string($extracted) && strlen($extracted) > 100000) {
-                $extracted = substr($extracted, 0, 100000) . "\n...[truncated]";
-            }
-
-            $supportingfiles[] = [
-                'filename' => $filename,
-                'mimetype' => $mimetype,
-                'content' => $extracted,
-            ];
-        }
+        $supportingfiles = $fileprocessor->process_draft_files($draftitemid, $usercontext->id);
     }
     
     // If files were actually uploaded but no user prompt, add auto-instruction to use the file
@@ -1776,8 +1597,9 @@ if ($pdata = $promptform->get_data()) {
             $has_csv_file = !empty($pdata->supportingfiles) || !empty($csvfile);
             $generate_examples = !empty($pdata->generateexamplecontent);
             
-            // Use pure CSV parsing only if: AI disabled OR (AI enabled + has CSV + no prompt + no expand + no examples)
-            if (!$ai_enabled || ($ai_enabled && $has_csv_file && !$has_user_prompt && !$expand_on_themes && !$generate_examples)) {
+            // Use CSV processing service to determine mode
+            $csvservice = new \aiplacement_modgen\local\csv_processing_service();
+            if ($csvservice->should_use_pure_csv_mode($ai_enabled, $has_csv_file, $has_user_prompt, $expand_on_themes, $generate_examples)) {
                 // Process uploaded CSV file directly without AI enhancement
                 require_once(__DIR__ . '/classes/local/csv_parser.php');
                 
@@ -1810,16 +1632,10 @@ if ($pdata = $promptform->get_data()) {
                 if ($has_csv_file) {
                     require_once(__DIR__ . '/classes/local/csv_parser.php');
                     
-                    // Get CSV file - either from template (already loaded above) or uploaded file
+                    // Get CSV file using the csv service
                     if (empty($csvfile)) {
-                        $draftitemid = $pdata->supportingfiles;
                         $usercontext = context_user::instance($USER->id);
-                        $fs = get_file_storage();
-                        $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-                        
-                        if (!empty($files)) {
-                            $csvfile = array_shift($files);
-                        }
+                        $csvfile = $csvservice->get_csv_file($csvfile, $pdata->supportingfiles, $usercontext->id);
                     }
                     
                     if (!empty($csvfile)) {
@@ -1917,8 +1733,9 @@ if ($pdata = $promptform->get_data()) {
             $has_csv_file = !empty($pdata->supportingfiles);
             $generate_examples = !empty($pdata->generateexamplecontent);
             
-            // Use pure CSV parsing only if: AI disabled OR (AI enabled + has CSV + no prompt + no expand + no examples)
-            if (!$ai_enabled || ($ai_enabled && $has_csv_file && !$has_user_prompt && !$expand_on_themes && !$generate_examples)) {
+            // Use CSV processing service to determine mode
+            $csvservice = new \aiplacement_modgen\local\csv_processing_service();
+            if ($csvservice->should_use_pure_csv_mode($ai_enabled, $has_csv_file, $has_user_prompt, $expand_on_themes, $generate_examples)) {
                 // Process CSV file directly without AI enhancement
                 require_once(__DIR__ . '/classes/local/csv_parser.php');
                 
@@ -1949,16 +1766,10 @@ if ($pdata = $promptform->get_data()) {
                 if ($has_csv_file) {
                     require_once(__DIR__ . '/classes/local/csv_parser.php');
                     
-                    // Get CSV file - either from template (already loaded above) or uploaded file
+                    // Get CSV file using the csv service
                     if (empty($csvfile)) {
-                        $draftitemid = $pdata->supportingfiles;
                         $usercontext = context_user::instance($USER->id);
-                        $fs = get_file_storage();
-                        $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-                        
-                        if (!empty($files)) {
-                            $csvfile = array_shift($files);
-                        }
+                        $csvfile = $csvservice->get_csv_file($csvfile, $pdata->supportingfiles, $usercontext->id);
                     }
                     
                     if (!empty($csvfile)) {
@@ -2051,8 +1862,9 @@ if ($pdata = $promptform->get_data()) {
     $has_csv_file = !empty($pdata->supportingfiles) || !empty($csvfile);
     $generate_examples = !empty($pdata->generateexamplecontent);
     
-    // Use pure CSV parsing only if: AI disabled OR (AI enabled + has CSV + no prompt + no expand + no examples)
-    if (!$ai_enabled || ($ai_enabled && $has_csv_file && !$has_user_prompt && !$expand_on_themes && !$generate_examples)) {
+    // Use CSV processing service to determine mode
+    $csvservice = new \aiplacement_modgen\local\csv_processing_service();
+    if ($csvservice->should_use_pure_csv_mode($ai_enabled, $has_csv_file, $has_user_prompt, $expand_on_themes, $generate_examples)) {
         // Process CSV file directly without AI enhancement
         require_once(__DIR__ . '/classes/local/csv_parser.php');
         
@@ -2083,16 +1895,10 @@ if ($pdata = $promptform->get_data()) {
         if ($has_csv_file) {
             require_once(__DIR__ . '/classes/local/csv_parser.php');
             
-            // Get CSV file - either from template (already loaded above) or uploaded file
+            // Get CSV file using the csv service
             if (empty($csvfile)) {
-                $draftitemid = $pdata->supportingfiles;
                 $usercontext = context_user::instance($USER->id);
-                $fs = get_file_storage();
-                $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-                
-                if (!empty($files)) {
-                    $csvfile = array_shift($files);
-                }
+                $csvfile = $csvservice->get_csv_file($csvfile, $pdata->supportingfiles, $usercontext->id);
             }
             
             if (!empty($csvfile)) {

@@ -27,6 +27,10 @@ defined('MOODLE_INTERNAL') || die();
 
 $string['pluginname'] = 'Module Assistant';
 
+// Error strings
+$string['jsontoolarge'] = 'JSON data is too large to process';
+$string['invalidjson'] = 'Invalid JSON data: {$a}';
+
 $string['existingmodule'] = 'Base on existing module';
 $string['inputrequired'] = 'You must provide at least one of the following: a text prompt, upload a CSV file, select a template, or choose an existing module to base this on.';
 $string['templatefromprompt'] = 'Template from prompt';

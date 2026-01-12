@@ -558,6 +558,9 @@ class ai_service {
                 $pedagogicalguidance = "You are an expert Moodle learning content designer at a UK higher education institution designing a Moodle module.";
             }
             
+            // Add UK English requirement
+            $pedagogicalguidance .= "\n\nIMPORTANT: Use UK English spelling and conventions throughout all generated content (e.g., 'organise' not 'organize', 'colour' not 'color', 'centre' not 'center').";
+            
             // Build simplified role instruction
             $istemplate = !empty($template_data);
             $source_label = $istemplate ? 'the existing module structure' : 'the curriculum file';

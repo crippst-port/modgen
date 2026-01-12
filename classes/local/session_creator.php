@@ -216,12 +216,15 @@ class session_creator {
         ]);
         
         $sessionsectionmap = [];
-        $sessiontypes = ['presession', 'session', 'postsession'];
+        // IMPORTANT: Check longest strings first to avoid 'session' matching inside 'postsession'
+        $sessiontypes = ['presession', 'postsession', 'session'];
         
         foreach ($childsections as $section) {
-            $name = strtolower(trim($section->name));
+            $name = strtolower(str_replace(['-', '_', ' '], '', trim($section->name)));
+            
             foreach ($sessiontypes as $type) {
-                if (strpos($name, $type) !== false) {
+                $cleantype = str_replace(['-', '_', ' '], '', $type);
+                if (strpos($name, $cleantype) !== false) {
                     $sessionsectionmap[$type] = $section->section;
                     break;
                 }

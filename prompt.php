@@ -407,6 +407,8 @@ require_once(__DIR__ . '/classes/local/filehandler/file_processor.php');
 require_once(__DIR__ . '/classes/local/constants.php');
 require_once(__DIR__ . '/classes/local/file_processor_service.php');
 require_once(__DIR__ . '/classes/local/csv_processing_service.php');
+require_once(__DIR__ . '/classes/local/template_processing_service.php');
+require_once(__DIR__ . '/classes/local/section_creation_service.php');
 
 // Load course libraries once (used by approval form processing)
 require_once($CFG->dirroot . '/course/lib.php');
@@ -436,8 +438,7 @@ if ($approvedjsonparam !== null) {
 }
 
     if ($approveform && ($adata = $approveform->get_data())) {
-        // Create weekly sections from approved JSON.
-        // Validate JSON size and structure before decoding
+        // Create sections from approved JSON using the section creation service
         if (strlen($adata->approvedjson) > \aiplacement_modgen\local\constants::MAX_FILE_CONTENT_LENGTH * 2) {
             throw new \moodle_exception('jsontoolarge', 'aiplacement_modgen');
         }
@@ -446,440 +447,25 @@ if ($approvedjsonparam !== null) {
         if ($json === null && json_last_error() !== JSON_ERROR_NONE) {
             throw new \moodle_exception('invalidjson', 'aiplacement_modgen', '', json_last_error_msg());
         }
+        
         $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'connected_weekly';
+        $generatethemeintroductions = !empty($adata->generatethemeintroductions);
+        $createsuggestedactivities = !empty($adata->createsuggestedactivities);
         $hideexistingsections = !empty($adata->hideexistingsections);
         
-        // Lock the course to prevent concurrent access during build
-        $lockkey = 'aiplacement_modgen_building_' . $courseid;
-        $lock = \core\lock\lock_config::get_lock_factory('aiplacement_modgen')->get_lock($lockkey, \aiplacement_modgen\local\constants::GENERATION_LOCK_TIMEOUT);
+        // Use section creation service
+        $section_service = new \aiplacement_modgen\local\section_creation_service();
+        $creation_result = $section_service->create_sections_from_json(
+            $json,
+            $courseid,
+            $moduletype,
+            $generatethemeintroductions,
+            $createsuggestedactivities,
+            $hideexistingsections
+        );
         
-        try {
-            // Track existing section numbers BEFORE creating new content
-            $existing_section_ids = [];
-            $new_toplevel_section_ids = []; // Track new top-level sections to move to top
-            if ($hideexistingsections) {
-                $existingsections = $DB->get_records('course_sections', ['course' => $courseid], 'section ASC');
-                foreach ($existingsections as $section) {
-                    // Skip section 0 (general section)
-                    if ($section->section == 0) {
-                        continue;
-                    }
-                    $existing_section_ids[] = $section->id;
-                }
-            }
-            
-            // CRITICAL: Ensure course format is set to flexsections FIRST - both theme and weekly require it
-            // This must happen before ANY section or module creation
-            $pluginmanager = core_plugin_manager::instance();
-            $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
-            
-            if (empty($flexsectionsplugin)) {
-                throw new Exception(
-                    "The Flexible Sections plugin is required for module generation with both theme and weekly structures. " .
-                    "Please ensure the flexsections format plugin is installed and enabled in your Moodle instance."
-                );
-            }
-            
-            // Get fresh course object to check current format
-            $course = get_course($courseid, true);
-            
-            // Update course format to flexsections if not already set
-            if ($course->format !== 'flexsections') {
-                $update = new stdClass();
-                $update->id = $courseid;
-                $update->format = 'flexsections';
-                
-                update_course($update);
-                rebuild_course_cache($courseid, true, true);
-                
-                // Force a fresh course object to get updated format
-                $course = get_course($courseid, true);
-                
-                // If still not flexsections, try direct database update as fallback
-                if ($course->format !== 'flexsections') {
-                    $DB->set_field('course', 'format', 'flexsections', ['id' => $courseid]);
-                    $course = get_course($courseid, true);
-                }
-                
-                // Verify format was actually updated
-                if ($course->format !== 'flexsections') {
-                    throw new Exception(
-                        "Failed to update course format to 'flexsections'. Current format is '{$course->format}'. " .
-                        "Please check that the Flexible Sections plugin is properly installed and enabled."
-                    );
-                }
-            }
-            
-            // Re-fetch the course format instance to ensure it reflects the updated format
-            $courseformat = course_get_format($course);
-
-            // Initialize section 0 and create Assessments section.
-            \aiplacement_modgen\local\theme_builder::initialize_core_sections($courseid);
-
-            $results = [];
-            $needscacherefresh = false;
-            $activitywarnings = [];
-        
-        if ($moduletype === 'connected_theme' && !empty($json['themes']) && is_array($json['themes'])) {
-        // Use flexsections create_new_section for nested section support
-        // (Only called if flexsections is confirmed available above)
-        $themesectionnums = [];
-        
-        foreach ($json['themes'] as $themeindex => $theme) {
-            if (!is_array($theme)) {
-                continue;
-            }
-            $title = $theme['title'] ?? get_string('themefallback', 'aiplacement_modgen');
-            $summary = $theme['summary'] ?? '';
-            $weeks = !empty($theme['weeks']) && is_array($theme['weeks']) ? $theme['weeks'] : [];
-
-            // Create the parent theme section using flexsections
-            try {
-                // Verify the courseformat instance has the required method
-                if (!method_exists($courseformat, 'create_new_section')) {
-                    throw new Exception('The flexsections course format is not properly supporting nested sections. Please ensure the Flexible Sections plugin is correctly installed and enabled.');
-                }
-                $themesectionnum = $courseformat->create_new_section(0, null); // 0 means top level (no parent)
-                $themesectionnums[] = $themesectionnum;
-                
-                // Track this top-level section for potential moving later
-                if ($hideexistingsections) {
-                    $themesection = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $themesectionnum]);
-                    if ($themesection) {
-                        $new_toplevel_section_ids[] = $themesection->id;
-                    }
-                }
-            } catch (Exception $e) {
-                $activitywarnings[] = "Failed to create theme section: " . $e->getMessage();
-                continue;
-            }
-            
-            $themetitle = format_string($title, true, ['context' => $context]);
-            $sectionhtml = '';
-            
-            // Check if AI is enabled
-            $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
-            
-            // Include theme summary if: 
-            // - AI is disabled (CSV mode - always use descriptions), OR
-            // - AI is enabled AND "Generate theme introductions" is checked
-            if ((!$ai_enabled || !empty($adata->generatethemeintroductions)) && trim($summary) !== '') {
-                $sectionhtml = format_text($summary, FORMAT_HTML, ['context' => $context]);
-            }
-            
-            // Update the theme section name and summary
-            $DB->update_record('course_sections', [
-                'id' => $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $themesectionnum]),
-                'name' => $themetitle,
-                'summary' => $sectionhtml,
-                'summaryformat' => FORMAT_HTML,
-            ]);
-            
-            // Set theme section to appear as a link (collapsed = 1 in flexsections)
-            $themesectionid = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $themesectionnum]);
-            if (method_exists($courseformat, 'update_section_format_options')) {
-                $courseformat->update_section_format_options(['id' => $themesectionid, 'collapsed' => 1]);
-            }
-            
-            $results[] = get_string('sectioncreated', 'aiplacement_modgen', $themetitle);
-            
-            // Now create nested week subsections under this theme
-            if (!empty($weeks)) {
-                foreach ($weeks as $weekindex => $week) {
-                    if (!is_array($week)) {
-                        continue;
-                    }
-                    $weektitle = $week['title'] ?? get_string('weekfallback', 'aiplacement_modgen') . ' ' . ($weekindex + 1);
-                    $weeksummary = $week['summary'] ?? '';
-                    $activities = !empty($week['activities']) && is_array($week['activities']) ? $week['activities'] : [];
-                    
-                    // Use centralized theme_builder method to create week with learningactivity
-                    try {
-                        $weekSessionData = $week['sessions'] ?? null;
-                        $weeksectionnum = \aiplacement_modgen\local\theme_builder::create_week_section(
-                            $courseid,
-                            $courseformat,
-                            $themesectionnum,  // Parent is the theme section
-                            $weektitle,
-                            $weeksummary,
-                            [
-                                'collapsed' => 1,
-                                'sessiondata' => $weekSessionData,
-                                'metadata' => []  // Could extract metadata from $week if available
-                            ]
-                        );
-                        
-                        $results[] = get_string('sectioncreated', 'aiplacement_modgen', format_string($weektitle, true, ['context' => $context]));
-                        
-                        // Session creation messages
-                        $sessiontypes = ['presession' => get_string('presession', 'aiplacement_modgen'),
-                                        'session' => get_string('session', 'aiplacement_modgen'),
-                                        'postsession' => get_string('postsession', 'aiplacement_modgen')];
-                        foreach ($sessiontypes as $sessionlabel) {
-                            $results[] = get_string('sectioncreated', 'aiplacement_modgen', $sessionlabel);
-                        }
-                        
-                        // Get session section map for activity creation
-                        $sessionsectionmap = \aiplacement_modgen\local\session_creator::get_session_sections($weeksectionnum, $courseid);
-                        
-                    } catch (Exception $e) {
-                        $activitywarnings[] = "Failed to create week section: " . $e->getMessage();
-                        continue;
-                    }
-                    
-                    // Create activities in the appropriate session subsections
-                    if (!empty($adata->createsuggestedactivities)) {
-                        // Check if week has nested sessions structure
-                        if (!empty($week['sessions']) && is_array($week['sessions'])) {
-                            // Use shared helper to create session activities
-                            \aiplacement_modgen\local\session_creator::create_session_activities(
-                                $week['sessions'],
-                                $sessionsectionmap,
-                                $course,
-                                $results,
-                                $activitywarnings
-                            );
-                        } else if (!empty($activities) && is_array($activities)) {
-                            // Fallback: Old flat structure where activities are directly in week
-                            $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
-                                $activities,
-                                $course,
-                                $weeksectionnum
-                            );
-                            
-                            if (!empty($activityoutcome['created'])) {
-                                $results = array_merge($results, $activityoutcome['created']);
-                            }
-                            if (!empty($activityoutcome['warnings'])) {
-                                $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        $needscacherefresh = true;
-    } else if (!empty($json['sections']) && is_array($json['sections'])) {
-        // Weekly structure - use centralized theme_builder method
-        foreach ($json['sections'] as $sectiondata) {
-            if (!is_array($sectiondata)) {
-                continue;
-            }
-            $title = $sectiondata['title'] ?? get_string('aigensummary', 'aiplacement_modgen');
-            $summary = $sectiondata['summary'] ?? '';
-            $outline = !empty($sectiondata['outline']) && is_array($sectiondata['outline']) ? $sectiondata['outline'] : [];
-            
-            // Build summary HTML with outline if present
-            $summaryhtml = trim(format_text($summary, FORMAT_HTML, ['context' => $context]));
-            if (!empty($outline)) {
-                $items = '';
-                foreach ($outline as $entry) {
-                    if (!is_string($entry) || trim($entry) === '') {
-                        continue;
-                    }
-                    $items .= html_writer::tag('li', s($entry));
-                }
-                if ($items !== '') {
-                    $summaryhtml .= html_writer::tag('h4', get_string('weeklyoutline', 'aiplacement_modgen'));
-                    $summaryhtml .= html_writer::tag('ul', $items);
-                }
-            }
-            
-            // Check if this section has a sessions structure (connected_weekly mode)
-            $hassessions = !empty($sectiondata['sessions']) && is_array($sectiondata['sessions']);
-            
-            // Enforce connected_weekly structure if that module type is selected
-            if ($moduletype === 'connected_weekly') {
-                $hassessions = true;
-                
-                // If sessions structure is missing, initialize it
-                if (empty($sectiondata['sessions']) || !is_array($sectiondata['sessions'])) {
-                    $sectiondata['sessions'] = [
-                        'presession' => ['description' => '', 'activities' => []],
-                        'session' => ['description' => '', 'activities' => []],
-                        'postsession' => ['description' => '', 'activities' => []]
-                    ];
-                    
-                    // If there are top-level activities, move them to the main session
-                    if (!empty($sectiondata['activities']) && is_array($sectiondata['activities'])) {
-                        $sectiondata['sessions']['session']['activities'] = $sectiondata['activities'];
-                    }
-                }
-            }
-            
-            // Use centralized theme_builder method to create week with learningactivity
-            try {
-                $weekSessionData = $hassessions ? $sectiondata['sessions'] : null;
-                $weeksectionnum = \aiplacement_modgen\local\theme_builder::create_week_section(
-                    $courseid,
-                    $courseformat,
-                    0,  // Parent is 0 for top-level weekly structure
-                    $title,
-                    $summaryhtml,
-                    [
-                        'collapsed' => $hassessions ? 1 : 0,  // Collapsed if has sessions
-                        'sessiondata' => $weekSessionData,
-                        'metadata' => []
-                    ]
-                );
-                
-                // Track this top-level section for potential moving later
-                if ($hideexistingsections) {
-                    $section = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $weeksectionnum]);
-                    if ($section) {
-                        $new_toplevel_section_ids[] = $section->id;
-                    }
-                }
-                
-                if ($hassessions) {
-                    // Get session section map for activity creation
-                    $sessionsectionmap = \aiplacement_modgen\local\session_creator::get_session_sections($weeksectionnum, $courseid);
-                    
-                    // Create activities in the appropriate subsections using shared helper
-                    if (!empty($adata->createsuggestedactivities)) {
-                        \aiplacement_modgen\local\session_creator::create_session_activities(
-                            $sectiondata['sessions'],
-                            $sessionsectionmap,
-                            $course,
-                            $results,
-                            $activitywarnings
-                        );
-                    }
-                    
-                    $results[] = get_string('sectioncreated', 'aiplacement_modgen', format_string($title, true, ['context' => $context]) . ' (with subsections)');
-                    
-                    // Session creation messages
-                    $sessiontypes = ['presession' => get_string('presession', 'aiplacement_modgen'),
-                                    'session' => get_string('session', 'aiplacement_modgen'),
-                                    'postsession' => get_string('postsession', 'aiplacement_modgen')];
-                    foreach ($sessiontypes as $sessionlabel) {
-                        $results[] = get_string('sectioncreated', 'aiplacement_modgen', $sessionlabel);
-                    }
-                } else {
-                    // Simple weekly section without sessions - create activities directly in the section
-                    if (!empty($adata->createsuggestedactivities) && !empty($sectiondata['activities']) && is_array($sectiondata['activities'])) {
-                        $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
-                            $sectiondata['activities'],
-                            $course,
-                            $weeksectionnum
-                        );
-                        
-                        if (!empty($activityoutcome['created'])) {
-                            $results = array_merge($results, $activityoutcome['created']);
-                        }
-                        if (!empty($activityoutcome['warnings'])) {
-                            $activitywarnings = array_merge($activitywarnings, $activityoutcome['warnings']);
-                        }
-                    }
-                    
-                    $results[] = get_string('sectioncreated', 'aiplacement_modgen', format_string($title, true, ['context' => $context]));
-                }
-            } catch (Exception $e) {
-                $activitywarnings[] = "Failed to create week section '{$title}': " . $e->getMessage();
-                continue;
-            }
-        }
-    }
-
-        // Handle hiding existing sections and moving new ones to top if requested.
-        if ($hideexistingsections) {
-            // Hide ALL sections except section 0 (general) and the newly created ones.
-            // This handles both the original pre-generation sections AND any sections from previous failed/test generations.
-            $allsections = $DB->get_records('course_sections', ['course' => $courseid], 'section ASC');
-            foreach ($allsections as $section) {
-                // Skip section 0 (general section) and all newly created sections
-                if ($section->section == 0 || in_array($section->id, $new_toplevel_section_ids, true)) {
-                    continue;
-                }
-                
-                // Also skip child sections of newly created top-level sections (they should stay visible)
-                // Check if this section's parent is in the new creation set
-                if (!empty($section->parent) && in_array($section->parent, $new_toplevel_section_ids, true)) {
-                    continue;
-                }
-                
-                // Hide this section (old content from any previous generation)
-                $DB->set_field('course_sections', 'visible', 0, ['id' => $section->id]);
-            }
-
-            // Move new top-level sections to the top (after section 0) using the course format API
-            // Prefer format-specific move (preserves format metadata like parent/child relationships)
-            if (!empty($new_toplevel_section_ids)) {
-                /** @var \course_format $courseformat */
-                $courseformat = course_get_format($course);
-                $modinfo = get_fast_modinfo($course);
-
-                // Find the first existing top-level section that is NOT one of the newly created sections.
-                $anchorsectionnum = null;
-                foreach ($modinfo->get_section_info_all() as $s) {
-                    if ($s->section && empty($s->parent) && !in_array($s->id, $new_toplevel_section_ids, true)) {
-                        $anchorsectionnum = $s->section;
-                        break;
-                    }
-                }
-
-                // Move sections in reverse order before the anchor so their relative order is preserved.
-                // Compute the anchor once (the first existing top-level section that is not part of the new set).
-                $anchor = $anchorsectionnum;
-                if ($anchor === null) {
-                    // If there's no other top-level section, we'll use position 1 as the numeric target.
-                    $anchor = 1;
-                }
-
-                foreach (array_reverse($new_toplevel_section_ids) as $new_section_id) {
-                    $newsection = $DB->get_record('course_sections', ['id' => $new_section_id]);
-                    if (!$newsection) {
-                        continue;
-                    }
-
-                    $fromnum = $newsection->section;
-                    $moved = false;
-
-                    // Prefer format-specific move_section if available (flexsections provides move_section)
-                    if (is_object($courseformat) && method_exists($courseformat, 'move_section')) {
-                        try {
-                            // Insert before the original anchor so the anchor remains the same across iterations.
-                            $courseformat->move_section($fromnum, 0, $anchor);
-                            $moved = true;
-                        } catch (Throwable $e) {
-                            debugging('format move_section failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
-                            $moved = false;
-                        }
-                    }
-
-                    // Next preference: format-level move_section_after (core formats may implement it).
-                    if (!$moved && is_object($courseformat) && method_exists($courseformat, 'move_section_after')) {
-                        try {
-                            $modinfo = get_fast_modinfo($course);
-                            $frominfo = $modinfo->get_section_info_by_id($newsection->id, MUST_EXIST);
-                            if ($anchor !== null && $anchor !== 1) {
-                                $destinfo = $modinfo->get_section_info($anchor);
-                                $courseformat->move_section_after($frominfo, $destinfo);
-                            }
-                            // If anchor == 1 and no destinfo available we will fall back to numeric move.
-                            $moved = true;
-                        } catch (Throwable $e) {
-                            debugging('format move_section_after failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
-                            $moved = false;
-                        }
-                    }
-
-                    // Final fallback: use core helper move_section_to (works for simple formats but may not
-                    // preserve format-specific metadata for complex formats like flexsections).
-                    if (!$moved) {
-                        $targetposition = $anchor;
-                        move_section_to($course, $fromnum, $targetposition);
-                    }
-                }
-
-                // Rebuild cache once after moves.
-                rebuild_course_cache($courseid, true, true);
-            }
-        }
-
-        if ($needscacherefresh) {
-            rebuild_course_cache($courseid, true, true);
-        }
+        $results = $creation_result['results'];
+        $activitywarnings = $creation_result['warnings'];
 
         $resultsdata = [
             'notifications' => [],
@@ -899,14 +485,7 @@ if ($approvedjsonparam !== null) {
             }
         }
 
-        } finally {
-            // Always release the lock when done, even if there's an error
-            // Also ensure cache is refreshed one more time for safety
-            rebuild_course_cache($courseid, true, true);
-            if (isset($lock)) {
-                $lock->release();
-            }
-        }        if ($embedded) {
+        if ($embedded) {
             $resultsdata['returnlink'] = [
                 'url' => '#',
                 'label' => get_string('closemodgenmodal', 'aiplacement_modgen'),
@@ -1419,572 +998,54 @@ if ($pdata = $promptform->get_data()) {
         $compositeprompt .= "\n\nUser has uploaded file(s) without providing a text prompt. Please use the uploaded file content to create the module structure and content.";
     }
     
-    // Generate module with or without template
-    // Debug tracking
-    $debuglog = [];
+    // Generate module using template processing service
+    $template_processor = new \aiplacement_modgen\local\template_processing_service();
     
-    // ============================================
-    // STEP 1: Check if a CSV template was selected
-    // ============================================
-    $csvfile = null;
-    $selected_template_id = !empty($pdata->selected_template_id) ? $pdata->selected_template_id : 0;
-    if ($selected_template_id > 0) {
-        // Load template file from database
-        require_once(__DIR__ . '/classes/local/template_manager.php');
-        require_once(__DIR__ . '/classes/local/csv_parser.php');
+    try {
+        $json = $template_processor->process_and_generate(
+            $pdata,
+            $courseid,
+            $compositeprompt,
+            $supportingfiles,
+            $includeactivities,
+            $includesessions
+        );
         
-        try {
-            $template = \aiplacement_modgen\local\template_manager::get_by_id($selected_template_id);
-            $fs = get_file_storage();
-            $csvfile = $fs->get_file_by_id($template->fileid);
-            
-            if (!$csvfile) {
-                throw new \Exception('Template file not found');
-            }
-            
-            $debuglog[] = 'Loaded CSV template: ' . $template->name;
-            
-        } catch (\Exception $e) {
-            throw new \Exception('Error loading template: ' . $e->getMessage());
+        // Check if the service returned a detected module type (from CSV auto-detection)
+        if (!empty($json['_detected_moduletype'])) {
+            $moduletype = $json['_detected_moduletype'];
+            unset($json['_detected_moduletype']); // Remove internal flag
         }
+        
+        // Debug: Check what was returned
+        if (empty($json)) {
+            throw new Exception('Template processor returned empty result');
+        }
+        
+        if (!is_array($json)) {
+            throw new Exception('Template processor did not return an array');
+        }
+        
+    } catch (Exception $e) {
+        $errorhtml = html_writer::div(
+            html_writer::tag('h4', get_string('generationfailed', 'aiplacement_modgen'), ['class' => 'text-danger']) .
+            html_writer::div('Error: ' . $e->getMessage(), 'alert alert-danger'),
+            'aiplacement-modgen__validation-error'
+        );
+
+        $bodyhtml = html_writer::div($errorhtml, 'aiplacement-modgen__content');
+
+        $footeractions = [[
+            'label' => get_string('tryagain', 'aiplacement_modgen'),
+            'classes' => 'btn btn-primary',
+            'isbutton' => true,
+            'action' => 'aiplacement-modgen-reenter',
+        ]];
+
+        aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
+        exit;
     }
     
-    // ============================================
-    // STEP 2: Extract template from existing modules (if selected)
-    // ============================================
-    if (!empty($existing_module) || !empty($existing_modules)) {
-        try {
-            $template_reader = new \aiplacement_modgen\local\template_reader();
-            $template_data = null;
-            
-            // Extract and merge templates from all selected modules
-            if (!empty($existing_module) || !empty($existing_modules)) {
-                $modules_to_extract = [];
-                
-                // Add primary module (if it was set from multiselect)
-                if (!empty($existing_module)) {
-                    $modules_to_extract[] = $existing_module;
-                }
-                
-                // Add any additional modules from multiselect
-                if (!empty($existing_modules)) {
-                    $modules_to_extract = array_merge($modules_to_extract, $existing_modules);
-                }
-                
-                // Remove duplicates
-                $modules_to_extract = array_unique($modules_to_extract);
-                
-                $debuglog[] = 'Extracting templates from ' . count($modules_to_extract) . ' module(s)';
-                
-                $all_templates = [];
-                
-                // Extract each selected module
-                foreach ($modules_to_extract as $idx => $module_id) {
-                    $template_source = (string)$module_id;
-                    $debuglog[] = 'Module ' . ($idx + 1) . ': ' . $template_source;
-                    
-                    try {
-                        // Try full extraction first
-                        $extracted = $template_reader->extract_curriculum_template($template_source);
-                        $debuglog[] = '  → Full extraction succeeded';
-                        $all_templates[] = $extracted;
-                    } catch (Throwable $e) {
-                        // If full extraction fails, try fallback
-                        $debuglog[] = '  → Full extraction failed: ' . $e->getMessage();
-                        $debuglog[] = '  → Attempting fallback extraction...';
-                        
-                        try {
-                            global $DB;
-                            $courseid_int = (int)$template_source;
-                            $course = $DB->get_record('course', ['id' => $courseid_int]);
-                            if (!$course) {
-                                throw new Exception('Course not found');
-                            }
-                            
-                            $fallback = [
-                                'course_info' => [
-                                    'name' => $course->fullname,
-                                    'format' => $course->format,
-                                    'summary' => strip_tags($course->summary ?? '')
-                                ],
-                                'structure' => [],
-                                'activities' => [],
-                                'template_html' => ''
-                            ];
-                            $debuglog[] = '  → Fallback extraction succeeded';
-                            $all_templates[] = $fallback;
-                        } catch (Exception $fe) {
-                            $debuglog[] = '  → Fallback failed: ' . $fe->getMessage();
-                            throw new Exception('Both full and fallback extraction failed for module ' . $module_id . ': ' . $fe->getMessage());
-                        }
-                    }
-                }
-                
-                // Merge all extracted templates into one
-                if (!empty($all_templates)) {
-                    $template_data = $all_templates[0]; // Start with first template
-                    
-                    if (count($all_templates) > 1) {
-                        $debuglog[] = 'Merging ' . count($all_templates) . ' templates...';
-                        
-                        // Merge structures and activities from additional modules
-                        for ($i = 1; $i < count($all_templates); $i++) {
-                            $other = $all_templates[$i];
-                            
-                            // Merge structures
-                            if (!empty($other['structure']) && is_array($other['structure'])) {
-                                if (!isset($template_data['structure']) || !is_array($template_data['structure'])) {
-                                    $template_data['structure'] = [];
-                                }
-                                $template_data['structure'] = array_merge($template_data['structure'], $other['structure']);
-                            }
-                            
-                            // Merge activities
-                            if (!empty($other['activities']) && is_array($other['activities'])) {
-                                if (!isset($template_data['activities']) || !is_array($template_data['activities'])) {
-                                    $template_data['activities'] = [];
-                                }
-                                $template_data['activities'] = array_merge($template_data['activities'], $other['activities']);
-                            }
-                            
-                            // Append template HTML with separator
-                            if (!empty($other['template_html'])) {
-                                if (empty($template_data['template_html'])) {
-                                    $template_data['template_html'] = '';
-                                }
-                                $template_data['template_html'] .= "\n\n--- Module " . ($i + 1) . " ---\n\n" . $other['template_html'];
-                            }
-                        }
-                        $debuglog[] = 'Merged ' . count($all_templates) . ' templates successfully';
-                    }
-                }
-            } else {
-            }
-            
-            // Log what we got
-            $debuglog[] = 'Template data keys: ' . implode(', ', array_keys($template_data ?? []));
-            
-            // Ensure template_data is an array and not empty
-            if (!is_array($template_data) || empty($template_data)) {
-                throw new Exception('Template data extraction returned empty result');
-            }
-            
-            // Validate template data has content
-            $data_summary = [];
-            foreach ($template_data as $key => $value) {
-                if (is_array($value)) {
-                    $data_summary[$key] = 'array(' . count($value) . ')';
-                } elseif (is_string($value)) {
-                    $data_summary[$key] = 'string(' . strlen($value) . ')';
-                } else {
-                    $data_summary[$key] = gettype($value);
-                }
-            }
-            $debuglog[] = 'Template data summary: ' . implode(', ', $data_summary);
-            
-            // Don't extract Bootstrap structure - just use the template data as-is
-            // The template_data already contains course_info, structure, activities, and template_html
-            
-            // Simplified decision logic:
-            // 1. CSV only (no prompt, no expand, no examples) = Pure CSV parsing
-            // 2. CSV + prompt (no expand) = AI modifies per prompt, no title expansion
-            // 3. CSV/prompt + expand = Full AI enhancement including titles
-            // 4. CSV + examples (no expand) = Generate content, keep CSV titles
-            
-            $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
-            $expand_on_themes = !empty($pdata->expandonthemes);
-            $has_user_prompt = !empty($pdata->prompt) && trim($pdata->prompt) !== '';
-            $has_csv_file = !empty($pdata->supportingfiles) || !empty($csvfile);
-            $generate_examples = !empty($pdata->generateexamplecontent);
-            
-            // Use CSV processing service to determine mode
-            $csvservice = new \aiplacement_modgen\local\csv_processing_service();
-            if ($csvservice->should_use_pure_csv_mode($ai_enabled, $has_csv_file, $has_user_prompt, $expand_on_themes, $generate_examples)) {
-                // Process uploaded CSV file directly without AI enhancement
-                require_once(__DIR__ . '/classes/local/csv_parser.php');
-                
-                // Get CSV file - either from template (already loaded above) or uploaded file
-                if (empty($csvfile)) {
-                    $draftitemid = $pdata->supportingfiles;
-                    $usercontext = context_user::instance($USER->id);
-                    $fs = get_file_storage();
-                    $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-                    
-                    if (empty($files)) {
-                        throw new Exception('No CSV file uploaded. A CSV file with the module structure is required.');
-                    }
-                    
-                    $csvfile = array_shift($files);
-                }
-                
-                // Auto-detect CSV format if module type is not explicitly set or is default
-                if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
-                    $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
-                    $moduletype = $detectedformat;
-                }
-                
-                $json = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
-            } else {
-                // AI enhancement enabled (has prompt OR expand on themes checked)
-                
-                // Check if there's a CSV file to use as base structure
-                $csv_structure = null;
-                if ($has_csv_file) {
-                    require_once(__DIR__ . '/classes/local/csv_parser.php');
-                    
-                    // Get CSV file using the csv service
-                    if (empty($csvfile)) {
-                        $usercontext = context_user::instance($USER->id);
-                        $csvfile = $csvservice->get_csv_file($csvfile, $pdata->supportingfiles, $usercontext->id);
-                    }
-                    
-                    if (!empty($csvfile)) {
-                        // Auto-detect CSV format if needed
-                        if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
-                            $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
-                            $moduletype = $detectedformat;
-                        }
-                        
-                        // Parse CSV to get base structure
-                        $csv_structure = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
-                    }
-                }
-                
-                // Build the AI prompt based on what's enabled
-                $ai_instructions = "";
-                
-                if ($csv_structure !== null) {
-                    // Count themes/weeks for explicit instruction
-                    $themecount = 0;
-                    $weekcount = 0;
-                    if (!empty($csv_structure['themes']) && is_array($csv_structure['themes'])) {
-                        $themecount = count($csv_structure['themes']);
-                        // Count total weeks across all themes
-                        foreach ($csv_structure['themes'] as $theme) {
-                            if (!empty($theme['weeks']) && is_array($theme['weeks'])) {
-                                $weekcount += count($theme['weeks']);
-                            }
-                        }
-                    }
-                    
-                    $ai_instructions .= "\n\n*** BASE STRUCTURE FROM CSV ***\n";
-                    $ai_instructions .= json_encode($csv_structure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-                    $ai_instructions .= "\n\n*** CRITICAL STRUCTURAL REQUIREMENTS ***\n";
-                    $ai_instructions .= "You MUST preserve the exact structure from the CSV:\n";
-                    $ai_instructions .= "- Create EXACTLY " . $themecount . " themes with " . $weekcount . " weeks total\n";
-                    $ai_instructions .= "- Do NOT add extra themes, weeks, or sessions\n";
-                    $ai_instructions .= "- Do NOT remove any themes, weeks, or sessions\n";
-                    $ai_instructions .= "- Do NOT merge or split sections\n";
-                    $ai_instructions .= "- Maintain the EXACT organizational hierarchy\n";
-                    $ai_instructions .= "- Keep the SAME session structure within each theme/week\n";
-                    $ai_instructions .= "- Your output MUST have EXACTLY " . $themecount . " themes (this is non-negotiable)\n";
-                    $ai_instructions .= "- Return ONLY the exact structure shown above - no modifications to theme/week count\n\n";
-                    
-                    if ($expand_on_themes) {
-                        // Expand on themes: enhance titles and descriptions professionally
-                        $ai_instructions .= "*** TITLE ENHANCEMENT INSTRUCTIONS ***\n";
-                        $ai_instructions .= "Improve the section titles with these requirements:\n";
-                        $ai_instructions .= "- Use professional, academic language suitable for UK higher education\n";
-                        $ai_instructions .= "- Make titles clear, descriptive, and informative\n";
-                        $ai_instructions .= "- Avoid marketing language or overly casual tone\n";
-                        $ai_instructions .= "- Focus on clarity and academic rigor\n";
-                        $ai_instructions .= "- Enhanced titles should be scholarly but accessible\n";
-                        if ($generate_examples) {
-                            $ai_instructions .= "\n*** ADDITIONAL CONTENT GENERATION ***\n";
-                            $ai_instructions .= "Generate example content ONLY within the existing structure:\n";
-                            $ai_instructions .= "- Do NOT create new weeks, themes, or sessions\n";
-                            $ai_instructions .= "- Add activities ONLY to the sessions that exist in the CSV structure\n";
-                            $ai_instructions .= "- Add session instructions ONLY to existing sessions\n";
-                            $ai_instructions .= "- Generate theme/week summaries ONLY where 'summary' field is empty\n";
-                            $ai_instructions .= "- Preserve any existing user-provided summaries exactly as given\n";
-                            $ai_instructions .= "- The output structure MUST have the EXACT same number of weeks/themes as the CSV\n";
-                        }
-                    } else {
-                        // No expansion: keep titles as-is, but may still generate example content
-                        $ai_instructions .= "*** MODIFICATION INSTRUCTIONS ***\n";
-                        $ai_instructions .= "Keep all section titles and names EXACTLY as specified in the CSV.\n";
-                        $ai_instructions .= "Do NOT modify, enhance, or change any titles or theme names.\n";
-                        if ($generate_examples) {
-                            $ai_instructions .= "However, you should generate example content (activities, session instructions) while keeping titles unchanged.\n";
-                            $ai_instructions .= "IMPORTANT: For theme introductions and week summaries:\n";
-                            $ai_instructions .= "- ONLY generate these where the 'summary' field is empty in the CSV structure\n";
-                            $ai_instructions .= "- DO NOT replace or modify summaries that the user has already provided\n";
-                            $ai_instructions .= "- Preserve user-provided summaries exactly as they appear in the CSV\n";
-                        }
-                        if ($has_user_prompt) {
-                            $ai_instructions .= "Apply the following user-specified modifications:\n";
-                        }
-                    }
-                }
-                
-                $compositeprompt = $compositeprompt . $ai_instructions;
-                
-                // Use AI generation with appropriate flags for activities and sessions
-                $json = \aiplacement_modgen\ai_service::generate_module_with_template($compositeprompt, $template_data, $supportingfiles, $moduletype, $courseid, $includeactivities, $includesessions);
-            }
-        } catch (Exception $e) {
-            // Fall back to normal generation if template fails
-            $debuglog[] = 'Template extraction failed: ' . $e->getMessage();
-            
-            // Simplified decision logic (same as above)
-            $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
-            $expand_on_themes = !empty($pdata->expandonthemes);
-            $has_user_prompt = !empty($pdata->prompt) && trim($pdata->prompt) !== '';
-            $has_csv_file = !empty($pdata->supportingfiles);
-            $generate_examples = !empty($pdata->generateexamplecontent);
-            
-            // Use CSV processing service to determine mode
-            $csvservice = new \aiplacement_modgen\local\csv_processing_service();
-            if ($csvservice->should_use_pure_csv_mode($ai_enabled, $has_csv_file, $has_user_prompt, $expand_on_themes, $generate_examples)) {
-                // Process CSV file directly without AI enhancement
-                require_once(__DIR__ . '/classes/local/csv_parser.php');
-                
-                // Get CSV file - either from template (already loaded above) or uploaded file
-                if (empty($csvfile)) {
-                    $draftitemid = $pdata->supportingfiles;
-                    $usercontext = context_user::instance($USER->id);
-                    $fs = get_file_storage();
-                    $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-                    
-                    if (empty($files)) {
-                        throw new Exception('No CSV file uploaded. A CSV file with the module structure is required.');
-                    }
-                    
-                    $csvfile = array_shift($files);
-                }
-                
-                // Auto-detect CSV format if module type is not explicitly set or is default
-                if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
-                    $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
-                    $moduletype = $detectedformat;
-                }
-                
-                $json = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
-            } else {
-                // AI enhancement enabled - check for CSV to enhance
-                $csv_structure = null;
-                if ($has_csv_file) {
-                    require_once(__DIR__ . '/classes/local/csv_parser.php');
-                    
-                    // Get CSV file using the csv service
-                    if (empty($csvfile)) {
-                        $usercontext = context_user::instance($USER->id);
-                        $csvfile = $csvservice->get_csv_file($csvfile, $pdata->supportingfiles, $usercontext->id);
-                    }
-                    
-                    if (!empty($csvfile)) {
-                        if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
-                            $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
-                            $moduletype = $detectedformat;
-                        }
-                        
-                        $csv_structure = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
-                    }
-                }
-                
-                // Build AI instructions based on what's enabled
-                $ai_instructions = "";
-                
-                if ($csv_structure !== null) {
-                    // Count themes/weeks for explicit instruction
-                    $themecount = 0;
-                    $weekcount = 0;
-                    if (!empty($csv_structure['themes']) && is_array($csv_structure['themes'])) {
-                        $themecount = count($csv_structure['themes']);
-                        // Count total weeks across all themes
-                        foreach ($csv_structure['themes'] as $theme) {
-                            if (!empty($theme['weeks']) && is_array($theme['weeks'])) {
-                                $weekcount += count($theme['weeks']);
-                            }
-                        }
-                    }
-                    
-                    $ai_instructions .= "\n\n*** BASE STRUCTURE FROM CSV ***\n";
-                    $ai_instructions .= json_encode($csv_structure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-                    $ai_instructions .= "\n\n*** CRITICAL STRUCTURAL REQUIREMENTS ***\n";
-                    $ai_instructions .= "You MUST preserve the exact structure from the CSV:\n";
-                    $ai_instructions .= "- Create EXACTLY " . $themecount . " themes with " . $weekcount . " weeks total\n";
-                    $ai_instructions .= "- Do NOT add extra themes, weeks, or sessions\n";
-                    $ai_instructions .= "- Do NOT remove any themes, weeks, or sessions\n";
-                    $ai_instructions .= "- Do NOT merge or split sections\n";
-                    $ai_instructions .= "- Maintain the EXACT organizational hierarchy\n";
-                    $ai_instructions .= "- Keep the SAME session structure within each theme/week\n";
-                    $ai_instructions .= "- Your output MUST have EXACTLY " . $themecount . " themes (this is non-negotiable)\n";
-                    $ai_instructions .= "- Return ONLY the exact structure shown above - no modifications to theme/week count\n\n";
-                    
-                    if ($expand_on_themes) {
-                        // Expand on themes: enhance titles and descriptions professionally
-                        $ai_instructions .= "*** TITLE ENHANCEMENT INSTRUCTIONS ***\n";
-                        $ai_instructions .= "Improve the section titles with these requirements:\n";
-                        $ai_instructions .= "- Use professional, academic language suitable for UK higher education\n";
-                        $ai_instructions .= "- Make titles clear, descriptive, and informative\n";
-                        $ai_instructions .= "- Avoid marketing language or overly casual tone\n";
-                        $ai_instructions .= "- Focus on clarity and academic rigor\n";
-                        $ai_instructions .= "- Enhanced titles should be scholarly but accessible\n";
-                        if ($generate_examples) {
-                            $ai_instructions .= "\n*** ADDITIONAL CONTENT GENERATION ***\n";
-                            $ai_instructions .= "Generate example content ONLY within the existing structure:\n";
-                            $ai_instructions .= "- Do NOT create new weeks, themes, or sessions\n";
-                            $ai_instructions .= "- Add activities ONLY to the sessions that exist in the CSV structure\n";
-                            $ai_instructions .= "- Add session instructions ONLY to existing sessions\n";
-                            $ai_instructions .= "- Generate theme/week summaries ONLY where 'summary' field is empty\n";
-                            $ai_instructions .= "- Preserve any existing user-provided summaries exactly as given\n";
-                            $ai_instructions .= "- The output structure MUST have the EXACT same number of weeks/themes as the CSV\n";
-                        }
-                    } else {
-                        // No expansion: keep titles as-is, but may still generate example content
-                        $ai_instructions .= "*** MODIFICATION INSTRUCTIONS ***\n";
-                        $ai_instructions .= "Keep all section titles and names EXACTLY as specified in the CSV.\n";
-                        $ai_instructions .= "Do NOT modify, enhance, or change any titles or theme names.\n";
-                        if ($generate_examples) {
-                            $ai_instructions .= "However, you should generate example content (activities, session instructions) while keeping titles unchanged.\n";
-                            $ai_instructions .= "IMPORTANT: For theme introductions and week summaries:\n";
-                            $ai_instructions .= "- ONLY generate these where the 'summary' field is empty in the CSV structure\n";
-                            $ai_instructions .= "- DO NOT replace or modify summaries that the user has already provided\n";
-                            $ai_instructions .= "- Preserve user-provided summaries exactly as they appear in the CSV\n";
-                        }
-                        if ($has_user_prompt) {
-                            $ai_instructions .= "Apply the following user-specified modifications:\n";
-                        }
-                    }
-                }
-                
-                $compositeprompt = $compositeprompt . $ai_instructions;
-                
-            $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, [], $moduletype, null, $courseid, $includeactivities, $includesessions);
-            }
-        }
-    } else {
-    // No existing module template selected - use CSV template or uploaded file
-    $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
-    $expand_on_themes = !empty($pdata->expandonthemes);
-    $has_user_prompt = !empty($pdata->prompt) && trim($pdata->prompt) !== '';
-    $has_csv_file = !empty($pdata->supportingfiles) || !empty($csvfile);
-    $generate_examples = !empty($pdata->generateexamplecontent);
-    
-    // Use CSV processing service to determine mode
-    $csvservice = new \aiplacement_modgen\local\csv_processing_service();
-    if ($csvservice->should_use_pure_csv_mode($ai_enabled, $has_csv_file, $has_user_prompt, $expand_on_themes, $generate_examples)) {
-        // Process CSV file directly without AI enhancement
-        require_once(__DIR__ . '/classes/local/csv_parser.php');
-        
-        // Get CSV file - either from template (already loaded above) or uploaded file
-        if (empty($csvfile)) {
-            $draftitemid = $pdata->supportingfiles;
-            $usercontext = context_user::instance($USER->id);
-            $fs = get_file_storage();
-            $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-            
-            if (empty($files)) {
-                throw new Exception('No CSV file uploaded. A CSV file with the module structure is required.');
-            }
-            
-            $csvfile = array_shift($files);
-        }
-        
-        // Auto-detect CSV format if module type is not explicitly set or is default
-        if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
-            $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
-            $moduletype = $detectedformat;
-        }
-        
-        $json = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
-    } else {
-        // AI enhancement enabled - check for CSV to enhance
-        $csv_structure = null;
-        if ($has_csv_file) {
-            require_once(__DIR__ . '/classes/local/csv_parser.php');
-            
-            // Get CSV file using the csv service
-            if (empty($csvfile)) {
-                $usercontext = context_user::instance($USER->id);
-                $csvfile = $csvservice->get_csv_file($csvfile, $pdata->supportingfiles, $usercontext->id);
-            }
-            
-            if (!empty($csvfile)) {
-                if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
-                    $detectedformat = \aiplacement_modgen\local\csv_parser::detect_csv_format($csvfile);
-                    $moduletype = $detectedformat;
-                }
-                
-                $csv_structure = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($csvfile, $moduletype);
-            }
-        }
-        
-        // Build AI instructions based on what's enabled
-        $ai_instructions = "";
-        
-        if ($csv_structure !== null) {
-            // Count themes/weeks for explicit instruction
-            $themecount = 0;
-            $weekcount = 0;
-            if (!empty($csv_structure['themes']) && is_array($csv_structure['themes'])) {
-                $themecount = count($csv_structure['themes']);
-                // Count total weeks across all themes
-                foreach ($csv_structure['themes'] as $theme) {
-                    if (!empty($theme['weeks']) && is_array($theme['weeks'])) {
-                        $weekcount += count($theme['weeks']);
-                    }
-                }
-            }
-            
-            $ai_instructions .= "\n\n*** BASE STRUCTURE FROM CSV ***\n";
-            $ai_instructions .= json_encode($csv_structure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-            $ai_instructions .= "\n\n*** CRITICAL STRUCTURAL REQUIREMENTS ***\n";
-            $ai_instructions .= "You MUST preserve the exact structure from the CSV:\n";
-            $ai_instructions .= "- Create EXACTLY " . $themecount . " themes with " . $weekcount . " weeks total\n";
-            $ai_instructions .= "- Do NOT add extra themes, weeks, or sessions\n";
-            $ai_instructions .= "- Do NOT remove any themes, weeks, or sessions\n";
-            $ai_instructions .= "- Do NOT merge or split sections\n";
-            $ai_instructions .= "- Maintain the EXACT organizational hierarchy\n";
-            $ai_instructions .= "- Keep the SAME session structure within each theme/week\n";
-            $ai_instructions .= "- Your output MUST have EXACTLY " . $themecount . " themes (this is non-negotiable)\n";
-            $ai_instructions .= "- Return ONLY the exact structure shown above - no modifications to theme/week count\n\n";
-            
-            $ai_instructions .= "- The number of sections in your output MUST match the CSV exactly\n\n";
-            
-            if ($expand_on_themes) {
-                // Expand on themes: enhance titles and descriptions professionally
-                $ai_instructions .= "*** TITLE ENHANCEMENT INSTRUCTIONS ***\n";
-                $ai_instructions .= "Improve the section titles with these requirements:\n";
-                $ai_instructions .= "- Use professional, academic language suitable for UK higher education\n";
-                $ai_instructions .= "- Make titles clear, descriptive, and informative\n";
-                $ai_instructions .= "- Avoid marketing language or overly casual tone\n";
-                $ai_instructions .= "- Focus on clarity and academic rigor\n";
-                $ai_instructions .= "- Enhanced titles should be scholarly but accessible\n";
-                if ($generate_examples) {
-                    $ai_instructions .= "\n*** ADDITIONAL CONTENT GENERATION ***\n";
-                    $ai_instructions .= "Generate example content ONLY within the existing structure:\n";
-                    $ai_instructions .= "- Do NOT create new weeks, themes, or sessions\n";
-                    $ai_instructions .= "- Add activities ONLY to the sessions that exist in the CSV structure\n";
-                    $ai_instructions .= "- Add session instructions ONLY to existing sessions\n";
-                    $ai_instructions .= "- Generate theme/week summaries ONLY where 'summary' field is empty\n";
-                    $ai_instructions .= "- Preserve any existing user-provided summaries exactly as given\n";
-                    $ai_instructions .= "- The output structure MUST have the EXACT same number of weeks/themes as the CSV\n";
-                }
-            } else {
-                // No expansion: keep titles as-is, but may still generate example content
-                $ai_instructions .= "*** MODIFICATION INSTRUCTIONS ***\n";
-                $ai_instructions .= "Keep all section titles and names EXACTLY as specified in the CSV.\n";
-                $ai_instructions .= "Do NOT modify, enhance, or change any titles or theme names.\n";
-                if ($generate_examples) {
-                    $ai_instructions .= "However, you should generate example content (activities, session instructions) while keeping titles unchanged.\n";
-                    $ai_instructions .= "IMPORTANT: For theme introductions and week summaries:\n";
-                    $ai_instructions .= "- ONLY generate these where the 'summary' field is empty in the CSV structure\n";
-                    $ai_instructions .= "- DO NOT replace or modify summaries that the user has already provided\n";
-                    $ai_instructions .= "- Preserve user-provided summaries exactly as they appear in the CSV\n";
-                }
-                if ($has_user_prompt) {
-                    $ai_instructions .= "Apply the following user-specified modifications:\n";
-                }
-            }
-        }
-        
-        $compositeprompt = $compositeprompt . $ai_instructions;
-        
-    $json = \aiplacement_modgen\ai_service::generate_module($compositeprompt, $supportingfiles, $moduletype, null, $courseid, $includeactivities, $includesessions);
-    }
-    }
     // Check if the AI response contains validation errors
     if (empty($json)) {
         $debuginfo = '';
@@ -2122,7 +1183,7 @@ if ($pdata = $promptform->get_data()) {
     // Build module preview from the generated JSON
     $modulepreview = aiplacement_modgen_build_module_preview($json, $moduletype);
     // Ensure modulepreview is always included (will be truthy if it has themes or weeks)
-    $modulepreview['showmodulepreview'] = !empty($modulepreview['themes']) || !empty($modulepreview['weeks']);
+    $modulepreview['showmodulepreview'] = !empty($modulepreview['hasthemes']) || !empty($modulepreview['hasweeks']);
 
     $previewdata = [
         'notifications' => $notifications,

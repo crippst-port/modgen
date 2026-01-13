@@ -169,7 +169,7 @@ $string['missingcourseid'] = 'Course ID is required to use the Module Assistant.
 // Tabbed interface
 $string['generatetablabel'] = 'Generate from Template';
 
-$string['supportingfiles'] = 'CSV structure file';
+$string['supportingfiles'] = 'Upload template file';
 $string['supportingfiles_help'] = 'Upload a CSV file containing your module structure. When AI is disabled, the module will be created exactly as specified in the CSV. When AI is enabled, the CSV provides the base structure, and you can optionally enable "Expand on themes" to have AI enhance the content. Maximum 5MB.';
 
 $string['longquery'] = 'This may take a moment while the AI processes your request.';
@@ -223,6 +223,7 @@ $string['moduletype_help'] = 'Choose how to structure your module:
 // Form section headers
 $string['selecttemplate'] = 'Select Template';
 $string['uploadtemplatefile'] = 'Upload Template File';
+$string['selectoruploadtemplate'] = 'Select or Upload Template File';
 $string['templatesettings'] = 'Template Setup';
 $string['suggestedcontent'] = 'Suggest Content';
 
@@ -324,6 +325,8 @@ $string['enableai'] = 'Enable AI generation';
 $string['enableai_desc'] = 'When enabled, uploaded files are processed exactly as specified, and you can make additional adjustments via the prompt field or base the structure on an existing module template. When disabled, only uploaded CSV files are processed with no AI adjustments available.';
 
 // Placement options
+$string['contentplacement'] = 'Content placement';
+$string['contentplacement_help'] = 'Choose whether to place new module content at the top of the course or after existing content.';
 $string['hideexistingsections'] = 'Hide existing sections and place new content at top';
 $string['hideexistingsections_help'] = 'When enabled, all existing sections in the course will be hidden (made invisible to students), and the new module structure will be placed at the top of the course. This is useful when replacing an existing course structure with a new one while preserving the old content in a hidden state.';
 

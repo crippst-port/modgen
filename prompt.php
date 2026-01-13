@@ -840,6 +840,9 @@ if ($pdata = $promptform->get_data()) {
     $prompt = !empty($pdata->prompt) ? trim($pdata->prompt) : '';
     $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'connected_weekly';
     
+    // Check for any AI-based content options
+    $expandonthemes = !empty($pdata->expandonthemes);
+    
     // New simplified checkbox - if checked, generate all example content
     $generateexamplecontent = !empty($pdata->generateexamplecontent);
     $generatethemeintroductions = $generateexamplecontent;
@@ -1150,6 +1153,7 @@ if ($pdata = $promptform->get_data()) {
         'generatedsummary' => $summarytext,
         'hideexistingsections' => $hideexistingsections ? 1 : 0,
         'embedded' => $embedded ? 1 : 0,
+        'usedaioptions' => (!empty($prompt) || $expandonthemes || $generateexamplecontent) ? 1 : 0,
     ]);
 
     $notifications = [];

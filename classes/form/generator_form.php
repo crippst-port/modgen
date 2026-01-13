@@ -48,11 +48,11 @@ class aiplacement_modgen_generator_form extends moodleform {
         // Check if AI is enabled early so we can control visibility
         $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
         
-        // === SELECT TEMPLATE SECTION ===
+        // === SELECT OR UPLOAD TEMPLATE FILE SECTION ===
         $templates = $this->get_available_templates();
-        if (count($templates) > 1) { // Only show if templates exist (more than just "None selected")
-            $mform->addElement('header', 'selecttemplateheader', get_string('selecttemplate', 'aiplacement_modgen'));
-            $mform->setExpanded('selecttemplateheader', true);
+        if (count($templates) > 1) { // Only show select if templates exist (more than just "None selected")
+            $mform->addElement('header', 'selectoruploadtemplateheader', get_string('selectoruploadtemplate', 'aiplacement_modgen'));
+            $mform->setExpanded('selectoruploadtemplateheader', true);
             
             $mform->addElement('select', 'selected_template_id', get_string('csvtemplate', 'aiplacement_modgen'), $templates);
             $mform->addHelpButton('selected_template_id', 'csvtemplate', 'aiplacement_modgen');
@@ -66,11 +66,11 @@ class aiplacement_modgen_generator_form extends moodleform {
                 </div>
             </div>';
             $mform->addElement('html', $buttonhtml);
+        } else {
+            // If no templates available, still create the header for file upload
+            $mform->addElement('header', 'selectoruploadtemplateheader', get_string('selectoruploadtemplate', 'aiplacement_modgen'));
+            $mform->setExpanded('selectoruploadtemplateheader', true);
         }
-        
-        // === UPLOAD TEMPLATE FILE SECTION ===
-        $mform->addElement('header', 'uploadtemplatefileheader', get_string('uploadtemplatefile', 'aiplacement_modgen'));
-        $mform->setExpanded('uploadtemplatefileheader', true);
         
         // Existing module selection - allows user to base generation on existing module structure
         // Only show if admin has enabled this feature AND AI is enabled
@@ -107,15 +107,18 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->setType('generateexamplecontent', PARAM_BOOL);
         $mform->setDefault('generateexamplecontent', 0);
         
-        $mform->closeHeaderBefore('buttonar');
-        } // End AI-enabled section
+        // === CONTENT PLACEMENT HEADER ===
+        $mform->addElement('header', 'contentplacementheader', get_string('contentplacement', 'aiplacement_modgen'));
+        $mform->setExpanded('contentplacementheader', true);
         
-        // === PLACEMENT OPTIONS ===
         // Checkbox to hide existing sections and place new content at top
         $mform->addElement('advcheckbox', 'hideexistingsections', get_string('hideexistingsections', 'aiplacement_modgen'));
         $mform->addHelpButton('hideexistingsections', 'hideexistingsections', 'aiplacement_modgen');
         $mform->setType('hideexistingsections', PARAM_BOOL);
         $mform->setDefault('hideexistingsections', 0);
+        
+        $mform->closeHeaderBefore('buttonar');
+        } // End AI-enabled section
         
         // Add both submit button and debug button (debug button only if AI and existing modules enabled)
         $buttonarray = [];

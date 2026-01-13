@@ -316,8 +316,6 @@ class section_creation_service {
                                 $results,
                                 $activitywarnings
                             );
-                        } else {
-                            $activitywarnings[] = "DEBUG: Skipped activity creation - createsuggestedactivities: " . ($createsuggestedactivities ? 'true' : 'false') . ", has sessions: " . (empty($sessions) ? 'false' : 'true');
                         }
                         
                         $results[] = get_string('subsectioncreated', 'aiplacement_modgen', $weektitle);

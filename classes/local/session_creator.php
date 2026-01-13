@@ -78,8 +78,6 @@ class session_creator {
             $sessionsectionnum = $courseformat->create_new_section(0, null);
             $sessionsectionmap[$sessionkey] = $sessionsectionnum;
             
-            error_log("[MODGEN] Creating session: {$sessionkey} ({$sessionlabel}) at section {$sessionsectionnum}");
-            
             // Get the section ID for database updates
             $sessionsectionid = $DB->get_field('course_sections', 'id', 
                 ['course' => $courseid, 'section' => $sessionsectionnum]);
@@ -147,10 +145,6 @@ class session_creator {
                 $metadata,
                 false  // Don't validate - allows empty metadata from Quick Add
             );
-            
-            if (!$sessioncmid) {
-                error_log("[MODGEN] WARNING: Failed to create session learningactivity for {$sessionkey} in section {$sessionsectionnum}");
-            }
         }
         
         return $sessionsectionmap;
@@ -175,7 +169,6 @@ class session_creator {
         // Get handler
         $handler = registry::get_handler('learningactivity');
         if (!$handler) {
-            error_log("[MODGEN] Session learningactivity handler not found");
             debugging('learningactivity handler not found', DEBUG_DEVELOPER);
             return null;
         }
@@ -198,14 +191,14 @@ class session_creator {
                 }
             }
         } else {
-            // Direct merge for manual/Quick Add (no filtering)
+            // Direct merge for manual/Quick Add - skip null/empty values
             foreach ($metadata as $key => $value) {
-                $activitydata->$key = $value;
+                // Skip null values and empty strings to avoid issues with learningactivity module
+                if ($value !== null && $value !== '') {
+                    $activitydata->$key = $value;
+                }
             }
         }
-
-        // Log what we're trying to create
-        error_log("[MODGEN] Session: Attempting to create learningactivity: section={$sectionnumber}, type={$sectiontype}, name={$name}, validate={$validate}");
 
         // Create instance
         try {
@@ -213,13 +206,9 @@ class session_creator {
             $result = $instance->create($activitydata, $course, $sectionnumber);
 
             if ($result && isset($result['cmid'])) {
-                error_log("[MODGEN] Session: Successfully created learningactivity cmid={$result['cmid']}");
                 return $result['cmid'];
-            } else {
-                error_log("[MODGEN] Session: learningactivity creation returned null or no cmid");
             }
         } catch (\Exception $e) {
-            error_log("[MODGEN] Session: Exception creating learningactivity: " . $e->getMessage());
             debugging('Failed to create learningactivity: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
 

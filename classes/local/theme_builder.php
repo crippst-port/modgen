@@ -58,7 +58,6 @@ class theme_builder {
         // Get handler
         $handler = registry::get_handler('learningactivity');
         if (!$handler) {
-            error_log("[MODGEN] learningactivity handler not found");
             debugging('learningactivity handler not found', DEBUG_DEVELOPER);
             return null;
         }
@@ -71,13 +70,13 @@ class theme_builder {
         $activitydata->sectiontype = $sectiontype;
         $activitydata->name = $name;
 
-        // Merge additional metadata
+        // Merge additional metadata - skip null/empty values
         foreach ($metadata as $key => $value) {
-            $activitydata->$key = $value;
+            // Skip null values and empty strings to avoid issues with learningactivity module
+            if ($value !== null && $value !== '') {
+                $activitydata->$key = $value;
+            }
         }
-
-        // Log what we're trying to create
-        error_log("[MODGEN] Attempting to create learningactivity: section={$sectionnumber}, type={$sectiontype}, name={$name}");
 
         // Create instance
         try {
@@ -85,13 +84,9 @@ class theme_builder {
             $result = $instance->create($activitydata, $course, $sectionnumber);
 
             if ($result && isset($result['cmid'])) {
-                error_log("[MODGEN] Successfully created learningactivity cmid={$result['cmid']}");
                 return $result['cmid'];
-            } else {
-                error_log("[MODGEN] learningactivity creation returned null or no cmid");
             }
         } catch (\Exception $e) {
-            error_log("[MODGEN] Exception creating learningactivity: " . $e->getMessage());
             debugging('Failed to create learningactivity: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
 
@@ -392,10 +387,6 @@ class theme_builder {
             $weekactivityname,
             $weekmetadata
         );
-        
-        if (!$weekcmid) {
-            debugging("Failed to create learningactivity for week: {$title} (section {$weeksectionnum})", DEBUG_DEVELOPER);
-        }
 
         // Create session subsections using shared helper.
         $sessiondata = $options['sessiondata'] ?? null;

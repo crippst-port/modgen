@@ -52,6 +52,7 @@ class aiplacement_modgen_generator_form extends moodleform {
         $templates = $this->get_available_templates();
         if (count($templates) > 1) { // Only show if templates exist (more than just "None selected")
             $mform->addElement('header', 'selecttemplateheader', get_string('selecttemplate', 'aiplacement_modgen'));
+            $mform->setExpanded('selecttemplateheader', true);
             
             $mform->addElement('select', 'selected_template_id', get_string('csvtemplate', 'aiplacement_modgen'), $templates);
             $mform->addHelpButton('selected_template_id', 'csvtemplate', 'aiplacement_modgen');
@@ -69,6 +70,7 @@ class aiplacement_modgen_generator_form extends moodleform {
         
         // === UPLOAD TEMPLATE FILE SECTION ===
         $mform->addElement('header', 'uploadtemplatefileheader', get_string('uploadtemplatefile', 'aiplacement_modgen'));
+        $mform->setExpanded('uploadtemplatefileheader', true);
         
         // Existing module selection - allows user to base generation on existing module structure
         // Only show if admin has enabled this feature AND AI is enabled
@@ -91,6 +93,7 @@ class aiplacement_modgen_generator_form extends moodleform {
         // === SUGGESTED CONTENT SECTION === (only if AI enabled)
         if ($ai_enabled) {
         $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
+        $mform->setExpanded('suggestedcontentheader', true);
         
         // Expand on themes option - enhances section titles and descriptions
         $mform->addElement('advcheckbox', 'expandonthemes', get_string('expandonthemes', 'aiplacement_modgen'));

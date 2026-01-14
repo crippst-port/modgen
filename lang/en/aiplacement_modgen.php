@@ -32,14 +32,14 @@ $string['jsontoolarge'] = 'JSON data is too large to process';
 $string['invalidjson'] = 'Invalid JSON data: {$a}';
 
 $string['existingmodule'] = 'Base on existing module';
-$string['inputrequired'] = 'You must provide at least one of the following: a text prompt, upload a CSV file, select a template, or choose an existing module to base this on.';
-$string['templatefromprompt'] = 'Template from prompt';
+$string['inputrequired'] = 'You must provide at least one of the following: a text prompt, upload a CSV file, select a structure, or choose an existing module to base this on.';
+$string['templatefromprompt'] = 'Structure from prompt';
 $string['addtemplate'] = 'Add another template';
 $string['createfromscratch'] = 'Create from scratch';
 $string['existingmodule_help'] = 'Optionally select one or more existing modules to use as templates for AI generation. The AI will analyze the structure, activities, and content of the selected modules to create similar content for your prompt. Choose "Create from scratch" to generate content without using any existing template. You can add up to 3 templates, and the AI will merge their structures.';
 
 $string['prompt'] = 'Additional context or requests for the Assistant';
-$string['submit'] = 'Preview Template';
+$string['submit'] = 'Preview Structure';
 
 $string['reviewjson'] = 'Review the generated module JSON below. Approve to create activities.';
 $string['jsonpreview'] = 'JSON preview';
@@ -155,21 +155,21 @@ $string['aboutassessments'] = 'About Assessments';
 $string['aboutlearningoutcomes'] = 'About Learning Outcomes';
 $string['returntocourse'] = 'Return to course home';
 $string['promptsentheading'] = 'Prompt sent to AI subsystem';
-$string['launchgenerator'] = 'Template from file';
+$string['launchgenerator'] = 'Structure from file';
 $string['modgenmodalheading'] = 'Module Assistant';
 $string['modgenfabaria'] = 'Open Module Assistant';
 $string['navtitle'] = 'Module Assistant';
 $string['generatorbutton'] = 'Create';
-$string['generatorlabel'] = 'Template from file';
+$string['generatorlabel'] = 'Structure from file';
 $string['modalintro'] = 'Click below to open the Module Creator and create module content.';
 $string['closemodgenmodal'] = 'Close and return to module';
 $string['modalinaccessible'] = 'To access the full Module Creator form, please use the "Create Module" link from the course navigation menu.';
 $string['missingcourseid'] = 'Course ID is required to use the Module Assistant.';
 
 // Tabbed interface
-$string['generatetablabel'] = 'Generate from Template';
+$string['generatetablabel'] = 'Generate from Structure';
 
-$string['supportingfiles'] = 'Upload template file';
+$string['supportingfiles'] = 'Upload structure file';
 $string['supportingfiles_help'] = 'Upload a CSV file containing your module structure. When AI is disabled, the module will be created exactly as specified in the CSV. When AI is enabled, the CSV provides the base structure, and you can optionally enable "Expand on themes" to have AI enhance the content. Maximum 5MB.';
 
 $string['longquery'] = 'This may take a moment while the AI processes your request.';

@@ -29,13 +29,13 @@ The following capabilities have been added:
    - Context: CONTEXT_COURSE
 
 3. **aiplacement/modgen:generatewithprompt**
-   - Generate content with AI prompt (Template from prompt button)
+   - Generate content with AI prompt (Structure from prompt button)
    - Default: None (must be manually assigned)
    - Risk: RISK_DATALOSS
    - Context: CONTEXT_COURSE
 
 4. **aiplacement/modgen:generatefromtemplate**
-   - Generate content from templates (Template from file, CSV upload)
+   - Generate content from structures (Structure from file, CSV upload)
    - Default: None (must be manually assigned)
    - Risk: RISK_DATALOSS
    - Context: CONTEXT_COURSE
@@ -104,8 +104,8 @@ appear at all.
 Individual buttons within the toolbar are controlled by specific capabilities:
 
 - **New Theme / New Week / Dates to Sections:** Requires `managestructure`
-- **Template from File:** Requires `generatefromtemplate`
-- **Template from Prompt:** Requires `generatewithprompt` (also requires AI enabled in settings)
+- **Structure from File:** Requires `generatefromtemplate`
+- **Structure from Prompt:** Requires `generatewithprompt` (also requires AI enabled in settings)
 - **Suggest dropdown:** Requires `usesuggest` (also requires AI enabled in settings)
 
 **Form Visibility:**
@@ -150,7 +150,7 @@ policies, particularly for capabilities with RISK_DATALOSS.
 **Solution:** Capabilities are NOT assigned by default. You must manually assign at least
              one modgen capability to the user's role. See "Action Required" section above.
 
-**Problem:** AI buttons (Template from Prompt, Suggest) hidden even with correct capability
+**Problem:** AI buttons (Structure from Prompt, Suggest) hidden even with correct capability
 **Solution:** Check Site administration > Plugins > AI Placements > Module Assistant
              Ensure "Enable AI-powered features" is checked. AI features require BOTH
              the capability AND the admin setting to be enabled.
@@ -158,8 +158,8 @@ policies, particularly for capabilities with RISK_DATALOSS.
 **Problem:** "Insufficient permissions" error on specific actions
 **Solution:** User needs the specific capability for that feature:
              - Structure changes: managestructure
-             - Template from file: generatefromtemplate
-             - Template from prompt: generatewithprompt
+             - Structure from file: generatefromtemplate
+             - Structure from prompt: generatewithprompt
              - AI suggestions: usesuggest
              - Analytics: viewexplore
              - Site templates: managetemplates (CONTEXT_SYSTEM)

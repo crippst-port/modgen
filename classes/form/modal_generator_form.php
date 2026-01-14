@@ -170,7 +170,7 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
         if (count($templates) > 1) {
             global $PAGE;
             $PAGE->requires->js_call_amd('aiplacement_modgen/template_selector', 'init', [
-                ['downloadUrl' => (new moodle_url('/ai/placement/modgen/download_template.php', ['courseid' => $this->_customdata['courseid']]))->out(false)]
+                ['downloadUrl' => (new moodle_url('/ai/placement/modgen/download_template.php'))->out(false), 'courseid' => $this->_customdata['courseid']]
             ]);
         }
     }

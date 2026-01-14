@@ -29,9 +29,11 @@ define([], function() {
      *
      * @param {Object} options Configuration options
      * @param {string} options.downloadUrl Base URL for template downloads
+     * @param {number} options.courseid Course ID for context
      */
     var init = function(options) {
         var downloadUrl = options.downloadUrl || M.cfg.wwwroot + '/ai/placement/modgen/download_template.php';
+        var courseid = options.courseid || 0;
 
         // Wait for DOM to be ready
         var initializeElements = function() {
@@ -63,7 +65,11 @@ define([], function() {
                 e.preventDefault();
                 var templateId = templateSelect.value;
                 if (templateId && templateId !== '0') {
-                    window.location.href = downloadUrl + '?id=' + templateId;
+                    var url = downloadUrl + '?id=' + templateId;
+                    if (courseid) {
+                        url += '&courseid=' + courseid;
+                    }
+                    window.location.href = url;
                 }
             }
 

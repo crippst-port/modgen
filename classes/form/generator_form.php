@@ -137,7 +137,7 @@ class aiplacement_modgen_generator_form extends moodleform {
         // Always load template selector JavaScript for button state management
         global $PAGE;
         $PAGE->requires->js_call_amd('aiplacement_modgen/template_selector', 'init', [
-            ['downloadUrl' => (new moodle_url('/ai/placement/modgen/download_template.php'))->out(false)]
+            ['downloadUrl' => (new moodle_url('/ai/placement/modgen/download_template.php', ['courseid' => $this->_customdata['courseid']]))->out(false)]
         ]);
     }
 

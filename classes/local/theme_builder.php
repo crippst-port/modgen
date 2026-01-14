@@ -268,7 +268,7 @@ class theme_builder {
         $context = \context_course::instance($courseid);
 
         // Verify flexsections format.
-        if (get_class($courseformat) !== 'format_flexsections') {
+        if (!$courseformat || get_class($courseformat) !== 'format_flexsections') {
             throw new \Exception('Course format must be flexsections to create nested sections');
         }
 
@@ -328,7 +328,7 @@ class theme_builder {
         $context = \context_course::instance($courseid);
 
         // Verify flexsections format.
-        if (get_class($courseformat) !== 'format_flexsections') {
+        if (!$courseformat || get_class($courseformat) !== 'format_flexsections') {
             throw new \Exception('Course format must be flexsections to create nested sections');
         }
 

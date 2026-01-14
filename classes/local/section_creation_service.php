@@ -114,6 +114,7 @@ class section_creation_service {
                     $json['sections'],
                     $course,
                     $context,
+                    $courseformat,
                     $moduletype,
                     $createsuggestedactivities,
                     $hideexistingsections,
@@ -335,6 +336,7 @@ class section_creation_service {
      * @param array $sections Array of section data
      * @param \stdClass $course Course object
      * @param \context_course $context Course context
+     * @param object $courseformat Course format object
      * @param string $moduletype Module type
      * @param bool $hideexistingsections Whether to hide existing sections
      * @param array &$new_toplevel_section_ids Array to track new section IDs
@@ -345,6 +347,7 @@ class section_creation_service {
         array $sections,
         \stdClass $course,
         \context_course $context,
+        $courseformat,
         string $moduletype,
         bool $createsuggestedactivities,
         bool $hideexistingsections,

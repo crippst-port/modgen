@@ -259,7 +259,7 @@ $string['templatedescription_help'] = 'Optionally provide a brief description of
 $string['timecreated'] = 'Date created';
 
 // Generator introduction
-$string['generatorintroduction'] = 'The Module Generator allows you to create your course structure in several ways. You can upload a CSV structure file to define sections, weeks, or themes, or optionally select a pre-made structure from the library. When you upload a structure file, the form will read its contents and create your course layout. You can edit titles and descriptions after the strucure has been created on your module. Choose whether to place the new structure at the top of your course or after existing content.';
+$string['generatorintroduction'] = 'This page allows you to create your course structure in several ways. You can upload a CSV structure file to define sections, weeks, or themes, or optionally select a pre-made structure from the library. When you upload a structure file, the form will read its contents and create your course layout. You can edit titles and descriptions after the strucure has been created on your module. Choose whether to place the new structure at the top of your course or after existing content.';
 
 // Base on existing module settings
 $string['existingmoduleheading'] = 'Base on Existing Module';

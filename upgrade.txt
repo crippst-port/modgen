@@ -1,0 +1,175 @@
+=== Module Assistant (aiplacement_modgen) Upgrade Notes ===
+
+## Upgrading to Version 0.2.6 (2026-01-14)
+
+### New Capability System
+
+This version introduces a granular permission system with six new capabilities replacing
+the previously unused 'aiplacement/modgen:use' capability.
+
+⚠️ **IMPORTANT: NO CAPABILITIES ARE ASSIGNED BY DEFAULT**
+
+For security reasons, NO roles will have any Module Assistant capabilities by default.
+Administrators must explicitly assign capabilities to roles after upgrading.
+
+### New Capabilities
+
+The following capabilities have been added:
+
+1. **aiplacement/modgen:viewexplore**
+   - View AI course insights and analytics (Explore page)
+   - Default: None (must be manually assigned)
+   - Risk: RISK_PERSONAL
+   - Context: CONTEXT_COURSE
+
+2. **aiplacement/modgen:managestructure**
+   - Manage course structure (create themes, weeks, apply section dates)
+   - Default: None (must be manually assigned)
+   - Risk: RISK_DATALOSS
+   - Context: CONTEXT_COURSE
+
+3. **aiplacement/modgen:generatewithprompt**
+   - Generate content with AI prompt (Template from prompt button)
+   - Default: None (must be manually assigned)
+   - Risk: RISK_DATALOSS
+   - Context: CONTEXT_COURSE
+
+4. **aiplacement/modgen:generatefromtemplate**
+   - Generate content from templates (Template from file, CSV upload)
+   - Default: None (must be manually assigned)
+   - Risk: RISK_DATALOSS
+   - Context: CONTEXT_COURSE
+
+5. **aiplacement/modgen:usesuggest**
+   - Use AI activity suggestions (Suggest dropdown, suggested content in forms)
+   - Default: None (must be manually assigned)
+   - Risk: RISK_DATALOSS
+   - Context: CONTEXT_COURSE
+
+6. **aiplacement/modgen:managetemplates**
+   - Manage site-wide templates (admin functionality)
+   - Default: None (must be manually assigned)
+   - Risk: RISK_CONFIG
+   - Context: CONTEXT_SYSTEM
+
+### Action Required After Upgrade
+
+⚠️ **MANDATORY: You MUST manually assign capabilities after upgrading.**
+
+Without manual assignment, NO users (including administrators) will have access to
+Module Assistant features.
+
+1. **Run the upgrade:**
+   ```
+   php admin/cli/upgrade.php
+   php admin/cli/purge_caches.php
+   ```
+
+2. **Assign capabilities to roles:**
+   Navigate to: Site administration > Users > Permissions > Define roles
+   
+   For each role that should have access to Module Assistant features:
+   - Click the role name
+   - Click "Edit" button
+   - Search for "modgen" in the filter box
+   - Set each capability to "Allow" as appropriate
+   - Click "Save changes"
+
+3. **Recommended role assignments:**
+
+   **For Editing Teachers:**
+   - ✓ aiplacement/modgen:viewexplore
+   - ✓ aiplacement/modgen:managestructure
+   - ✓ aiplacement/modgen:generatewithprompt
+   - ✓ aiplacement/modgen:generatefromtemplate
+   - ✓ aiplacement/modgen:usesuggest
+   - ✗ aiplacement/modgen:managetemplates (admin only)
+
+   **For Non-Editing Teachers:**
+   - ✓ aiplacement/modgen:viewexplore (analytics only)
+   - ✗ All other capabilities
+
+   **For Course Creators:**
+   - Same as Editing Teachers
+
+   **For Managers:**
+   - ✓ All capabilities
+
+### Toolbar Visibility
+
+The Module Assistant toolbar will ONLY appear for users who have been explicitly granted
+at least one modgen capability. Without any capability assignment, the toolbar will not
+appear at all.
+
+Individual buttons within the toolbar are controlled by specific capabilities:
+
+- **New Theme / New Week / Dates to Sections:** Requires `managestructure`
+- **Template from File:** Requires `generatefromtemplate`
+- **Template from Prompt:** Requires `generatewithprompt` (also requires AI enabled in settings)
+- **Suggest dropdown:** Requires `usesuggest` (also requires AI enabled in settings)
+
+**Form Visibility:**
+- **Suggested Content section:** Only visible to users with `usesuggest` capability
+- **Content Placement section:** Visible to all users who can access the form
+
+### Defense in Depth
+
+The plugin uses a defense-in-depth security approach:
+
+1. **Capability Check** - User must have appropriate permission
+2. **Admin Setting Check** - AI features can be globally disabled
+3. **Context Validation** - User must be enrolled in the course
+4. **Session Key** - All write operations require valid session key
+
+Even with capabilities assigned, AI features can still be disabled site-wide via:
+Site administration > Plugins > AI Placements > Module Assistant
+
+### Backward Compatibility
+
+⚠️ **BREAKING CHANGE: Users who previously had access will lose it until capabilities are assigned.**
+
+The old 'aiplacement/modgen:use' capability is no longer used. Any custom role 
+assignments to this capability will have no effect and can be safely removed.
+
+If users previously had access to Module Assistant features, they will lose access
+after upgrading until you explicitly assign the new capabilities to their roles.
+
+### Security Considerations
+
+All modgen capabilities use appropriate risk levels:
+- RISK_PERSONAL: Can view course analytics
+- RISK_DATALOSS: Can create/modify course structure and content
+- RISK_CONFIG: Can manage system-wide templates
+
+Review your role assignments to ensure they align with your institution's security 
+policies, particularly for capabilities with RISK_DATALOSS.
+
+### Troubleshooting
+
+**Problem:** Toolbar not appearing after upgrade (most common)
+**Solution:** Capabilities are NOT assigned by default. You must manually assign at least
+             one modgen capability to the user's role. See "Action Required" section above.
+
+**Problem:** AI buttons (Template from Prompt, Suggest) hidden even with correct capability
+**Solution:** Check Site administration > Plugins > AI Placements > Module Assistant
+             Ensure "Enable AI-powered features" is checked. AI features require BOTH
+             the capability AND the admin setting to be enabled.
+
+**Problem:** "Insufficient permissions" error on specific actions
+**Solution:** User needs the specific capability for that feature:
+             - Structure changes: managestructure
+             - Template from file: generatefromtemplate
+             - Template from prompt: generatewithprompt
+             - AI suggestions: usesuggest
+             - Analytics: viewexplore
+             - Site templates: managetemplates (CONTEXT_SYSTEM)
+
+**Problem:** "Suggested Content" section not appearing in forms
+**Solution:** User needs both AI enabled (admin setting) AND the usesuggest capability.
+             The rest of the form is still accessible without this capability.
+
+**Problem:** Fragment load error mentioning managestructure
+**Solution:** Fragment now checks for ANY toolbar capability. User needs at least one of:
+             viewexplore, managestructure, generatewithprompt, or generatefromtemplate.
+
+For more information, see: https://github.com/your-repo/modgen/wiki/Permissions

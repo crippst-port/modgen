@@ -56,6 +56,9 @@ export const init = (config) => {
         showgenerator: config.showgenerator ? 1 : 0,
         showexplore: config.showexplore ? 1 : 0,
         showsuggest: config.showsuggest ? 1 : 0,
+        showmanagestructure: config.showmanagestructure ? 1 : 0,
+        showtemplatefromfile: config.showtemplatefromfile ? 1 : 0,
+        showtemplatefromptompt: config.showtemplatefromptompt ? 1 : 0,
         currentsection: config.currentsection || 0,
     })
     .then((html) => {

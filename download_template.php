@@ -31,8 +31,8 @@ require_login();
 $templateid = required_param('id', PARAM_INT);
 $context = context_system::instance();
 
-// Check capability - users must be able to update courses
-require_capability('moodle/course:update', $context);
+// Check capability - users must be able to generate from templates
+require_capability('aiplacement/modgen:generatefromtemplate', $context);
 
 // Get template
 try {

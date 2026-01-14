@@ -33,7 +33,7 @@ try {
     $selected = required_param('selected', PARAM_RAW);
 
     $context = context_course::instance($courseid);
-    require_capability('moodle/course:update', $context);
+    require_capability('aiplacement/modgen:usesuggest', $context);
 
     $sesskey = required_param('sesskey', PARAM_RAW);
     if (!confirm_sesskey($sesskey)) {

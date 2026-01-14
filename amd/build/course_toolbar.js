@@ -28,6 +28,9 @@ define(["exports", "core/fragment", "core/notification", "aiplacement_modgen/mod
       showgenerator: config.showgenerator ? 1 : 0,
       showexplore: config.showexplore ? 1 : 0,
       showsuggest: config.showsuggest ? 1 : 0,
+      showmanagestructure: config.showmanagestructure ? 1 : 0,
+      showtemplatefromfile: config.showtemplatefromfile ? 1 : 0,
+      showtemplatefromptompt: config.showtemplatefromptompt ? 1 : 0,
       currentsection: config.currentsection || 0
     }).then(html => {
       const regionMain = document.querySelector('#region-main');

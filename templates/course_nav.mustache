@@ -35,7 +35,7 @@
         </a>
         
         <div class="dropdown-menu">
-         
+         {{#showmanagestructure}}
           <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="add_theme" data-title="{{#str}}newtheme, aiplacement_modgen{{/str}}">
                     <i class="fas fa-book"></i> {{#str}}newtheme, aiplacement_modgen{{/str}}
                 </a>
@@ -44,20 +44,25 @@
                 </a>
                
                 <div class="dropdown-divider"></div>
+          {{/showmanagestructure}}
+          {{#showtemplatefromfile}}
           <a href="{{generatorurl}}" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="open-generator">
                     <i class="fa fa-plus-circle"></i> {{#str}}generatorlabel, aiplacement_modgen{{/str}}
                 </a>
+          {{/showtemplatefromfile}}
                 
-                {{#showgenerator}}
+                {{#showtemplatefromptompt}}
                 <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="template_from_prompt" data-title="{{#str}}templatefromprompt, aiplacement_modgen{{/str}}">
                     <i class="fas fa-bolt"></i> {{#str}}templatefromprompt, aiplacement_modgen{{/str}}
                 </a>
           
-          {{/showgenerator}}
+          {{/showtemplatefromptompt}}
+          {{#showmanagestructure}}
           <div class="dropdown-divider"></div>
            <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="dates_for_sections" data-title="{{#str}}datesforsections, aiplacement_modgen{{/str}}">
                     <i class="fas fa-calendar-alt"></i> {{#str}}datesforsections, aiplacement_modgen{{/str}}
                 </a>
+          {{/showmanagestructure}}
         </div>
       </li>
       

@@ -40,7 +40,7 @@ $selectedsections = required_param('selectedsections', PARAM_RAW);
 
 // Verify course access and permissions.
 $context = context_course::instance($courseid);
-require_capability('moodle/course:update', $context);
+require_capability('aiplacement/modgen:managestructure', $context);
 
 // Set page context.
 $PAGE->set_context($context);

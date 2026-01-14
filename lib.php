@@ -43,19 +43,24 @@ function aiplacement_modgen_extend_navigation_course(
 ): void {
     global $PAGE;
 
-    if (!has_capability('moodle/course:update', $context)) {
+    // Check if user has any modgen capabilities
+    $canmanagestructure = has_capability('aiplacement/modgen:managestructure', $context);
+    $cangenerateprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
+    $cangeneratetemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
+    $canusesuggest = has_capability('aiplacement/modgen:usesuggest', $context);
+
+    // Hide toolbar if user has no modgen capabilities
+    if (!$canmanagestructure && !$cangenerateprompt && !$cangeneratetemplate && !$canusesuggest) {
         return;
     }
 
     // Navigation bar - only show in edit mode and on the course page
     if ($PAGE->user_is_editing() && $PAGE->pagetype === 'course-view-flexsections') {
-        // Check if AI features are enabled in admin settings
-        $showgenerator = \aiplacement_modgen\local\settings_helper::is_ai_enabled();
-
-        // Check admin settings using helper
-        $showsuggest = \aiplacement_modgen\local\settings_helper::is_suggest_enabled();
+        // Feature-specific visibility (combine capability + admin setting)
+        $aienabled = \aiplacement_modgen\local\settings_helper::is_ai_enabled();
+        $showgenerator = $cangenerateprompt && $aienabled;
+        $showsuggest = $canusesuggest && \aiplacement_modgen\local\settings_helper::is_suggest_enabled();
         
-        // Always show navbar in edit mode (it has non-AI features like Add Theme/Week)
         // Load CSS
         $PAGE->requires->css('/ai/placement/modgen/styles.css');
 
@@ -79,6 +84,9 @@ function aiplacement_modgen_extend_navigation_course(
             'contextid' => $context->id,
             'showgenerator' => $showgenerator,
             'showsuggest' => $showsuggest,
+            'showmanagestructure' => $canmanagestructure,
+            'showtemplatefromfile' => $cangeneratetemplate,
+            'showtemplatefromptompt' => $cangenerateprompt && $aienabled,
             'currentsection' => $currentsection,
         ]]);
 
@@ -117,6 +125,10 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     $courseid = clean_param($args['courseid'], PARAM_INT);
     $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
     $showgenerator = !empty($args['showgenerator']);
+    $showsuggest = !empty($args['showsuggest']);
+    $showmanagestructure = !empty($args['showmanagestructure']);
+    $showtemplatefromfile = !empty($args['showtemplatefromfile']);
+    $showtemplatefromptompt = !empty($args['showtemplatefromptompt']);
 
     // Verify course exists and get context
     $course = get_course($courseid);
@@ -126,11 +138,26 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
         $context = context_course::instance($courseid);
     }
     
-    // Verify permissions
-    require_capability('moodle/course:update', $context);
+    // Verify permissions - user must have at least one toolbar capability
+    $hasanycapability = has_capability('aiplacement/modgen:viewexplore', $context) ||
+                        has_capability('aiplacement/modgen:managestructure', $context) ||
+                        has_capability('aiplacement/modgen:generatewithprompt', $context) ||
+                        has_capability('aiplacement/modgen:generatefromtemplate', $context);
     
-    // Create the toolbar renderable
-    $toolbar = new \aiplacement_modgen\output\course_toolbar($courseid, $showgenerator, !empty($args['showsuggest']));
+    if (!$hasanycapability) {
+        throw new required_capability_exception($context, 'aiplacement/modgen:viewexplore', 
+            'nopermissions', '');
+    }
+    
+    // Create the toolbar renderable with all capability flags
+    $toolbar = new \aiplacement_modgen\output\course_toolbar(
+        $courseid, 
+        $showgenerator, 
+        $showsuggest,
+        $showmanagestructure,
+        $showtemplatefromfile,
+        $showtemplatefromptompt
+    );
     
     // Get the plugin renderer and render the toolbar
     $renderer = $PAGE->get_renderer('aiplacement_modgen');
@@ -156,8 +183,13 @@ function aiplacement_modgen_output_fragment_generator_form(array $args): string 
     $courseid = clean_param($args['courseid'], PARAM_INT);
     $context = context_course::instance($courseid);
     
-    // Verify permission
-    require_capability('moodle/course:update', $context);
+    // Verify permission - need either generation method
+    $hasprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
+    $hastemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
+    if (!$hasprompt && !$hastemplate) {
+        throw new required_capability_exception($context, 'aiplacement/modgen:generatefromtemplate', 
+            'nopermissions', 'error');
+    }
     
     // Set page context for proper JS/CSS loading
     $PAGE->set_context($context);
@@ -216,7 +248,7 @@ function aiplacement_modgen_output_fragment_form_suggest(array $args): string {
     } else {
         $context = context_course::instance($courseid);
     }
-    require_capability('moodle/course:update', $context);
+    require_capability('aiplacement/modgen:usesuggest', $context);
 
     // Build data for mustache template rendering
     $modinfo = get_fast_modinfo($courseid);
@@ -277,7 +309,7 @@ function aiplacement_modgen_output_fragment_form_add_theme(array $args): string 
     }
 
     // Verify permission.
-    require_capability('moodle/course:update', $context);
+    require_capability('aiplacement/modgen:managestructure', $context);
 
     // Set page context for proper JS/CSS loading.
     $PAGE->set_context($context);
@@ -321,7 +353,7 @@ function aiplacement_modgen_output_fragment_form_add_week(array $args): string {
     }
 
     // Verify permission.
-    require_capability('moodle/course:update', $context);
+    require_capability('aiplacement/modgen:managestructure', $context);
 
     // Set page context for proper JS/CSS loading.
     $PAGE->set_context($context);
@@ -362,7 +394,7 @@ function aiplacement_modgen_output_fragment_form_template_from_prompt(array $arg
     }
 
     // Verify permission.
-    require_capability('moodle/course:update', $context);
+    require_capability('aiplacement/modgen:generatewithprompt', $context);
 
     // Set page context for proper JS/CSS loading.
     $PAGE->set_context($context);
@@ -405,7 +437,7 @@ function aiplacement_modgen_output_fragment_form_dates_for_sections(array $args)
     }
 
     // Verify permission.
-    require_capability('moodle/course:update', $context);
+    require_capability('aiplacement/modgen:managestructure', $context);
 
     // Set page context for proper JS/CSS loading.
     $PAGE->set_context($context);

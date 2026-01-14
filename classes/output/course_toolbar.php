@@ -37,23 +37,45 @@ class course_toolbar implements renderable, templatable {
     /** @var int Course ID */
     private $courseid;
     
-    /** @var bool Whether to show generator button */
+    /** @var bool Whether to show AI prompt generator button */
     private $showgenerator;
     
     /** @var bool Whether to show suggest button */
     private $showsuggest;
+    
+    /** @var bool Whether to show manage structure buttons (themes/weeks/dates) */
+    private $showmanagestructure;
+    
+    /** @var bool Whether to show template from file button */
+    private $showtemplatefromfile;
+    
+    /** @var bool Whether to show template from prompt button */
+    private $showtemplatefromptompt;
 
     /**
      * Constructor.
      *
      * @param int $courseid Course ID
-     * @param bool $showgenerator Whether to show generator button
+     * @param bool $showgenerator Whether to show generator button (legacy, use showtemplatefromptompt)
      * @param bool $showsuggest Whether to show suggest button
+     * @param bool $showmanagestructure Whether to show structure management buttons
+     * @param bool $showtemplatefromfile Whether to show template from file button
+     * @param bool $showtemplatefromptompt Whether to show template from prompt button
      */
-    public function __construct(int $courseid, bool $showgenerator, bool $showsuggest = false) {
+    public function __construct(
+        int $courseid, 
+        bool $showgenerator = false, 
+        bool $showsuggest = false,
+        bool $showmanagestructure = false,
+        bool $showtemplatefromfile = false,
+        bool $showtemplatefromptompt = false
+    ) {
         $this->courseid = $courseid;
-        $this->showgenerator = $showgenerator;
+        $this->showgenerator = $showgenerator || $showtemplatefromptompt; // Legacy support
         $this->showsuggest = $showsuggest;
+        $this->showmanagestructure = $showmanagestructure;
+        $this->showtemplatefromfile = $showtemplatefromfile;
+        $this->showtemplatefromptompt = $showtemplatefromptompt;
     }
 
     /**
@@ -68,6 +90,9 @@ class course_toolbar implements renderable, templatable {
         $data = new stdClass();
         $data->showgenerator = $this->showgenerator;
         $data->showsuggest = $this->showsuggest;
+        $data->showmanagestructure = $this->showmanagestructure;
+        $data->showtemplatefromfile = $this->showtemplatefromfile;
+        $data->showtemplatefromptompt = $this->showtemplatefromptompt;
         
         // Always provide generator URL (needed for "Template from file" link)
         $generatorurl = new moodle_url('/ai/placement/modgen/modal.php', ['id' => $this->courseid]);

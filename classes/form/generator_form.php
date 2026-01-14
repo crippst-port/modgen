@@ -45,6 +45,10 @@ class aiplacement_modgen_generator_form extends moodleform {
             $mform->setType('embedded', PARAM_BOOL);
         }
         
+        // Get course context for capability checks
+        $coursecontext = context_course::instance($this->_customdata['courseid']);
+        $canusesuggest = has_capability('aiplacement/modgen:usesuggest', $coursecontext);
+        
         // Check if AI is enabled early so we can control visibility
         $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
         
@@ -90,8 +94,8 @@ class aiplacement_modgen_generator_form extends moodleform {
             array('subdirs' => 0, 'maxbytes' => 10485760, 'maxfiles' => 1, 'accepted_types' => array('.csv')));
         $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
         
-        // === SUGGESTED CONTENT SECTION === (only if AI enabled)
-        if ($ai_enabled) {
+        // === SUGGESTED CONTENT SECTION === (only if AI enabled AND user has usesuggest capability)
+        if ($ai_enabled && $canusesuggest) {
         $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
         $mform->setExpanded('suggestedcontentheader', true);
         
@@ -107,7 +111,10 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->setType('generateexamplecontent', PARAM_BOOL);
         $mform->setDefault('generateexamplecontent', 0);
         
-        // === CONTENT PLACEMENT HEADER ===
+        $mform->closeHeaderBefore('contentplacementheader');
+        } // End AI-enabled suggested content section
+        
+        // === CONTENT PLACEMENT HEADER === (always visible)
         $mform->addElement('header', 'contentplacementheader', get_string('contentplacement', 'aiplacement_modgen'));
         $mform->setExpanded('contentplacementheader', true);
         
@@ -118,7 +125,6 @@ class aiplacement_modgen_generator_form extends moodleform {
         $mform->setDefault('hideexistingsections', 0);
         
         $mform->closeHeaderBefore('buttonar');
-        } // End AI-enabled section
         
         // Add both submit button and debug button (debug button only if AI and existing modules enabled)
         $buttonarray = [];

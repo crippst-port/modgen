@@ -51,6 +51,10 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
             $mform->setType('embedded', PARAM_BOOL);
         }
 
+        // Get course context for capability checks
+        $coursecontext = context_course::instance($this->_customdata['courseid']);
+        $canusesuggest = has_capability('aiplacement/modgen:usesuggest', $coursecontext);
+
         // Add module type selection
         $moduletypeoptions = [];
 
@@ -134,8 +138,8 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
             $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
         }
 
-        // === SUGGESTED CONTENT SECTION === (only if AI enabled)
-        if ($ai_enabled) {
+        // === SUGGESTED CONTENT SECTION === (only if AI enabled AND user has usesuggest capability)
+        if ($ai_enabled && $canusesuggest) {
         $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
 
         // Expand on themes option - enhances section titles and descriptions

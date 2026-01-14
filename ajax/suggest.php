@@ -62,7 +62,7 @@ try {
     }
 
     $context = context_course::instance($courseid);
-    require_capability('moodle/course:update', $context);
+    require_capability('aiplacement/modgen:usesuggest', $context);
 
     $modinfo = get_fast_modinfo($courseid);
     $sectionmap = [];

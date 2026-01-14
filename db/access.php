@@ -26,12 +26,51 @@
 defined('MOODLE_INTERNAL') || die();
 
 $capabilities = [
-    'aiplacement/modgen:use' => [
+    // View AI course insights and analytics
+    'aiplacement/modgen:viewexplore' => [
+        'riskbitmask' => RISK_PERSONAL,
+        'captype' => 'read',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => [],
+    ],
+    
+    // Manage course structure (themes, weeks, section dates)
+    'aiplacement/modgen:managestructure' => [
+        'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,
-        'archetypes' => [
-            'editingteacher' => CAP_ALLOW,
-            'manager' => CAP_ALLOW,
-        ],
+        'archetypes' => [],
+    ],
+    
+    // Generate content with AI prompt
+    'aiplacement/modgen:generatewithprompt' => [
+        'riskbitmask' => RISK_DATALOSS,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => [],
+    ],
+    
+    // Generate content from templates (CSV/file upload)
+    'aiplacement/modgen:generatefromtemplate' => [
+        'riskbitmask' => RISK_DATALOSS,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => [],
+    ],
+    
+    // Use AI activity suggestions
+    'aiplacement/modgen:usesuggest' => [
+        'riskbitmask' => RISK_DATALOSS,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => [],
+    ],
+    
+    // Manage site-wide templates (admin)
+    'aiplacement/modgen:managetemplates' => [
+        'riskbitmask' => RISK_CONFIG,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_SYSTEM,
+        'archetypes' => [],
     ],
 ];

@@ -39,9 +39,14 @@ if (!$courseid) {
     throw new moodle_exception('missingcourseid', 'aiplacement_modgen');
 }
 
-// Verify user has access to this course
+// Verify user has access to this course and can generate content
 $context = context_course::instance($courseid);
-require_capability('moodle/course:update', $context);
+$hasprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
+$hastemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
+if (!$hasprompt && !$hastemplate) {
+    throw new required_capability_exception($context, 'aiplacement/modgen:generatefromtemplate', 
+        'nopermissions', 'error');
+}
 
 // Include form classes
 require_once(__DIR__ . '/classes/form/generator_form.php');

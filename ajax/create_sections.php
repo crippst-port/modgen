@@ -40,7 +40,7 @@ $parentsection = optional_param('parentsection', 0, PARAM_INT); // Current secti
 
 // Verify course access and permissions.
 $context = context_course::instance($courseid);
-require_capability('moodle/course:update', $context);
+require_capability('aiplacement/modgen:managestructure', $context);
 
 // Set page context (required by some Moodle functions).
 $PAGE->set_context($context);

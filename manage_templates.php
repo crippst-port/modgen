@@ -28,13 +28,12 @@ require_once($CFG->libdir . '/tablelib.php');
 use aiplacement_modgen\local\template_manager;
 
 require_login();
-require_capability('moodle/site:config', context_system::instance());
 
 $action = optional_param('action', '', PARAM_ALPHA);
 $templateid = optional_param('id', 0, PARAM_INT);
 
 $context = context_system::instance();
-require_capability('moodle/site:config', $context);
+require_capability('aiplacement/modgen:managetemplates', $context);
 
 $PAGE->set_url(new moodle_url('/ai/placement/modgen/manage_templates.php'));
 $PAGE->set_context($context);

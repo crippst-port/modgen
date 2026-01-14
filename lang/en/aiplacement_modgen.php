@@ -221,41 +221,41 @@ $string['moduletype_help'] = 'Choose how to structure your module:
 **Note**: If you upload a CSV file, the format will be automatically detected based on its contents (themes vs weekly structure). You can override the auto-detected format by selecting a specific option here.';
 
 // Form section headers
-$string['selecttemplate'] = 'Select Template';
-$string['uploadtemplatefile'] = 'Upload Template File';
-$string['selectoruploadtemplate'] = 'Select or Upload Template File';
-$string['templatesettings'] = 'Template Setup';
+$string['selecttemplate'] = 'Select Structure';
+$string['uploadtemplatefile'] = 'Upload Structure File';
+$string['selectoruploadtemplate'] = 'Select or Upload Structure File';
+$string['templatesettings'] = 'Structure Setup';
 $string['suggestedcontent'] = 'Suggest Content';
 
 // CSV Template Library
-$string['csvtemplatelibrary'] = 'CSV Template Library';
-$string['csvtemplatelibrary_desc'] = 'Manage pre-made CSV templates that users can select when generating modules.';
-$string['managetemplates'] = 'Manage CSV Templates';
-$string['managetemplates_desc'] = 'Upload, edit, and organize CSV templates. <a href="{$a}">Manage templates</a>';
-$string['templatename'] = 'Template name';
+$string['csvtemplatelibrary'] = 'CSV Structure Library';
+$string['csvtemplatelibrary_desc'] = 'Manage pre-made CSV structures that users can select when generating modules.';
+$string['managetemplates'] = 'Manage CSV Structure files';
+$string['managetemplates_desc'] = 'Upload, edit, and organize CSV structures. <a href="{$a}">Manage templates</a>';
+$string['templatename'] = 'Structure name';
 $string['templatedescription'] = 'Description';
 $string['csvfile'] = 'CSV file';
-$string['csvtemplate'] = 'Select a pre-made template';
-$string['csvtemplate_help'] = 'Select a pre-made CSV template to use as your module structure. You can either apply it directly or download it to edit offline before uploading.';
+$string['csvtemplate'] = 'Select a pre-made structure';
+$string['csvtemplate_help'] = 'Select a pre-made CSV to use as your module structure. You can either apply it directly or download it to edit offline before uploading.';
 $string['notemplateselected'] = '-- None selected --';
 $string['downloadtemplate'] = 'Download to edit';
-$string['applytemplate'] = 'Use selected template';
-$string['addnewtemplate'] = 'Add new template';
-$string['edittemplate'] = 'Edit template';
-$string['deletetemplate'] = 'Delete template';
-$string['confirmdeletetemplate'] = 'Are you sure you want to delete the template "{$a}"? This cannot be undone.';
-$string['templatedeleted'] = 'Template deleted successfully';
-$string['templatesaved'] = 'Template saved successfully';
-$string['templatecreated'] = 'Template created successfully';
-$string['templateupdated'] = 'Template updated successfully';
-$string['notemplates'] = 'No templates available yet. Add your first template below.';
+$string['applytemplate'] = 'Use selected structure';
+$string['addnewtemplate'] = 'Add new structure';
+$string['edittemplate'] = 'Edit structure';
+$string['deletetemplate'] = 'Delete structure';
+$string['confirmdeletetemplate'] = 'Are you sure you want to delete the structure "{$a}"? This cannot be undone.';
+$string['templatedeleted'] = 'Structure deleted successfully';
+$string['templatesaved'] = 'Structure saved successfully';
+$string['templatecreated'] = 'Structure created successfully';
+$string['templateupdated'] = 'Structure updated successfully';
+$string['notemplates'] = 'No structures available yet. Add your first structure below.';
 $string['moveup'] = 'Move up';
 $string['movedown'] = 'Move down';
 $string['csvvalidationfailed'] = 'CSV validation failed: {$a}';
 $string['invalidcsvstructure'] = 'The uploaded CSV file does not have a valid structure.';
-$string['templatefilenotfound'] = 'Template file not found';
-$string['templatename_help'] = 'Give this template a descriptive name that users will see when selecting templates.';
-$string['templatedescription_help'] = 'Optionally provide a brief description of what this template contains or when it should be used.';
+$string['templatefilenotfound'] = 'Structure file not found';
+$string['templatename_help'] = 'Give this structure a descriptive name that users will see when selecting structures.';
+$string['templatedescription_help'] = 'Optionally provide a brief description of what this structure contains or when it should be used.';
 $string['timecreated'] = 'Date created';
 
 // Generator introduction
@@ -426,3 +426,11 @@ $string['helplinktext'] = 'Help Link {$a} Text';
 $string['helplinktext_desc'] = 'Display text for the help link';
 $string['helplinkurl'] = 'Help Link {$a} URL';
 $string['helplinkurl_desc'] = 'Full URL for the help resource (must start with http:// or https://)';
+
+// Capabilities
+$string['modgen:viewexplore'] = 'View AI course insights and analytics';
+$string['modgen:managestructure'] = 'Manage course structure (themes, weeks, dates)';
+$string['modgen:generatewithprompt'] = 'Generate content with AI prompt';
+$string['modgen:generatefromtemplate'] = 'Generate content from templates';
+$string['modgen:usesuggest'] = 'Use AI activity suggestions';
+$string['modgen:managetemplates'] = 'Manage site-wide templates';

@@ -34,7 +34,13 @@ $context = context_course::instance($courseid);
 
 // Require login and capability.
 require_login($course);
-require_capability('moodle/course:manageactivities', $context);
+$cangenerate = has_capability('aiplacement/modgen:generatewithprompt', $context) ||
+               has_capability('aiplacement/modgen:generatefromtemplate', $context);
+$canviewexplore = has_capability('aiplacement/modgen:viewexplore', $context);
+if (!$cangenerate && !$canviewexplore) {
+    throw new required_capability_exception($context, 'aiplacement/modgen:viewexplore', 
+        'nopermissions', 'error');
+}
 
 // Set up page.
 $PAGE->set_url(new moodle_url('/ai/placement/modgen/aigen_list.php', ['id' => $courseid]));

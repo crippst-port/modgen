@@ -46,7 +46,12 @@ $courseid = required_param('id', PARAM_INT);
 // Verify course exists and user has access
 $course = get_course($courseid);
 $coursecontext = context_course::instance($courseid);
-require_capability('moodle/course:view', $coursecontext);
+$hasprompt = has_capability('aiplacement/modgen:generatewithprompt', $coursecontext);
+$hastemplate = has_capability('aiplacement/modgen:generatefromtemplate', $coursecontext);
+if (!$hasprompt && !$hastemplate) {
+    throw new required_capability_exception($coursecontext, 'aiplacement/modgen:generatefromtemplate', 
+        'nopermissions', 'error');
+}
 
 // Set page context
 global $PAGE, $OUTPUT;

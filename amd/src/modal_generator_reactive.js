@@ -79,6 +79,8 @@ import Fragment from 'core/fragment';
 import ModgenModal from 'aiplacement_modgen/modal';
 import Notification from 'core/notification';
 import ModalEvents from 'core/modal_events';
+import Templates from 'core/templates';
+import {get_string as getString} from 'core/str';
 
 // =============================================================================
 // CONSTANTS & EVENT TYPES
@@ -677,25 +679,48 @@ class ModalGeneratorComponent extends BaseComponent {
      * instead of extracting buttons from the form. This gives the server
      * control over footer button appearance and actions.
      *
+     * This method handles both initial form buttons and success state buttons.
+     * It uses Mustache templates for rendering and supports language string resolution.
+     *
      * Button definition format:
      * {
-     *   label: 'Button Text',
+     *   label: 'Button Text' or language string key,
      *   class: 'btn-primary',  // Bootstrap class (without 'btn' prefix)
      *   action: 'submit'       // Action identifier for handleFooterButtonAction
      * }
      *
      * @param {Object} modal The modal instance
      * @param {Array} buttons Array of button definitions from server
+     * @param {boolean} useLanguageStrings Whether to resolve labels as language strings
+     * @return {Promise} Promise that resolves when buttons are rendered
      */
-    renderFooterButtons(modal, buttons) {
-        const footerHtml = buttons.map((btn, index) => {
-            const classes = `btn ${btn.class || 'btn-secondary'}`;
-            return `<button type="button" class="${classes}" data-action="${btn.action}" data-button-index="${index}">
-                ${btn.label}
-            </button>`;
-        }).join('');
+    async renderFooterButtons(modal, buttons, useLanguageStrings = false) {
+        // Resolve language strings if needed
+        const buttonsWithLabels = await Promise.all(buttons.map(async (btn, index) => {
+            let label = btn.label;
+            if (useLanguageStrings) {
+                try {
+                    label = await getString(btn.label, 'aiplacement_modgen');
+                } catch (error) {
+                    // If string lookup fails, use the raw label
+                    label = btn.label;
+                }
+            }
+            return {
+                label: label,
+                action: btn.action,
+                class: btn.class || 'btn-secondary',
+                index: index
+            };
+        }));
         
-        modal.setFooter(footerHtml);
+        // Render template
+        const {html} = await Templates.renderForPromise(
+            'aiplacement_modgen/modal_footer_buttons',
+            {buttons: buttonsWithLabels}
+        );
+        
+        modal.setFooter(html);
         
         // Wire up button handlers
         const footer = modal.getFooter();
@@ -720,6 +745,7 @@ class ModalGeneratorComponent extends BaseComponent {
      * - 'submit': Show creating step, submit the form
      * - 'regenerate': Reset to prompt step, reload form
      * - 'close': Destroy the modal
+     * - 'return-to-course': Reload the page to return to course
      * - Other: Try to find and click a matching button in the form
      *
      * @param {Object} modal The modal instance
@@ -756,6 +782,11 @@ class ModalGeneratorComponent extends BaseComponent {
                 this.reactive.dispatch('openModalWithForm', 'template_from_prompt', 'Template from prompt');
                 break;
                 
+            case 'return-to-course':
+                // Reload page to return to course
+                window.location.reload();
+                break;
+                
             case 'close':
                 modal.destroy();
                 break;
@@ -769,6 +800,44 @@ class ModalGeneratorComponent extends BaseComponent {
                     }
                 }
         }
+    }
+    
+    /**
+     * Display success message with return to course button.
+     *
+     * This is a reusable method for showing success state in modals.
+     * It renders the success message using a template and replaces the footer
+     * with a "Return to course" button.
+     *
+     * @param {Object} modal The modal instance
+     * @param {string} message Main success message text
+     * @param {Array} details Optional array of detail messages
+     * @return {Promise} Promise that resolves when success is displayed
+     */
+    async showSuccess(modal, message, details = []) {
+        // Render success message body
+        const {html: bodyHtml} = await Templates.renderForPromise(
+            'aiplacement_modgen/success_message',
+            {
+                message: message,
+                details: details.length > 0 ? details : null
+            }
+        );
+        
+        modal.setBody(bodyHtml);
+        
+        // Replace footer with return to course button
+        await this.renderFooterButtons(
+            modal,
+            [
+                {
+                    label: 'closemodgenmodal',
+                    action: 'return-to-course',
+                    class: 'btn-primary'
+                }
+            ],
+            true // Use language strings
+        );
     }
     
     /**
@@ -949,22 +1018,8 @@ class ModalGeneratorComponent extends BaseComponent {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                // Show success message
-                let successHtml = '<div class="alert alert-success">';
-                successHtml += '<p>' + data.message + '</p>';
-                successHtml += '<p class="mt-3">';
-                successHtml += '<button type="button" class="btn btn-primary" id="reload-page-btn">';
-                successHtml += 'Return to course';
-                successHtml += '</button>';
-                successHtml += '</p>';
-                successHtml += '</div>';
-                
-                modal.setBody(successHtml);
-                
-                // Add click handler to reload button
-                modal.getRoot().find('#reload-page-btn').on('click', () => {
-                    window.location.reload();
-                });
+                // Show success message using reusable method
+                this.showSuccess(modal, data.message);
             } else {
                 const errorHtml = '<div class="alert alert-danger">' +
                     '<p>' + (data.error || 'An error occurred') + '</p>' +
@@ -1167,33 +1222,11 @@ class ModalGeneratorComponent extends BaseComponent {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Build success message HTML
-                    let successHtml = '<div class="alert alert-success">';
-                    successHtml += '<p>' + data.message + '</p>';
+                    // Parse detailed messages if present
+                    const details = data.messages && data.messages.length > 0 ? data.messages : [];
                     
-                    // Add detailed messages if present
-                    if (data.messages && data.messages.length > 0) {
-                        successHtml += '<ul>';
-                        data.messages.forEach(msg => {
-                            successHtml += '<li>' + msg + '</li>';
-                        });
-                        successHtml += '</ul>';
-                    }
-                    
-                    // Add return to course button
-                    successHtml += '<p class="mt-3">';
-                    successHtml += '<button type="button" class="btn btn-primary" id="reload-page-btn">';
-                    successHtml += 'Return to course';
-                    successHtml += '</button>';
-                    successHtml += '</p>';
-                    successHtml += '</div>';
-                    
-                    modal.setBody(successHtml);
-                    
-                    // Add click handler to reload button
-                    modal.getRoot().find('#reload-page-btn').on('click', () => {
-                        window.location.reload();
-                    });
+                    // Show success message using reusable method
+                    this.showSuccess(modal, data.message, details);
                 } else {
                     // Show error message
                     const errorHtml = '<div class="alert alert-danger">' +

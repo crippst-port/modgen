@@ -1,4 +1,4 @@
-define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "aiplacement_modgen/modal", "core/notification", "core/modal_events"], function (_exports, _reactive, _event_dispatcher, _fragment, _modal, _notification, _modal_events) {
+define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "aiplacement_modgen/modal", "core/notification", "core/modal_events", "core/templates", "core/str"], function (_exports, _reactive, _event_dispatcher, _fragment, _modal, _notification, _modal_events, _templates, _str) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -9,6 +9,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
   _modal = _interopRequireDefault(_modal);
   _notification = _interopRequireDefault(_notification);
   _modal_events = _interopRequireDefault(_modal_events);
+  _templates = _interopRequireDefault(_templates);
   function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
   /**
    * Reactive modal generator component.
@@ -348,12 +349,30 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         _notification.default.exception(error);
       });
     }
-    renderFooterButtons(modal, buttons) {
-      const footerHtml = buttons.map((btn, index) => {
-        const classes = "btn ".concat(btn.class || 'btn-secondary');
-        return "<button type=\"button\" class=\"".concat(classes, "\" data-action=\"").concat(btn.action, "\" data-button-index=\"").concat(index, "\">\n                ").concat(btn.label, "\n            </button>");
-      }).join('');
-      modal.setFooter(footerHtml);
+    async renderFooterButtons(modal, buttons) {
+      let useLanguageStrings = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
+      const buttonsWithLabels = await Promise.all(buttons.map(async (btn, index) => {
+        let label = btn.label;
+        if (useLanguageStrings) {
+          try {
+            label = await (0, _str.get_string)(btn.label, 'aiplacement_modgen');
+          } catch (error) {
+            label = btn.label;
+          }
+        }
+        return {
+          label: label,
+          action: btn.action,
+          class: btn.class || 'btn-secondary',
+          index: index
+        };
+      }));
+      const {
+        html
+      } = await _templates.default.renderForPromise('aiplacement_modgen/modal_footer_buttons', {
+        buttons: buttonsWithLabels
+      });
+      modal.setFooter(html);
       const footer = modal.getFooter();
       const footerNode = footer && footer.length ? footer.get(0) : null;
       if (!footerNode) {
@@ -385,6 +404,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           this.reactive.dispatch('setStep', STEPS.PROMPT);
           this.reactive.dispatch('openModalWithForm', 'template_from_prompt', 'Template from prompt');
           break;
+        case 'return-to-course':
+          window.location.reload();
+          break;
         case 'close':
           modal.destroy();
           break;
@@ -396,6 +418,21 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
             }
           }
       }
+    }
+    async showSuccess(modal, message) {
+      let details = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
+      const {
+        html: bodyHtml
+      } = await _templates.default.renderForPromise('aiplacement_modgen/success_message', {
+        message: message,
+        details: details.length > 0 ? details : null
+      });
+      modal.setBody(bodyHtml);
+      await this.renderFooterButtons(modal, [{
+        label: 'closemodgenmodal',
+        action: 'return-to-course',
+        class: 'btn-primary'
+      }], true);
     }
     hideFormButtons(modal) {
       const body = modal.getBody();
@@ -505,18 +542,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         body: params.toString()
       }).then(response => response.json()).then(data => {
         if (data.success) {
-          let successHtml = '<div class="alert alert-success">';
-          successHtml += '<p>' + data.message + '</p>';
-          successHtml += '<p class="mt-3">';
-          successHtml += '<button type="button" class="btn btn-primary" id="reload-page-btn">';
-          successHtml += 'Return to course';
-          successHtml += '</button>';
-          successHtml += '</p>';
-          successHtml += '</div>';
-          modal.setBody(successHtml);
-          modal.getRoot().find('#reload-page-btn').on('click', () => {
-            window.location.reload();
-          });
+          this.showSuccess(modal, data.message);
         } else {
           const errorHtml = '<div class="alert alert-danger">' + '<p>' + (data.error || 'An error occurred') + '</p>' + '</div>';
           modal.setBody(errorHtml);
@@ -638,25 +664,8 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           body: new URLSearchParams(params)
         }).then(response => response.json()).then(data => {
           if (data.success) {
-            let successHtml = '<div class="alert alert-success">';
-            successHtml += '<p>' + data.message + '</p>';
-            if (data.messages && data.messages.length > 0) {
-              successHtml += '<ul>';
-              data.messages.forEach(msg => {
-                successHtml += '<li>' + msg + '</li>';
-              });
-              successHtml += '</ul>';
-            }
-            successHtml += '<p class="mt-3">';
-            successHtml += '<button type="button" class="btn btn-primary" id="reload-page-btn">';
-            successHtml += 'Return to course';
-            successHtml += '</button>';
-            successHtml += '</p>';
-            successHtml += '</div>';
-            modal.setBody(successHtml);
-            modal.getRoot().find('#reload-page-btn').on('click', () => {
-              window.location.reload();
-            });
+            const details = data.messages && data.messages.length > 0 ? data.messages : [];
+            this.showSuccess(modal, data.message, details);
           } else {
             const errorHtml = '<div class="alert alert-danger">' + '<p>' + (data.error || 'An error occurred') + '</p>' + '</div>';
             modal.setBody(errorHtml);

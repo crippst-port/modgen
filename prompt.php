@@ -48,6 +48,10 @@ if (!$hasprompt && !$hastemplate) {
         'nopermissions', 'error');
 }
 
+// Set page URL early to avoid "page did not call set_url()" errors
+$PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid]));
+$PAGE->set_context($context);
+
 // Include form classes
 require_once(__DIR__ . '/classes/form/generator_form.php');
 require_once(__DIR__ . '/classes/form/approve_form.php');

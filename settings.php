@@ -165,6 +165,14 @@ if ($hassiteconfig) {
         ));
 
         $settings->add(new admin_setting_configtext(
+            'aiplacement_modgen/maxweeksperTheme',
+            new lang_string('maxweeksperTheme', 'aiplacement_modgen'),
+            new lang_string('maxweeksperTheme_desc', 'aiplacement_modgen'),
+            '5',
+            PARAM_INT
+        ));
+
+        $settings->add(new admin_setting_configtext(
             'aiplacement_modgen/maxcsvsections',
             new lang_string('maxcsvsections', 'aiplacement_modgen'),
             new lang_string('maxcsvsections_desc', 'aiplacement_modgen'),

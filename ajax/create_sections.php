@@ -55,6 +55,7 @@ try {
         // Get theme parameters.
         $themecount = required_param('themecount', PARAM_INT);
         $weeksperTheme = required_param('weeksperTheme', PARAM_INT);
+        $maxweeksperTheme = (int)get_config('aiplacement_modgen', 'maxweeksperTheme') ?: 5;
 
         // Validate.
         if ($themecount < 1 || $themecount > $maxsections) {
@@ -63,9 +64,9 @@ try {
                 'invalidthemecount'
             );
         }
-        if ($weeksperTheme < 1 || $weeksperTheme > $maxsections) {
+        if ($weeksperTheme < 1 || $weeksperTheme > $maxweeksperTheme) {
             ajax_response::error(
-                get_string('invalidweeksperTheme', 'aiplacement_modgen', $maxsections),
+                get_string('invalidweeksperTheme', 'aiplacement_modgen', $maxweeksperTheme),
                 'invalidweeksperTheme'
             );
         }

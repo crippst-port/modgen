@@ -40,7 +40,10 @@ class aiplacement_modgen_add_week_form extends moodleform {
         $mform->setType('courseid', PARAM_INT);
 
         // Get max sections from config
-        $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 10;
+        $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections');
+        if (!$maxsections) {
+            $maxsections = 30;
+        }
 
         // Number of weeks to create (text input).
         $mform->addElement('text', 'weekcount', get_string('weekcount', 'aiplacement_modgen'), ['size' => 5]);
@@ -49,6 +52,10 @@ class aiplacement_modgen_add_week_form extends moodleform {
         $mform->addRule('weekcount', null, 'required', null, 'client');
         $mform->addRule('weekcount', null, 'numeric', null, 'client');
         $mform->addHelpButton('weekcount', 'weekcount', 'aiplacement_modgen');
+        // Add hint text showing the maximum
+        $hinttext = 'Enter a number between 1 and ' . $maxsections;
+        $mform->addElement('static', 'weekcount_hint', '', 
+            html_writer::tag('small', $hinttext, ['class' => 'form-text text-muted']));
 
         // Action buttons
         $this->add_action_buttons(true, get_string('generatorbutton', 'aiplacement_modgen'));

@@ -316,7 +316,8 @@ function aiplacement_modgen_output_fragment_form_add_theme(array $args): string 
 
     // Create form using moodleform.
     require_once(__DIR__ . '/classes/form/add_theme_form.php');
-    $formdata = ['courseid' => $courseid];
+    $maxsections = get_config('aiplacement_modgen', 'maxquicksections') ?: 30;
+    $formdata = ['courseid' => $courseid, 'maxsections' => $maxsections];
     $form = new \aiplacement_modgen_add_theme_form(null, $formdata);
 
     // Set default data.
@@ -360,7 +361,8 @@ function aiplacement_modgen_output_fragment_form_add_week(array $args): string {
 
     // Create form using moodleform.
     require_once(__DIR__ . '/classes/form/add_week_form.php');
-    $formdata = ['courseid' => $courseid];
+    $maxsections = get_config('aiplacement_modgen', 'maxquicksections') ?: 30;
+    $formdata = ['courseid' => $courseid, 'maxsections' => $maxsections];
     $form = new \aiplacement_modgen_add_week_form(null, $formdata);
 
     // Set default data.

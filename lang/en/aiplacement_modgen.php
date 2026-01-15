@@ -36,7 +36,7 @@ $string['inputrequired'] = 'You must provide at least one of the following: a te
 $string['templatefromprompt'] = 'Structure from prompt';
 $string['addtemplate'] = 'Add another template';
 $string['createfromscratch'] = 'Create from scratch';
-$string['existingmodule_help'] = 'Optionally select one or more existing modules to use as templates for AI generation. The AI will analyze the structure, activities, and content of the selected modules to create similar content for your prompt. Choose "Create from scratch" to generate content without using any existing template. You can add up to 3 templates, and the AI will merge their structures.';
+$string['existingmodule_help'] = 'Optionally select one or more existing modules to use as templates for AI generation. The AI will analyse the structure, activities, and content of the selected modules to create similar content for your prompt. Choose "Create from scratch" to generate content without using any existing template. You can add up to 3 templates, and the AI will merge their structures.';
 
 $string['prompt'] = 'Additional context or requests for the Assistant';
 $string['submit'] = 'Preview Structure';
@@ -119,7 +119,7 @@ Structure each week object with:
 - title: Week name/number
 - summary: Generic overview of the week\'s learning flow and outcomes
 - sessions object containing subsections for each pre/session/post component
-- activities organized within the appropriate session subsection
+- activities organised within the appropriate session subsection
 
 Important: Each week MUST include at least one activity distributed across the three session types (pre, session, post) as appropriate for the learning design. Ensure activities are logically sequenced and pedagogically sound.';
 $string['moduletypeinstruction_connected_theme'] = 'Structure the module as themed sections (themes), each containing multiple weeks of teaching. Each week has THREE subsections: "Pre-session", "Session", and "Post-session". 
@@ -137,7 +137,7 @@ Structure each week object with:
 - title: Week name/number
 - summary: Generic overview of the week\'s learning flow and outcomes
 - weeks array containing subsections for each pre/session/post component
-- activities organized within the appropriate session subsection
+- activities organised within the appropriate session subsection
 
 Important: Each week MUST include at least one activity distributed across the three session types (pre, session, post) as appropriate for the learning design. Ensure activities are logically sequenced and pedagogically sound.';
 
@@ -210,13 +210,13 @@ $string['processing'] = 'Processing your request, this may take several minutes.
 $string['requesttimeout'] = 'Your request is taking longer than expected. Please try with a shorter prompt or try again later.';
 $string['aiprocessing'] = 'AI is generating your module. Please wait...';
 $string['longquery'] = 'Long queries may take up to 5 minutes to process.';
-$string['aiprocessingdetail'] = 'AI is analyzing your request and generating module content. This process may take several minutes for complex requests.';
+$string['aiprocessingdetail'] = 'AI is analysing your request and generating module content. This process may take several minutes for complex requests.';
 $string['prompt_help'] = 'Describe what you want to create for your module. Be specific about the topic, learning objectives, and type of activities you want. More detailed prompts will give better results but may take longer to process.';
 $string['moduletype_help'] = 'Choose how to structure your module:
 
-**Connected Weekly**: Weekly format enhanced with the Flexible Sections layout to improve organization and usability for the new Connected Curriculum.
+**Connected Weekly**: Weekly format enhanced with the Flexible Sections layout to improve organisation and usability for the new Connected Curriculum.
 
-**Connected Themed**: Themed format enhanced with the Flexible Sections layout, organizing content into distinct learning themes for improved usability with the new Connected Curriculum.
+**Connected Themed**: Themed format enhanced with the Flexible Sections layout, organising content into distinct learning themes for improved usability with the new Connected Curriculum.
 
 **Note**: If you upload a CSV file, the format will be automatically detected based on its contents (themes vs weekly structure). You can override the auto-detected format by selecting a specific option here.';
 
@@ -231,7 +231,7 @@ $string['suggestedcontent'] = 'Suggest Content';
 $string['csvtemplatelibrary'] = 'CSV Structure Library';
 $string['csvtemplatelibrary_desc'] = 'Manage pre-made CSV structures that users can select when generating modules.';
 $string['managetemplates'] = 'Manage CSV Structure files';
-$string['managetemplates_desc'] = 'Upload, edit, and organize CSV structures. <a href="{$a}">Manage templates</a>';
+$string['managetemplates_desc'] = 'Upload, edit, and organise CSV structures. <a href="{$a}">Manage templates</a>';
 $string['templatename'] = 'Structure name';
 $string['templatedescription'] = 'Description';
 $string['csvfile'] = 'CSV file';
@@ -265,7 +265,7 @@ $string['generatorintroduction'] = 'This page allows you to create your course s
 $string['existingmoduleheading'] = 'Base on Existing Module';
 $string['existingmoduleheading_desc'] = 'Allow users to select existing modules as the basis for AI generation.';
 $string['enableexistingmodules'] = 'Enable base on existing module';
-$string['enableexistingmodules_desc'] = 'When enabled, users can select one or more existing modules to base their AI generation on. The AI will analyze the structure and activities of the selected modules and use them as a template for the new content.';
+$string['enableexistingmodules_desc'] = 'When enabled, users can select one or more existing modules to base their AI generation on. The AI will analyse the structure and activities of the selected modules and use them as a template for the new content.';
 
 // Activity creation toggle
 $string['expandonthemes'] = 'Expand on themes';

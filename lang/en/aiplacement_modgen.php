@@ -374,9 +374,15 @@ $string['newtheme'] = 'New Theme(s)';
 $string['newweek'] = 'New Week(s)';
 $string['quickadd'] = 'Quick Add';
 $string['themecount'] = 'How many themes do you want to create?';
+$string['themecount_help'] = 'Enter the number of themes to create. The maximum is set by your site administrator.';
 $string['weekcount'] = 'How many weeks do you want to create?';
+$string['weekcount_help'] = 'Enter the number of weeks to create. The maximum is set by your site administrator.';
 $string['weeksperTheme'] = 'How many weeks per theme?';
-$string['invalidcount'] = 'Please select a number between 1 and 10';
+$string['weeksperTheme_help'] = 'Enter the number of weeks to create within each theme. The maximum is set by your site administrator.';
+$string['invalidcount'] = 'Please enter a number between {$a->min} and {$a->max}';
+$string['invalidthemecount'] = 'Please enter a number between 1 and {$a}';
+$string['invalidweekcount'] = 'Please enter a number between 1 and {$a}';
+$string['invalidweeksperTheme'] = 'Please enter a number between 1 and {$a}';
 $string['defaultthemename'] = 'Theme {$a}';
 $string['defaultthemesummary'] = 'Placeholder theme structure. Edit this section to add your theme introduction and learning outcomes.';
 $string['defaultweekname'] = 'Theme {$a->theme} - Week {$a->week}';
@@ -426,6 +432,15 @@ $string['helplinktext'] = 'Help Link {$a} Text';
 $string['helplinktext_desc'] = 'Display text for the help link';
 $string['helplinkurl'] = 'Help Link {$a} URL';
 $string['helplinkurl_desc'] = 'Full URL for the help resource (must start with http:// or https://)';
+
+// Section Creation Limits
+$string['sectionlimitsheading'] = 'Section Creation Limits';
+$string['sectionlimitsheading_desc'] = 'Configure maximum number of sections that can be created at once through quick-add forms and CSV file uploads.';
+$string['maxquicksections'] = 'Maximum quick-add sections';
+$string['maxquicksections_desc'] = 'Maximum number of themes or weeks that can be created at once using the quick-add forms. This limit applies to both theme and week creation. Default: 10';
+$string['maxcsvsections'] = 'Maximum CSV sections';
+$string['maxcsvsections_desc'] = 'Maximum total number of sections (themes + weeks) that can be created from a CSV file upload. Set to 0 for unlimited (not recommended). Default: 50';
+$string['csvlimitexceeded'] = 'CSV file contains {$a->count} sections, which exceeds the maximum allowed limit of {$a->max}. Please reduce the number of sections in your CSV file.';
 
 // Capabilities
 $string['modgen:viewexplore'] = 'View AI course insights and analytics';

@@ -194,7 +194,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       return aiWorkflowForms.includes(formName);
     }
     loadFormInModal(formName, title) {
-      _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
+      _fragment.default.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
         courseid: this.courseid,
         contextid: this.contextid
       }).then(html => {
@@ -262,7 +262,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       actionButtons.forEach((button, index) => {
         const label = button.tagName === 'INPUT' ? button.value || button.getAttribute('aria-label') || 'Submit' : button.textContent.trim();
         const classes = (button.className || 'btn btn-secondary').trim();
-        footerHtml += "<button type=\"button\" class=\"".concat(classes, " ").concat(index > 0 ? 'ml-2' : '', "\" data-form-button-index=\"").concat(index, "\">\n                ").concat(label, "\n            </button>");
+        footerHtml += `<button type="button" class="${classes} ${index > 0 ? 'ml-2' : ''}" data-form-button-index="${index}">
+                ${label}
+            </button>`;
       });
       footerHtml += '</div>';
       modal.setFooter(footerHtml);
@@ -412,7 +414,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           break;
         default:
           if (form) {
-            const formBtn = form.querySelector("[name=\"".concat(action, "\"], [data-action=\"").concat(action, "\"]"));
+            const formBtn = form.querySelector(`[name="${action}"], [data-action="${action}"]`);
             if (formBtn) {
               formBtn.click();
             }
@@ -493,15 +495,15 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         if (isComplete) {
           iconClass = 'fa-check';
         }
-        html += "<div class=\"".concat(stepClass, " text-center flex-fill\">");
-        html += "<div class=\"modgen-step-icon mb-1\">";
-        html += "<i class=\"fa ".concat(iconClass, "\"></i>");
-        html += "</div>";
-        html += "<div class=\"modgen-step-label small\">".concat(step.label, "</div>");
-        html += "</div>";
+        html += `<div class="${stepClass} text-center flex-fill">`;
+        html += `<div class="modgen-step-icon mb-1">`;
+        html += `<i class="fa ${iconClass}"></i>`;
+        html += `</div>`;
+        html += `<div class="modgen-step-label small">${step.label}</div>`;
+        html += `</div>`;
         if (index < steps.length - 1) {
           const lineClass = isComplete ? 'modgen-step-line-complete' : 'modgen-step-line';
-          html += "<div class=\"".concat(lineClass, " flex-fill\" style=\"height: 2px; margin-top: -1rem;\"></div>");
+          html += `<div class="${lineClass} flex-fill" style="height: 2px; margin-top: -1rem;"></div>`;
         }
       });
       html += '</div>';
@@ -584,12 +586,12 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
               return;
             }
             data.sections.forEach(section => {
-              const cell = bodyNode.querySelector("tr[data-section-id=\"".concat(section.id, "\"] .date-prefix"));
+              const cell = bodyNode.querySelector(`tr[data-section-id="${section.id}"] .date-prefix`);
               if (cell) {
                 cell.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
                 return;
               }
-              const label = bodyNode.querySelector("label[for=\"section-".concat(section.id, "\"] .date-prefix"));
+              const label = bodyNode.querySelector(`label[for="section-${section.id}"] .date-prefix`);
               if (label) {
                 label.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
               }
@@ -604,7 +606,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
     setupFormSubmission(modal, formName) {
       const modalRoot = modal.getRoot();
       let clickedButton = null;
-      modalRoot.on('click', 'input[type="submit"], button[type="submit"]', function () {
+      modalRoot.on('click', 'input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]', function () {
         clickedButton = this.getAttribute('name');
       });
       modalRoot.on('click', '[data-form-button-index]', function () {
@@ -623,10 +625,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         }
       });
       modalRoot.on('submit', 'form', e => {
-        var _e$originalEvent;
         e.preventDefault();
-        const submitter = (_e$originalEvent = e.originalEvent) === null || _e$originalEvent === void 0 ? void 0 : _e$originalEvent.submitter;
-        const buttonName = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('name')) || clickedButton;
+        const submitter = e.originalEvent?.submitter;
+        const buttonName = submitter?.getAttribute('name') || clickedButton;
         if (buttonName === 'cancel') {
           modal.destroy();
           clickedButton = null;
@@ -655,7 +656,12 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           }
         });
         params.action = action;
-        modal.setBody('<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">Loading...</span>' + '</div>' + '</div>');
+        const body = modal.getBody();
+        const bodyNode = body && body.length ? body.get(0) : null;
+        if (bodyNode) {
+          const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
+          buttons.forEach(button => button.disabled = true);
+        }
         fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/create_sections.php', {
           method: 'POST',
           headers: {
@@ -664,14 +670,34 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           body: new URLSearchParams(params)
         }).then(response => response.json()).then(data => {
           if (data.success) {
+            modal.setBody('<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">Loading...</span>' + '</div>' + '</div>');
             const details = data.messages && data.messages.length > 0 ? data.messages : [];
             this.showSuccess(modal, data.message, details);
           } else {
-            const errorHtml = '<div class="alert alert-danger">' + '<p>' + (data.error || 'An error occurred') + '</p>' + '</div>';
-            modal.setBody(errorHtml);
+            const body = modal.getBody();
+            const bodyNode = body && body.length ? body.get(0) : null;
+            if (bodyNode) {
+              const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
+              buttons.forEach(button => button.disabled = false);
+              const existingError = bodyNode.querySelector('.form-error-message');
+              if (existingError) {
+                existingError.remove();
+              }
+              const errorDiv = document.createElement('div');
+              errorDiv.className = 'alert alert-danger form-error-message';
+              errorDiv.innerHTML = '<p>' + (data.error || 'An error occurred') + '</p>';
+              bodyNode.insertBefore(errorDiv, bodyNode.firstChild);
+              bodyNode.scrollTop = 0;
+            }
           }
           return data;
         }).catch(error => {
+          const body = modal.getBody();
+          const bodyNode = body && body.length ? body.get(0) : null;
+          if (bodyNode) {
+            const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
+            buttons.forEach(button => button.disabled = false);
+          }
           _notification.default.exception(error);
         });
       });

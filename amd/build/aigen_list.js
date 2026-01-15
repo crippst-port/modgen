@@ -22,7 +22,7 @@ define(["exports", "core/config", "core/str"], function (_exports, _config, _str
     const originalIconClass = icon.className;
     icon.className = 'fa fa-spinner fa-spin';
     try {
-      const response = await fetch("".concat(_config.default.wwwroot, "/ai/placement/modgen/ajax/toggle_visibility.php"), {
+      const response = await fetch(`${_config.default.wwwroot}/ai/placement/modgen/ajax/toggle_visibility.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'
@@ -42,13 +42,13 @@ define(["exports", "core/config", "core/str"], function (_exports, _config, _str
           button.dataset.visible = '1';
           button.title = await (0, _str.get_string)('aigen_hide_activity', 'aiplacement_modgen');
           icon.className = 'fa fa-eye-slash';
-          statusCell.innerHTML = "<span class=\"badge badge-success\">".concat(await (0, _str.get_string)('visible'), "</span>");
+          statusCell.innerHTML = `<span class="badge badge-success">${await (0, _str.get_string)('visible')}</span>`;
           activityName.classList.remove('text-muted');
         } else {
           button.dataset.visible = '0';
           button.title = await (0, _str.get_string)('aigen_show_activity', 'aiplacement_modgen');
           icon.className = 'fa fa-eye';
-          statusCell.innerHTML = "<span class=\"badge badge-secondary\">".concat(await (0, _str.get_string)('hidden', 'aiplacement_modgen'), "</span>");
+          statusCell.innerHTML = `<span class="badge badge-secondary">${await (0, _str.get_string)('hidden', 'aiplacement_modgen')}</span>`;
           activityName.classList.add('text-muted');
         }
       } else {

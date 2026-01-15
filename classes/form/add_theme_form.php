@@ -39,20 +39,27 @@ class aiplacement_modgen_add_theme_form extends moodleform {
         $mform->addElement('hidden', 'courseid');
         $mform->setType('courseid', PARAM_INT);
 
-        // Number of themes to create (1-10).
-        $options = [];
-        for ($i = 1; $i <= 10; $i++) {
-            $options[$i] = $i;
-        }
-        $mform->addElement('select', 'themecount', get_string('themecount', 'aiplacement_modgen'), $options);
+        // Get max sections from config
+        $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 10;
+
+        // Number of themes to create (text input).
+        $mform->addElement('text', 'themecount', get_string('themecount', 'aiplacement_modgen'), ['size' => 5]);
+        $mform->setType('themecount', PARAM_INT);
         $mform->setDefault('themecount', 1);
+        $mform->addRule('themecount', null, 'required', null, 'client');
+        $mform->addRule('themecount', null, 'numeric', null, 'client');
+        $mform->addHelpButton('themecount', 'themecount', 'aiplacement_modgen');
 
-        // Number of weeks per theme (1-10).
-        $mform->addElement('select', 'weeksperTheme', get_string('weeksperTheme', 'aiplacement_modgen'), $options);
+        // Number of weeks per theme (text input).
+        $mform->addElement('text', 'weeksperTheme', get_string('weeksperTheme', 'aiplacement_modgen'), ['size' => 5]);
+        $mform->setType('weeksperTheme', PARAM_INT);
         $mform->setDefault('weeksperTheme', 1);
+        $mform->addRule('weeksperTheme', null, 'required', null, 'client');
+        $mform->addRule('weeksperTheme', null, 'numeric', null, 'client');
+        $mform->addHelpButton('weeksperTheme', 'weeksperTheme', 'aiplacement_modgen');
 
-        // Submit button.
-        $this->add_action_buttons(true, get_string('addtheme', 'aiplacement_modgen'));
+        // Action buttons
+        $this->add_action_buttons(true, get_string('generatorbutton', 'aiplacement_modgen'));
     }
 
     /**
@@ -65,12 +72,15 @@ class aiplacement_modgen_add_theme_form extends moodleform {
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
-        if (empty($data['themecount']) || $data['themecount'] < 1 || $data['themecount'] > 10) {
-            $errors['themecount'] = get_string('invalidcount', 'aiplacement_modgen');
+        // Get max sections from config
+        $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 10;
+
+        if (empty($data['themecount']) || $data['themecount'] < 1 || $data['themecount'] > $maxsections) {
+            $errors['themecount'] = get_string('invalidthemecount', 'aiplacement_modgen', $maxsections);
         }
 
-        if (empty($data['weeksperTheme']) || $data['weeksperTheme'] < 1 || $data['weeksperTheme'] > 10) {
-            $errors['weeksperTheme'] = get_string('invalidcount', 'aiplacement_modgen');
+        if (empty($data['weeksperTheme']) || $data['weeksperTheme'] < 1 || $data['weeksperTheme'] > $maxsections) {
+            $errors['weeksperTheme'] = get_string('invalidweeksperTheme', 'aiplacement_modgen', $maxsections);
         }
 
         return $errors;

@@ -126,7 +126,50 @@ class csv_parser {
             $structure = self::parse_simple_weekly_structure($lines);
         }
 
+        // Validate section count against max limit
+        $maxsections = (int)get_config('aiplacement_modgen', 'maxcsvsections') ?: 50;
+        
+        if ($maxsections > 0) {
+            $sectioncount = self::count_sections($structure);
+            
+            if ($sectioncount > $maxsections) {
+                throw new \Exception(get_string('csvlimitexceeded', 'aiplacement_modgen', [
+                    'count' => $sectioncount,
+                    'max' => $maxsections
+                ]));
+            }
+        }
+
         return $structure;
+    }
+
+    /**
+     * Count total sections in a structure (themes + weeks).
+     *
+     * @param array $structure The parsed structure
+     * @return int Total number of sections
+     */
+    private static function count_sections(array $structure): int {
+        $count = 0;
+        
+        // Count themes
+        if (!empty($structure['themes'])) {
+            $count += count($structure['themes']);
+            
+            // Count weeks within each theme
+            foreach ($structure['themes'] as $theme) {
+                if (!empty($theme['weeks'])) {
+                    $count += count($theme['weeks']);
+                }
+            }
+        }
+        
+        // Count standalone weeks
+        if (!empty($structure['weeks'])) {
+            $count += count($structure['weeks']);
+        }
+        
+        return $count;
     }
 
     /**

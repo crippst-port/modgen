@@ -1128,8 +1128,8 @@ class ModalGeneratorComponent extends BaseComponent {
         // Track which button was clicked (works for both form buttons and footer buttons)
         let clickedButton = null;
         
-        // Track clicks on original form buttons
-        modalRoot.on('click', 'input[type="submit"], button[type="submit"]', function() {
+        // Track clicks on original form buttons (including cancel buttons)
+        modalRoot.on('click', 'input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]', function() {
             clickedButton = this.getAttribute('name');
         });
         
@@ -1204,12 +1204,13 @@ class ModalGeneratorComponent extends BaseComponent {
             // Set action AFTER adding form fields to ensure it's not overwritten
             params.action = action;
             
-            // Show loading indicator
-            modal.setBody('<div class="text-center p-5">' +
-                '<div class="spinner-border" role="status">' +
-                '<span class="sr-only">Loading...</span>' +
-                '</div>' +
-                '</div>');
+            // Disable form buttons during submission
+            const body = modal.getBody();
+            const bodyNode = body && body.length ? body.get(0) : null;
+            if (bodyNode) {
+                const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
+                buttons.forEach(button => button.disabled = true);
+            }
             
             // POST to AJAX endpoint
             fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/create_sections.php', {
@@ -1222,21 +1223,52 @@ class ModalGeneratorComponent extends BaseComponent {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
+                    // Show loading/success - now safe to replace form
+                    modal.setBody('<div class="text-center p-5">' +
+                        '<div class="spinner-border" role="status">' +
+                        '<span class="sr-only">Loading...</span>' +
+                        '</div>' +
+                        '</div>');
+                    
                     // Parse detailed messages if present
                     const details = data.messages && data.messages.length > 0 ? data.messages : [];
                     
                     // Show success message using reusable method
                     this.showSuccess(modal, data.message, details);
                 } else {
-                    // Show error message
-                    const errorHtml = '<div class="alert alert-danger">' +
-                        '<p>' + (data.error || 'An error occurred') + '</p>' +
-                        '</div>';
-                    modal.setBody(errorHtml);
+                    // Re-enable buttons on error
+                    const body = modal.getBody();
+                    const bodyNode = body && body.length ? body.get(0) : null;
+                    if (bodyNode) {
+                        const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
+                        buttons.forEach(button => button.disabled = false);
+                        
+                        // Remove any existing error messages
+                        const existingError = bodyNode.querySelector('.form-error-message');
+                        if (existingError) {
+                            existingError.remove();
+                        }
+                        
+                        // Insert error at the top of the form
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'alert alert-danger form-error-message';
+                        errorDiv.innerHTML = '<p>' + (data.error || 'An error occurred') + '</p>';
+                        bodyNode.insertBefore(errorDiv, bodyNode.firstChild);
+                        
+                        // Scroll to top so error is visible
+                        bodyNode.scrollTop = 0;
+                    }
                 }
                 return data;
             })
             .catch(error => {
+                // Re-enable buttons on exception
+                const body = modal.getBody();
+                const bodyNode = body && body.length ? body.get(0) : null;
+                if (bodyNode) {
+                    const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
+                    buttons.forEach(button => button.disabled = false);
+                }
                 Notification.exception(error);
             });
         });

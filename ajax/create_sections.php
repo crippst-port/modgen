@@ -45,6 +45,9 @@ require_capability('aiplacement/modgen:managestructure', $context);
 // Set page context (required by some Moodle functions).
 $PAGE->set_context($context);
 
+// Get max sections from config
+$maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 10;
+
 try {
     require_once(__DIR__ . '/../classes/local/theme_builder.php');
 
@@ -54,11 +57,17 @@ try {
         $weeksperTheme = required_param('weeksperTheme', PARAM_INT);
 
         // Validate.
-        if ($themecount < 1 || $themecount > 10) {
-            ajax_response::error('Invalid theme count', 'invalidcount');
+        if ($themecount < 1 || $themecount > $maxsections) {
+            ajax_response::error(
+                get_string('invalidthemecount', 'aiplacement_modgen', $maxsections),
+                'invalidthemecount'
+            );
         }
-        if ($weeksperTheme < 1 || $weeksperTheme > 10) {
-            ajax_response::error('Invalid weeks per theme', 'invalidcount');
+        if ($weeksperTheme < 1 || $weeksperTheme > $maxsections) {
+            ajax_response::error(
+                get_string('invalidweeksperTheme', 'aiplacement_modgen', $maxsections),
+                'invalidweeksperTheme'
+            );
         }
 
         // Create themes within current section.
@@ -74,8 +83,11 @@ try {
         $weekcount = required_param('weekcount', PARAM_INT);
 
         // Validate.
-        if ($weekcount < 1 || $weekcount > 10) {
-            ajax_response::error('Invalid week count', 'invalidcount');
+        if ($weekcount < 1 || $weekcount > $maxsections) {
+            ajax_response::error(
+                get_string('invalidweekcount', 'aiplacement_modgen', $maxsections),
+                'invalidweekcount'
+            );
         }
 
         // Create weeks within current section.

@@ -21,6 +21,10 @@ require_once($CFG->dirroot . '/course/modlib.php');
 require_once($CFG->dirroot . '/ai/placement/modgen/classes/local/session_creator.php');
 require_once($CFG->dirroot . '/ai/placement/modgen/classes/activitytype/registry.php');
 
+// Suppress PHP warnings and deprecations from Moodle core to keep test output clean
+// Only show errors that would actually fail the test
+error_reporting(E_ERROR | E_PARSE);
+
 global $DB;
 
 echo "=== Course Generation Stress Test ===\n\n";
@@ -35,6 +39,19 @@ $coursedata->category = 1;
 
 $course = create_course($coursedata);
 echo "✓ Created test course: {$course->fullname} (ID: {$course->id})\n\n";
+
+// Set up admin user with proper session and capabilities
+$admin = get_admin();
+\core\session\manager::set_user($admin);
+echo "✓ Set admin user session\n";
+
+// Grant admin user permissions to create learningactivity instances in course context
+$coursecontext = \context_course::instance($course->id);
+role_assign(1, $admin->id, $coursecontext->id); // Assign admin role (id=1) to admin user in course context
+
+// Verify capability
+$can_add = has_capability('mod/learningactivity:addinstance', $coursecontext);
+echo "✓ Granted permissions. Can add learningactivity: " . ($can_add ? 'YES' : 'NO') . "\n\n";
 
 $courseformat = course_get_format($course);
 $errors = [];

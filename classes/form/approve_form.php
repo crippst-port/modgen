@@ -67,11 +67,12 @@ class aiplacement_modgen_approve_form extends moodleform {
             $buttonarray = [];
             // Explicitly set type="button" so it's not treated as a submit button by the modal handler
             $buttonarray[] = &$mform->createElement('button', 'regeneratebutton', get_string('regenerate', 'aiplacement_modgen'), ['type' => 'button']);
+            $buttonarray[] = &$mform->createElement('cancel');
             $buttonarray[] = &$mform->createElement('submit', 'submitbutton', get_string('approveandcreate', 'aiplacement_modgen'));
             $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);
             $mform->registerNoSubmitButton('regeneratebutton');
         } else {
-            $this->add_action_buttons(false, get_string('approveandcreate', 'aiplacement_modgen'));
+            $this->add_action_buttons(true, get_string('approveandcreate', 'aiplacement_modgen'));
         }
     }
 }

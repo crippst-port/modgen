@@ -39,16 +39,19 @@ class aiplacement_modgen_add_week_form extends moodleform {
         $mform->addElement('hidden', 'courseid');
         $mform->setType('courseid', PARAM_INT);
 
-        // Number of weeks to create (1-10).
-        $options = [];
-        for ($i = 1; $i <= 10; $i++) {
-            $options[$i] = $i;
-        }
-        $mform->addElement('select', 'weekcount', get_string('weekcount', 'aiplacement_modgen'), $options);
-        $mform->setDefault('weekcount', 1);
+        // Get max sections from config
+        $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 10;
 
-        // Submit button.
-        $this->add_action_buttons(true, get_string('addweek', 'aiplacement_modgen'));
+        // Number of weeks to create (text input).
+        $mform->addElement('text', 'weekcount', get_string('weekcount', 'aiplacement_modgen'), ['size' => 5]);
+        $mform->setType('weekcount', PARAM_INT);
+        $mform->setDefault('weekcount', 1);
+        $mform->addRule('weekcount', null, 'required', null, 'client');
+        $mform->addRule('weekcount', null, 'numeric', null, 'client');
+        $mform->addHelpButton('weekcount', 'weekcount', 'aiplacement_modgen');
+
+        // Action buttons
+        $this->add_action_buttons(true, get_string('generatorbutton', 'aiplacement_modgen'));
     }
 
     /**
@@ -61,8 +64,11 @@ class aiplacement_modgen_add_week_form extends moodleform {
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
-        if (empty($data['weekcount']) || $data['weekcount'] < 1 || $data['weekcount'] > 10) {
-            $errors['weekcount'] = get_string('invalidcount', 'aiplacement_modgen');
+        // Get max sections from config
+        $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 10;
+
+        if (empty($data['weekcount']) || $data['weekcount'] < 1 || $data['weekcount'] > $maxsections) {
+            $errors['weekcount'] = get_string('invalidweekcount', 'aiplacement_modgen', $maxsections);
         }
 
         return $errors;

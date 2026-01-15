@@ -149,6 +149,29 @@ if ($hassiteconfig) {
             ));
         }
 
+        // Section Creation Limits
+        $settings->add(new admin_setting_heading(
+            'aiplacement_modgen/sectionlimitsheading',
+            new lang_string('sectionlimitsheading', 'aiplacement_modgen'),
+            new lang_string('sectionlimitsheading_desc', 'aiplacement_modgen')
+        ));
+
+        $settings->add(new admin_setting_configtext(
+            'aiplacement_modgen/maxquicksections',
+            new lang_string('maxquicksections', 'aiplacement_modgen'),
+            new lang_string('maxquicksections_desc', 'aiplacement_modgen'),
+            '10',
+            PARAM_INT
+        ));
+
+        $settings->add(new admin_setting_configtext(
+            'aiplacement_modgen/maxcsvsections',
+            new lang_string('maxcsvsections', 'aiplacement_modgen'),
+            new lang_string('maxcsvsections_desc', 'aiplacement_modgen'),
+            '50',
+            PARAM_INT
+        ));
+
         // Dates for sections - Holiday configuration
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/datesforsectionsheading',

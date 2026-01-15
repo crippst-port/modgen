@@ -57,6 +57,10 @@ class template_structure_parser {
             // No ids to update
             // Return original HTML (without the xml wrapper)
             $outer = $dom->saveHTML();
+            if ($outer === false) {
+                // saveHTML failed, return empty string
+                return '';
+            }
             // Remove the XML encoding stub if present
             $outer = preg_replace('/^<\?xml.*?\?>\s*/', '', $outer);
             return $outer;
@@ -98,6 +102,10 @@ class template_structure_parser {
         }
 
         $outer = $dom->saveHTML();
+        if ($outer === false) {
+            // saveHTML failed, return empty string
+            return '';
+        }
         $outer = preg_replace('/^<\?xml.*?\?>\s*/', '', $outer);
         return $outer;
     }

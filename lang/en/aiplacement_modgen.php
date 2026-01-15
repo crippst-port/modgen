@@ -435,11 +435,11 @@ $string['helplinkurl_desc'] = 'Full URL for the help resource (must start with h
 
 // Section Creation Limits
 $string['sectionlimitsheading'] = 'Section Creation Limits';
-$string['sectionlimitsheading_desc'] = 'Configure maximum number of sections that can be created at once through quick-add forms and CSV file uploads.';
-$string['maxquicksections'] = 'Maximum quick-add sections';
-$string['maxquicksections_desc'] = 'Maximum number of themes or weeks that can be created at once using the quick-add forms. This limit applies to standalone themes and weeks. Default: 30';
+$string['sectionlimitsheading_desc'] = 'Configure maximum number of sections that can be created at once through quick-add forms and CSV file uploads. These limits help prevent accidental creation of excessive course structure.';
+$string['maxquicksections'] = 'Maximum themes or weeks';
+$string['maxquicksections_desc'] = 'Maximum number of themes OR weeks that can be created at once using the quick-add forms. This applies when creating standalone themes or standalone weeks. Default: 30';
 $string['maxweeksperTheme'] = 'Maximum weeks per theme';
-$string['maxweeksperTheme_desc'] = 'Maximum number of weeks that can be created within each theme. Since each theme can contain multiple weeks, this is typically set lower than the maximum quick-add sections. Default: 5';
+$string['maxweeksperTheme_desc'] = 'Maximum number of weeks that can be created within EACH theme when using the themed structure. For example, creating 10 themes with 5 weeks each would create 50 total sections (10 parent themes + 40 child weeks). Set this lower than the maximum themes/weeks to control total section creation. Default: 5';
 $string['maxcsvsections'] = 'Maximum CSV sections';
 $string['maxcsvsections_desc'] = 'Maximum total number of sections (themes + weeks) that can be created from a CSV file upload. Set to 0 for unlimited (not recommended). Default: 50';
 $string['csvlimitexceeded'] = 'CSV file contains {$a->count} sections, which exceeds the maximum allowed limit of {$a->max}. Please reduce the number of sections in your CSV file.';

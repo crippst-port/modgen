@@ -160,7 +160,7 @@ if ($hassiteconfig) {
             'aiplacement_modgen/maxquicksections',
             new lang_string('maxquicksections', 'aiplacement_modgen'),
             new lang_string('maxquicksections_desc', 'aiplacement_modgen'),
-            '10',
+            '30',
             PARAM_INT
         ));
 

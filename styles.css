@@ -1153,7 +1153,7 @@
     bottom: 0;
 }
 
-/* Consistent border radius for all form footer buttons */
+/* Consistent border radius for form footer buttons */
 .aiplacement-modgen__content form .buttons input[type="submit"],
 .aiplacement-modgen__content form .buttons button,
 .aiplacement-modgen__content form .form-submit input[type="submit"],
@@ -1161,15 +1161,17 @@
 .aiplacement-modgen__content form .form-buttons input[type="submit"],
 .aiplacement-modgen__content form .form-buttons button,
 .aiplacement-modgen__content form .form-group button,
-form .buttons input[type="submit"],
-form .buttons button,
+.dates-for-sections-form + form .buttons input[type="submit"],
+.dates-for-sections-form + form .buttons button,
+.dates-for-sections-form form .buttons input[type="submit"],
+.dates-for-sections-form form .buttons button,
 #fgroup_id_buttonar input[type="submit"],
 #fgroup_id_buttonar button {
     border-radius: 0.375rem !important;
 }
 
 /* Consistent border radius for toggle buttons */
-.btn-group .btn,
+.dates-for-sections-form .btn-group .btn,
 .dates-for-sections-form .btn-group button {
     border-radius: 0.375rem !important;
 }

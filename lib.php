@@ -428,7 +428,7 @@ function aiplacement_modgen_output_fragment_form_template_from_prompt(array $arg
  * @return string Rendered form HTML
  */
 function aiplacement_modgen_output_fragment_form_dates_for_sections(array $args): string {
-    global $PAGE, $CFG;
+    global $PAGE, $CFG, $DB;
 
     // Ensure required libraries are loaded.
     require_once($CFG->libdir . '/formslib.php');
@@ -449,11 +449,8 @@ function aiplacement_modgen_output_fragment_form_dates_for_sections(array $args)
     // Set page context for proper JS/CSS loading.
     $PAGE->set_context($context);
 
-    // Calculate initial section dates.
-    require_once(__DIR__ . '/classes/local/date_calculator.php');
-    // Start with includeparents = false (checkbox unchecked by default).
-    // Parents will still appear in the table but without dates initially.
-    $sectionsdata = \aiplacement_modgen\local\date_calculator::calculate_section_dates($courseid, [], false);
+    // Get course info for start date
+    $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 
     // Filter out section 0 and special sections.
     $introsectionname = get_string('introductionsectionname', 'aiplacement_modgen');
@@ -469,33 +466,68 @@ function aiplacement_modgen_output_fragment_form_dates_for_sections(array $args)
         get_string('postsession', 'aiplacement_modgen')
     ];
 
+    // Build section number to ID mapping for parent_id conversion.
+    $sectionnumtoid = [];
+    foreach ($allsections as $section) {
+        $sectionnumtoid[$section->section] = $section->id;
+    }
+
+    // Build list of all sections (no date calculation yet - user will choose start date)
     $filteredsections = [];
-    foreach ($sectionsdata as $sectionid => $sectiondata) {
-        // Double-check section exists.
-        $sectionexists = false;
-        foreach ($allsections as $section) {
-            if ($section->id == $sectionid) {
-                $sectionexists = true;
-                break;
-            }
+    foreach ($allsections as $section) {
+        // Skip section 0.
+        if ($section->section == 0) {
+            continue;
         }
 
-        if ($sectionexists) {
-            // Skip special sections and session subsections.
-            $isspecial = ($sectiondata['name'] === $introsectionname || $sectiondata['name'] === $assessmentssectionname);
-            $issession = in_array($sectiondata['name'], $sessionnames);
-            
-            if (!$isspecial && !$issession) {
-                $filteredsections[] = $sectiondata;
-            }
+        // Skip special sections.
+        $isspecial = ($section->name === $introsectionname || $section->name === $assessmentssectionname);
+        if ($isspecial) {
+            continue;
         }
+
+        // Skip session subsections.
+        $issession = in_array($section->name, $sessionnames);
+        if ($issession) {
+            continue;
+        }
+
+        // Convert parent section number to parent section ID.
+        $parentid = 0;
+        if (!empty($section->parent)) {
+            $parentid = $sectionnumtoid[$section->parent] ?? 0;
+        }
+
+        // Add placeholder for empty or default names
+        $defaultnames = [
+            '',
+            'Topic ' . $section->section,
+            'Section ' . $section->section,
+            'Week ' . $section->section,
+            'Topic ' . ($section->section + 1),
+            'Section ' . ($section->section + 1),
+            'Week ' . ($section->section + 1),
+        ];
+        $name = trim($section->name);
+        if (in_array($name, $defaultnames, true)) {
+            $name = get_string('sectionplaceholder', 'aiplacement_modgen', $section->section);
+        }
+
+        $filteredsections[] = [
+            'id' => $section->id,
+            'section' => $section->section,
+            'name' => $name,
+            'parent_id' => $parentid,
+            'course' => $section->course,
+        ];
     }
 
     // Create form.
     require_once(__DIR__ . '/classes/form/dates_for_sections_form.php');
     $formdata = [
         'courseid' => $courseid,
-        'sections' => $filteredsections
+        'sections' => $filteredsections,
+        'coursestartdate' => !empty($course->startdate) ? $course->startdate : time(),
     ];
     $form = new \aiplacement_modgen_dates_for_sections_form(null, $formdata);
 

@@ -48,6 +48,15 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
         $mform->addElement('hidden', 'selectedsections');
         $mform->setType('selectedsections', PARAM_RAW);
 
+        // Date picker for start date
+        $mform->addElement('date_selector', 'startdate', get_string('startdate', 'aiplacement_modgen'));
+        $mform->addHelpButton('startdate', 'startdate', 'aiplacement_modgen');
+        
+        // Set default to course start date
+        if (!empty($customdata['coursestartdate'])) {
+            $mform->setDefault('startdate', $customdata['coursestartdate']);
+        }
+
         // Add ARIA live region for dynamic updates.
         $mform->addElement('html', '<div id="dates-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>');
 
@@ -97,93 +106,95 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
             return $a['section'] <=> $b['section'];
         });
 
-        // Build a map of section IDs to section data for hierarchy lookup.
-        $sectionmap = [];
-        foreach ($sections as $section) {
-            $sectionmap[$section['id']] = $section;
-        }
-
-        // Group weeks under their parent themes, maintaining section order.
-        $themegroups = [];
-        $orphanweeks = [];
-        
-        foreach ($sections as $section) {
-            // Prepare display data.
-            $sectiondata = [
-                'id' => $section['id'],
-                'section' => $section['section'],
-                'name' => $section['name'],
-                'formatted_date' => $section['formatted_date'] ?? '',
-                'is_parent' => !empty($section['is_parent']),
-                'currentname' => s($section['name']),
-                'proposedname' => '',
-            ];
-
-            // Build proposed name.
-            if (!empty($section['formatted_date'])) {
-                $sectiondata['proposedname'] = s($section['formatted_date']) . ' ' . s($section['name']);
-            } else {
-                $sectiondata['proposedname'] = s($section['name']);
-            }
-
-            // Themes have is_parent=true OR have parent_id but no formatted_date
-            // Weeks ALWAYS have formatted_date (from the date calculator)
-            $hasparent = !empty($section['parent_id']);
-            $ismarkedasparent = !empty($section['is_parent']);
-            $hasdate = !empty($section['formatted_date']);
-            
-            // A theme is a section that has children OR is marked as parent, but critically has NO formatted_date
-            // because only weeks get dates from the calculator
-            $istheme = ($ismarkedasparent || ($hasparent && !$hasdate));
-            
-            // Only sections with formatted_date are weeks that should get dates applied
-            if ($hasdate && !$istheme) {
-                // This is a week - try to find its parent theme.
-                $parentid = $section['parent_id'] ?? null;
-                
-                if ($parentid && isset($themegroups[$parentid])) {
-                    // Add to parent theme's weeks.
-                    $themegroups[$parentid]['weeks'][] = $sectiondata;
-                    $themegroups[$parentid]['hasWeeks'] = true;
-                } else {
-                    // Orphan week (no parent theme found) - top-level week.
-                    $orphanweeks[] = $sectiondata;
-                }
-            } else {
-                // This is a theme - create a new group only if not already exists
-                if (!isset($themegroups[$section['id']])) {
-                    $themegroups[$section['id']] = [
-                        'theme' => $sectiondata,
-                        'weeks' => [],
-                        'hasWeeks' => false,
-                        'section_order' => $section['section'], // Track order for sorting
-                    ];
-                }
-            }
-        }
-
-        // Sort theme groups by section order to maintain course structure.
-        $sortedthemegroups = $themegroups;
-        usort($sortedthemegroups, function($a, $b) {
-            return $a['section_order'] <=> $b['section_order'];
-        });
+        // Build hierarchy structure
+        $hierarchy = $this->build_hierarchy($sections);
 
         // Prepare template data.
         $templatedata = [
             'courseid' => $sections[0]['course'] ?? 0,
-            'selectsections_label' => get_string('selectsections', 'aiplacement_modgen'),
-            'currentname_label' => get_string('currentname', 'aiplacement_modgen'),
-            'proposedname_label' => get_string('proposedname', 'aiplacement_modgen'),
-            'themegroups' => $sortedthemegroups,
-            'orphanweeks' => $orphanweeks,
-            'hasThemeGroups' => !empty($sortedthemegroups),
-            'hasOrphanWeeks' => !empty($orphanweeks),
-            'nosectionsavailable' => !empty($sections) ? '' : get_string('nosectionsavailable', 'aiplacement_modgen'),
+            'sections' => $hierarchy,
+            'hassections' => !empty($hierarchy),
         ];
 
         // Render template.
         $output = $PAGE->get_renderer('core');
         return $output->render_from_template('aiplacement_modgen/dates_for_sections_form', $templatedata);
+    }
+
+    /**
+     * Build hierarchical structure of sections with parent-child relationships.
+     *
+     * @param array $sections Array of section data
+     * @return array Hierarchical array of sections
+     */
+    private function build_hierarchy($sections) {
+        // Build maps for quick lookup
+        $sectionmap = [];
+        $childrenmap = [];
+        
+        foreach ($sections as $section) {
+            $sectionmap[$section['id']] = $section;
+            $childrenmap[$section['id']] = [];
+        }
+        
+        // Build parent-child relationships
+        foreach ($sections as $section) {
+            if (!empty($section['parent_id'])) {
+                $parentid = $section['parent_id'];
+                if (isset($childrenmap[$parentid])) {
+                    $childrenmap[$parentid][] = $section['id'];
+                }
+            }
+        }
+        
+        // Build hierarchical structure starting with top-level sections
+        $hierarchy = [];
+        foreach ($sections as $section) {
+            // Only process top-level sections (no parent)
+            if (empty($section['parent_id'])) {
+                $hierarchy[] = $this->build_section_node($section, $childrenmap, $sectionmap, 0);
+            }
+        }
+        
+        return $hierarchy;
+    }
+
+    /**
+     * Recursively build section node with children.
+     *
+     * @param array $section Section data
+     * @param array $childrenmap Map of parent IDs to child IDs
+     * @param array $sectionmap Map of section IDs to section data
+     * @param int $level Nesting level
+     * @return array Section node with children
+     */
+    private function build_section_node($section, $childrenmap, $sectionmap, $level) {
+        $node = [
+            'id' => $section['id'],
+            'section' => $section['section'],
+            'name' => s($section['name']),
+            'level' => $level,
+            'indent' => str_repeat('&nbsp;&nbsp;&nbsp;&nbsp;', $level),
+            'istoplevel' => ($level === 0),
+            'haschildren' => !empty($childrenmap[$section['id']]),
+            'children' => [],
+        ];
+        
+        // Recursively add children
+        if (!empty($childrenmap[$section['id']])) {
+            foreach ($childrenmap[$section['id']] as $childid) {
+                if (isset($sectionmap[$childid])) {
+                    $node['children'][] = $this->build_section_node(
+                        $sectionmap[$childid],
+                        $childrenmap,
+                        $sectionmap,
+                        $level + 1
+                    );
+                }
+            }
+        }
+        
+        return $node;
     }
 
     /**
@@ -196,7 +207,16 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
-        if (empty($data['selectedsections']) || !is_array($data['selectedsections'])) {
+        // selectedsections comes as JSON string from JavaScript
+        $selectedsections = [];
+        if (!empty($data['selectedsections'])) {
+            $decoded = json_decode($data['selectedsections'], true);
+            if (is_array($decoded)) {
+                $selectedsections = $decoded;
+            }
+        }
+
+        if (empty($selectedsections)) {
             $errors['selectedsections'] = get_string('nosectionsselected', 'aiplacement_modgen');
         }
 

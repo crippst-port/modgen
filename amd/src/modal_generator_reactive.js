@@ -996,6 +996,22 @@ class ModalGeneratorComponent extends BaseComponent {
             return;
         }
 
+        // Get start date from form if present
+        let startDate = 0;
+        if (bodyNode && !isRemove) {
+            const startDateField = bodyNode.querySelector('select[name="startdate[day]"]');
+            if (startDateField) {
+                // Extract date components from Moodle date_selector
+                const day = bodyNode.querySelector('select[name="startdate[day]"]')?.value || 1;
+                const month = bodyNode.querySelector('select[name="startdate[month]"]')?.value || 1;
+                const year = bodyNode.querySelector('select[name="startdate[year]"]')?.value || new Date().getFullYear();
+                
+                // Convert to timestamp (midnight on selected date)
+                const dateObj = new Date(year, month - 1, day, 0, 0, 0);
+                startDate = Math.floor(dateObj.getTime() / 1000);
+            }
+        }
+
         // Determine action and endpoint
         const action = isRemove ? 'Removing dates from' : 'Applying dates to';
         const endpoint = isRemove ? 
@@ -1020,6 +1036,9 @@ class ModalGeneratorComponent extends BaseComponent {
         params.append('selectedsections', JSON.stringify(selectedSections));
         if (!isRemove) {
             params.append('includeparents', includeparents);
+            if (startDate > 0) {
+                params.append('startdate', startDate);
+            }
         }
         params.append('sesskey', M.cfg.sesskey);
 

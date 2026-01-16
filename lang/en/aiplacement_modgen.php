@@ -456,11 +456,18 @@ $string['generatingsuggestions'] = 'Generating activity suggestions...';
 $string['loadingform'] = 'Loading form...';
 $string['creatingsections'] = 'Creating sections...';
 
-// Capabilities
-$string['modgen:viewexplore'] = 'View AI course insights and analytics';
+// Dates form
+$string['selectsections_hierarchical'] = 'Select sections to apply dates to. Use the toggle buttons to quickly select or deselect groups of sections.';
+$string['toggleall'] = 'Toggle All Sections';
+$string['toggletoplevel'] = 'Toggle Top-Level Sections';
+$string['haschildren'] = 'Has children';
+$string['startdate'] = 'Start date for date calculation';
+$string['startdate_help'] = 'Choose the date from which to start calculating week dates. This will be used as the first day of the first selected section. Dates will be calculated sequentially for each checked section, skipping any configured holidays.';
+
 $string['modgen:managestructure'] = 'Manage course structure (themes, weeks)';
 $string['modgen:managedates'] = 'Manage dates to sections';
 $string['modgen:generatewithprompt'] = 'Generate content with AI prompt';
 $string['modgen:generatefromtemplate'] = 'Generate content from templates';
 $string['modgen:usesuggest'] = 'Use AI activity suggestions';
 $string['modgen:managetemplates'] = 'Manage site-wide templates';
+$string['sectionplaceholder'] = 'Section {$a}';

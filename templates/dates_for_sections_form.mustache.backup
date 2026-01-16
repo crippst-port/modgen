@@ -22,18 +22,16 @@
 
     {{#hasThemeGroups}}
     {{#themegroups}}
-    <div class="theme-group mb-4">
-        {{! Theme header with checkbox }}
+    <div class="theme-group mb-4" data-theme-id="{{theme.id}}">
+        {{! Theme header with checkbox to select all child weeks }}
         <h5 class="mb-2 d-flex align-items-center">
             <input type="checkbox" 
-                class="section-checkbox theme-section me-2" 
-                data-section-id="{{theme.id}}" 
-                value="{{theme.id}}"
-                id="section-{{theme.id}}"
-                aria-label="{{theme.name}}"
+                class="theme-checkbox me-2" 
+                id="theme-{{theme.id}}"
+                aria-label="Select all weeks in {{theme.name}}"
                 checked>
-            <label for="section-{{theme.id}}" class="mb-0 fw-bold">
-                <span class="date-prefix">{{theme.formatted_date}} </span>{{theme.name}}
+            <label for="theme-{{theme.id}}" class="mb-0 fw-bold">
+                {{theme.name}}
             </label>
         </h5>
 
@@ -53,6 +51,7 @@
                         <td>
                             <input type="checkbox" 
                                 class="section-checkbox week-section" 
+                                name="selectedsections[]"
                                 data-section-id="{{id}}" 
                                 value="{{id}}"
                                 id="section-{{id}}"
@@ -77,14 +76,14 @@
         <h5 class="mb-3">{{#str}}weekSections, aiplacement_modgen{{/str}}</h5>
         <div class="table-responsive">
             <table class="table table-striped table-sm">
-                <thead>
+                <thead class="table-light">
                     <tr>
                         <th scope="col" style="width: 50px;">
                             <input type="checkbox" id="select-all-orphan-weeks" 
                                 aria-label="{{#str}}selectallweeks, aiplacement_modgen{{/str}}"
                                 checked>
                         </th>
-                        <th scope="col">{{currentname_label}}</th>
+                        <th scope="col">{{../currentname_label}}</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -128,6 +127,60 @@
 <script>
 (function() {
     'use strict';
+    
+    // Collect selected sections before form submission
+    const form = document.querySelector('.dates-for-sections-form').closest('form');
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            // Collect all checked week section IDs
+            const checkedSections = [];
+            document.querySelectorAll('.section-checkbox:checked').forEach(function(checkbox) {
+                checkedSections.push(checkbox.value);
+            });
+            
+            // Store in hidden field
+            const hiddenField = form.querySelector('input[name="selectedsections"]');
+            if (hiddenField) {
+                hiddenField.value = JSON.stringify(checkedSections);
+            }
+        });
+    }
+    
+    // Theme checkbox behavior - select/deselect all child weeks
+    document.querySelectorAll('.theme-checkbox').forEach(function(themeCheckbox) {
+        themeCheckbox.addEventListener('change', function() {
+            // Find the theme group container
+            const themeGroup = this.closest('.theme-group');
+            // Find all week checkboxes within this theme group
+            const weekCheckboxes = themeGroup.querySelectorAll('.week-section');
+            weekCheckboxes.forEach(function(cb) {
+                cb.checked = themeCheckbox.checked;
+            });
+        });
+    });
+    
+    // Update theme checkbox state when child weeks change
+    document.querySelectorAll('.week-section').forEach(function(weekCheckbox) {
+        weekCheckbox.addEventListener('change', function() {
+            const themeGroup = this.closest('.theme-group');
+            if (themeGroup) {
+                const themeCheckbox = themeGroup.querySelector('.theme-checkbox');
+                const weekCheckboxes = themeGroup.querySelectorAll('.week-section');
+                const allChecked = Array.from(weekCheckboxes).every(cb => cb.checked);
+                const anyChecked = Array.from(weekCheckboxes).some(cb => cb.checked);
+                
+                if (allChecked) {
+                    themeCheckbox.checked = true;
+                    themeCheckbox.indeterminate = false;
+                } else if (anyChecked) {
+                    themeCheckbox.indeterminate = true;
+                } else {
+                    themeCheckbox.checked = false;
+                    themeCheckbox.indeterminate = false;
+                }
+            }
+        });
+    });
     
     // Select all orphan weeks
     const selectAllOrphan = document.getElementById('select-all-orphan-weeks');

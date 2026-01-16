@@ -531,6 +531,18 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         modal.setBody('<div class="alert alert-danger">Please select at least one section</div>');
         return;
       }
+      let startDate = 0;
+      if (bodyNode && !isRemove) {
+        const startDateField = bodyNode.querySelector('select[name="startdate[day]"]');
+        if (startDateField) {
+          var _bodyNode$querySelect, _bodyNode$querySelect2, _bodyNode$querySelect3;
+          const day = ((_bodyNode$querySelect = bodyNode.querySelector('select[name="startdate[day]"]')) === null || _bodyNode$querySelect === void 0 ? void 0 : _bodyNode$querySelect.value) || 1;
+          const month = ((_bodyNode$querySelect2 = bodyNode.querySelector('select[name="startdate[month]"]')) === null || _bodyNode$querySelect2 === void 0 ? void 0 : _bodyNode$querySelect2.value) || 1;
+          const year = ((_bodyNode$querySelect3 = bodyNode.querySelector('select[name="startdate[year]"]')) === null || _bodyNode$querySelect3 === void 0 ? void 0 : _bodyNode$querySelect3.value) || new Date().getFullYear();
+          const dateObj = new Date(year, month - 1, day, 0, 0, 0);
+          startDate = Math.floor(dateObj.getTime() / 1000);
+        }
+      }
       const action = isRemove ? 'Removing dates from' : 'Applying dates to';
       const endpoint = isRemove ? '/ai/placement/modgen/ajax/remove_section_dates.php' : '/ai/placement/modgen/ajax/apply_section_dates.php';
       const loadingMessage = await (0, _str.get_string)(isRemove ? 'removingdates' : 'applyingdates', 'aiplacement_modgen');
@@ -541,6 +553,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       params.append('selectedsections', JSON.stringify(selectedSections));
       if (!isRemove) {
         params.append('includeparents', includeparents);
+        if (startDate > 0) {
+          params.append('startdate', startDate);
+        }
       }
       params.append('sesskey', M.cfg.sesskey);
       fetch(M.cfg.wwwroot + endpoint, {

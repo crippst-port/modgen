@@ -38,6 +38,7 @@ require_sesskey();
 $courseid = required_param('courseid', PARAM_INT);
 $selectedsections = required_param('selectedsections', PARAM_RAW);
 $includeparents = optional_param('includeparents', 0, PARAM_INT);
+$startdate = optional_param('startdate', 0, PARAM_INT);
 
 // Verify course access and permissions.
 $context = context_course::instance($courseid);
@@ -83,47 +84,75 @@ try {
     $modinfo = get_fast_modinfo($courseid);
     $allsections = $modinfo->get_section_info_all();
     $allsectionids = [];
+    $sectionmap = [];
     foreach ($allsections as $section) {
         if ($section->section > 0) { // Skip section 0.
             $allsectionids[] = $section->id;
+            $sectionmap[$section->id] = $section;
         }
     }
 
-    // Excluded sections are those NOT selected.
-    $excludedids = array_diff($allsectionids, $selectedids);
+    // Apply dates sequentially to selected sections in order they appear
+    require_once($CFG->dirroot . '/ai/placement/modgen/classes/local/date_calculator.php');
+    
+    // Parse holidays from config
+    $holidayconfig = get_config('aiplacement_modgen', 'holiday_dates');
+    $holidays = date_calculator::parse_holidays($holidayconfig);
+    
+    // Get course for start date
+    $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+    $coursestartdate = $startdate > 0 ? $startdate : (!empty($course->startdate) ? $course->startdate : time());
+    
+    // Sort selected sections by section number to apply dates in order
+    $selectedsections = [];
+    foreach ($selectedids as $sectionid) {
+        if (isset($sectionmap[$sectionid])) {
+            $selectedsections[] = $sectionmap[$sectionid];
+        }
+    }
+    usort($selectedsections, function($a, $b) {
+        return $a->section <=> $b->section;
+    });
 
-    // Recalculate dates with current selections.
-    $sectionsdata = date_calculator::calculate_section_dates($courseid, $excludedids, (bool)$includeparents);
-
-    // Update selected sections.
+    // Update selected sections with sequential dates
     $updatedcount = 0;
     $updatedsections = [];
+    $currentdate = $coursestartdate;
 
-    foreach ($selectedids as $sectionid) {
-        if (isset($sectionsdata[$sectionid])) {
-            $sectiondata = $sectionsdata[$sectionid];
-            
-            // Build new name with date prepended.
-            $newname = $sectiondata['name'];
-            if (!empty($sectiondata['formatted_date'])) {
-                $newname = $sectiondata['formatted_date'] . ' ' . $sectiondata['name'];
-            }
+    foreach ($selectedsections as $section) {
+        // Calculate week start date, skipping holidays
+        $weekstartdate = date_calculator::calculate_week_start($currentdate, $holidays);
+        $weekenddate = strtotime('+6 days', $weekstartdate);
 
-            // Update section in database.
-            $DB->update_record('course_sections', [
-                'id' => $sectionid,
-                'name' => $newname,
-                'timemodified' => time()
-            ]);
+        // Format dates in UK style
+        $formatteddate = date_calculator::format_date_range_uk($weekstartdate, $weekenddate);
 
-            $updatedcount++;
-            $updatedsections[] = [
-                'id' => $sectionid,
-                'section' => $sectiondata['section'],
-                'name' => $newname,
-                'formatted_date' => $sectiondata['formatted_date']
-            ];
-        }
+        // Remove any existing date from the section name
+        $cleanname = date_calculator::remove_existing_date($section->name);
+
+        // Build new name with date prepended
+        $newname = $formatteddate . ' ' . $cleanname;
+
+        // Build new name with date prepended
+        $newname = $formatteddate . ' ' . $cleanname;
+
+        // Update section in database
+        $DB->update_record('course_sections', [
+            'id' => $section->id,
+            'name' => $newname,
+            'timemodified' => time()
+        ]);
+
+        $updatedcount++;
+        $updatedsections[] = [
+            'id' => $section->id,
+            'section' => $section->section,
+            'name' => $newname,
+            'formatted_date' => $formatteddate
+        ];
+        
+        // Move to next week (skip holidays)
+        $currentdate = strtotime('+7 days', $weekstartdate);
     }
 
     // Rebuild course cache (buffer any output).

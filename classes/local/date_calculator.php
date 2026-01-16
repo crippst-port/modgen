@@ -32,51 +32,6 @@ defined('MOODLE_INTERNAL') || die();
 class date_calculator {
 
     /**
-     * Check if a section contains a learningactivity module in 'section' mode.
-     * This is used to detect if a section is a week rather than a theme.
-     *
-     * @param object $sectioninfo Section info object from modinfo
-     * @return bool True if section contains a learningactivity in section mode
-     */
-    private static function section_contains_week_learningactivity($sectioninfo) {
-        global $DB;
-        
-        // Check sequence property - this contains comma-separated CM IDs
-        if (empty($sectioninfo->sequence)) {
-            return false;
-        }
-        
-        $cmids = explode(',', $sectioninfo->sequence);
-        
-        foreach ($cmids as $cmid) {
-            if (empty($cmid)) {
-                continue;
-            }
-            
-            // Get course module info and module name in one query
-            $sql = "SELECT cm.id, cm.instance, m.name as modulename
-                      FROM {course_modules} cm
-                      JOIN {modules} m ON m.id = cm.module
-                     WHERE cm.id = :cmid";
-            
-            $cm = $DB->get_record_sql($sql, ['cmid' => $cmid]);
-            if (!$cm) {
-                continue;
-            }
-            
-            // Check if it's a learningactivity module with sectiontype='section'
-            if ($cm->modulename === 'learningactivity') {
-                $sectiontype = $DB->get_field('learningactivity', 'sectiontype', ['id' => $cm->instance]);
-                if ($sectiontype === 'section') {
-                    return true;
-                }
-            }
-        }
-        
-        return false;
-    }
-
-    /**
      * Detect the layout type of a course module.
      *
      * @param int $courseid Course ID
@@ -197,9 +152,10 @@ class date_calculator {
      * @param int $courseid Course ID
      * @param array $excludedsectionids Section IDs to exclude from calculation
      * @param bool $includeparents Whether to include parent sections with date ranges
+     * @param int|null $startdate Optional custom start date timestamp (defaults to course start date)
      * @return array Array mapping section IDs to date information
      */
-    public static function calculate_section_dates($courseid, $excludedsectionids = [], $includeparents = false) {
+    public static function calculate_section_dates($courseid, $excludedsectionids = [], $includeparents = false, $startdate = null) {
         global $DB;
 
         $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
@@ -213,8 +169,8 @@ class date_calculator {
         $holidayconfig = get_config('aiplacement_modgen', 'holiday_dates');
         $holidays = self::parse_holidays($holidayconfig);
 
-        // Get course start date (default to now if not set).
-        $coursestartdate = !empty($course->startdate) ? $course->startdate : time();
+        // Get start date (use custom if provided, otherwise course start date, otherwise now).
+        $coursestartdate = $startdate ?? (!empty($course->startdate) ? $course->startdate : time());
 
         // Build section hierarchy.
         $sectionhierarchy = self::build_section_hierarchy($sections);
@@ -259,9 +215,32 @@ class date_calculator {
             $hasparent = !empty($section->parent);
             $istoplevel = !$hasparent;
 
-            // Determine if this section should get week dates.
-            // A section gets dates if it contains a learningactivity in 'section' mode.
-            $shouldgetdates = self::section_contains_week_learningactivity($section);
+            // Determine if this section should get week dates based on layout type.
+            $shouldgetdates = false;
+            
+            switch ($layout['type']) {
+                case 'theme_based':
+                    // Only child sections (weeks under themes) get dates, not themes themselves.
+                    // A week is a section that has a parent AND is NOT a session.
+                    if ($hasparent && !$issession) {
+                        $shouldgetdates = true;
+                    }
+                    break;
+                    
+                case 'week_based':
+                    // Top-level parent sections (themes acting as weeks) get dates.
+                    if ($istoplevel && $isparent) {
+                        $shouldgetdates = true;
+                    }
+                    break;
+                    
+                case 'flat':
+                    // All top-level sections get dates.
+                    if ($istoplevel) {
+                        $shouldgetdates = true;
+                    }
+                    break;
+            }
 
             // Process sections that should get week dates.
             if ($shouldgetdates) {
@@ -351,12 +330,13 @@ class date_calculator {
                     $themeparentid = $sectionnumtoid[$parentsection->parent] ?? 0;
                 }
 
-                // Include theme with its date span (which can be optionally applied).
+                // Include theme in results but WITHOUT dates in theme-based layouts.
+                // Themes are just containers and should not display date ranges.
                 $results[$parentid] = [
                     'id' => $parentid,
                     'section' => $parentsection->section,
                     'name' => $cleanname,
-                    'formatted_date' => $themespan, // Date span from first to last week
+                    'formatted_date' => '', // No dates for themes in theme-based layouts
                     'week_number' => null,
                     'is_parent' => true,
                     'start_timestamp' => $themestartts,
@@ -413,7 +393,7 @@ class date_calculator {
      * @param array $holidays Array of holiday periods
      * @return int Adjusted week start timestamp
      */
-    private static function calculate_week_start($startdate, $holidays) {
+    public static function calculate_week_start($startdate, $holidays) {
         $weekstart = $startdate;
 
         // Ensure start is a Monday.
@@ -458,7 +438,7 @@ class date_calculator {
      * @param int $enddate End timestamp
      * @return string Formatted date range
      */
-    private static function format_date_range_uk($startdate, $enddate) {
+    public static function format_date_range_uk($startdate, $enddate) {
         // Format: "Dec 1–7:" (compact style with en-dash)
         $startmonth = userdate($startdate, '%b', 99, false);
         $startday = (int)userdate($startdate, '%d', 99, false);
@@ -477,8 +457,7 @@ class date_calculator {
     /**
      * Remove existing date prefix from section name.
      *
-     * Detects and removes various date formats including:
-     * - "Dec 1–7:" (current format)
+     * Detects and removes various date formats including:     * - "14/09/2026 - 18/09/2026" (full date format)     * - "Dec 1–7:" (current format)
      * - "Nov 29 - Dec 5" (cross-month with space-dash-space)
      * - "Mon 20 Jan - Fri 24 Jan" (old format)
      * - "20/01 - 24/01" (manual format)
@@ -502,16 +481,19 @@ class date_calculator {
         // Pattern 3: Old verbose format "Mon 20 Jan - Fri 24 Jan"
         $name = preg_replace('/^[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]+\s*[-–—]\s*[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]+\s*:?\s*/i', '', $name);
 
-        // Pattern 4: Numeric format "20/01 - 24/01" or "20-01 - 24-01"
+        // Pattern 4: Full date format "14/09/2026 - 18/09/2026" or "14-09-2026 - 18-09-2026"
+        $name = preg_replace('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*:?\s*/i', '', $name);
+
+        // Pattern 5: Numeric format "20/01 - 24/01" or "20-01 - 24-01"
         $name = preg_replace('/^\d{1,2}[\/\-]\d{1,2}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}\s*:?\s*/i', '', $name);
 
-        // Pattern 5: Short format "Jan 20-24" or "June 20 - 24"
+        // Pattern 6: Short format "Jan 20-24" or "June 20 - 24"
         $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*\d{1,2}\s*:?\s*/i', '', $name);
 
-        // Pattern 6: Dates in parentheses at start "(Dec 1-7) " or "(June 1-7) "
+        // Pattern 7: Dates in parentheses at start "(Dec 1-7) " or "(14/09/2026 - 18/09/2026) "
         $name = preg_replace('/^\([^)]*\d{1,2}[^)]*\)\s*:?\s*/i', '', $name);
 
-        // Pattern 7: Dates in parentheses at end " (Dec 1-7)" or " (June 1-7)"
+        // Pattern 8: Dates in parentheses at end " (Dec 1-7)" or " (14/09/2026 - 18/09/2026)"
         $name = preg_replace('/\s*\([^)]*\d{1,2}[^)]*\)\s*$/i', '', $name);
 
         // Apply patterns again to handle doubled dates (e.g., "June 1–7: June 1–7: Title")
@@ -521,6 +503,7 @@ class date_calculator {
         while ($name !== $previousname && $iterations < 5) {
             $previousname = $name;
             
+            $name = preg_replace('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*:?\s*/i', '', $name);
             $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}–([A-Z][a-z]+\s+)?\d{1,2}:\s*/i', '', $name);
             $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*[A-Z][a-z]+\s+\d{1,2}\s*:?\s*/i', '', $name);
             $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*\d{1,2}\s*:?\s*/i', '', $name);

@@ -1,0 +1,33 @@
+{{!
+    Partial template for rendering a single section in the hierarchy.
+    Recursively includes itself for child sections.
+    
+    Context:
+    - id: Section ID
+    - name: Section name
+    - level: Nesting level
+    - indent: HTML indent string
+    - istoplevel: Boolean if this is a top-level section
+    - haschildren: Boolean if this section has children
+    - children: Array of child sections
+}}
+
+<div class="list-group-item section-item" data-level="{{level}}" style="padding-left: {{level}}rem;">
+    <label class="d-flex align-items-center mb-0">
+        <input type="checkbox" 
+            class="section-checkbox me-2" 
+            value="{{id}}"
+            data-section-id="{{id}}"
+            {{#istoplevel}}data-toplevel="true"{{/istoplevel}}
+            checked>
+        <span class="section-name">{{name}}</span>
+        {{#haschildren}}
+        <span class="badge bg-secondary ms-2">{{#str}}haschildren, aiplacement_modgen{{/str}}</span>
+        {{/haschildren}}
+    </label>
+</div>
+
+{{! Recursively render children }}
+{{#children}}
+    {{> aiplacement_modgen/section_hierarchy_item }}
+{{/children}}

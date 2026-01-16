@@ -1,0 +1,73 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template aiplacement_modgen/loading_indicator
+
+    Accessible loading indicator with optional progress bar.
+
+    Context variables required for this template:
+    * message - Loading message to display
+    * showProgress - Whether to show progress bar (boolean)
+    * progress - Progress percentage (0-100, only used if showProgress is true)
+    * size - Spinner size: 'small', 'medium', 'large'
+
+    Example context (JSON):
+    {
+        "message": "Creating sections...",
+        "showProgress": false,
+        "progress": 0,
+        "size": "medium"
+    }
+}}
+<div class="modgen-loading modgen-loading--{{size}}" role="region" aria-label="{{message}}">
+    {{! Hidden status announcer for screen readers }}
+    <div class="modgen-loading__status sr-only" role="status" aria-live="polite" aria-atomic="true">
+        {{message}}
+    </div>
+
+    {{! Visual loading indicator }}
+    <div class="modgen-loading__visual">
+        {{#showProgress}}
+            {{! Progress bar }}
+            <div class="modgen-loading__progress" role="presentation">
+                <div class="progress" style="height: 2rem;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated modgen-loading__progress-bar"
+                         role="progressbar"
+                         aria-valuenow="{{progress}}"
+                         aria-valuemin="0"
+                         aria-valuemax="100"
+                         style="width: {{progress}}%">
+                        {{progress}}%
+                    </div>
+                </div>
+            </div>
+        {{/showProgress}}
+        {{^showProgress}}
+            {{! Indeterminate spinner }}
+            <div class="modgen-loading__spinner" role="presentation" aria-hidden="true">
+                <div class="spinner-border text-primary" role="presentation">
+                    <span class="sr-only">Loading</span>
+                </div>
+            </div>
+        {{/showProgress}}
+
+        {{! Loading message (visible to all users) }}
+        <p class="modgen-loading__message" aria-hidden="true">
+            {{message}}
+        </p>
+    </div>
+</div>

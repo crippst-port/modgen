@@ -444,6 +444,18 @@ $string['maxcsvsections'] = 'Maximum CSV sections';
 $string['maxcsvsections_desc'] = 'Maximum total number of sections (themes + weeks) that can be created from a CSV file upload. Set to 0 for unlimited (not recommended). Default: 50';
 $string['csvlimitexceeded'] = 'CSV file contains {$a->count} sections, which exceeds the maximum allowed limit of {$a->max}. Please reduce the number of sections in your CSV file.';
 
+// Loading indicator strings
+$string['processingrequest'] = 'Processing your request...';
+$string['pleasewait'] = 'Please wait';
+$string['creatingthemes'] = 'Creating themes...';
+$string['creatingweeks'] = 'Creating weeks...';
+$string['applyingdates'] = 'Applying dates to sections...';
+$string['removingdates'] = 'Removing dates from sections...';
+$string['calculatingdates'] = 'Calculating dates...';
+$string['generatingsuggestions'] = 'Generating activity suggestions...';
+$string['loadingform'] = 'Loading form...';
+$string['creatingsections'] = 'Creating sections...';
+
 // Capabilities
 $string['modgen:viewexplore'] = 'View AI course insights and analytics';
 $string['modgen:managestructure'] = 'Manage course structure (themes, weeks)';

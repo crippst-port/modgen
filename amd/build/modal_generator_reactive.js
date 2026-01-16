@@ -1,4 +1,4 @@
-define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "aiplacement_modgen/modal", "core/notification", "core/modal_events", "core/templates", "core/str"], function (_exports, _reactive, _event_dispatcher, _fragment, _modal, _notification, _modal_events, _templates, _str) {
+define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "aiplacement_modgen/modal", "core/notification", "core/modal_events", "core/templates", "core/str", "aiplacement_modgen/loading_indicator"], function (_exports, _reactive, _event_dispatcher, _fragment, _modal, _notification, _modal_events, _templates, _str, LoadingIndicator) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -10,6 +10,8 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
   _notification = _interopRequireDefault(_notification);
   _modal_events = _interopRequireDefault(_modal_events);
   _templates = _interopRequireDefault(_templates);
+  LoadingIndicator = _interopRequireWildcard(LoadingIndicator);
+  function _interopRequireWildcard(e, t) { if ("function" == typeof WeakMap) var r = new WeakMap(), n = new WeakMap(); return (_interopRequireWildcard = function (e, t) { if (!t && e && e.__esModule) return e; var o, i, f = { __proto__: null, default: e }; if (null === e || "object" != typeof e && "function" != typeof e) return f; if (o = t ? n : r) { if (o.has(e)) return o.get(e); o.set(e, f); } for (const t in e) "default" !== t && {}.hasOwnProperty.call(e, t) && ((i = (o = Object.defineProperty) && Object.getOwnPropertyDescriptor(e, t)) && (i.get || i.set) ? o(f, t, i) : f[t] = e[t]); return f; })(e, t); }
   function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
   /**
    * Reactive modal generator component.
@@ -108,6 +110,11 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       stateManager.state.modal.isLoading = false;
       stateManager.setReadOnly(true);
     }
+    setLoadingMessage(stateManager, message) {
+      stateManager.setReadOnly(false);
+      stateManager.state.modal.loadingMessage = message;
+      stateManager.setReadOnly(true);
+    }
   }
   const STEPS = {
     PROMPT: 1,
@@ -129,6 +136,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       modal: {
         isOpen: false,
         isLoading: false,
+        loadingMessage: '',
         formName: null,
         title: '',
         currentStep: STEPS.PROMPT
@@ -171,13 +179,13 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         this.modal.show();
       }
     }
-    handleLoadingChange(_ref2) {
+    async handleLoadingChange(_ref2) {
       let {
         state
       } = _ref2;
       if (this.modal && state.modal.isLoading) {
-        this.modal.setBody('<div class="spinner-border" role="status"><span class="sr-only">Loading...</span></div>');
-        this.modal.setFooter('');
+        const message = state.modal.loadingMessage || (await (0, _str.get_string)('loadingform', 'aiplacement_modgen'));
+        await LoadingIndicator.showInModal(this.modal, message);
       }
     }
     createModal() {
@@ -508,7 +516,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       html += '</div>';
       return html;
     }
-    handleDatesForSectionsSubmission(modal, formData, buttonName) {
+    async handleDatesForSectionsSubmission(modal, formData, buttonName) {
       const isRemove = buttonName === 'removedates';
       const body = modal.getBody();
       const bodyNode = body && body.length ? body.get(0) : null;
@@ -525,7 +533,8 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       }
       const action = isRemove ? 'Removing dates from' : 'Applying dates to';
       const endpoint = isRemove ? '/ai/placement/modgen/ajax/remove_section_dates.php' : '/ai/placement/modgen/ajax/apply_section_dates.php';
-      modal.setBody('<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">' + action + ' sections...</span>' + '</div>' + '<p class="mt-3">' + action + ' sections...</p>' + '</div>');
+      const loadingMessage = await (0, _str.get_string)(isRemove ? 'removingdates' : 'applyingdates', 'aiplacement_modgen');
+      await LoadingIndicator.showInModal(modal, loadingMessage);
       const includeparents = 1;
       const params = new URLSearchParams();
       params.append('courseid', this.courseid);
@@ -557,11 +566,17 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       let debounceTimer = null;
       const previewDates = () => {
         clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(() => {
+        debounceTimer = setTimeout(async () => {
           const body = modal.getBody();
           const bodyNode = body && body.length ? body.get(0) : null;
           if (!bodyNode) {
             return;
+          }
+          const previewContainer = bodyNode.querySelector('.dates-for-sections-form');
+          if (previewContainer) {
+            await LoadingIndicator.show(previewContainer, await (0, _str.get_string)('calculatingdates', 'aiplacement_modgen'), {
+              size: 'small'
+            });
           }
           const excluded = [];
           bodyNode.querySelectorAll('.section-checkbox:not(:checked)').forEach(cb => {
@@ -580,6 +595,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
             },
             body: params.toString()
           }).then(response => response.json()).then(data => {
+            if (previewContainer) {
+              LoadingIndicator.hide(previewContainer);
+            }
             if (!data.success || !data.sections) {
               return;
             }
@@ -622,7 +640,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           }
         }
       });
-      modalRoot.on('submit', 'form', e => {
+      modalRoot.on('submit', 'form', async e => {
         var _e$originalEvent;
         e.preventDefault();
         const submitter = (_e$originalEvent = e.originalEvent) === null || _e$originalEvent === void 0 ? void 0 : _e$originalEvent.submitter;
@@ -661,6 +679,8 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
           buttons.forEach(button => button.disabled = true);
         }
+        const loadingMessage = await (0, _str.get_string)(formName === 'add_theme' ? 'creatingthemes' : 'creatingsections', 'aiplacement_modgen');
+        await LoadingIndicator.showInModal(modal, loadingMessage);
         fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/create_sections.php', {
           method: 'POST',
           headers: {
@@ -669,7 +689,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           body: new URLSearchParams(params)
         }).then(response => response.json()).then(data => {
           if (data.success) {
-            modal.setBody('<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">Loading...</span>' + '</div>' + '</div>');
+            LoadingIndicator.hideFromModal(modal);
             const details = data.messages && data.messages.length > 0 ? data.messages : [];
             this.showSuccess(modal, data.message, details);
           } else {

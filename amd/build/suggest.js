@@ -1,4 +1,4 @@
-define(["exports", "core/notification", "core/config", "jquery", "core/templates"], function (_exports, _notification, _config, _jquery, _templates) {
+define(["exports", "core/notification", "core/config", "jquery", "core/templates", "aiplacement_modgen/loading_indicator", "core/str"], function (_exports, _notification, _config, _jquery, _templates, LoadingIndicator, _str) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -9,6 +9,8 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
   _config = _interopRequireDefault(_config);
   _jquery = _interopRequireDefault(_jquery);
   _templates = _interopRequireDefault(_templates);
+  LoadingIndicator = _interopRequireWildcard(LoadingIndicator);
+  function _interopRequireWildcard(e, t) { if ("function" == typeof WeakMap) var r = new WeakMap(), n = new WeakMap(); return (_interopRequireWildcard = function (e, t) { if (!t && e && e.__esModule) return e; var o, i, f = { __proto__: null, default: e }; if (null === e || "object" != typeof e && "function" != typeof e) return f; if (o = t ? n : r) { if (o.has(e)) return o.get(e); o.set(e, f); } for (const t in e) "default" !== t && {}.hasOwnProperty.call(e, t) && ((i = (o = Object.defineProperty) && Object.getOwnPropertyDescriptor(e, t)) && (i.get || i.set) ? o(f, t, i) : f[t] = e[t]); return f; })(e, t); }
   function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
   const SUGGEST_STEPS = {
     SELECT: 1,
@@ -108,14 +110,16 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
         }
       } catch (e) {}
       const $select = root.find('#suggest-section-select');
-      const $loading = root.find('#suggest-loading');
       const $results = root.find('#suggest-results');
-      const showLoading = show => {
-        if ($loading && $loading.length) {
-          $loading.toggle(show);
-        }
-        if (show) {
+      const showLoading = async function (show) {
+        let message = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
+        const resultsContainer = $results.get(0);
+        if (show && resultsContainer) {
+          const loadingMessage = message || (await (0, _str.get_string)('generatingsuggestions', 'aiplacement_modgen'));
+          await LoadingIndicator.show(resultsContainer, loadingMessage);
           modal.setFooter('');
+        } else if (!show && resultsContainer) {
+          LoadingIndicator.hide(resultsContainer);
         }
       };
       const updateFooterForStep = function (step) {
@@ -313,12 +317,12 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
         };
         createLearningTypesChart(newChart);
       };
-      const handleScan = ev => {
+      const handleScan = async ev => {
         ev.preventDefault();
         const section = $select.val();
         currentStep = SUGGEST_STEPS.SCANNING;
         updateProgressHeader(root, currentStep);
-        showLoading(true);
+        await showLoading(true);
         $results.empty();
         root.find('#suggest-summary').hide();
         const params = new URLSearchParams();
@@ -456,7 +460,7 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
           updateFooterForStep(currentStep);
         });
       };
-      const handleCreate = ev => {
+      const handleCreate = async ev => {
         ev.preventDefault();
         const selected = [];
         const skipped = [];
@@ -495,7 +499,7 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
         params.append('sesskey', _config.default.sesskey);
         currentStep = SUGGEST_STEPS.CREATING;
         updateProgressHeader(root, currentStep);
-        showLoading(true);
+        await showLoading(true);
         fetch(CREATE_AJAX, {
           method: 'POST',
           headers: {

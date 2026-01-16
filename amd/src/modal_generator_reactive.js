@@ -81,6 +81,7 @@ import Notification from 'core/notification';
 import ModalEvents from 'core/modal_events';
 import Templates from 'core/templates';
 import {get_string as getString} from 'core/str';
+import * as LoadingIndicator from 'aiplacement_modgen/loading_indicator';
 
 // =============================================================================
 // CONSTANTS & EVENT TYPES
@@ -189,6 +190,18 @@ class ModalMutations {
         stateManager.state.modal.isLoading = false;
         stateManager.setReadOnly(true);
     }
+
+    /**
+     * Set loading message.
+     *
+     * @param {StateManager} stateManager The state manager
+     * @param {string} message Loading message to display
+     */
+    setLoadingMessage(stateManager, message) {
+        stateManager.setReadOnly(false);
+        stateManager.state.modal.loadingMessage = message;
+        stateManager.setReadOnly(true);
+    }
 }
 
 // =============================================================================
@@ -243,6 +256,7 @@ const reactiveInstance = new Reactive({
             modal: {
                 isOpen: false,
                 isLoading: false,
+                loadingMessage: '',
                 formName: null,
                 title: '',
                 currentStep: STEPS.PROMPT,
@@ -340,11 +354,12 @@ class ModalGeneratorComponent extends BaseComponent {
      * @param {Object} args Watcher arguments
      * @param {Object} args.state Current reactive state
      */
-    handleLoadingChange({state}) {
+    async handleLoadingChange({state}) {
         if (this.modal && state.modal.isLoading) {
-            this.modal.setBody('<div class="spinner-border" role="status"><span class="sr-only">Loading...</span></div>');
-            // Clear footer during loading
-            this.modal.setFooter('');
+            // Use the loading indicator component
+            const message = state.modal.loadingMessage || 
+                await getString('loadingform', 'aiplacement_modgen');
+            await LoadingIndicator.showInModal(this.modal, message);
         }
     }
 
@@ -960,7 +975,7 @@ class ModalGeneratorComponent extends BaseComponent {
      * @param {FormData} formData The form data
      * @param {string} buttonName The name of the clicked submit button
      */
-    handleDatesForSectionsSubmission(modal, formData, buttonName) {
+    async handleDatesForSectionsSubmission(modal, formData, buttonName) {
         // Check if this is a remove dates request based on which button was clicked
         const isRemove = buttonName === 'removedates';
         
@@ -987,13 +1002,12 @@ class ModalGeneratorComponent extends BaseComponent {
             '/ai/placement/modgen/ajax/remove_section_dates.php' : 
             '/ai/placement/modgen/ajax/apply_section_dates.php';
 
-        // Show loading indicator
-        modal.setBody('<div class="text-center p-5">' +
-            '<div class="spinner-border" role="status">' +
-            '<span class="sr-only">' + action + ' sections...</span>' +
-            '</div>' +
-            '<p class="mt-3">' + action + ' sections...</p>' +
-            '</div>');
+        // Show loading indicator with context-specific message
+        const loadingMessage = await getString(
+            isRemove ? 'removingdates' : 'applyingdates',
+            'aiplacement_modgen'
+        );
+        await LoadingIndicator.showInModal(modal, loadingMessage);
 
         // Determine if includeparents should be true
         // We need to check the actual section data to see if any selected sections are parents
@@ -1046,11 +1060,21 @@ class ModalGeneratorComponent extends BaseComponent {
 
         const previewDates = () => {
             clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(() => {
+            debounceTimer = setTimeout(async() => {
                 const body = modal.getBody();
                 const bodyNode = body && body.length ? body.get(0) : null;
                 if (!bodyNode) {
                     return;
+                }
+
+                // Show small loading indicator in the preview area
+                const previewContainer = bodyNode.querySelector('.dates-for-sections-form');
+                if (previewContainer) {
+                    await LoadingIndicator.show(
+                        previewContainer,
+                        await getString('calculatingdates', 'aiplacement_modgen'),
+                        {size: 'small'}
+                    );
                 }
 
                 // Collect excluded section IDs
@@ -1074,6 +1098,11 @@ class ModalGeneratorComponent extends BaseComponent {
                 })
                 .then(response => response.json())
                 .then(data => {
+                    // Hide loading indicator
+                    if (previewContainer) {
+                        LoadingIndicator.hide(previewContainer);
+                    }
+
                     if (!data.success || !data.sections) {
                         return;
                     }
@@ -1151,7 +1180,7 @@ class ModalGeneratorComponent extends BaseComponent {
             }
         });
         
-        modalRoot.on('submit', 'form', (e) => {
+        modalRoot.on('submit', 'form', async(e) => {
             e.preventDefault();
             
             // Check submitter first (modern browsers), then fall back to tracked button
@@ -1212,6 +1241,13 @@ class ModalGeneratorComponent extends BaseComponent {
                 buttons.forEach(button => button.disabled = true);
             }
             
+            // Show loading indicator with context-specific message
+            const loadingMessage = await getString(
+                formName === 'add_theme' ? 'creatingthemes' : 'creatingsections',
+                'aiplacement_modgen'
+            );
+            await LoadingIndicator.showInModal(modal, loadingMessage);
+            
             // POST to AJAX endpoint
             fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/create_sections.php', {
                 method: 'POST',
@@ -1223,12 +1259,8 @@ class ModalGeneratorComponent extends BaseComponent {
             .then(response => response.json())
             .then(data => {
                 if (data.success) {
-                    // Show loading/success - now safe to replace form
-                    modal.setBody('<div class="text-center p-5">' +
-                        '<div class="spinner-border" role="status">' +
-                        '<span class="sr-only">Loading...</span>' +
-                        '</div>' +
-                        '</div>');
+                    // Hide loading indicator
+                    LoadingIndicator.hideFromModal(modal);
                     
                     // Parse detailed messages if present
                     const details = data.messages && data.messages.length > 0 ? data.messages : [];

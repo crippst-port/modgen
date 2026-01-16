@@ -2,6 +2,8 @@ import Notification from 'core/notification';
 import Config from 'core/config';
 import $ from 'jquery';
 import Templates from 'core/templates';
+import * as LoadingIndicator from 'aiplacement_modgen/loading_indicator';
+import {get_string as getString} from 'core/str';
 
 // Step constants for suggest workflow
 const SUGGEST_STEPS = {
@@ -123,16 +125,21 @@ export default {
             // ignore if DOM structure differs
         }
         const $select = root.find('#suggest-section-select');
-        const $loading = root.find('#suggest-loading');
         const $results = root.find('#suggest-results');
 
-        const showLoading = (show) => {
-            if ($loading && $loading.length) {
-                $loading.toggle(show);
-            }
-            // Clear footer during loading
-            if (show) {
+        /**
+         * Show or hide loading indicator.
+         * @param {boolean} show Whether to show loading
+         * @param {string} message Loading message to display
+         */
+        const showLoading = async(show, message = '') => {
+            const resultsContainer = $results.get(0);
+            if (show && resultsContainer) {
+                const loadingMessage = message || await getString('generatingsuggestions', 'aiplacement_modgen');
+                await LoadingIndicator.show(resultsContainer, loadingMessage);
                 modal.setFooter('');
+            } else if (!show && resultsContainer) {
+                LoadingIndicator.hide(resultsContainer);
             }
         };
         
@@ -325,7 +332,7 @@ export default {
          * Handle scan button click - fetches suggestions from AI.
          * @param {Event} ev Click event
          */
-        const handleScan = (ev) => {
+        const handleScan = async(ev) => {
             ev.preventDefault();
             const section = $select.val();
             
@@ -333,7 +340,7 @@ export default {
             currentStep = SUGGEST_STEPS.SCANNING;
             updateProgressHeader(root, currentStep);
             
-            showLoading(true);
+            await showLoading(true);
             $results.empty();
             // Hide the summary until we have suggestion results to display
             root.find('#suggest-summary').hide();
@@ -512,7 +519,7 @@ export default {
          * Handle create button click - creates selected activities.
          * @param {Event} ev Click event
          */
-        const handleCreate = (ev) => {
+        const handleCreate = async(ev) => {
             ev.preventDefault();
             const selected = [];
             const skipped = [];
@@ -562,7 +569,7 @@ export default {
             currentStep = SUGGEST_STEPS.CREATING;
             updateProgressHeader(root, currentStep);
             
-            showLoading(true);
+            await showLoading(true);
             fetch(CREATE_AJAX, {
                 method: 'POST',
                 headers: {'Content-Type': 'application/x-www-form-urlencoded'},

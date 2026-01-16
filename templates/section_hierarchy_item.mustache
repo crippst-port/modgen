@@ -12,18 +12,20 @@
     - children: Array of child sections
 }}
 
-<div class="list-group-item section-item" data-level="{{level}}" style="padding-left: {{level}}rem;">
-    <label class="d-flex align-items-center mb-0">
-        <input type="checkbox" 
-            class="section-checkbox me-2" 
+<div class="list-group-item section-item" data-level="{{level}}" style="padding-left: {{level}}.4rem; {{#haschildren}}background-color: #efefef;{{/haschildren}}">
+    <label class="d-flex align-items-center mb-0 py-2">
+        <input type="checkbox"
+            class="section-checkbox me-3"
             value="{{id}}"
             data-section-id="{{id}}"
             {{#istoplevel}}data-toplevel="true"{{/istoplevel}}
             checked>
-        <span class="section-name">{{name}}</span>
-        {{#haschildren}}
+        <span class="section-name flex-grow-1">{{name}}
+         {{#haschildren}}
         <span class="badge bg-info text-white ms-2">{{#str}}haschildren, aiplacement_modgen{{/str}}</span>
         {{/haschildren}}
+        </span>
+       
     </label>
 </div>
 

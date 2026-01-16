@@ -460,7 +460,7 @@ $string['creatingsections'] = 'Creating sections...';
 $string['selectsections_hierarchical'] = 'Select sections to apply dates to. Use the toggle buttons to quickly select or deselect groups of sections.';
 $string['toggleall'] = 'Toggle All Sections';
 $string['toggletoplevel'] = 'Toggle Top-Level Sections';
-$string['haschildren'] = 'Has children';
+$string['haschildren'] = 'Has subsections';
 $string['startdate'] = 'Start date for date calculation';
 $string['startdate_help'] = 'Choose the date from which to start calculating week dates. This will be used as the first day of the first selected section. Dates will be calculated sequentially for each checked section, skipping any configured holidays.';
 

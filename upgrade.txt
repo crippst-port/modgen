@@ -1,5 +1,34 @@
 === Module Assistant (aiplacement_modgen) Upgrade Notes ===
 
+## Upgrading to Version 0.2.7 (2026-01-16)
+
+### New 'managedates' Capability
+
+This version adds a new capability to control access to the "Dates to Sections" feature
+separately from general structure management.
+
+**New Capability:**
+
+7. **aiplacement/modgen:managedates**
+   - Apply and remove dates to course sections
+   - Default: None (must be manually assigned)
+   - Risk: RISK_DATALOSS
+   - Context: CONTEXT_COURSE
+
+**Action Required:**
+
+If you previously granted users `managestructure` capability expecting them to have access
+to the "Dates to Sections" feature, you must now also grant them `managedates` capability.
+
+The `managestructure` capability now only controls access to:
+- New Theme button
+- New Week button
+
+The `managedates` capability now controls access to:
+- Dates to Sections button
+
+---
+
 ## Upgrading to Version 0.2.6 (2026-01-14)
 
 ### New Capability System
@@ -23,12 +52,18 @@ The following capabilities have been added:
    - Context: CONTEXT_COURSE
 
 2. **aiplacement/modgen:managestructure**
-   - Manage course structure (create themes, weeks, apply section dates)
+   - Manage course structure (create themes, weeks)
    - Default: None (must be manually assigned)
    - Risk: RISK_DATALOSS
    - Context: CONTEXT_COURSE
 
-3. **aiplacement/modgen:generatewithprompt**
+3. **aiplacement/modgen:managedates**
+   - Manage dates to sections
+   - Default: None (must be manually assigned)
+   - Risk: RISK_DATALOSS
+   - Context: CONTEXT_COURSE
+
+4. **aiplacement/modgen:generatewithprompt**
    - Generate content with AI prompt (Structure from prompt button)
    - Default: None (must be manually assigned)
    - Risk: RISK_DATALOSS
@@ -80,6 +115,7 @@ Module Assistant features.
    **For Editing Teachers:**
    - ✓ aiplacement/modgen:viewexplore
    - ✓ aiplacement/modgen:managestructure
+   - ✓ aiplacement/modgen:managedates
    - ✓ aiplacement/modgen:generatewithprompt
    - ✓ aiplacement/modgen:generatefromtemplate
    - ✓ aiplacement/modgen:usesuggest
@@ -103,7 +139,8 @@ appear at all.
 
 Individual buttons within the toolbar are controlled by specific capabilities:
 
-- **New Theme / New Week / Dates to Sections:** Requires `managestructure`
+- **New Theme / New Week:** Requires `managestructure`
+- **Dates to Sections:** Requires `managedates`
 - **Structure from File:** Requires `generatefromtemplate`
 - **Structure from Prompt:** Requires `generatewithprompt` (also requires AI enabled in settings)
 - **Suggest dropdown:** Requires `usesuggest` (also requires AI enabled in settings)
@@ -158,18 +195,19 @@ policies, particularly for capabilities with RISK_DATALOSS.
 **Problem:** "Insufficient permissions" error on specific actions
 **Solution:** User needs the specific capability for that feature:
              - Structure changes: managestructure
+             - Dates to sections: managedates
              - Structure from file: generatefromtemplate
              - Structure from prompt: generatewithprompt
              - AI suggestions: usesuggest
              - Analytics: viewexplore
              - Site templates: managetemplates (CONTEXT_SYSTEM)
 
-**Problem:** "Suggested Content" section not appearing in forms
+**Problem:** \"Suggested Content\" section not appearing in forms
 **Solution:** User needs both AI enabled (admin setting) AND the usesuggest capability.
              The rest of the form is still accessible without this capability.
 
 **Problem:** Fragment load error mentioning managestructure
 **Solution:** Fragment now checks for ANY toolbar capability. User needs at least one of:
-             viewexplore, managestructure, generatewithprompt, or generatefromtemplate.
+             viewexplore, managestructure, managedates, generatewithprompt, or generatefromtemplate.
 
 For more information, see: https://github.com/your-repo/modgen/wiki/Permissions

@@ -29,6 +29,7 @@ define(["exports", "core/fragment", "core/notification", "aiplacement_modgen/mod
       showexplore: config.showexplore ? 1 : 0,
       showsuggest: config.showsuggest ? 1 : 0,
       showmanagestructure: config.showmanagestructure ? 1 : 0,
+      showmanagedates: config.showmanagedates ? 1 : 0,
       showtemplatefromfile: config.showtemplatefromfile ? 1 : 0,
       showtemplatefromptompt: config.showtemplatefromptompt ? 1 : 0,
       currentsection: config.currentsection || 0

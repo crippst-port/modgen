@@ -34,8 +34,16 @@ $capabilities = [
         'archetypes' => [],
     ],
     
-    // Manage course structure (themes, weeks, section dates)
+    // Manage course structure (themes, weeks)
     'aiplacement/modgen:managestructure' => [
+        'riskbitmask' => RISK_DATALOSS,
+        'captype' => 'write',
+        'contextlevel' => CONTEXT_COURSE,
+        'archetypes' => [],
+    ],
+    
+    // Manage dates to sections
+    'aiplacement/modgen:managedates' => [
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
         'contextlevel' => CONTEXT_COURSE,

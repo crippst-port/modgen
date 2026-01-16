@@ -446,7 +446,8 @@ $string['csvlimitexceeded'] = 'CSV file contains {$a->count} sections, which exc
 
 // Capabilities
 $string['modgen:viewexplore'] = 'View AI course insights and analytics';
-$string['modgen:managestructure'] = 'Manage course structure (themes, weeks, dates)';
+$string['modgen:managestructure'] = 'Manage course structure (themes, weeks)';
+$string['modgen:managedates'] = 'Manage dates to sections';
 $string['modgen:generatewithprompt'] = 'Generate content with AI prompt';
 $string['modgen:generatefromtemplate'] = 'Generate content from templates';
 $string['modgen:usesuggest'] = 'Use AI activity suggestions';

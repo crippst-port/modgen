@@ -24,6 +24,8 @@
 
 namespace aiplacement_modgen\local;
 
+defined('MOODLE_INTERNAL') || die();
+
 /**
  * Service class for processing uploaded files and extracting text content.
  */

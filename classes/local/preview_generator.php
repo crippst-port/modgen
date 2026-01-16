@@ -28,6 +28,8 @@
 
 namespace aiplacement_modgen\local;
 
+defined('MOODLE_INTERNAL') || die();
+
 /**
  * Generate structured preview data from AI module JSON.
  */

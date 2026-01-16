@@ -25,6 +25,8 @@
 
 namespace aiplacement_modgen;
 
+defined('MOODLE_INTERNAL') || die();
+
 use aiplacement_modgen\activitytype\registry;
 
 require_once(__DIR__ . '/../activitytype/registry.php');
@@ -968,8 +970,8 @@ class ai_service {
                 // Extract stringified JSON from summary fields that looks like full content
                 $jsondecoded = self::extract_misplaced_content_from_summaries($jsondecoded);
                 
-                // DEBUG: Log the response
-                file_put_contents('/tmp/modgen_ai_response.json', json_encode($jsondecoded, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), FILE_APPEND);
+                // Debug logging using Moodle's debugging API (only in developer mode)
+                debugging('AI response: ' . json_encode($jsondecoded), DEBUG_DEVELOPER);
             }
 
             if (is_array($jsondecoded) && (isset($jsondecoded['sections']) || isset($jsondecoded['themes']) || isset($jsondecoded['activities']))) {

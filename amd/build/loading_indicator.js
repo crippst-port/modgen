@@ -29,22 +29,61 @@ define(["exports", "core/templates", "core/str"], function (_exports, _templates
       size: options.size || 'medium',
       message: message || (await (0, _str.get_string)('processingrequest', 'aiplacement_modgen'))
     };
-    if (!loadingStates.has(container)) {
-      loadingStates.set(container, {
-        originalContent: container.innerHTML,
-        originalAriaLive: container.getAttribute('aria-live'),
-        originalAriaBusy: container.getAttribute('aria-busy')
-      });
-    }
-    container.setAttribute('aria-busy', 'true');
-    const {
-      html
-    } = await _templates.default.renderForPromise('aiplacement_modgen/loading_indicator', config);
-    container.innerHTML = html;
-    const loadingElement = container.querySelector('.modgen-loading');
-    if (loadingElement) {
-      loadingElement.setAttribute('tabindex', '-1');
-      loadingElement.focus();
+    if (options.overlay) {
+      if (!loadingStates.has(container)) {
+        loadingStates.set(container, {
+          isOverlay: true,
+          originalPosition: container.style.position,
+          originalAriaLive: container.getAttribute('aria-live'),
+          originalAriaBusy: container.getAttribute('aria-busy')
+        });
+      }
+      container.setAttribute('aria-busy', 'true');
+      if (!container.style.position || container.style.position === 'static') {
+        container.style.position = 'relative';
+      }
+      let overlayElement = container.querySelector('.modgen-loading-overlay');
+      if (!overlayElement) {
+        const {
+          html
+        } = await _templates.default.renderForPromise('aiplacement_modgen/loading_indicator', config);
+        overlayElement = document.createElement('div');
+        overlayElement.className = 'modgen-loading-overlay';
+        overlayElement.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; ' + 'background: rgba(255, 255, 255, 0.9); z-index: 1000; ' + 'display: flex; align-items: center; justify-content: center;';
+        overlayElement.innerHTML = html;
+        container.appendChild(overlayElement);
+      } else {
+        const {
+          html
+        } = await _templates.default.renderForPromise('aiplacement_modgen/loading_indicator', config);
+        overlayElement.innerHTML = html;
+      }
+      const loadingElement = overlayElement.querySelector('.modgen-loading');
+      if (loadingElement) {
+        loadingElement.setAttribute('tabindex', '-1');
+        loadingElement.focus({
+          preventScroll: true
+        });
+      }
+    } else {
+      if (!loadingStates.has(container)) {
+        loadingStates.set(container, {
+          isOverlay: false,
+          originalContent: container.innerHTML,
+          originalAriaLive: container.getAttribute('aria-live'),
+          originalAriaBusy: container.getAttribute('aria-busy')
+        });
+      }
+      container.setAttribute('aria-busy', 'true');
+      const {
+        html
+      } = await _templates.default.renderForPromise('aiplacement_modgen/loading_indicator', config);
+      container.innerHTML = html;
+      const loadingElement = container.querySelector('.modgen-loading');
+      if (loadingElement) {
+        loadingElement.setAttribute('tabindex', '-1');
+        loadingElement.focus();
+      }
     }
   };
   _exports.show = show;
@@ -73,7 +112,19 @@ define(["exports", "core/templates", "core/str"], function (_exports, _templates
     }
     const state = loadingStates.get(container);
     if (state) {
-      container.innerHTML = state.originalContent;
+      if (state.isOverlay) {
+        const overlayElement = container.querySelector('.modgen-loading-overlay');
+        if (overlayElement) {
+          overlayElement.remove();
+        }
+        if (state.originalPosition) {
+          container.style.position = state.originalPosition;
+        } else {
+          container.style.position = '';
+        }
+      } else {
+        container.innerHTML = state.originalContent;
+      }
       if (state.originalAriaLive) {
         container.setAttribute('aria-live', state.originalAriaLive);
       } else {
@@ -87,6 +138,10 @@ define(["exports", "core/templates", "core/str"], function (_exports, _templates
       loadingStates.delete(container);
     } else {
       container.removeAttribute('aria-busy');
+      const overlayElement = container.querySelector('.modgen-loading-overlay');
+      if (overlayElement) {
+        overlayElement.remove();
+      }
     }
   };
   _exports.hide = hide;

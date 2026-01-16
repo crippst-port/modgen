@@ -572,12 +572,6 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           if (!bodyNode) {
             return;
           }
-          const previewContainer = bodyNode.querySelector('.dates-for-sections-form');
-          if (previewContainer) {
-            await LoadingIndicator.show(previewContainer, await (0, _str.get_string)('calculatingdates', 'aiplacement_modgen'), {
-              size: 'small'
-            });
-          }
           const excluded = [];
           bodyNode.querySelectorAll('.section-checkbox:not(:checked)').forEach(cb => {
             excluded.push(parseInt(cb.dataset.sectionId, 10));
@@ -595,9 +589,6 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
             },
             body: params.toString()
           }).then(response => response.json()).then(data => {
-            if (previewContainer) {
-              LoadingIndicator.hide(previewContainer);
-            }
             if (!data.success || !data.sections) {
               return;
             }

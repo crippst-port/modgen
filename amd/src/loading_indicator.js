@@ -39,6 +39,7 @@ const loadingStates = new WeakMap();
  * @param {boolean} options.showProgress - Whether to show a progress bar (default: false)
  * @param {number} options.progress - Progress percentage (0-100), only used if showProgress is true
  * @param {string} options.size - Size of spinner: 'small', 'medium', 'large' (default: 'medium')
+ * @param {boolean} options.overlay - Whether to overlay the content instead of replacing it (default: false)
  * @returns {Promise<void>}
  */
 export const show = async(container, message, options = {}) => {
@@ -53,27 +54,77 @@ export const show = async(container, message, options = {}) => {
         message: message || await getString('processingrequest', 'aiplacement_modgen'),
     };
 
-    // Store original content if not already stored
-    if (!loadingStates.has(container)) {
-        loadingStates.set(container, {
-            originalContent: container.innerHTML,
-            originalAriaLive: container.getAttribute('aria-live'),
-            originalAriaBusy: container.getAttribute('aria-busy'),
-        });
-    }
+    // Use overlay mode to preserve content underneath
+    if (options.overlay) {
+        // Store that we're using overlay mode
+        if (!loadingStates.has(container)) {
+            loadingStates.set(container, {
+                isOverlay: true,
+                originalPosition: container.style.position,
+                originalAriaLive: container.getAttribute('aria-live'),
+                originalAriaBusy: container.getAttribute('aria-busy'),
+            });
+        }
 
-    // Set aria-busy on container
-    container.setAttribute('aria-busy', 'true');
+        // Set aria-busy on container
+        container.setAttribute('aria-busy', 'true');
 
-    // Render loading indicator template
-    const {html} = await Templates.renderForPromise('aiplacement_modgen/loading_indicator', config);
-    container.innerHTML = html;
+        // Ensure container has position context for absolute overlay
+        if (!container.style.position || container.style.position === 'static') {
+            container.style.position = 'relative';
+        }
 
-    // Focus on the loading container for screen readers
-    const loadingElement = container.querySelector('.modgen-loading');
-    if (loadingElement) {
-        loadingElement.setAttribute('tabindex', '-1');
-        loadingElement.focus();
+        // Check if overlay already exists
+        let overlayElement = container.querySelector('.modgen-loading-overlay');
+        if (!overlayElement) {
+            // Render loading indicator template
+            const {html} = await Templates.renderForPromise('aiplacement_modgen/loading_indicator', config);
+            
+            // Create overlay wrapper
+            overlayElement = document.createElement('div');
+            overlayElement.className = 'modgen-loading-overlay';
+            overlayElement.style.cssText = 'position: absolute; top: 0; left: 0; right: 0; bottom: 0; ' +
+                'background: rgba(255, 255, 255, 0.9); z-index: 1000; ' +
+                'display: flex; align-items: center; justify-content: center;';
+            overlayElement.innerHTML = html;
+            container.appendChild(overlayElement);
+        } else {
+            // Update existing overlay
+            const {html} = await Templates.renderForPromise('aiplacement_modgen/loading_indicator', config);
+            overlayElement.innerHTML = html;
+        }
+
+        // Focus on the loading container for screen readers without scrolling
+        const loadingElement = overlayElement.querySelector('.modgen-loading');
+        if (loadingElement) {
+            loadingElement.setAttribute('tabindex', '-1');
+            loadingElement.focus({preventScroll: true});
+        }
+    } else {
+        // Original behavior: replace content
+        // Store original content if not already stored
+        if (!loadingStates.has(container)) {
+            loadingStates.set(container, {
+                isOverlay: false,
+                originalContent: container.innerHTML,
+                originalAriaLive: container.getAttribute('aria-live'),
+                originalAriaBusy: container.getAttribute('aria-busy'),
+            });
+        }
+
+        // Set aria-busy on container
+        container.setAttribute('aria-busy', 'true');
+
+        // Render loading indicator template
+        const {html} = await Templates.renderForPromise('aiplacement_modgen/loading_indicator', config);
+        container.innerHTML = html;
+
+        // Focus on the loading container for screen readers
+        const loadingElement = container.querySelector('.modgen-loading');
+        if (loadingElement) {
+            loadingElement.setAttribute('tabindex', '-1');
+            loadingElement.focus();
+        }
     }
 };
 
@@ -118,8 +169,23 @@ export const hide = (container) => {
 
     const state = loadingStates.get(container);
     if (state) {
-        // Restore original content
-        container.innerHTML = state.originalContent;
+        if (state.isOverlay) {
+            // Remove overlay element
+            const overlayElement = container.querySelector('.modgen-loading-overlay');
+            if (overlayElement) {
+                overlayElement.remove();
+            }
+
+            // Restore original position style
+            if (state.originalPosition) {
+                container.style.position = state.originalPosition;
+            } else {
+                container.style.position = '';
+            }
+        } else {
+            // Restore original content
+            container.innerHTML = state.originalContent;
+        }
 
         // Restore original ARIA attributes
         if (state.originalAriaLive) {
@@ -137,8 +203,12 @@ export const hide = (container) => {
         // Clean up stored state
         loadingStates.delete(container);
     } else {
-        // No stored state, just remove aria-busy
+        // No stored state, just remove aria-busy and any overlay
         container.removeAttribute('aria-busy');
+        const overlayElement = container.querySelector('.modgen-loading-overlay');
+        if (overlayElement) {
+            overlayElement.remove();
+        }
     }
 };
 

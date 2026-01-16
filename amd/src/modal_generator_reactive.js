@@ -1067,16 +1067,6 @@ class ModalGeneratorComponent extends BaseComponent {
                     return;
                 }
 
-                // Show small loading indicator in the preview area
-                const previewContainer = bodyNode.querySelector('.dates-for-sections-form');
-                if (previewContainer) {
-                    await LoadingIndicator.show(
-                        previewContainer,
-                        await getString('calculatingdates', 'aiplacement_modgen'),
-                        {size: 'small'}
-                    );
-                }
-
                 // Collect excluded section IDs
                 const excluded = [];
                 bodyNode.querySelectorAll('.section-checkbox:not(:checked)').forEach(cb => {
@@ -1098,11 +1088,6 @@ class ModalGeneratorComponent extends BaseComponent {
                 })
                 .then(response => response.json())
                 .then(data => {
-                    // Hide loading indicator
-                    if (previewContainer) {
-                        LoadingIndicator.hide(previewContainer);
-                    }
-
                     if (!data.success || !data.sections) {
                         return;
                     }

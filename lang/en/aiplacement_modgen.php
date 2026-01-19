@@ -459,7 +459,7 @@ $string['loadingform'] = 'Loading form...';
 $string['creatingsections'] = 'Creating sections...';
 
 // Dates form
-$string['selectsections_hierarchical'] = 'Select sections to add dates to. Preview dates appear as badges <span class="badge bg-info text-white">Dec 21-27:</span> on the right. When applied, dates will be added to section titles and any existing dates will be updated. Use the toggle buttons to quickly select or deselect groups.';
+$string['selectsections_hierarchical'] = 'Select sections to add dates to. New dates appear as badges <span class="badge bg-info text-white">Dec 21-27:</span> on the right in this preview, When applied, dates will be added to section titles and any existing dates will be updated. Use the toggle buttons to quickly select or deselect groups.';
 $string['sectiontitle'] = 'Section Title';
 $string['newdate'] = 'New Date';
 $string['toggleall'] = 'Toggle All';

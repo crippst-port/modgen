@@ -73,7 +73,7 @@ class csv_processing_service {
      * @return \stored_file|null CSV file or null if not found
      */
     public function get_csv_file(?\stored_file $templatecsvfile, int $draftitemid, int $contextid): ?\stored_file {
-        // If template CSV provided, use it
+        // If CSV file provided (uploaded file takes priority over template), use it
         if ($templatecsvfile !== null) {
             return $templatecsvfile;
         }

@@ -170,7 +170,7 @@ $string['missingcourseid'] = 'Course ID is required to use the Module Assistant.
 $string['generatetablabel'] = 'Generate from Structure';
 
 $string['supportingfiles'] = 'Upload structure file';
-$string['supportingfiles_help'] = 'Upload a CSV file containing your module structure. The module will be created as specified in the CSV. Maximum 5MB.';
+$string['supportingfiles_help'] = 'Upload a CSV file containing your module structure. The module will be created as specified in the CSV. Maximum 5MB. Note: If you upload a file, it will be used even if you have also selected a template from the dropdown below.';
 
 $string['longquery'] = 'This may take a moment while the AI processes your request.';
 $string['connectedcurriculum30'] = '30 credit module';
@@ -225,7 +225,7 @@ $string['moduletype_help'] = 'Choose how to structure your module:
 // Form section headers
 $string['selecttemplate'] = 'Select Structure';
 $string['uploadtemplatefile'] = 'Upload Structure File';
-$string['selectoruploadtemplate'] = 'Select or Upload Structure File';
+$string['selectoruploadtemplate'] = 'Select or Upload Structure File (uploaded files take priority)';
 $string['templatesettings'] = 'Structure Setup';
 $string['suggestedcontent'] = 'Suggest Content';
 
@@ -238,7 +238,7 @@ $string['templatename'] = 'Structure name';
 $string['templatedescription'] = 'Description';
 $string['csvfile'] = 'CSV file';
 $string['csvtemplate'] = 'Select a pre-made structure';
-$string['csvtemplate_help'] = 'Select a pre-made CSV to use as your module structure. You can either apply it directly or download it to edit offline before uploading.';
+$string['csvtemplate_help'] = 'Select a pre-made CSV to use as your module structure. You can either apply it directly or download it to edit offline before uploading. Note: If you upload a file below, the uploaded file will take priority over any template selected here.';
 $string['notemplateselected'] = '-- None selected --';
 $string['downloadtemplate'] = 'Download to edit';
 $string['applytemplate'] = 'Use selected structure';

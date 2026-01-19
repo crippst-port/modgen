@@ -98,35 +98,67 @@ class template_processing_service {
     }
 
     /**
-     * Load CSV template if selected.
+     * Load CSV template - uploaded files take priority over dropdown selection.
      *
      * @param \stdClass $pdata Form data
      * @param array &$debuglog Debug log array
      * @return \stored_file|null CSV file or null
      */
     private function load_csv_template(\stdClass $pdata, array &$debuglog): ?\stored_file {
+        global $USER;
+
+        // Check if user uploaded a file - this takes priority over template dropdown
+        if (!empty($pdata->supportingfiles)) {
+            $draftitemid = $pdata->supportingfiles;
+            $usercontext = \context_user::instance($USER->id);
+
+            $fs = get_file_storage();
+            $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
+
+            // Look for CSV file in uploaded files
+            foreach ($files as $file) {
+                if ($file->is_directory()) {
+                    continue;
+                }
+
+                $ext = strtolower(pathinfo($file->get_filename(), PATHINFO_EXTENSION));
+                if ($ext === 'csv') {
+                    $debuglog[] = 'Using uploaded CSV file: ' . $file->get_filename();
+                    return $file;
+                }
+            }
+
+            // If user uploaded a non-CSV file, try to use it anyway
+            if (!empty($files)) {
+                $file = array_shift($files);
+                $debuglog[] = 'Using uploaded file (non-CSV): ' . $file->get_filename();
+                return $file;
+            }
+        }
+
+        // Fall back to template dropdown only if no file was uploaded
         $selected_template_id = !empty($pdata->selected_template_id) ? $pdata->selected_template_id : 0;
-        
+
         if ($selected_template_id > 0) {
             require_once(__DIR__ . '/template_manager.php');
-            
+
             try {
                 $template = template_manager::get_by_id($selected_template_id);
                 $fs = get_file_storage();
                 $csvfile = $fs->get_file_by_id($template->fileid);
-                
+
                 if (!$csvfile) {
                     throw new \Exception('CSV file not found in file storage');
                 }
-                
+
                 $debuglog[] = 'Loaded CSV template: ' . $template->name;
                 return $csvfile;
-                
+
             } catch (\Exception $e) {
                 throw new \Exception('Error loading template: ' . $e->getMessage());
             }
         }
-        
+
         return null;
     }
 

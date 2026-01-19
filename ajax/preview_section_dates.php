@@ -35,8 +35,8 @@ require_sesskey();
 
 // Get parameters.
 $courseid = required_param('courseid', PARAM_INT);
-$excludedsections = optional_param('excludedsections', '', PARAM_RAW);
-$includeparents = optional_param('includeparents', 0, PARAM_INT);
+$selectedsections = optional_param('selectedsections', '', PARAM_RAW);
+$startdate = optional_param('startdate', 0, PARAM_INT);
 
 // Verify course access and permissions.
 $context = context_course::instance($courseid);
@@ -46,17 +46,78 @@ require_capability('moodle/course:view', $context);
 $PAGE->set_context($context);
 
 try {
-    // Parse excluded sections JSON.
-    $excludedids = [];
-    if (!empty($excludedsections)) {
-        $decoded = json_decode($excludedsections, true);
+    global $DB;
+
+    // Parse selected sections JSON.
+    $selectedids = [];
+    if (!empty($selectedsections)) {
+        $decoded = json_decode($selectedsections, true);
         if (is_array($decoded)) {
-            $excludedids = array_map('intval', $decoded);
+            $selectedids = array_map('intval', $decoded);
         }
     }
 
-    // Calculate dates with exclusions.
-    $sections = date_calculator::calculate_section_dates($courseid, $excludedids, (bool)$includeparents);
+    // If no sections selected, return empty
+    if (empty($selectedids)) {
+        ajax_response::success(['sections' => []]);
+    }
+
+    // Get course and parse holidays
+    $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+    $holidayconfig = get_config('aiplacement_modgen', 'holiday_dates');
+    $holidays = date_calculator::parse_holidays($holidayconfig);
+
+    // Get start date
+    $coursestartdate = $startdate > 0 ? $startdate : (!empty($course->startdate) ? $course->startdate : time());
+
+    // Get section info for selected sections
+    $modinfo = get_fast_modinfo($courseid);
+    $allsections = $modinfo->get_section_info_all();
+
+    // Build map of section ID to section object
+    $sectionmap = [];
+    foreach ($allsections as $section) {
+        $sectionmap[$section->id] = $section;
+    }
+
+    // Calculate dates for selected sections in order
+    $results = [];
+    $currentdate = $coursestartdate;
+    $weekcounter = 1;
+
+    foreach ($selectedids as $sectionid) {
+        if (!isset($sectionmap[$sectionid])) {
+            continue;
+        }
+
+        $section = $sectionmap[$sectionid];
+
+        // Calculate week start date and detect holidays
+        $weekstartresult = date_calculator::calculate_week_start($currentdate, $holidays);
+        $weekstartdate = $weekstartresult['start'];
+        $skipedholidays = $weekstartresult['skipped_holidays'];
+        $weekenddate = strtotime('+6 days', $weekstartdate);
+
+        // Format dates in UK style, including holiday names
+        $formatteddate = date_calculator::format_date_range_uk($weekstartdate, $weekenddate, $skipedholidays);
+
+        // Remove any existing date from the section name
+        $cleanname = date_calculator::remove_existing_date($section->name);
+
+        $results[] = [
+            'id' => $section->id,
+            'section' => $section->section,
+            'name' => $cleanname,
+            'formatted_date' => $formatteddate,
+            'week_number' => $weekcounter
+        ];
+
+        // Move to next week
+        $currentdate = strtotime('+7 days', $weekstartdate);
+        $weekcounter++;
+    }
+
+    $sections = $results;
 
     // Filter out special sections.
     $introsectionname = get_string('introductionsectionname', 'aiplacement_modgen');

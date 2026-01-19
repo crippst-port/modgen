@@ -11,7 +11,7 @@
     {{#hassections}}
     <div class="mb-3">
         <p class="text-muted">{{#str}}selectsections_hierarchical, aiplacement_modgen{{/str}}</p>
-        
+
         {{! Toggle buttons }}
         <div class="btn-group mb-3" role="group">
             <button type="button" class="btn btn-sm btn-outline-secondary" id="toggle-all-sections" data-keep-in-form="true">
@@ -21,6 +21,12 @@
                 {{#str}}toggletoplevel, aiplacement_modgen{{/str}}
             </button>
         </div>
+    </div>
+
+    {{! Column headers }}
+    <div class="d-flex mb-2 px-3 border-bottom pb-2">
+        <div class="flex-grow-1 fw-bold">{{#str}}sectiontitle, aiplacement_modgen{{/str}}</div>
+        <div class="fw-bold text-end">{{#str}}newdate, aiplacement_modgen{{/str}}</div>
     </div>
 
     {{! Hierarchical section list }}
@@ -37,129 +43,19 @@
     {{/hassections}}
 </div>
 
-{{! JavaScript for handling checkboxes and dynamic date updates }}
+{{! JavaScript for handling toggle buttons and form submission }}
+{{! Note: Date preview is now handled by modal_generator_reactive.js via AJAX to include holidays }}
 <script>
 (function() {
     'use strict';
-
-    // Dynamic date preview when start date changes
-    function updateDatePreviews() {
-        const startDateSelects = form.querySelectorAll('[name^="startdate"]');
-        if (!startDateSelects || startDateSelects.length === 0) {
-            return;
-        }
-
-        // Get selected date from day, month, year dropdowns
-        let day, month, year;
-        startDateSelects.forEach(select => {
-            const name = select.getAttribute('name');
-            if (name.includes('[day]')) {
-                day = parseInt(select.value);
-            } else if (name.includes('[month]')) {
-                month = parseInt(select.value);
-            } else if (name.includes('[year]')) {
-                year = parseInt(select.value);
-            }
-        });
-
-        // Validate we have all components
-        if (!day || !month || !year) {
-            return;
-        }
-
-        // Create date object (month is 0-indexed in JS)
-        const startDate = new Date(year, month - 1, day);
-        if (isNaN(startDate.getTime())) {
-            return;
-        }
-
-        // Get all checked sections in order
-        const checkedSections = [];
-        document.querySelectorAll('.section-checkbox:checked').forEach(function(checkbox) {
-            const sectionItem = checkbox.closest('.section-item');
-            if (sectionItem) {
-                checkedSections.push({
-                    checkbox: checkbox,
-                    element: sectionItem
-                });
-            }
-        });
-
-        // Sort by DOM order
-        checkedSections.sort((a, b) => {
-            return Array.from(document.querySelectorAll('.section-item')).indexOf(a.element) -
-                   Array.from(document.querySelectorAll('.section-item')).indexOf(b.element);
-        });
-
-        // Calculate and display dates for each section
-        let currentDate = new Date(startDate);
-        checkedSections.forEach(function(section) {
-            // Ensure we start on a Monday
-            const dayOfWeek = currentDate.getDay();
-            if (dayOfWeek !== 1) {
-                const daysUntilMonday = (dayOfWeek === 0 ? 1 : 8 - dayOfWeek);
-                currentDate.setDate(currentDate.getDate() + daysUntilMonday);
-            }
-
-            const weekStart = new Date(currentDate);
-            const weekEnd = new Date(currentDate);
-            weekEnd.setDate(weekEnd.getDate() + 6);
-
-            // Format date range
-            const dateRange = formatDateRangeUK(weekStart, weekEnd);
-
-            // Update the label with date preview
-            const label = section.element.querySelector('label');
-            const sectionName = section.element.querySelector('.section-name');
-
-            if (sectionName && !section.element.querySelector('.date-preview')) {
-                const datePreview = document.createElement('span');
-                datePreview.className = 'date-preview badge bg-success text-white ms-2';
-                datePreview.textContent = dateRange;
-                sectionName.parentNode.insertBefore(datePreview, sectionName.nextSibling);
-            } else if (section.element.querySelector('.date-preview')) {
-                section.element.querySelector('.date-preview').textContent = dateRange;
-            }
-
-            // Move to next week
-            currentDate.setDate(currentDate.getDate() + 7);
-        });
-
-        // Remove date previews from unchecked sections
-        document.querySelectorAll('.section-checkbox:not(:checked)').forEach(function(checkbox) {
-            const sectionItem = checkbox.closest('.section-item');
-            if (sectionItem) {
-                const datePreview = sectionItem.querySelector('.date-preview');
-                if (datePreview) {
-                    datePreview.remove();
-                }
-            }
-        });
-    }
-
-    // Format date range in UK style
-    function formatDateRangeUK(startDate, endDate) {
-        const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                           'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-        const startDay = startDate.getDate();
-        const startMonth = monthNames[startDate.getMonth()];
-        const endDay = endDate.getDate();
-        const endMonth = monthNames[endDate.getMonth()];
-
-        if (startMonth === endMonth) {
-            return startMonth + ' ' + startDay + '–' + endDay + ':';
-        } else {
-            return startMonth + ' ' + startDay + '–' + endMonth + ' ' + endDay + ':';
-        }
-    }
 
     // Toggle all sections
     document.getElementById('toggle-all-sections')?.addEventListener('click', function() {
         const checkboxes = document.querySelectorAll('.section-checkbox');
         const allChecked = Array.from(checkboxes).every(cb => cb.checked);
         checkboxes.forEach(cb => cb.checked = !allChecked);
-        updateDatePreviews();
+        // Trigger change event so reactive component updates preview
+        checkboxes.forEach(cb => cb.dispatchEvent(new Event('change', { bubbles: true })));
     });
 
     // Toggle top-level sections only
@@ -167,11 +63,12 @@
         const topLevelCheckboxes = document.querySelectorAll('.section-checkbox[data-toplevel="true"]');
         const allChecked = Array.from(topLevelCheckboxes).every(cb => cb.checked);
         topLevelCheckboxes.forEach(cb => cb.checked = !allChecked);
-        updateDatePreviews();
+        // Trigger change event so reactive component updates preview
+        topLevelCheckboxes.forEach(cb => cb.dispatchEvent(new Event('change', { bubbles: true })));
     });
 
     // Collect selected sections on form submit
-    const form = document.querySelector('.dates-for-sections-form').closest('form');
+    const form = document.querySelector('.dates-for-sections-form')?.closest('form');
     if (form) {
         form.addEventListener('submit', function(e) {
             const checkedSections = [];
@@ -184,20 +81,6 @@
                 hiddenField.value = JSON.stringify(checkedSections);
             }
         });
-
-        // Listen for changes to start date
-        const startDateSelects = form.querySelectorAll('[name^="startdate"]');
-        startDateSelects.forEach(select => {
-            select.addEventListener('change', updateDatePreviews);
-        });
-
-        // Listen for checkbox changes
-        document.querySelectorAll('.section-checkbox').forEach(checkbox => {
-            checkbox.addEventListener('change', updateDatePreviews);
-        });
-
-        // Initial preview on page load
-        setTimeout(updateDatePreviews, 100);
     }
 })();
 </script>

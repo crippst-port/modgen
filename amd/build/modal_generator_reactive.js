@@ -590,16 +590,28 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           if (!bodyNode) {
             return;
           }
-          const excluded = [];
-          bodyNode.querySelectorAll('.section-checkbox:not(:checked)').forEach(cb => {
-            excluded.push(parseInt(cb.dataset.sectionId, 10));
+          const selected = [];
+          bodyNode.querySelectorAll('.section-checkbox:checked').forEach(cb => {
+            selected.push(parseInt(cb.value, 10));
           });
+          let startDate = 0;
+          const dayField = bodyNode.querySelector('select[name="startdate[day]"]');
+          if (dayField) {
+            var _bodyNode$querySelect4, _bodyNode$querySelect5, _bodyNode$querySelect6;
+            const day = ((_bodyNode$querySelect4 = bodyNode.querySelector('select[name="startdate[day]"]')) === null || _bodyNode$querySelect4 === void 0 ? void 0 : _bodyNode$querySelect4.value) || 1;
+            const month = ((_bodyNode$querySelect5 = bodyNode.querySelector('select[name="startdate[month]"]')) === null || _bodyNode$querySelect5 === void 0 ? void 0 : _bodyNode$querySelect5.value) || 1;
+            const year = ((_bodyNode$querySelect6 = bodyNode.querySelector('select[name="startdate[year]"]')) === null || _bodyNode$querySelect6 === void 0 ? void 0 : _bodyNode$querySelect6.value) || new Date().getFullYear();
+            const dateObj = new Date(year, month - 1, day, 0, 0, 0);
+            startDate = Math.floor(dateObj.getTime() / 1000);
+          }
           const params = new URLSearchParams({
             courseid: this.courseid,
-            excludedsections: JSON.stringify(excluded),
-            includeparents: 1,
+            selectedsections: JSON.stringify(selected),
             sesskey: M.cfg.sesskey
           });
+          if (startDate > 0) {
+            params.append('startdate', startDate);
+          }
           fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/preview_section_dates.php', {
             method: 'POST',
             headers: {
@@ -610,15 +622,19 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
             if (!data.success || !data.sections) {
               return;
             }
+            bodyNode.querySelectorAll('.date-prefix').forEach(datePrefix => {
+              datePrefix.textContent = '';
+              datePrefix.className = 'date-prefix';
+            });
             data.sections.forEach(section => {
-              const cell = bodyNode.querySelector("tr[data-section-id=\"".concat(section.id, "\"] .date-prefix"));
-              if (cell) {
-                cell.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
+              const sectionItem = bodyNode.querySelector("[data-section-id=\"".concat(section.id, "\"]"));
+              if (!sectionItem) {
                 return;
               }
-              const label = bodyNode.querySelector("label[for=\"section-".concat(section.id, "\"] .date-prefix"));
-              if (label) {
-                label.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
+              const datePrefix = sectionItem.querySelector('.date-prefix');
+              if (datePrefix && section.formatted_date) {
+                datePrefix.textContent = section.formatted_date;
+                datePrefix.className = 'date-prefix badge bg-info text-white';
               }
             });
           }).catch(error => {
@@ -627,6 +643,10 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         }, 250);
       };
       modalRoot.on('change', '.section-checkbox', previewDates);
+      modalRoot.on('change', 'select[name^="startdate["]', previewDates);
+      setTimeout(() => {
+        previewDates();
+      }, 100);
     }
     setupFormSubmission(modal, formName) {
       const modalRoot = modal.getRoot();

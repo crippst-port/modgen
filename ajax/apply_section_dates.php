@@ -121,17 +121,16 @@ try {
 
     foreach ($selectedsections as $section) {
         // Calculate week start date, skipping holidays
-        $weekstartdate = date_calculator::calculate_week_start($currentdate, $holidays);
+        $weekstartresult = date_calculator::calculate_week_start($currentdate, $holidays);
+        $weekstartdate = $weekstartresult['start'];
+        $skipedholidays = $weekstartresult['skipped_holidays'];
         $weekenddate = strtotime('+6 days', $weekstartdate);
 
-        // Format dates in UK style
-        $formatteddate = date_calculator::format_date_range_uk($weekstartdate, $weekenddate);
+        // Format dates in UK style, including holiday names
+        $formatteddate = date_calculator::format_date_range_uk($weekstartdate, $weekenddate, $skipedholidays);
 
         // Remove any existing date from the section name
         $cleanname = date_calculator::remove_existing_date($section->name);
-
-        // Build new name with date prepended
-        $newname = $formatteddate . ' ' . $cleanname;
 
         // Build new name with date prepended
         $newname = $formatteddate . ' ' . $cleanname;
@@ -150,7 +149,7 @@ try {
             'name' => $newname,
             'formatted_date' => $formatteddate
         ];
-        
+
         // Move to next week (skip holidays)
         $currentdate = strtotime('+7 days', $weekstartdate);
     }

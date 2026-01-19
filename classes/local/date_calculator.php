@@ -245,11 +245,13 @@ class date_calculator {
             // Process sections that should get week dates.
             if ($shouldgetdates) {
                 // Calculate week start date, skipping holidays.
-                $weekstartdate = self::calculate_week_start($currentdate, $holidays);
+                $weekstartresult = self::calculate_week_start($currentdate, $holidays);
+                $weekstartdate = $weekstartresult['start'];
+                $skipedholidays = $weekstartresult['skipped_holidays'];
                 $weekenddate = strtotime('+6 days', $weekstartdate);
 
-                // Format dates in UK style.
-                $formatteddate = self::format_date_range_uk($weekstartdate, $weekenddate);
+                // Format dates in UK style, including holiday names if any were skipped.
+                $formatteddate = self::format_date_range_uk($weekstartdate, $weekenddate, $skipedholidays);
 
                 // Remove any existing date from the section name.
                 $cleanname = self::remove_existing_date($section->name);
@@ -274,7 +276,8 @@ class date_calculator {
                     'start_timestamp' => $weekstartdate,
                     'end_timestamp' => $weekenddate,
                     'parent_id' => $parentid,
-                    'layout_type' => $layout['type']
+                    'layout_type' => $layout['type'],
+                    'skipped_holidays' => $skipedholidays
                 ];
 
                 // Move to next week (skip holidays).
@@ -387,14 +390,15 @@ class date_calculator {
     }
 
     /**
-     * Calculate week start date, skipping holidays.
+     * Calculate week start date and detect overlapping holidays.
      *
      * @param int $startdate Starting timestamp
      * @param array $holidays Array of holiday periods
-     * @return int Adjusted week start timestamp
+     * @return array Array with 'start' timestamp and 'overlapping_holidays' array of holiday names
      */
     public static function calculate_week_start($startdate, $holidays) {
         $weekstart = $startdate;
+        $overlappingholidays = [];
 
         // Ensure start is a Monday.
         $dayofweek = (int)date('N', $weekstart);
@@ -409,13 +413,15 @@ class date_calculator {
         foreach ($holidays as $holiday) {
             // Check if this week overlaps with holiday period.
             if (self::date_ranges_overlap($weekstart, $weekend, $holiday['start'], $holiday['end'])) {
-                // Skip past the holiday and recalculate.
-                $weekstart = strtotime('+1 day', $holiday['end']);
-                return self::calculate_week_start($weekstart, $holidays);
+                // Record this holiday as overlapping (but don't skip it).
+                $overlappingholidays[] = $holiday['name'];
             }
         }
 
-        return $weekstart;
+        return [
+            'start' => $weekstart,
+            'skipped_holidays' => $overlappingholidays
+        ];
     }
 
     /**
@@ -436,9 +442,10 @@ class date_calculator {
      *
      * @param int $startdate Start timestamp
      * @param int $enddate End timestamp
+     * @param array $holidays Optional array of holiday names to append
      * @return string Formatted date range
      */
-    public static function format_date_range_uk($startdate, $enddate) {
+    public static function format_date_range_uk($startdate, $enddate, $holidays = []) {
         // Format: "Dec 1–7:" (compact style with en-dash)
         $startmonth = userdate($startdate, '%b', 99, false);
         $startday = (int)userdate($startdate, '%d', 99, false);
@@ -447,17 +454,25 @@ class date_calculator {
 
         // If same month, use format "Dec 1–7:"
         if ($startmonth === $endmonth) {
-            return "{$startmonth} {$startday}–{$endday}:";
+            $datestr = "{$startmonth} {$startday}–{$endday}:";
         } else {
             // Different months: "Dec 28–Jan 3:"
-            return "{$startmonth} {$startday}–{$endmonth} {$endday}:";
+            $datestr = "{$startmonth} {$startday}–{$endmonth} {$endday}:";
         }
+
+        // Append holiday names if provided.
+        if (!empty($holidays)) {
+            $datestr .= ' (' . implode(', ', $holidays) . ')';
+        }
+
+        return $datestr;
     }
 
     /**
      * Remove existing date prefix from section name.
      *
      * Detects and removes various date formats including:     * - "14/09/2026 - 18/09/2026" (full date format)     * - "Dec 1–7:" (current format)
+     * - "Dec 1–7: (Holiday Name)" (date with holiday)
      * - "Nov 29 - Dec 5" (cross-month with space-dash-space)
      * - "Mon 20 Jan - Fri 24 Jan" (old format)
      * - "20/01 - 24/01" (manual format)
@@ -470,25 +485,25 @@ class date_calculator {
     public static function remove_existing_date($name) {
         $name = trim($name);
 
-        // Pattern 1: Month day range format "Dec 1–7:" or "Dec 28–Jan 3:" or "June 1–7:"
-        // Handles both short (Dec, Jan) and full (June, July) month names
-        $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}–([A-Z][a-z]+\s+)?\d{1,2}:\s*/i', '', $name);
+        // Pattern 1: Month day range format with optional holiday "Dec 1–7: (Holiday)" or "Dec 28–Jan 3: (Easter Break)" or "June 1–7:"
+        // Handles both short (Dec, Jan) and full (June, July) month names, with optional parenthetical holiday names
+        $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}–([A-Z][a-z]+\s+)?\d{1,2}:\s*(\([^)]+\)\s*)*/i', '', $name);
 
         // Pattern 2: Cross-month format "Nov 29 - Dec 5" or "May 11–June 7"
         // Handles various dash types and full month names
-        $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*[A-Z][a-z]+\s+\d{1,2}\s*:?\s*/i', '', $name);
+        $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*[A-Z][a-z]+\s+\d{1,2}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
 
         // Pattern 3: Old verbose format "Mon 20 Jan - Fri 24 Jan"
-        $name = preg_replace('/^[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]+\s*[-–—]\s*[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]+\s*:?\s*/i', '', $name);
+        $name = preg_replace('/^[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]+\s*[-–—]\s*[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]+\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
 
         // Pattern 4: Full date format "14/09/2026 - 18/09/2026" or "14-09-2026 - 18-09-2026"
-        $name = preg_replace('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*:?\s*/i', '', $name);
+        $name = preg_replace('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
 
         // Pattern 5: Numeric format "20/01 - 24/01" or "20-01 - 24-01"
-        $name = preg_replace('/^\d{1,2}[\/\-]\d{1,2}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}\s*:?\s*/i', '', $name);
+        $name = preg_replace('/^\d{1,2}[\/\-]\d{1,2}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
 
         // Pattern 6: Short format "Jan 20-24" or "June 20 - 24"
-        $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*\d{1,2}\s*:?\s*/i', '', $name);
+        $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*\d{1,2}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
 
         // Pattern 7: Dates in parentheses at start "(Dec 1-7) " or "(14/09/2026 - 18/09/2026) "
         $name = preg_replace('/^\([^)]*\d{1,2}[^)]*\)\s*:?\s*/i', '', $name);
@@ -502,12 +517,12 @@ class date_calculator {
         $iterations = 0;
         while ($name !== $previousname && $iterations < 5) {
             $previousname = $name;
-            
-            $name = preg_replace('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*:?\s*/i', '', $name);
-            $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}–([A-Z][a-z]+\s+)?\d{1,2}:\s*/i', '', $name);
-            $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*[A-Z][a-z]+\s+\d{1,2}\s*:?\s*/i', '', $name);
-            $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*\d{1,2}\s*:?\s*/i', '', $name);
-            
+
+            $name = preg_replace('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
+            $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}–([A-Z][a-z]+\s+)?\d{1,2}:\s*(\([^)]+\)\s*)*/i', '', $name);
+            $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*[A-Z][a-z]+\s+\d{1,2}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
+            $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*\d{1,2}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
+
             $iterations++;
         }
 

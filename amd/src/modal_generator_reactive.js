@@ -1090,19 +1090,33 @@ class ModalGeneratorComponent extends BaseComponent {
                     return;
                 }
 
-                // Collect excluded section IDs
-                const excluded = [];
-                bodyNode.querySelectorAll('.section-checkbox:not(:checked)').forEach(cb => {
-                    excluded.push(parseInt(cb.dataset.sectionId, 10));
+                // Collect selected section IDs in DOM order
+                const selected = [];
+                bodyNode.querySelectorAll('.section-checkbox:checked').forEach(cb => {
+                    selected.push(parseInt(cb.value, 10));
                 });
+
+                // Get start date from form if present
+                let startDate = 0;
+                const dayField = bodyNode.querySelector('select[name="startdate[day]"]');
+                if (dayField) {
+                    const day = bodyNode.querySelector('select[name="startdate[day]"]')?.value || 1;
+                    const month = bodyNode.querySelector('select[name="startdate[month]"]')?.value || 1;
+                    const year = bodyNode.querySelector('select[name="startdate[year]"]')?.value || new Date().getFullYear();
+                    const dateObj = new Date(year, month - 1, day, 0, 0, 0);
+                    startDate = Math.floor(dateObj.getTime() / 1000);
+                }
 
                 // Build and send request
                 const params = new URLSearchParams({
                     courseid: this.courseid,
-                    excludedsections: JSON.stringify(excluded),
-                    includeparents: 1,
+                    selectedsections: JSON.stringify(selected),
                     sesskey: M.cfg.sesskey
                 });
+
+                if (startDate > 0) {
+                    params.append('startdate', startDate);
+                }
 
                 fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/preview_section_dates.php', {
                     method: 'POST',
@@ -1115,19 +1129,25 @@ class ModalGeneratorComponent extends BaseComponent {
                             return;
                         }
 
-                        // Update date prefixes efficiently
+                        // First, clear all date badges
+                        bodyNode.querySelectorAll('.date-prefix').forEach(datePrefix => {
+                            datePrefix.textContent = '';
+                            datePrefix.className = 'date-prefix';
+                        });
+
+                        // Then update date prefixes for selected sections
                         data.sections.forEach(section => {
-                            // Find week rows
-                            const cell = bodyNode.querySelector(`tr[data-section-id="${section.id}"] .date-prefix`);
-                            if (cell) {
-                                cell.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
+                            // Find the section item by data-section-id
+                            const sectionItem = bodyNode.querySelector(`[data-section-id="${section.id}"]`);
+                            if (!sectionItem) {
                                 return;
                             }
 
-                            // Find theme labels
-                            const label = bodyNode.querySelector(`label[for="section-${section.id}"] .date-prefix`);
-                            if (label) {
-                                label.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
+                            const datePrefix = sectionItem.querySelector('.date-prefix');
+                            if (datePrefix && section.formatted_date) {
+                                // Style as blue info badge (right-aligned)
+                                datePrefix.textContent = section.formatted_date;
+                                datePrefix.className = 'date-prefix badge bg-info text-white';
                             }
                         });
                     })
@@ -1139,6 +1159,14 @@ class ModalGeneratorComponent extends BaseComponent {
 
         // Listen for checkbox changes (uses event delegation)
         modalRoot.on('change', '.section-checkbox', previewDates);
+
+        // Listen for start date changes
+        modalRoot.on('change', 'select[name^="startdate["]', previewDates);
+
+        // Trigger initial preview after a brief delay to ensure form is fully rendered
+        setTimeout(() => {
+            previewDates();
+        }, 100);
     }
 
     // =========================================================================

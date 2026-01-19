@@ -166,18 +166,28 @@ class template_manager {
         
         if ($direction === 'up') {
             // Find template above this one
-            $sql = "SELECT * FROM {aiplacement_modgen_templates}
-                    WHERE sortorder < ?
-                    ORDER BY sortorder DESC
-                    LIMIT 1";
-            $swap = $DB->get_record_sql($sql, [$template->sortorder]);
+            $records = $DB->get_records_select(
+                'aiplacement_modgen_templates',
+                'sortorder < ?',
+                [$template->sortorder],
+                'sortorder DESC',
+                '*',
+                0,
+                1
+            );
+            $swap = !empty($records) ? reset($records) : false;
         } else {
             // Find template below this one
-            $sql = "SELECT * FROM {aiplacement_modgen_templates}
-                    WHERE sortorder > ?
-                    ORDER BY sortorder ASC
-                    LIMIT 1";
-            $swap = $DB->get_record_sql($sql, [$template->sortorder]);
+            $records = $DB->get_records_select(
+                'aiplacement_modgen_templates',
+                'sortorder > ?',
+                [$template->sortorder],
+                'sortorder ASC',
+                '*',
+                0,
+                1
+            );
+            $swap = !empty($records) ? reset($records) : false;
         }
         
         if (!$swap) {

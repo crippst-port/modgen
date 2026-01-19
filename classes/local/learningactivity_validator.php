@@ -91,8 +91,14 @@ class learningactivity_validator {
 
         $validated = [];
 
-        // Name (string, no validation needed)
-        $validated['name'] = isset($metadata['name']) ? trim((string) $metadata['name']) : '';
+        // Name (string, sanitize to prevent XSS)
+        $name = isset($metadata['name']) ? trim((string) $metadata['name']) : '';
+        $validated['name'] = clean_param($name, PARAM_TEXT);
+
+        // Enforce maximum length
+        if (strlen($validated['name']) > 255) {
+            $validated['name'] = substr($validated['name'], 0, 255);
+        }
 
         // Activity icon (must be in valid list)
         $validated['activityicon'] = '';
@@ -104,8 +110,14 @@ class learningactivity_validator {
             }
         }
 
-        // Instructions (string, no validation needed)
-        $validated['instructions'] = isset($metadata['instructions']) ? (string) $metadata['instructions'] : '';
+        // Instructions (string, sanitize to prevent XSS)
+        $instructions = isset($metadata['instructions']) ? (string) $metadata['instructions'] : '';
+        $validated['instructions'] = clean_param($instructions, PARAM_TEXT);
+
+        // Enforce maximum length (64KB should be sufficient for instructions)
+        if (strlen($validated['instructions']) > 65535) {
+            $validated['instructions'] = substr($validated['instructions'], 0, 65535);
+        }
 
         // Duration (integer/string, should be numeric)
         $validated['duration'] = null;
@@ -155,8 +167,23 @@ class learningactivity_validator {
             }
         }
 
-        // Learning outcomes weekly (string with newlines, no validation needed)
-        $validated['learningoutcomes_weekly'] = isset($metadata['learningoutcomes_weekly']) ? (string) $metadata['learningoutcomes_weekly'] : '';
+        // Learning outcomes weekly (string with newlines, sanitize to prevent XSS)
+        $outcomes = isset($metadata['learningoutcomes_weekly']) ? (string) $metadata['learningoutcomes_weekly'] : '';
+        $validated['learningoutcomes_weekly'] = clean_param($outcomes, PARAM_TEXT);
+
+        // Enforce maximum length
+        if (strlen($validated['learningoutcomes_weekly']) > 65535) {
+            $validated['learningoutcomes_weekly'] = substr($validated['learningoutcomes_weekly'], 0, 65535);
+        }
+
+        // Design notes (sanitize if present)
+        if (isset($metadata['designnotes'])) {
+            $designnotes = clean_param((string) $metadata['designnotes'], PARAM_TEXT);
+            if (strlen($designnotes) > 65535) {
+                $designnotes = substr($designnotes, 0, 65535);
+            }
+            $validated['designnotes'] = $designnotes;
+        }
 
         return $validated;
     }

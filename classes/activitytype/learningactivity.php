@@ -65,7 +65,17 @@ class learningactivity implements activity_type {
 
         require_once($CFG->dirroot . '/course/modlib.php');
 
-        $name = trim($activitydata->name ?? '');
+        // Security: Verify user has permission to manage course structure
+        $context = \context_course::instance($course->id);
+        require_capability('aiplacement/modgen:managestructure', $context);
+
+        // Sanitize name field to prevent XSS
+        $name = isset($activitydata->name) ? clean_param(trim($activitydata->name), PARAM_TEXT) : '';
+
+        // Enforce maximum length
+        if (strlen($name) > 255) {
+            $name = substr($name, 0, 255);
+        }
         
         // If no name, try to infer from section type
         if ($name === '') {
@@ -123,16 +133,26 @@ class learningactivity implements activity_type {
         // Learning outcomes (array, will be JSON encoded)
         if (isset($activitydata->learningoutcomes)) {
             if (is_string($activitydata->learningoutcomes)) {
-                $moduleinfo->learningoutcomes = json_decode($activitydata->learningoutcomes, true) ?: [];
+                $outcomes = json_decode($activitydata->learningoutcomes, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    debugging('Invalid JSON in learningoutcomes: ' . json_last_error_msg(), DEBUG_DEVELOPER);
+                    $outcomes = [];
+                }
+                $moduleinfo->learningoutcomes = $outcomes;
             } else {
                 $moduleinfo->learningoutcomes = $activitydata->learningoutcomes;
             }
         }
-        
+
         // Assessments (array, will be JSON encoded)
         if (isset($activitydata->assessments)) {
             if (is_string($activitydata->assessments)) {
-                $moduleinfo->assessments = json_decode($activitydata->assessments, true) ?: [];
+                $assessments = json_decode($activitydata->assessments, true);
+                if (json_last_error() !== JSON_ERROR_NONE) {
+                    debugging('Invalid JSON in assessments: ' . json_last_error_msg(), DEBUG_DEVELOPER);
+                    $assessments = [];
+                }
+                $moduleinfo->assessments = $assessments;
             } else {
                 $moduleinfo->assessments = $activitydata->assessments;
             }
@@ -140,7 +160,7 @@ class learningactivity implements activity_type {
 
         try {
             $coursemodule = create_module($moduleinfo);
-            
+
             return [
                 'cmid' => $coursemodule->coursemodule,
                 'instance' => $coursemodule->instance,
@@ -149,9 +169,12 @@ class learningactivity implements activity_type {
                     'type' => $moduleinfo->sectiontype
                 ])
             ];
+        } catch (\dml_exception $e) {
+            debugging('Database error creating learningactivity: ' . $e->getMessage(), DEBUG_DEVELOPER);
+            throw new \moodle_exception('errorcreatinglearningactivity', 'aiplacement_modgen', '', null, $e->getMessage());
         } catch (\Exception $e) {
             debugging('Failed to create learningactivity: ' . $e->getMessage(), DEBUG_DEVELOPER);
-            return null;
+            throw new \moodle_exception('errorcreatinglearningactivity', 'aiplacement_modgen', '', null, $e->getMessage());
         }
     }
 }

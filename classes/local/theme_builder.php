@@ -118,7 +118,7 @@ class theme_builder {
         // Get course format and acquire lock.
         $courseformat = course_get_format($course);
         $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');
-        $lock = $lockfactory->get_lock('course_edit_' . $courseid, 600);
+        $lock = $lockfactory->get_lock('course_edit_' . $courseid, 60);
 
         if (!$lock) {
             throw new \moodle_exception('erroracquiringlock', 'aiplacement_modgen');
@@ -206,7 +206,7 @@ class theme_builder {
         // Get course format and acquire lock.
         $courseformat = course_get_format($course);
         $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');
-        $lock = $lockfactory->get_lock('course_edit_' . $courseid, 600);
+        $lock = $lockfactory->get_lock('course_edit_' . $courseid, 60);
 
         if (!$lock) {
             throw new \moodle_exception('erroracquiringlock', 'aiplacement_modgen');
@@ -269,38 +269,38 @@ class theme_builder {
 
         // Verify flexsections format.
         if (!$courseformat || get_class($courseformat) !== 'format_flexsections') {
-            throw new \Exception('Course format must be flexsections to create nested sections');
+            throw new \moodle_exception('errorformatnotflexsections', 'aiplacement_modgen');
         }
 
         if (!method_exists($courseformat, 'create_new_section')) {
-            throw new \Exception('The flexsections course format is not properly supporting nested sections');
+            throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
         }
 
         // Create top-level theme section.
         $themesectionnum = $courseformat->create_new_section(0, null); // 0 = top level, null = append.
 
         // Format title and summary.
+        // Use format_string for title (XSS-safe) and FORMAT_PLAIN for summary to prevent XSS from AI-generated content
         $themetitle = format_string($title, true, ['context' => $context]);
-        $sectionhtml = trim($summary) !== '' ? format_text($summary, FORMAT_HTML, ['context' => $context]) : '';
+        $sectionhtml = trim($summary) !== '' ? format_text($summary, FORMAT_PLAIN, ['context' => $context]) : '';
 
-        // Update section.
-        $themesectionid = $DB->get_field('course_sections', 'id', [
+        // Update section - get full record to have ID for update
+        $themesection = $DB->get_record('course_sections', [
             'course' => $courseid,
             'section' => $themesectionnum
-        ]);
+        ], '*', MUST_EXIST);
 
-        $DB->update_record('course_sections', [
-            'id' => $themesectionid,
-            'name' => $themetitle,
-            'summary' => $sectionhtml,
-            'summaryformat' => FORMAT_HTML,
-        ]);
+        $themesection->name = $themetitle;
+        $themesection->summary = $sectionhtml;
+        $themesection->summaryformat = FORMAT_PLAIN;
+
+        $DB->update_record('course_sections', $themesection);
 
         // Set collapsed option (theme appears as link).
         $collapsed = $options['collapsed'] ?? 1;
         if (method_exists($courseformat, 'update_section_format_options')) {
             $courseformat->update_section_format_options([
-                'id' => $themesectionid,
+                'id' => $themesection->id,
                 'collapsed' => $collapsed
             ]);
         }
@@ -329,11 +329,11 @@ class theme_builder {
 
         // Verify flexsections format.
         if (!$courseformat || get_class($courseformat) !== 'format_flexsections') {
-            throw new \Exception('Course format must be flexsections to create nested sections');
+            throw new \moodle_exception('errorformatnotflexsections', 'aiplacement_modgen');
         }
 
         if (!method_exists($courseformat, 'create_new_section')) {
-            throw new \Exception('The flexsections course format is not properly supporting nested sections');
+            throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
         }
 
         // Create week section under parent.
@@ -341,37 +341,37 @@ class theme_builder {
 
         // Format week title
         $weektitle = format_string($title, true, ['context' => $context]);
-        
+
         // Prepare metadata for week-level learningactivity
         // If metadata includes instructions, use that instead of setting summary on section
         $weekmetadata = $options['metadata'] ?? [];
         $usemetadataforintro = !empty($weekmetadata['instructions']);
-        
+
         // If using metadata for intro, don't set summary on section (leave it minimal/empty)
         // Otherwise, use the provided summary on the section
+        // Use FORMAT_PLAIN to prevent XSS from AI-generated content
         $weeksectionhtml = '';
         if (!$usemetadataforintro && trim($summary) !== '') {
-            $weeksectionhtml = format_text($summary, FORMAT_HTML, ['context' => $context]);
+            $weeksectionhtml = format_text($summary, FORMAT_PLAIN, ['context' => $context]);
         }
 
-        // Update week section.
-        $weeksectionid = $DB->get_field('course_sections', 'id', [
+        // Update week section - get full record to have ID for update
+        $weeksection = $DB->get_record('course_sections', [
             'course' => $courseid,
             'section' => $weeksectionnum
-        ]);
+        ], '*', MUST_EXIST);
 
-        $DB->update_record('course_sections', [
-            'id' => $weeksectionid,
-            'name' => $weektitle,
-            'summary' => $weeksectionhtml,
-            'summaryformat' => FORMAT_HTML,
-        ]);
+        $weeksection->name = $weektitle;
+        $weeksection->summary = $weeksectionhtml;
+        $weeksection->summaryformat = FORMAT_PLAIN;
+
+        $DB->update_record('course_sections', $weeksection);
 
         // Set collapsed option (week appears as link).
         $collapsed = $options['collapsed'] ?? 1;
         if (method_exists($courseformat, 'update_section_format_options')) {
             $courseformat->update_section_format_options([
-                'id' => $weeksectionid,
+                'id' => $weeksection->id,
                 'collapsed' => $collapsed
             ]);
         }

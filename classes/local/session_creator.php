@@ -51,11 +51,11 @@ class session_creator {
         
         // Validate course format
         if (!$courseformat || get_class($courseformat) !== 'format_flexsections') {
-            throw new \Exception('Course format must be flexsections to create nested subsections');
+            throw new \moodle_exception('errorformatnotflexsections', 'aiplacement_modgen');
         }
-        
+
         if (!method_exists($courseformat, 'create_new_section')) {
-            throw new \Exception('The flexsections course format is not properly supporting nested sections');
+            throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
         }
         
         // Get the parent section ID from the section number
@@ -79,42 +79,42 @@ class session_creator {
             // Create the section at top level first
             $sessionsectionnum = $courseformat->create_new_section(0, null);
             $sessionsectionmap[$sessionkey] = $sessionsectionnum;
-            
-            // Get the section ID for database updates
-            $sessionsectionid = $DB->get_field('course_sections', 'id', 
-                ['course' => $courseid, 'section' => $sessionsectionnum]);
+
+            // Get the full section record for database updates
+            $sessionsection = $DB->get_record('course_sections', [
+                'course' => $courseid,
+                'section' => $sessionsectionnum
+            ], '*', MUST_EXIST);
             
             // CRITICAL: Manually set the parent relationship using update_section_format_options
             // The parent value should be the section NUMBER (not ID) of the parent section
             if ($parentsectionnum > 0) {
                 $courseformat->update_section_format_options([
-                    'id' => $sessionsectionid,
+                    'id' => $sessionsection->id,
                     'parent' => $parentsectionnum
                 ]);
             }
-            
-            // Prepare section update data
-            $sectionupdate = [
-                'id' => $sessionsectionid,
-                'name' => $sessionlabel,
-            ];
+
+            // Update section name
+            $sessionsection->name = $sessionlabel;
             
             // Add description if provided in session data (backward compatible)
+            // Use FORMAT_PLAIN to prevent XSS from AI-generated content
             if (!empty($sessiondata[$sessionkey]) && is_array($sessiondata[$sessionkey])) {
                 $data = $sessiondata[$sessionkey];
                 if (!empty($data['description'])) {
-                    $sectionupdate['summary'] = format_text($data['description'], FORMAT_HTML);
-                    $sectionupdate['summaryformat'] = FORMAT_HTML;
+                    $sessionsection->summary = format_text($data['description'], FORMAT_PLAIN);
+                    $sessionsection->summaryformat = FORMAT_PLAIN;
                 }
             }
-            
+
             // Update section record
-            $DB->update_record('course_sections', $sectionupdate);
+            $DB->update_record('course_sections', $sessionsection);
             
             // Set session section to NOT appear as a link (collapsed = 0)
             if (method_exists($courseformat, 'update_section_format_options')) {
                 $courseformat->update_section_format_options([
-                    'id' => $sessionsectionid, 
+                    'id' => $sessionsection->id,
                     'collapsed' => 0
                 ]);
             }

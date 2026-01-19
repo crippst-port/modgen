@@ -225,7 +225,7 @@ $string['moduletype_help'] = 'Choose how to structure your module:
 // Form section headers
 $string['selecttemplate'] = 'Select Structure';
 $string['uploadtemplatefile'] = 'Upload Structure File';
-$string['selectoruploadtemplate'] = 'Select or Upload Structure File (uploaded files take priority)';
+$string['selectoruploadtemplate'] = 'Select or Upload Structure File';
 $string['templatesettings'] = 'Structure Setup';
 $string['suggestedcontent'] = 'Suggest Content';
 
@@ -401,7 +401,7 @@ $string['assessmentssectionname'] = 'Assessments';
 // Dates for sections feature
 $string['datesforsections'] = 'Dates to sections...';
 $string['holidaydates'] = 'University Holiday Dates';
-$string['holidaydates_desc'] = 'Enter university holiday dates (one per line). When a week overlaps with a holiday, the holiday name will be appended to the section title. Format: Holiday Name: DDMMYYYY-DDMMYYYY. Examples accepted: 25122024-05012025, 25/12/2024-05/01/2025, or 25-12-2024 to 05-01-2025. Note: For best results, holiday dates should start on a Monday and end on a Sunday to align with teaching weeks.';
+$string['holidaydates_desc'] = 'Enter University holiday dates (one per line). When a week overlaps with a holiday, the holiday name will be appended to the section title. Format: Holiday Name: DDMMYYYY-DDMMYYYY. Examples accepted: 25122024-05012025, 25/12/2024-05/01/2025, or 25-12-2024 to 05-01-2025. Note: For best results, holiday dates should start on a Monday and end on a Sunday to align with teaching weeks.';
 $string['holidaydates_format_example'] = 'Example: Christmas Break: 25122024-05012025';
 $string['applydates'] = 'Apply Selected Dates';
 $string['removealldates'] = 'Remove Selected Dates';
@@ -459,13 +459,13 @@ $string['loadingform'] = 'Loading form...';
 $string['creatingsections'] = 'Creating sections...';
 
 // Dates form
-$string['selectsections_hierarchical'] = 'Select sections to apply dates to. The new date will appear as a badge <span class="badge bg-info text-white">Dec 21-27:</span> on the right. Any existing dates in the section title will be removed and replaced with the new date when you apply. Use the toggle buttons to quickly select or deselect groups of sections.';
+$string['selectsections_hierarchical'] = 'Select sections to add dates to. Preview dates appear as badges <span class="badge bg-info text-white">Dec 21-27:</span> on the right. When applied, dates will be added to section titles and any existing dates will be updated. Use the toggle buttons to quickly select or deselect groups.';
 $string['sectiontitle'] = 'Section Title';
 $string['newdate'] = 'New Date';
 $string['toggleall'] = 'Toggle All';
 $string['toggletoplevel'] = 'Toggle Top-Level';
 $string['haschildren'] = 'Has subsections';
-$string['startdate'] = 'Start date for date calculation';
+$string['startdate'] = 'Start date for calculation';
 $string['startdate_help'] = 'Choose the date from which to start calculating week dates. This will be used as the first day of the first selected section. Dates will be calculated sequentially for each checked section, skipping any configured holidays.';
 
 $string['modgen:managestructure'] = 'Manage course structure (themes, weeks)';

@@ -48,10 +48,12 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
         $mform->addElement('hidden', 'selectedsections');
         $mform->setType('selectedsections', PARAM_RAW);
 
-        // Date picker for start date
+        // Date picker for start date with additional padding
+        $mform->addElement('html', '<div style="padding: 0 1rem;">');
         $mform->addElement('date_selector', 'startdate', get_string('startdate', 'aiplacement_modgen'));
         $mform->addHelpButton('startdate', 'startdate', 'aiplacement_modgen');
-        
+        $mform->addElement('html', '</div>');
+
         // Set default to course start date
         if (!empty($customdata['coursestartdate'])) {
             $mform->setDefault('startdate', $customdata['coursestartdate']);

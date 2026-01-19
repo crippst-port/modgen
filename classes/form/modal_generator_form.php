@@ -93,8 +93,10 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
         $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
 
         // Existing module selection - allows user to base generation on existing module structure
-        // Only show if admin has enabled this feature AND AI is enabled
-        if ($ai_enabled && get_config('aiplacement_modgen', 'enable_existing_modules')) {
+        // Only show if admin has enabled this feature AND AI is enabled AND user has generatewithprompt capability
+        $coursecontext = context_course::instance($this->_customdata['courseid']);
+        $cangeneratewithprompt = has_capability('aiplacement/modgen:generatewithprompt', $coursecontext);
+        if ($ai_enabled && get_config('aiplacement_modgen', 'enable_existing_modules') && $cangeneratewithprompt) {
             // Support up to 3 templates via multiselect
             $existingmodules = $this->get_editable_courses();
 

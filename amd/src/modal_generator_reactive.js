@@ -73,14 +73,14 @@
 // IMPORTS
 // =============================================================================
 
-import {Reactive, BaseComponent} from 'core/reactive';
-import {dispatchEvent} from 'core/event_dispatcher';
+import { Reactive, BaseComponent } from 'core/reactive';
+import { dispatchEvent } from 'core/event_dispatcher';
 import Fragment from 'core/fragment';
 import ModgenModal from 'aiplacement_modgen/modal';
 import Notification from 'core/notification';
 import ModalEvents from 'core/modal_events';
 import Templates from 'core/templates';
-import {get_string as getString} from 'core/str';
+import { get_string as getString } from 'core/str';
 import * as LoadingIndicator from 'aiplacement_modgen/loading_indicator';
 
 // =============================================================================
@@ -248,28 +248,28 @@ const STEP_LABELS = {
  * Components register watchers on this state to react to changes.
  */
 const reactiveInstance = new Reactive({
-        name: 'ModalGenerator',
-        eventName: eventTypes.stateChanged,
-        eventDispatch: notifyStateChanged,
-        // Pass initial state in constructor like nosferatu beginner example
-        state: {
-            modal: {
-                isOpen: false,
-                isLoading: false,
-                loadingMessage: '',
-                formName: null,
-                title: '',
-                currentStep: STEPS.PROMPT,
-            },
-            form: {
-                isValid: false,
-                isDirty: false,
-                isSubmitting: false,
-            },
+    name: 'ModalGenerator',
+    eventName: eventTypes.stateChanged,
+    eventDispatch: notifyStateChanged,
+    // Pass initial state in constructor like nosferatu beginner example
+    state: {
+        modal: {
+            isOpen: false,
+            isLoading: false,
+            loadingMessage: '',
+            formName: null,
+            title: '',
+            currentStep: STEPS.PROMPT,
         },
-        // Pass mutations in constructor
-        mutations: new ModalMutations(),
-    });
+        form: {
+            isValid: false,
+            isDirty: false,
+            isSubmitting: false,
+        },
+    },
+    // Pass mutations in constructor
+    mutations: new ModalMutations(),
+});
 
 // =============================================================================
 // MODAL GENERATOR COMPONENT
@@ -325,9 +325,9 @@ class ModalGeneratorComponent extends BaseComponent {
     getWatchers() {
         return [
             // Watch modal open/close state to create/destroy modal
-            {watch: 'modal.isOpen:updated', handler: this.handleModalStateChange},
+            { watch: 'modal.isOpen:updated', handler: this.handleModalStateChange },
             // Watch loading state to show/hide spinner
-            {watch: 'modal.isLoading:updated', handler: this.handleLoadingChange},
+            { watch: 'modal.isLoading:updated', handler: this.handleLoadingChange },
         ];
     }
 
@@ -337,7 +337,7 @@ class ModalGeneratorComponent extends BaseComponent {
      * @param {Object} args Watcher arguments
      * @param {Object} args.state Current reactive state
      */
-    handleModalStateChange({state}) {
+    handleModalStateChange({ state }) {
         if (state.modal.isOpen && !this.modal) {
             this.createModal();
         } else if (!state.modal.isOpen && this.modal) {
@@ -354,10 +354,10 @@ class ModalGeneratorComponent extends BaseComponent {
      * @param {Object} args Watcher arguments
      * @param {Object} args.state Current reactive state
      */
-    async handleLoadingChange({state}) {
+    async handleLoadingChange({ state }) {
         if (this.modal && state.modal.isLoading) {
             // Use the loading indicator component
-            const message = state.modal.loadingMessage || 
+            const message = state.modal.loadingMessage ||
                 await getString('loadingform', 'aiplacement_modgen');
             await LoadingIndicator.showInModal(this.modal, message);
         }
@@ -411,59 +411,59 @@ class ModalGeneratorComponent extends BaseComponent {
             courseid: this.courseid,
             contextid: this.contextid,
         })
-        .then((html) => {
-            // Only show progress header for AI workflow forms (but not suggest - it has its own stepper)
-            const bodyHtml = (this.isAiWorkflowForm(formName) && formName !== 'suggest')
-                ? this.buildProgressHeader(STEPS.PROMPT) + html
-                : html;
-            return ModgenModal.create({
-                title: title,
-                body: bodyHtml,
-                large: false,
-            });
-        })
-        .then((modal) => {
-            this.modal = modal;
+            .then((html) => {
+                // Only show progress header for AI workflow forms (but not suggest - it has its own stepper)
+                const bodyHtml = (this.isAiWorkflowForm(formName) && formName !== 'suggest')
+                    ? this.buildProgressHeader(STEPS.PROMPT) + html
+                    : html;
+                return ModgenModal.create({
+                    title: title,
+                    body: bodyHtml,
+                    large: false,
+                });
+            })
+            .then((modal) => {
+                this.modal = modal;
 
-            // Listen for modal hide/close events and update reactive state
-            this.modal.getRoot().on(ModalEvents.hidden, () => {
-                this.reactive.dispatch('closeModal');
-                // Always refresh page when modal closes to update UI
-                window.location.reload();
-            });
+                // Listen for modal hide/close events and update reactive state
+                this.modal.getRoot().on(ModalEvents.hidden, () => {
+                    this.reactive.dispatch('closeModal');
+                    // Always refresh page when modal closes to update UI
+                    window.location.reload();
+                });
 
-            // Handle form submission via AJAX instead of Fragment reload
-            this.setupFormSubmission(modal, formName);
+                // Handle form submission via AJAX instead of Fragment reload
+                this.setupFormSubmission(modal, formName);
 
-            // Setup dates preview if this is the dates form
-            if (formName === 'dates_for_sections') {
-                this.setupDatesPreview(modal);
-            }
-
-            this.reactive.dispatch('formLoaded');
-
-            // Extract and display form buttons in the modal footer
-            this.updateFooterFromForm(modal);
-
-            // If this is the suggest form, initialize the suggest client module
-            if (formName === 'suggest') {
-                try {
-                    require(['aiplacement_modgen/suggest'], (suggest) => {
-                        const mod = (suggest && typeof suggest.init === 'function') ? suggest : (suggest && suggest.default ? suggest.default : null);
-                        if (mod && typeof mod.init === 'function') {
-                            mod.init(modal, this.courseid, this.currentsection);
-                        }
-                    });
-                } catch (e) {
-                    Notification.exception(e);
+                // Setup dates preview if this is the dates form
+                if (formName === 'dates_for_sections') {
+                    this.setupDatesPreview(modal);
                 }
-            }
 
-            this.modal.show();
+                this.reactive.dispatch('formLoaded');
 
-            return modal;
-        })
-        .catch(Notification.exception);
+                // Extract and display form buttons in the modal footer
+                this.updateFooterFromForm(modal);
+
+                // If this is the suggest form, initialize the suggest client module
+                if (formName === 'suggest') {
+                    try {
+                        require(['aiplacement_modgen/suggest'], (suggest) => {
+                            const mod = (suggest && typeof suggest.init === 'function') ? suggest : (suggest && suggest.default ? suggest.default : null);
+                            if (mod && typeof mod.init === 'function') {
+                                mod.init(modal, this.courseid, this.currentsection);
+                            }
+                        });
+                    } catch (e) {
+                        Notification.exception(e);
+                    }
+                }
+
+                this.modal.show();
+
+                return modal;
+            })
+            .catch(Notification.exception);
     }
 
     // =========================================================================
@@ -510,6 +510,10 @@ class ModalGeneratorComponent extends BaseComponent {
             if (btn.getAttribute('type') === 'hidden') {
                 return false;
             }
+            // Skip if marked to keep in form (e.g., toggle buttons)
+            if (btn.hasAttribute('data-keep-in-form')) {
+                return false;
+            }
             return true;
         });
 
@@ -520,11 +524,11 @@ class ModalGeneratorComponent extends BaseComponent {
         // Build footer HTML with extracted buttons
         let footerHtml = '<div class="aiplacement-modgen-form-footer-buttons d-flex justify-content-end">';
         actionButtons.forEach((button, index) => {
-            const label = button.tagName === 'INPUT' 
+            const label = button.tagName === 'INPUT'
                 ? (button.value || button.getAttribute('aria-label') || 'Submit')
                 : button.textContent.trim();
             const classes = (button.className || 'btn btn-secondary').trim();
-            
+
             footerHtml += `<button type="button" class="${classes} ${index > 0 ? 'ml-2' : ''}" data-form-button-index="${index}">
                 ${label}
             </button>`;
@@ -561,19 +565,19 @@ class ModalGeneratorComponent extends BaseComponent {
         actionButtons.forEach((btn) => {
             btn.style.display = 'none';
         });
-        
+
         // Hide common Moodle button container elements
         const buttonContainers = form.querySelectorAll('.fitem_actionbuttons, .fitem_fgroup, [id*="fgroup_id_buttonar"], [id*="fitem_id_buttonar"]');
         buttonContainers.forEach(container => {
             // Only hide if it only contains buttons/inputs
             const hasNonButtonContent = Array.from(container.querySelectorAll('*')).some(el => {
-                return el.tagName !== 'BUTTON' && 
-                       el.tagName !== 'INPUT' && 
-                       !el.classList.contains('form-group') &&
-                       !el.classList.contains('fitem') &&
-                       el.textContent.trim().length > 0;
+                return el.tagName !== 'BUTTON' &&
+                    el.tagName !== 'INPUT' &&
+                    !el.classList.contains('form-group') &&
+                    !el.classList.contains('fitem') &&
+                    el.textContent.trim().length > 0;
             });
-            
+
             if (!hasNonButtonContent) {
                 container.style.display = 'none';
             }
@@ -628,65 +632,65 @@ class ModalGeneratorComponent extends BaseComponent {
             method: 'POST',
             body: formData,
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.body) {
-                // Determine which step we're at based on response
-                const step = data.refresh ? STEPS.CREATING : STEPS.PREVIEW;
-                this.reactive.dispatch('setStep', step);
+            .then(response => response.json())
+            .then(data => {
+                if (data.body) {
+                    // Determine which step we're at based on response
+                    const step = data.refresh ? STEPS.CREATING : STEPS.PREVIEW;
+                    this.reactive.dispatch('setStep', step);
 
-                // Add progress header to body
-                modal.setBody(this.buildProgressHeader(step) + data.body);
-                
-                // Handle footer - prefer server-driven buttons, then HTML footer, then extract from form
-                if (data.buttons && data.buttons.length > 0) {
-                    // Server-driven buttons approach
-                    this.renderFooterButtons(modal, data.buttons);
-                } else if (data.footer) {
-                    modal.setFooter(data.footer);
-                } else {
-                    // Fallback: extract buttons from the form
-                    setTimeout(() => {
-                        this.updateFooterFromForm(modal);
-                    }, 100);
-                }
-                
-                // Check for close button action
-                modal.getRoot().find('[data-action="aiplacement-modgen-close"]').on('click', () => {
-                    modal.destroy();
-                    if (data.refresh) {
-                        window.location.reload();
+                    // Add progress header to body
+                    modal.setBody(this.buildProgressHeader(step) + data.body);
+
+                    // Handle footer - prefer server-driven buttons, then HTML footer, then extract from form
+                    if (data.buttons && data.buttons.length > 0) {
+                        // Server-driven buttons approach
+                        this.renderFooterButtons(modal, data.buttons);
+                    } else if (data.footer) {
+                        modal.setFooter(data.footer);
+                    } else {
+                        // Fallback: extract buttons from the form
+                        setTimeout(() => {
+                            this.updateFooterFromForm(modal);
+                        }, 100);
                     }
-                });
 
-                // If the response contains the approval form, we need to handle its submission too.
-                // The approval form usually submits to prompt.php as well.
-                // We can attach a listener to the new form in the modal body.
-                const newForm = modal.getRoot().find('form');
-                if (newForm.length) {
-                    newForm.on('submit', (e) => {
-                        e.preventDefault();
-                        const approvalFormData = new FormData(e.target);
-                        this.handlePromptSubmission(modal, approvalFormData);
+                    // Check for close button action
+                    modal.getRoot().find('[data-action="aiplacement-modgen-close"]').on('click', () => {
+                        modal.destroy();
+                        if (data.refresh) {
+                            window.location.reload();
+                        }
                     });
-                }
-                
-                // Hide form buttons since we're using footer buttons
-                if (data.buttons && data.buttons.length > 0) {
-                    setTimeout(() => {
-                        this.hideFormButtons(modal);
-                    }, 50);
-                }
 
-            } else if (data.error) {
-                 modal.setBody('<div class="alert alert-danger">' + data.error + '</div>');
-            }
-        })
-        .catch(error => {
-            Notification.exception(error);
-        });
+                    // If the response contains the approval form, we need to handle its submission too.
+                    // The approval form usually submits to prompt.php as well.
+                    // We can attach a listener to the new form in the modal body.
+                    const newForm = modal.getRoot().find('form');
+                    if (newForm.length) {
+                        newForm.on('submit', (e) => {
+                            e.preventDefault();
+                            const approvalFormData = new FormData(e.target);
+                            this.handlePromptSubmission(modal, approvalFormData);
+                        });
+                    }
+
+                    // Hide form buttons since we're using footer buttons
+                    if (data.buttons && data.buttons.length > 0) {
+                        setTimeout(() => {
+                            this.hideFormButtons(modal);
+                        }, 50);
+                    }
+
+                } else if (data.error) {
+                    modal.setBody('<div class="alert alert-danger">' + data.error + '</div>');
+                }
+            })
+            .catch(error => {
+                Notification.exception(error);
+            });
     }
-    
+
     /**
      * Render footer buttons from server-provided button definitions.
      *
@@ -728,22 +732,22 @@ class ModalGeneratorComponent extends BaseComponent {
                 index: index
             };
         }));
-        
+
         // Render template
-        const {html} = await Templates.renderForPromise(
+        const { html } = await Templates.renderForPromise(
             'aiplacement_modgen/modal_footer_buttons',
-            {buttons: buttonsWithLabels}
+            { buttons: buttonsWithLabels }
         );
-        
+
         modal.setFooter(html);
-        
+
         // Wire up button handlers
         const footer = modal.getFooter();
         const footerNode = footer && footer.length ? footer.get(0) : null;
         if (!footerNode) {
             return;
         }
-        
+
         footerNode.querySelectorAll('[data-action]').forEach((btn) => {
             btn.addEventListener('click', (e) => {
                 e.preventDefault();
@@ -752,7 +756,7 @@ class ModalGeneratorComponent extends BaseComponent {
             });
         });
     }
-    
+
     /**
      * Handle footer button actions.
      *
@@ -770,7 +774,7 @@ class ModalGeneratorComponent extends BaseComponent {
         const body = modal.getBody();
         const bodyNode = body && body.length ? body.get(0) : null;
         const form = bodyNode ? bodyNode.querySelector('form') : null;
-        
+
         switch (action) {
             case 'submit':
                 // Show creating step with loading indicator
@@ -790,22 +794,22 @@ class ModalGeneratorComponent extends BaseComponent {
                     this.handlePromptSubmission(modal, formData);
                 }
                 break;
-                
+
             case 'regenerate':
                 // Reset step and reload the prompt form
                 this.reactive.dispatch('setStep', STEPS.PROMPT);
                 this.reactive.dispatch('openModalWithForm', 'template_from_prompt', 'Template from prompt');
                 break;
-                
+
             case 'return-to-course':
                 // Reload page to return to course
                 window.location.reload();
                 break;
-                
+
             case 'close':
                 modal.destroy();
                 break;
-                
+
             default:
                 // For any other action, try to find and click a matching button in the form
                 if (form) {
@@ -816,7 +820,7 @@ class ModalGeneratorComponent extends BaseComponent {
                 }
         }
     }
-    
+
     /**
      * Display success message with return to course button.
      *
@@ -831,16 +835,16 @@ class ModalGeneratorComponent extends BaseComponent {
      */
     async showSuccess(modal, message, details = []) {
         // Render success message body
-        const {html: bodyHtml} = await Templates.renderForPromise(
+        const { html: bodyHtml } = await Templates.renderForPromise(
             'aiplacement_modgen/success_message',
             {
                 message: message,
                 details: details.length > 0 ? details : null
             }
         );
-        
+
         modal.setBody(bodyHtml);
-        
+
         // Replace footer with return to course button
         await this.renderFooterButtons(
             modal,
@@ -854,7 +858,7 @@ class ModalGeneratorComponent extends BaseComponent {
             true // Use language strings
         );
     }
-    
+
     /**
      * Hide form buttons when using server-driven footer buttons.
      *
@@ -866,18 +870,18 @@ class ModalGeneratorComponent extends BaseComponent {
         if (!bodyNode) {
             return;
         }
-        
+
         const form = bodyNode.querySelector('form');
         if (!form) {
             return;
         }
-        
+
         // Hide all button containers
         const buttonContainers = form.querySelectorAll('.form-submit, .form-buttons, .buttons, [class*="buttonar"]');
         buttonContainers.forEach(container => {
             container.style.display = 'none';
         });
-        
+
         // Also hide individual buttons not in containers
         const buttons = form.querySelectorAll('button, input[type="submit"], input[type="button"]');
         buttons.forEach(btn => {
@@ -913,10 +917,10 @@ class ModalGeneratorComponent extends BaseComponent {
      */
     buildProgressHeader(currentStep) {
         const steps = [
-            {num: STEPS.PROMPT, label: STEP_LABELS[STEPS.PROMPT], icon: 'fa-edit'},
-            {num: STEPS.GENERATING, label: STEP_LABELS[STEPS.GENERATING], icon: 'fa-cog'},
-            {num: STEPS.PREVIEW, label: STEP_LABELS[STEPS.PREVIEW], icon: 'fa-eye'},
-            {num: STEPS.CREATING, label: STEP_LABELS[STEPS.CREATING], icon: 'fa-check'},
+            { num: STEPS.PROMPT, label: STEP_LABELS[STEPS.PROMPT], icon: 'fa-edit' },
+            { num: STEPS.GENERATING, label: STEP_LABELS[STEPS.GENERATING], icon: 'fa-cog' },
+            { num: STEPS.PREVIEW, label: STEP_LABELS[STEPS.PREVIEW], icon: 'fa-eye' },
+            { num: STEPS.CREATING, label: STEP_LABELS[STEPS.CREATING], icon: 'fa-check' },
         ];
 
         let html = '<div class="modgen-progress-header mb-3">';
@@ -978,12 +982,12 @@ class ModalGeneratorComponent extends BaseComponent {
     async handleDatesForSectionsSubmission(modal, formData, buttonName) {
         // Check if this is a remove dates request based on which button was clicked
         const isRemove = buttonName === 'removedates';
-        
+
         // Collect selected section IDs from checkboxes
         const body = modal.getBody();
         const bodyNode = body && body.length ? body.get(0) : null;
         const selectedSections = [];
-        
+
         if (bodyNode) {
             const checkboxes = bodyNode.querySelectorAll('.section-checkbox:checked');
             checkboxes.forEach(cb => {
@@ -1005,7 +1009,7 @@ class ModalGeneratorComponent extends BaseComponent {
                 const day = bodyNode.querySelector('select[name="startdate[day]"]')?.value || 1;
                 const month = bodyNode.querySelector('select[name="startdate[month]"]')?.value || 1;
                 const year = bodyNode.querySelector('select[name="startdate[year]"]')?.value || new Date().getFullYear();
-                
+
                 // Convert to timestamp (midnight on selected date)
                 const dateObj = new Date(year, month - 1, day, 0, 0, 0);
                 startDate = Math.floor(dateObj.getTime() / 1000);
@@ -1014,8 +1018,8 @@ class ModalGeneratorComponent extends BaseComponent {
 
         // Determine action and endpoint
         const action = isRemove ? 'Removing dates from' : 'Applying dates to';
-        const endpoint = isRemove ? 
-            '/ai/placement/modgen/ajax/remove_section_dates.php' : 
+        const endpoint = isRemove ?
+            '/ai/placement/modgen/ajax/remove_section_dates.php' :
             '/ai/placement/modgen/ajax/apply_section_dates.php';
 
         // Show loading indicator with context-specific message
@@ -1045,25 +1049,25 @@ class ModalGeneratorComponent extends BaseComponent {
         // POST to appropriate endpoint
         fetch(M.cfg.wwwroot + endpoint, {
             method: 'POST',
-            headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: params.toString()
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                // Show success message using reusable method
-                this.showSuccess(modal, data.message);
-            } else {
-                const errorHtml = '<div class="alert alert-danger">' +
-                    '<p>' + (data.error || 'An error occurred') + '</p>' +
-                    '</div>';
-                modal.setBody(errorHtml);
-            }
-        })
-        .catch(error => {
-            window.console.error('Error processing dates:', error);
-            modal.setBody('<div class="alert alert-danger">An error occurred while processing dates</div>');
-        });
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    // Show success message using reusable method
+                    this.showSuccess(modal, data.message);
+                } else {
+                    const errorHtml = '<div class="alert alert-danger">' +
+                        '<p>' + (data.error || 'An error occurred') + '</p>' +
+                        '</div>';
+                    modal.setBody(errorHtml);
+                }
+            })
+            .catch(error => {
+                window.console.error('Error processing dates:', error);
+                modal.setBody('<div class="alert alert-danger">An error occurred while processing dates</div>');
+            });
     }
 
     /**
@@ -1079,7 +1083,7 @@ class ModalGeneratorComponent extends BaseComponent {
 
         const previewDates = () => {
             clearTimeout(debounceTimer);
-            debounceTimer = setTimeout(async() => {
+            debounceTimer = setTimeout(async () => {
                 const body = modal.getBody();
                 const bodyNode = body && body.length ? body.get(0) : null;
                 if (!bodyNode) {
@@ -1102,34 +1106,34 @@ class ModalGeneratorComponent extends BaseComponent {
 
                 fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/preview_section_dates.php', {
                     method: 'POST',
-                    headers: {'Content-Type': 'application/x-www-form-urlencoded'},
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                     body: params.toString()
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (!data.success || !data.sections) {
-                        return;
-                    }
-
-                    // Update date prefixes efficiently
-                    data.sections.forEach(section => {
-                        // Find week rows
-                        const cell = bodyNode.querySelector(`tr[data-section-id="${section.id}"] .date-prefix`);
-                        if (cell) {
-                            cell.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success || !data.sections) {
                             return;
                         }
-                        
-                        // Find theme labels
-                        const label = bodyNode.querySelector(`label[for="section-${section.id}"] .date-prefix`);
-                        if (label) {
-                            label.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
-                        }
+
+                        // Update date prefixes efficiently
+                        data.sections.forEach(section => {
+                            // Find week rows
+                            const cell = bodyNode.querySelector(`tr[data-section-id="${section.id}"] .date-prefix`);
+                            if (cell) {
+                                cell.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
+                                return;
+                            }
+
+                            // Find theme labels
+                            const label = bodyNode.querySelector(`label[for="section-${section.id}"] .date-prefix`);
+                            if (label) {
+                                label.textContent = section.formatted_date ? section.formatted_date + ' ' : '';
+                            }
+                        });
+                    })
+                    .catch(error => {
+                        window.console.error('Error previewing dates:', error);
                     });
-                })
-                .catch(error => {
-                    window.console.error('Error previewing dates:', error);
-                });
             }, 250);
         };
 
@@ -1157,17 +1161,17 @@ class ModalGeneratorComponent extends BaseComponent {
      */
     setupFormSubmission(modal, formName) {
         const modalRoot = modal.getRoot();
-        
+
         // Track which button was clicked (works for both form buttons and footer buttons)
         let clickedButton = null;
-        
+
         // Track clicks on original form buttons (including cancel buttons)
-        modalRoot.on('click', 'input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]', function() {
+        modalRoot.on('click', 'input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]', function () {
             clickedButton = this.getAttribute('name');
         });
-        
+
         // Track clicks on footer buttons that proxy to form buttons
-        modalRoot.on('click', '[data-form-button-index]', function() {
+        modalRoot.on('click', '[data-form-button-index]', function () {
             // The footer button will trigger the original button, so find it
             const index = this.getAttribute('data-form-button-index');
             const body = modal.getBody();
@@ -1183,24 +1187,24 @@ class ModalGeneratorComponent extends BaseComponent {
                 }
             }
         });
-        
-        modalRoot.on('submit', 'form', async(e) => {
+
+        modalRoot.on('submit', 'form', async (e) => {
             e.preventDefault();
-            
+
             // Check submitter first (modern browsers), then fall back to tracked button
             const submitter = e.originalEvent?.submitter;
             const buttonName = submitter?.getAttribute('name') || clickedButton;
-            
+
             // If cancel button was clicked, just close modal
             if (buttonName === 'cancel') {
                 modal.destroy();
                 clickedButton = null;
                 return;
             }
-            
+
             // Reset for next submission
             clickedButton = null;
-            
+
             const form = e.target;
             const formData = new FormData(form);
 
@@ -1215,17 +1219,17 @@ class ModalGeneratorComponent extends BaseComponent {
                 this.handleDatesForSectionsSubmission(modal, formData, buttonName);
                 return;
             }
-            
+
             // Determine action based on form name
             const action = formName === 'add_theme' ? 'create_themes' : 'create_weeks';
-            
+
             // Build params object - start with required params
             const params = {
                 courseid: this.courseid,
                 sesskey: M.cfg.sesskey,
                 parentsection: this.currentsection, // Current section to add content within
             };
-            
+
             // Add form fields to params (but skip internal moodleform fields)
             formData.forEach((value, key) => {
                 // Skip moodleform internal fields, buttons, and action field
@@ -1233,10 +1237,10 @@ class ModalGeneratorComponent extends BaseComponent {
                     params[key] = value;
                 }
             });
-            
+
             // Set action AFTER adding form fields to ensure it's not overwritten
             params.action = action;
-            
+
             // Disable form buttons during submission
             const body = modal.getBody();
             const bodyNode = body && body.length ? body.get(0) : null;
@@ -1244,14 +1248,14 @@ class ModalGeneratorComponent extends BaseComponent {
                 const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
                 buttons.forEach(button => button.disabled = true);
             }
-            
+
             // Show loading indicator with context-specific message
             const loadingMessage = await getString(
                 formName === 'add_theme' ? 'creatingthemes' : 'creatingsections',
                 'aiplacement_modgen'
             );
             await LoadingIndicator.showInModal(modal, loadingMessage);
-            
+
             // POST to AJAX endpoint
             fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/create_sections.php', {
                 method: 'POST',
@@ -1260,53 +1264,53 @@ class ModalGeneratorComponent extends BaseComponent {
                 },
                 body: new URLSearchParams(params),
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Hide loading indicator
-                    LoadingIndicator.hideFromModal(modal);
-                    
-                    // Parse detailed messages if present
-                    const details = data.messages && data.messages.length > 0 ? data.messages : [];
-                    
-                    // Show success message using reusable method
-                    this.showSuccess(modal, data.message, details);
-                } else {
-                    // Re-enable buttons on error
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Hide loading indicator
+                        LoadingIndicator.hideFromModal(modal);
+
+                        // Parse detailed messages if present
+                        const details = data.messages && data.messages.length > 0 ? data.messages : [];
+
+                        // Show success message using reusable method
+                        this.showSuccess(modal, data.message, details);
+                    } else {
+                        // Re-enable buttons on error
+                        const body = modal.getBody();
+                        const bodyNode = body && body.length ? body.get(0) : null;
+                        if (bodyNode) {
+                            const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
+                            buttons.forEach(button => button.disabled = false);
+
+                            // Remove any existing error messages
+                            const existingError = bodyNode.querySelector('.form-error-message');
+                            if (existingError) {
+                                existingError.remove();
+                            }
+
+                            // Insert error at the top of the form
+                            const errorDiv = document.createElement('div');
+                            errorDiv.className = 'alert alert-danger form-error-message';
+                            errorDiv.innerHTML = '<p>' + (data.error || 'An error occurred') + '</p>';
+                            bodyNode.insertBefore(errorDiv, bodyNode.firstChild);
+
+                            // Scroll to top so error is visible
+                            bodyNode.scrollTop = 0;
+                        }
+                    }
+                    return data;
+                })
+                .catch(error => {
+                    // Re-enable buttons on exception
                     const body = modal.getBody();
                     const bodyNode = body && body.length ? body.get(0) : null;
                     if (bodyNode) {
                         const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
                         buttons.forEach(button => button.disabled = false);
-                        
-                        // Remove any existing error messages
-                        const existingError = bodyNode.querySelector('.form-error-message');
-                        if (existingError) {
-                            existingError.remove();
-                        }
-                        
-                        // Insert error at the top of the form
-                        const errorDiv = document.createElement('div');
-                        errorDiv.className = 'alert alert-danger form-error-message';
-                        errorDiv.innerHTML = '<p>' + (data.error || 'An error occurred') + '</p>';
-                        bodyNode.insertBefore(errorDiv, bodyNode.firstChild);
-                        
-                        // Scroll to top so error is visible
-                        bodyNode.scrollTop = 0;
                     }
-                }
-                return data;
-            })
-            .catch(error => {
-                // Re-enable buttons on exception
-                const body = modal.getBody();
-                const bodyNode = body && body.length ? body.get(0) : null;
-                if (bodyNode) {
-                    const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
-                    buttons.forEach(button => button.disabled = false);
-                }
-                Notification.exception(error);
-            });
+                    Notification.exception(error);
+                });
         });
     }
 
@@ -1329,11 +1333,11 @@ class ModalGeneratorComponent extends BaseComponent {
 
         // Create modal with link to prompt.php
         const body = '<div class="text-center p-4">' +
-                     '<p>Click the button below to open the Module Generator form.</p>' +
-                     '<a href="' + promptUrl + '" class="btn btn-primary btn-lg">' +
-                     'Open Module Generator' +
-                     '</a>' +
-                     '</div>';
+            '<p>Click the button below to open the Module Generator form.</p>' +
+            '<a href="' + promptUrl + '" class="btn btn-primary btn-lg">' +
+            'Open Module Generator' +
+            '</a>' +
+            '</div>';
 
         ModgenModal.create({
             title: title,
@@ -1417,6 +1421,6 @@ export const init = (courseid, contextid, currentsection = 0) => {
         contextid,
         currentsection,
     });
-    
+
     return component;
 };

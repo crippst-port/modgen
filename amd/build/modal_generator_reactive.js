@@ -261,6 +261,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         if (btn.getAttribute('type') === 'hidden') {
           return false;
         }
+        if (btn.hasAttribute('data-keep-in-form')) {
+          return false;
+        }
         return true;
       });
       if (actionButtons.length === 0) {

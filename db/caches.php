@@ -15,17 +15,32 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Plugin version and other meta-data are defined here.
+ * Cache definitions for aiplacement_modgen.
  *
  * @package     aiplacement_modgen
- * @copyright   2025 Tom Cripps <tom.cripps@port.ac.uk>
+ * @copyright   2026 Tom Cripps <tom.cripps@port.ac.uk>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'aiplacement_modgen';
-$plugin->release = '0.2.8';
-$plugin->version = 2026011700;
-$plugin->requires = 2022112800;
-$plugin->maturity = MATURITY_ALPHA;
+$definitions = [
+    // Cache for AI request rate limiting (per user).
+    'ai_requests' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => true,
+        'simpledata' => true,
+        'ttl' => 3600, // 1 hour
+    ],
+
+    // Cache for section maps to avoid repeated processing.
+    'section_maps' => [
+        'mode' => cache_store::MODE_APPLICATION,
+        'simplekeys' => true,
+        'simpledata' => false,
+        'ttl' => 300, // 5 minutes
+        'invalidationevents' => [
+            'course_updated',
+        ],
+    ],
+];

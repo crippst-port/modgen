@@ -308,35 +308,25 @@ if ($acceptpolicy && confirm_sesskey()) {
     }
 }
 
+
 // Check AI policy acceptance before allowing access.
 $manager = \core\di::get(\core_ai\manager::class);
 if (!$manager->get_user_policy_status($USER->id)) {
     // User hasn't accepted AI policy yet.
-    // Build the policy acceptance form HTML
-    $policyformhtml = '
-        <div class="ai-policy-acceptance">
-            <h4>' . get_string('aipolicyacceptance', 'aiplacement_modgen') . '</h4>
-            <div class="alert alert-info">
-                <p>' . get_string('aipolicyinfo', 'aiplacement_modgen') . '</p>
-            </div>
-            <div class="form-check mb-3">
-                <input class="form-check-input" type="checkbox" id="acceptpolicy">
-                <label class="form-check-label" for="acceptpolicy">
-                    ' . get_string('acceptaipolicy', 'aiplacement_modgen') . '
-                </label>
-            </div>
-            <form id="ai-policy-form" method="post">
-                <input type="hidden" name="courseid" value="' . $courseid . '">
-                <input type="hidden" name="acceptpolicy" value="1">
-                <input type="hidden" name="embedded" value="' . ($embedded ? 1 : 0) . '">
-                <input type="hidden" name="ajax" value="' . ($ajax ? 1 : 0) . '">
-                <input type="hidden" name="sesskey" value="' . sesskey() . '">
-                <button type="submit" id="ai-policy-submit-btn" class="btn btn-primary">
-                    ' . get_string('accept') . '
-                </button>
-            </form>
-        </div>
-    ';
+    // Build the policy acceptance form using Mustache template (SECURITY FIX: replaced inline HTML)
+    $policydata = [
+        'aipolicyacceptance' => get_string('aipolicyacceptance', 'aiplacement_modgen'),
+        'aipolicyinfo' => get_string('aipolicyinfo', 'aiplacement_modgen'),
+        'acceptaipolicy' => get_string('acceptaipolicy', 'aiplacement_modgen'),
+        'accept' => get_string('accept'),
+        'courseid' => $courseid,
+        'embedded' => $embedded ? 1 : 0,
+        'ajax' => $ajax ? 1 : 0,
+        'sesskey' => sesskey(),
+        'formaction' => $PAGE->url->out(false),
+    ];
+    
+    $policyformhtml = $OUTPUT->render_from_template('aiplacement_modgen/ai_policy_acceptance', $policydata);
     
     if ($ajax) {
         // For AJAX requests, return policy acceptance form with modal footer.
@@ -351,27 +341,10 @@ if (!$manager->get_user_policy_status($USER->id)) {
             ]
         ]);
         
-        // Add JavaScript to handle policy acceptance
-        $js = '
-        <script>
-            require(["jquery"], function($) {
-                $("#acceptpolicy").on("change", function() {
-                    $("[data-action=\"aiplacement-modgen-submit\"]").prop("disabled", !this.checked);
-                });
-                
-                // Handle form submission for policy acceptance
-                $("#ai-policy-form").on("submit", function(e) {
-                    if (!$("#acceptpolicy").is(":checked")) {
-                        e.preventDefault();
-                        return false;
-                    }
-                    // Allow normal form submission to server
-                    // After the server processes it, the response should show the main form
-                });
-            });
-        </script>';
+        // Load AMD module for policy acceptance (SECURITY FIX: replaced inline JavaScript)
+        $PAGE->requires->js_call_amd('aiplacement_modgen/policy_acceptance', 'init');
         
-        aiplacement_modgen_send_ajax_response($policyformhtml . $js, $footer);
+        aiplacement_modgen_send_ajax_response($policyformhtml, $footer);
     } else {
         // For regular page requests, show the policy acceptance form as a full page
         // Set up page context first
@@ -388,12 +361,16 @@ if (!$manager->get_user_policy_status($USER->id)) {
             $PAGE->set_pagelayout('embedded');
         }
         
+        // Load AMD module for policy acceptance
+        $PAGE->requires->js_call_amd('aiplacement_modgen/policy_acceptance', 'init');
+        
         echo $OUTPUT->header();
         echo html_writer::div($policyformhtml, 'aiplacement-modgen__content');
         echo $OUTPUT->footer();
     }
     exit;
 }
+
 
 $pageparams = ['id' => $courseid];
 if ($embedded) {

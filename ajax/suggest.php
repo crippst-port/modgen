@@ -136,9 +136,9 @@ try {
 
     // If a specific section was requested, filter the map to only that section
     if (!empty($section) && is_int($section) && $section > 0) {
-        $filtered = array_values(array_filter($sectionmap, function($s) use ($section) {
-            $id = isset($s['section']) ? (int)$s['section'] : (int)($s['id'] ?? 0);
-            return $id === (int)$section;
+        $filtered = array_values(array_filter($sectionmap, function ($s) use ($section) {
+            $id = isset($s['section']) ? (int) $s['section'] : (int) ($s['id'] ?? 0);
+            return $id === (int) $section;
         }));
         if (!empty($filtered)) {
             $sectionmap = $filtered;
@@ -151,17 +151,30 @@ try {
     // Map common module names to Laurillard learning types to keep consistent with Explore report.
     $learningtype_map = [
         // Acquisition-like resources
-        'page' => 'Acquisition', 'book' => 'Acquisition', 'resource' => 'Acquisition', 'label' => 'Acquisition', 'url' => 'Acquisition',
+        'page' => 'Acquisition',
+        'book' => 'Acquisition',
+        'resource' => 'Acquisition',
+        'label' => 'Acquisition',
+        'url' => 'Acquisition',
         // Discussion/dialogic
-        'forum' => 'Discussion', 'chat' => 'Discussion',
+        'forum' => 'Discussion',
+        'chat' => 'Discussion',
         // Investigation/interactive
-        'choice' => 'Investigation', 'survey' => 'Investigation', 'workshop' => 'Investigation', 'hsuforum' => 'Investigation',
+        'choice' => 'Investigation',
+        'survey' => 'Investigation',
+        'workshop' => 'Investigation',
+        'hsuforum' => 'Investigation',
         // Practice/adaptive
-        'lesson' => 'Practice', 'feedback' => 'Practice',
+        'lesson' => 'Practice',
+        'feedback' => 'Practice',
         // Production/collaborative
-        'assign' => 'Production', 'assignment' => 'Production', 'quiz' => 'Production', 'scorm' => 'Production',
+        'assign' => 'Production',
+        'assignment' => 'Production',
+        'quiz' => 'Production',
+        'scorm' => 'Production',
         // Collaboration (webconferencing)
-        'bigbluebuttonbn' => 'Collaboration', 'zoom' => 'Collaboration'
+        'bigbluebuttonbn' => 'Collaboration',
+        'zoom' => 'Collaboration'
     ];
 
     $learning_counts = [
@@ -178,85 +191,103 @@ try {
         // Find course_sections record for this section number
         $sectionrec = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $section]);
         if ($sectionrec) {
-                // Try to obtain the course modules for this section using the already-loaded
-                // $modinfo (fast, avoids extra DB queries). If that fails fall back to a
-                // direct DB query for course_modules linked to this section id.
-                $cms = [];
-                try {
-                    $sections = $modinfo->get_section_info_all();
-                    $target = null;
-                    foreach ($sections as $s) {
-                        $secnum = isset($s->section) ? (int)$s->section : (int)($s->id ?? 0);
-                        if ($secnum === (int)$section) {
-                            $target = $s;
-                            break;
-                        }
+            // Try to obtain the course modules for this section using the already-loaded
+            // $modinfo (fast, avoids extra DB queries). If that fails fall back to a
+            // direct DB query for course_modules linked to this section id.
+            $cms = [];
+            try {
+                $sections = $modinfo->get_section_info_all();
+                $target = null;
+                foreach ($sections as $s) {
+                    $secnum = isset($s->section) ? (int) $s->section : (int) ($s->id ?? 0);
+                    if ($secnum === (int) $section) {
+                        $target = $s;
+                        break;
                     }
-                    if ($target && !empty($target->sequence)) {
-                        $cmids = array_filter(array_map('intval', explode(',', $target->sequence)));
-                        // modinfo may expose cms as an array of cm_info objects.
-                        if (!empty($modinfo->cms) && is_array($modinfo->cms)) {
-                            foreach ($cmids as $cmid) {
-                                if (isset($modinfo->cms[$cmid])) {
-                                    $cms[] = $modinfo->cms[$cmid];
-                                } else if (method_exists($modinfo, 'get_cm')) {
-                                    $maybe = $modinfo->get_cm($cmid);
-                                    if ($maybe) {
-                                        $cms[] = $maybe;
-                                    }
+                }
+                if ($target && !empty($target->sequence)) {
+                    $cmids = array_filter(array_map('intval', explode(',', $target->sequence)));
+                    // modinfo may expose cms as an array of cm_info objects.
+                    if (!empty($modinfo->cms) && is_array($modinfo->cms)) {
+                        foreach ($cmids as $cmid) {
+                            if (isset($modinfo->cms[$cmid])) {
+                                $cms[] = $modinfo->cms[$cmid];
+                            } else if (method_exists($modinfo, 'get_cm')) {
+                                $maybe = $modinfo->get_cm($cmid);
+                                if ($maybe) {
+                                    $cms[] = $maybe;
                                 }
-                            }
-                        } else {
-                            // As a last resort build lightweight cms array from DB course_modules
-                            $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
-                            foreach ($dbcms as $dcm) {
-                                $modname = $DB->get_field('modules', 'name', ['id' => $dcm->module]);
-                                $dcm->modname = $modname ?: '';
-                                $cms[] = $dcm;
                             }
                         }
                     } else {
-                        // No sequence on the section (empty section) - try DB fallback
+                        // As a last resort build lightweight cms array from DB course_modules
+                        // PERFORMANCE FIX: Batch fetch module names to avoid N+1 queries
                         $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
+                        if (!empty($dbcms)) {
+                            $moduleids = array_unique(array_column((array) $dbcms, 'module'));
+                            list($insql, $params) = $DB->get_in_or_equal($moduleids);
+                            $modules = $DB->get_records_select('modules', "id $insql", $params);
+
+                            foreach ($dbcms as $dcm) {
+                                $dcm->modname = isset($modules[$dcm->module]) ? $modules[$dcm->module]->name : '';
+                                $cms[] = $dcm;
+                            }
+                        }
+                    }
+                } else {
+                    // No sequence on the section (empty section) - try DB fallback
+                    // PERFORMANCE FIX: Batch fetch module names to avoid N+1 queries
+                    $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
+                    if (!empty($dbcms)) {
+                        $moduleids = array_unique(array_column((array) $dbcms, 'module'));
+                        list($insql, $params) = $DB->get_in_or_equal($moduleids);
+                        $modules = $DB->get_records_select('modules', "id $insql", $params);
+
                         foreach ($dbcms as $dcm) {
-                            $modname = $DB->get_field('modules', 'name', ['id' => $dcm->module]);
-                            $dcm->modname = $modname ?: '';
+                            $dcm->modname = isset($modules[$dcm->module]) ? $modules[$dcm->module]->name : '';
                             $cms[] = $dcm;
                         }
                     }
-                } catch (\Throwable $e) {
-                    // If anything goes wrong, fall back to querying course_modules directly
-                    $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
+                }
+            } catch (\Throwable $e) {
+                // If anything goes wrong, fall back to querying course_modules directly
+                // PERFORMANCE FIX: Batch fetch module names to avoid N+1 queries
+                $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
+                if (!empty($dbcms)) {
+                    $moduleids = array_unique(array_column((array) $dbcms, 'module'));
+                    list($insql, $params) = $DB->get_in_or_equal($moduleids);
+                    $modules = $DB->get_records_select('modules', "id $insql", $params);
+
                     foreach ($dbcms as $dcm) {
-                        $modname = $DB->get_field('modules', 'name', ['id' => $dcm->module]);
-                        $dcm->modname = $modname ?: '';
+                        $dcm->modname = isset($modules[$dcm->module]) ? $modules[$dcm->module]->name : '';
                         $cms[] = $dcm;
                     }
                 }
+            }
 
-                if (!empty($cms) && is_array($cms)) {
-                    foreach ($cms as $cm) {
-                        $modname = '';
-                        if (!empty($cm->modname)) {
-                            $modname = strtolower($cm->modname);
-                        } else if (!empty($cm->module) && is_string($cm->module)) {
-                            $modname = strtolower($cm->module);
-                        }
-                        $lt = $learningtype_map[$modname] ?? 'Production';
-                        if (!isset($learning_counts[$lt])) {
-                            $learning_counts[$lt] = 0;
-                        }
-                        $learning_counts[$lt]++;
-                        $hasactivities = true;
+            if (!empty($cms) && is_array($cms)) {
+                foreach ($cms as $cm) {
+                    $modname = '';
+                    if (!empty($cm->modname)) {
+                        $modname = strtolower($cm->modname);
+                    } else if (!empty($cm->module) && is_string($cm->module)) {
+                        $modname = strtolower($cm->module);
                     }
+                    $lt = $learningtype_map[$modname] ?? 'Production';
+                    if (!isset($learning_counts[$lt])) {
+                        $learning_counts[$lt] = 0;
+                    }
+                    $learning_counts[$lt]++;
+                    $hasactivities = true;
                 }
+            }
         }
     }
 
     // Provide chart-friendly arrays using centralized color configuration
     $labels = array_keys($learning_counts);
     $data = array_values($learning_counts);
-    
+
     // Use centralized learning type colors instead of hardcoded array
     $colorclass = 'aiplacement_modgen\\local\\learning_type_colors';
     if (!class_exists($colorclass)) {
@@ -273,7 +304,8 @@ try {
     $result['current_learning_types'] = [
         'labels' => $labels,
         'data' => $data,
-        'colors' => array_map(function($k) use ($colors) { return $colors[$k]; }, $labels),
+        'colors' => array_map(function ($k) use ($colors) {
+            return $colors[$k]; }, $labels),
         'hasActivities' => $hasactivities,
     ];
 

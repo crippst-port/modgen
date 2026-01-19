@@ -33,7 +33,8 @@ require_once(__DIR__ . '/../activitytype/registry.php');
 
 defined('MOODLE_INTERNAL') || die();
 
-class ai_service {
+class ai_service
+{
 
     /**
      * Validate module structure to catch malformed AI responses.
@@ -53,12 +54,13 @@ class ai_service {
      * @param string $structure The structure type (theme or weekly)
      * @return int|null The requested theme count, or null if not specified
      */
-    private static function extract_requested_theme_count($prompt, $structure) {
+    private static function extract_requested_theme_count($prompt, $structure)
+    {
         // Only applicable for theme-based structures
         if ($structure !== 'theme') {
             return null;
         }
-        
+
         // Look for patterns like:
         // "5 themes", "5-themed", "divide into 5 themes", "create 5 themes"
         // "5 themed sections", "using 5 themes", "total of 5 themes"
@@ -69,11 +71,12 @@ class ai_service {
                 return $count;
             }
         }
-        
+
         return null;
     }
 
-    private static function validate_module_structure($data, $structure) {
+    private static function validate_module_structure($data, $structure)
+    {
         $structure = ($structure === 'theme') ? 'theme' : 'weekly';
 
         // Check if we have the expected top-level key
@@ -137,14 +140,15 @@ class ai_service {
      * @param bool $isTopLevel Whether this is the top-level call (used for structure extraction)
      * @return mixed
      */
-    private static function normalize_ai_response($value, $isTopLevel = false) {
+    private static function normalize_ai_response($value, $isTopLevel = false)
+    {
         // If it's an array, walk each element.
         if (is_array($value)) {
             $out = [];
             foreach ($value as $k => $v) {
                 $out[$k] = self::normalize_ai_response($v, false);
             }
-            
+
             // Top-level extraction: check for wrapped structure pattern
             if ($isTopLevel && !empty($out)) {
                 // Pattern 1: Single entry that contains the actual structure
@@ -156,29 +160,33 @@ class ai_service {
                         }
                     }
                 }
-                
+
                 // Pattern 2: themes/sections array where first item's summary contains actual structure
                 if ((isset($out['themes']) || isset($out['sections'])) && is_array($out['themes'] ?? $out['sections'])) {
                     $itemsArray = $out['themes'] ?? $out['sections'];
                     $firstItem = $itemsArray[0] ?? null;
-                    
+
                     if ($firstItem && is_array($firstItem) && isset($firstItem['summary']) && is_string($firstItem['summary'])) {
                         $summary = trim($firstItem['summary']);
                         // Check if the summary contains the full structure (may have escaped newlines/quotes)
                         if (strlen($summary) > 0 && ($summary[0] === '{' || $summary[0] === '[')) {
                             // Try direct decode first
                             $decoded = json_decode($summary, true);
-                            if (json_last_error() === JSON_ERROR_NONE && 
-                                (isset($decoded['themes']) || isset($decoded['sections']))) {
+                            if (
+                                json_last_error() === JSON_ERROR_NONE &&
+                                (isset($decoded['themes']) || isset($decoded['sections']))
+                            ) {
                                 return self::normalize_ai_response($decoded, false);
                             }
-                            
+
                             // Try with common escape patterns: literal \n, \t, \\", etc.
                             $unescaped = self::unescape_json_string($summary);
                             if ($unescaped !== $summary) {
                                 $decoded = json_decode($unescaped, true);
-                                if (json_last_error() === JSON_ERROR_NONE && 
-                                    (isset($decoded['themes']) || isset($decoded['sections']))) {
+                                if (
+                                    json_last_error() === JSON_ERROR_NONE &&
+                                    (isset($decoded['themes']) || isset($decoded['sections']))
+                                ) {
                                     return self::normalize_ai_response($decoded, false);
                                 }
                             }
@@ -186,7 +194,7 @@ class ai_service {
                     }
                 }
             }
-            
+
             return $out;
         }
 
@@ -204,7 +212,7 @@ class ai_service {
                     // Recursively normalise decoded payload
                     return self::normalize_ai_response($decoded, false);
                 }
-                
+
                 // If direct decode failed, try unescaping first
                 $unescaped = self::unescape_json_string($trim);
                 if ($unescaped !== $trim) {
@@ -250,24 +258,25 @@ class ai_service {
      * @param array $data The parsed response data
      * @return array The corrected data
      */
-    private static function extract_misplaced_content_from_summaries($data) {
+    private static function extract_misplaced_content_from_summaries($data)
+    {
         if (!is_array($data)) {
             return $data;
         }
-        
+
         // Check if we have themes array
         if (empty($data['themes']) || !is_array($data['themes'])) {
             return $data;
         }
-        
+
         // Look through themes for misplaced content
         foreach ($data['themes'] as $idx => $theme) {
             if (!is_array($theme) || empty($theme['summary'])) {
                 continue;
             }
-            
+
             $summary = $theme['summary'];
-            
+
             // Check if summary is already decoded to an array (from deep_unescape_stringified_json)
             if (is_array($summary) && (isset($summary['themes']) || isset($summary['sections']))) {
                 // This is misplaced content already decoded!
@@ -275,19 +284,21 @@ class ai_service {
                 $template_value = $data['template'] ?? "Generated via AI subsystem";
                 $data = $summary;
                 $data['template'] = $template_value;
-                
+
                 return $data;
             }
-            
+
             // Also check if it's a string containing JSON
             if (is_string($summary)) {
                 $summary = trim($summary);
-                
+
                 // Check if summary is a stringified JSON object containing full structure
-                if (strlen($summary) > 100 && 
-                    (strpos($summary, '{"themes"') === 0 || strpos($summary, '{"sections"') === 0) && 
-                    (substr($summary, -1) === '}' || substr($summary, -1) === ']')) {
-                    
+                if (
+                    strlen($summary) > 100 &&
+                    (strpos($summary, '{"themes"') === 0 || strpos($summary, '{"sections"') === 0) &&
+                    (substr($summary, -1) === '}' || substr($summary, -1) === ']')
+                ) {
+
                     // Try to parse it
                     $parsed = json_decode($summary, true);
                     if (is_array($parsed) && (isset($parsed['themes']) || isset($parsed['sections']))) {
@@ -296,13 +307,13 @@ class ai_service {
                         $template_value = $data['template'] ?? "Generated via AI subsystem";
                         $data = $parsed;
                         $data['template'] = $template_value;
-                        
+
                         return $data;
                     }
                 }
             }
         }
-        
+
         return $data;
     }
 
@@ -313,7 +324,8 @@ class ai_service {
      * @param string $str The string to unescape
      * @return string The unescaped string
      */
-    private static function unescape_json_string($str) {
+    private static function unescape_json_string($str)
+    {
         // Handle common escape patterns that might be in the string
         // but not properly interpreted
         $replacements = [
@@ -324,17 +336,17 @@ class ai_service {
             "\\\\" => "\\",       // Escaped backslash -> backslash
             '\\/' => '/',         // Escaped forward slash -> slash
         ];
-        
+
         $result = $str;
         foreach ($replacements as $pattern => $replacement) {
             $result = str_replace($pattern, $replacement, $result);
         }
-        
+
         // Also handle cases where we have double-escaped quotes or backslashes
         // e.g., \\\\" should become \"
         $result = str_replace('\\\\\\"', '\\"', $result);
         $result = str_replace('\\\\\\\\', '\\\\', $result);
-        
+
         return $result;
     }
 
@@ -347,23 +359,26 @@ class ai_service {
      * @param int $depth Current recursion depth (to prevent infinite loops)
      * @return array The structure with deeply decoded JSON fields
      */
-    private static function deep_unescape_stringified_json($data, $depth = 0) {
+    private static function deep_unescape_stringified_json($data, $depth = 0)
+    {
         // Prevent infinite recursion
         if ($depth > 10) {
             return $data;
         }
-        
+
         if (!is_array($data)) {
             return $data;
         }
-        
+
         foreach ($data as $key => &$value) {
             if (is_string($value)) {
                 // Check if string looks like it might be JSON
                 $trimmed = trim($value);
-                if ((strpos($trimmed, '{') === 0 && strrpos($trimmed, '}') === strlen($trimmed) - 1) ||
-                    (strpos($trimmed, '[') === 0 && strrpos($trimmed, ']') === strlen($trimmed) - 1)) {
-                    
+                if (
+                    (strpos($trimmed, '{') === 0 && strrpos($trimmed, '}') === strlen($trimmed) - 1) ||
+                    (strpos($trimmed, '[') === 0 && strrpos($trimmed, ']') === strlen($trimmed) - 1)
+                ) {
+
                     // Try to decode as-is first
                     $decoded = json_decode($trimmed, true);
                     if (is_array($decoded)) {
@@ -385,7 +400,7 @@ class ai_service {
                 $value = self::deep_unescape_stringified_json($value, $depth + 1);
             }
         }
-        
+
         return $data;
     }
 
@@ -398,7 +413,8 @@ class ai_service {
      * @param array $data The response data with 'sections' array
      * @return array The converted data with 'themes' array, or original if no sections found
      */
-    private static function convert_sections_to_themes($data) {
+    private static function convert_sections_to_themes($data)
+    {
         // If already has themes or no sections, return as-is
         if (!isset($data['sections']) || !is_array($data['sections'])) {
             return $data;
@@ -417,18 +433,18 @@ class ai_service {
 
         foreach ($sections as $section) {
             $title = $section['title'] ?? 'Untitled';
-            
+
             // Check if this section should start a new theme
             // (titles containing "Theme", "Unit", "Module" suggest a new thematic grouping)
             $lowerTitle = strtolower($title);
             $isThemeStarter = preg_match('/^(theme|unit|module|part|section)\s+\d+|^(week|session)\s+\d+/i', $title);
-            
+
             if (empty($themes) || $isThemeStarter) {
                 // Start a new theme
-                $themeName = preg_match('/^(theme|unit|module)\s+(\d+)/i', $title, $m) 
+                $themeName = preg_match('/^(theme|unit|module)\s+(\d+)/i', $title, $m)
                     ? ucfirst($m[1]) . ' ' . $m[2]
                     : (preg_match('/^part\s+(\w+)/i', $title, $m2) ? 'Part: ' . $m2[1] : $title);
-                
+
                 $currentTheme = [
                     'title' => $themeName,
                     'summary' => $section['summary'] ?? '',
@@ -482,28 +498,29 @@ class ai_service {
      * @param int $courseid Optional course ID to get start date from. Uses COURSE global if not provided.
      * @return string Formatted date range for the week (e.g., "Jan 6 - Jan 12, 2025")
      */
-    private static function get_week_date_range($weeknumber, $courseid = null) {
+    private static function get_week_date_range($weeknumber, $courseid = null)
+    {
         global $COURSE;
-        
+
         // Get course object if courseid provided
         if (!empty($courseid)) {
             $course = get_course($courseid);
         } else {
             $course = $COURSE;
         }
-        
+
         // Get course start date
         $startdate = !empty($course->startdate) ? $course->startdate : time();
-        
+
         // Calculate week start date (Monday of week number)
         // Week 1 starts on the course start date
         $weekstartdate = $startdate + (($weeknumber - 1) * 7 * 24 * 60 * 60);
         $weekenddate = $weekstartdate + (6 * 24 * 60 * 60); // 6 days later = Sunday
-        
+
         // Format as "Mon Date - Mon Date" (e.g., "Jan 6 - 12")
         $startformatted = userdate($weekstartdate, '%b %d', 99999);
         $endformatted = userdate($weekenddate, '%d', 99999);
-        
+
         return "{$startformatted} - {$endformatted}";
     }
 
@@ -519,9 +536,39 @@ class ai_service {
      * @param bool $includesessions Whether to request session instructions (default: true)
      * @return array Module structure JSON
      */
-    public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null, $courseid = null, $includeactivities = true, $includesessions = true) {
+    public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null, $courseid = null, $includeactivities = true, $includesessions = true)
+    {
         global $USER, $COURSE;
-        
+
+        // SECURITY FIX: Check rate limit before making AI request
+        $ratelimit = get_config('aiplacement_modgen', 'ai_rate_limit');
+        if ($ratelimit === false || $ratelimit === '') {
+            $ratelimit = 10; // Default to 10 requests per hour
+        }
+        $ratelimit = (int) $ratelimit;
+
+        if ($ratelimit > 0) {
+            $cache = \cache::make('aiplacement_modgen', 'ai_requests');
+            $cachekey = 'user_' . $USER->id;
+            $requests = $cache->get($cachekey);
+
+            if ($requests === false) {
+                $requests = 1;
+                $cache->set($cachekey, $requests);
+            } else {
+                if ($requests >= $ratelimit) {
+                    return [
+                        'activities' => [],
+                        'template' => 'Rate limit exceeded. You have made too many AI requests in the past hour. Please try again later.',
+                        'raw' => '',
+                        'debugprompt' => trim($prompt)
+                    ];
+                }
+                $requests++;
+                $cache->set($cachekey, $requests);
+            }
+        }
+
         // Integrate with Moodle AI Subsystem Manager using generate_text action.
         try {
             if (!class_exists('\\core_ai\\manager') || !class_exists('\\core_ai\\aiactions\\generate_text')) {
@@ -552,21 +599,21 @@ class ai_service {
                 $normalizedStructure = 'theme';
             }
             $structure = ($normalizedStructure === 'theme') ? 'theme' : 'weekly';
-            
+
             // Get the configurable pedagogical guidance from admin settings
             $pedagogicalguidance = get_config('aiplacement_modgen', 'baseprompt');
             if (empty($pedagogicalguidance)) {
                 // Fallback to default if not configured
                 $pedagogicalguidance = "You are an expert Moodle learning content designer at a UK higher education institution designing a Moodle module.";
             }
-            
+
             // Add UK English requirement
             $pedagogicalguidance .= "\n\nIMPORTANT: Use UK English spelling and conventions throughout all generated content (e.g., 'organise' not 'organize', 'colour' not 'color', 'centre' not 'center').";
-            
+
             // Build simplified role instruction
             $istemplate = !empty($template_data);
             $source_label = $istemplate ? 'the existing module structure' : 'the curriculum file';
-            
+
             $roleinstruction = $pedagogicalguidance . "\n\n" .
                 "CRITICAL - MUST FOLLOW:\n" .
                 "1. COMPLETE output: Generate all topics/sections. Do NOT stop early or truncate.\n" .
@@ -579,7 +626,7 @@ class ai_service {
             // Add structure-specific guidance - simplified
             if ($structure === 'theme') {
                 $requestedthemecount = self::extract_requested_theme_count($prompt, $structure);
-                
+
                 if (!empty($requestedthemecount)) {
                     $roleinstruction .= "THEME GENERATION:\n" .
                         "Generate EXACTLY {$requestedthemecount} themes (non-negotiable).\n" .
@@ -802,7 +849,7 @@ class ai_service {
                 $exampledate1 = self::get_week_date_range(1, $courseid);
                 $weekdateguidance = "\nInclude week dates in titles: \"{$exampledate1}\" instead of just \"Week 1\".\n";
             }
-            
+
             $formatinstruction .= $weekdateguidance;
 
             // Add template guidance if template data is provided
@@ -821,7 +868,7 @@ class ai_service {
                     if (is_string($dcontent) && strlen($dcontent) > 50000) {
                         $dcontent = substr($dcontent, 0, 50000) . "\n[truncated]";
                     }
-                    $documents_text .= "--- {$dname} ---\n" . trim((string)$dcontent) . "\n\n";
+                    $documents_text .= "--- {$dname} ---\n" . trim((string) $dcontent) . "\n\n";
                 }
             }
 
@@ -834,12 +881,12 @@ class ai_service {
 
             // Build final prompt - lean and direct
             // IMPORTANT: Put template guidance AFTER format instruction so it clearly describes the output
-            $finalprompt = $roleinstruction . 
-                $documents_text . 
+            $finalprompt = $roleinstruction .
+                $documents_text .
                 "User request: " . trim($prompt) . "\n\n" .
                 $formatinstruction .
                 $template_guidance;
-            
+
             // Add completeness enforcement at END (has most weight)
             if ($structure === 'theme') {
                 if (!empty($requestedthemecount)) {
@@ -888,7 +935,7 @@ class ai_service {
             // Try to decode the provider's generated text as JSON per our schema.
             // Check multiple possible response keys - generatedcontent takes priority for OpenAI
             $text = $data['generatedcontent'] ?? ($data['generatedtext'] ?? ($data['text'] ?? ($data['content'] ?? '')));
-            
+
             // If we got no text at all, return error
             if (empty($text) || !is_string($text)) {
                 return [
@@ -896,12 +943,12 @@ class ai_service {
                     'template' => 'AI error: The AI service did not return any generated text. Response keys: ' . implode(', ', array_keys($data ?? []))
                 ];
             }
-            
+
             // Log token usage and potential truncation
             $prompt_tokens = strlen($finalprompt) / 4; // Rough estimate: 1 token ≈ 4 chars
             $response_tokens = strlen($text) / 4;
             $total_tokens = $prompt_tokens + $response_tokens;
-            
+
             // Check if response looks truncated (ends mid-sentence, incomplete JSON, etc)
             $response_looks_truncated = false;
             if (strlen($text) > 100) {
@@ -912,23 +959,23 @@ class ai_service {
                     $response_looks_truncated = true;
                 }
             }
-            
+
             // Response truncation check
             if ($response_looks_truncated) {
                 // WARNING: Response may be truncated due to token limits
             }
-            
+
             $jsondecoded = null;
             if (is_string($text)) {
                 // First attempt: direct JSON decode.
                 $jsondecoded = json_decode($text, true);
-                
+
                 // If decode failed, check why
                 if (!is_array($jsondecoded)) {
                     $jsonError = json_last_error_msg();
                     // Don't report every JSON error, just continue to next attempt
                 }
-                
+
                 // Second attempt: extract a JSON object/array from the text if provider added commentary.
                 if (!is_array($jsondecoded)) {
                     // Try to find JSON wrapped in code blocks or quoted strings
@@ -938,7 +985,7 @@ class ai_service {
                         $jsondecoded = json_decode($m[1], true);
                     }
                 }
-                
+
                 // Third attempt: if still not decoded, try unescaping the entire response first
                 if (!is_array($jsondecoded)) {
                     $unescaped = self::unescape_json_string($text);
@@ -966,10 +1013,10 @@ class ai_service {
             // Attempt to normalise nested/stringified JSON that may be embedded in string fields.
             if (is_array($jsondecoded)) {
                 $jsondecoded = self::normalize_ai_response($jsondecoded, true);
-                
+
                 // Extract stringified JSON from summary fields that looks like full content
                 $jsondecoded = self::extract_misplaced_content_from_summaries($jsondecoded);
-                
+
                 // Debug logging using Moodle's debugging API (only in developer mode)
                 debugging('AI response: ' . json_encode($jsondecoded), DEBUG_DEVELOPER);
             }
@@ -1007,7 +1054,7 @@ class ai_service {
             // For theme structure, attempt to convert sections to themes before falling back
             if ($structure === 'theme' && is_array($jsondecoded) && isset($jsondecoded['sections'])) {
                 $jsondecoded = self::convert_sections_to_themes($jsondecoded);
-                
+
                 // Validate the converted structure
                 $validation = self::validate_module_structure($jsondecoded, $structure);
                 if ($validation['valid']) {
@@ -1050,7 +1097,8 @@ class ai_service {
      * @param bool $includesessions Whether to request session instructions (default: true)
      * @return array Response from AI service
      */
-    public static function generate_module_with_template($prompt, $template_data, $documents = [], $structure = 'weekly', $courseid = null, $includeactivities = true, $includesessions = true) {
+    public static function generate_module_with_template($prompt, $template_data, $documents = [], $structure = 'weekly', $courseid = null, $includeactivities = true, $includesessions = true)
+    {
         return self::generate_module($prompt, $documents, $structure, $template_data, $courseid, $includeactivities, $includesessions);
     }
 
@@ -1067,15 +1115,16 @@ class ai_service {
      * @param string $structure 'theme' or 'weekly'
      * @return string Guidance text for AI prompt
      */
-    private static function build_template_prompt_guidance($template_data, $structure = 'weekly') {
+    private static function build_template_prompt_guidance($template_data, $structure = 'weekly')
+    {
         $guidance = "";
-        
+
         // Detect multiple modules
         $is_multiple = !empty($template_data['module_count']) && $template_data['module_count'] > 1;
-        
+
         // Create compact structure representation
         $compact = self::create_compact_template_structure($template_data);
-        
+
         // Mode-specific instructions
         if ($structure === 'theme') {
             // Count the actual weeks in the template
@@ -1083,7 +1132,7 @@ class ai_service {
             if (!empty($compact['sections']) && is_array($compact['sections'])) {
                 $template_week_count = count($compact['sections']);
             }
-            
+
             // THEME MODE: AI should analyze and reorganize into themes
             $guidance .= "\n*** TEMPLATE-BASED THEME GENERATION ***\n";
             $guidance .= "You are converting content into a thematic structure based on this template:\n\n";
@@ -1093,7 +1142,7 @@ class ai_service {
             $guidance .= "- The 'label_sequence' shows headings like 'Learning Resources', 'Activities', 'Assessment'\n";
             $guidance .= "- Use these labels to UNDERSTAND what type of content each activity represents\n";
             $guidance .= "- DO NOT recreate these labels in your output\n\n";
-            
+
             if ($template_week_count > 0) {
                 $guidance .= "*** MANDATORY WEEK COUNT ***\n";
                 $guidance .= "The template has EXACTLY {$template_week_count} sections/weeks.\n";
@@ -1101,7 +1150,7 @@ class ai_service {
                 $guidance .= "EVERY template section MUST map to EXACTLY ONE output week.\n";
                 $guidance .= "This is NON-NEGOTIABLE. Failure to include all {$template_week_count} weeks is an error.\n\n";
             }
-            
+
             $guidance .= "YOUR TASK:\n";
             $guidance .= "1. Count the template sections: {$template_week_count} sections = {$template_week_count} output weeks required\n";
             $guidance .= "2. Group these {$template_week_count} weeks into natural thematic clusters (e.g., 3 themes × 3-4 weeks each, or 5 themes × 2 weeks each)\n";
@@ -1135,7 +1184,7 @@ class ai_service {
             if (!empty($compact['sections']) && is_array($compact['sections'])) {
                 $template_week_count = count($compact['sections']);
             }
-            
+
             // WEEKLY/CONNECTED MODE: AI should preserve structure
             $guidance .= "\n*** TEMPLATE-BASED WEEKLY GENERATION ***\n";
             $guidance .= "You are recreating content in weekly structure based on this template:\n\n";
@@ -1144,7 +1193,7 @@ class ai_service {
             $guidance .= "- The 'organizational_pattern' shows the original content organization\n";
             $guidance .= "- The 'label_sequence' shows headings used to organize activities\n";
             $guidance .= "- Use these to understand content structure and types\n\n";
-            
+
             if ($template_week_count > 0) {
                 $guidance .= "*** MANDATORY SECTION COUNT ***\n";
                 $guidance .= "The template has EXACTLY {$template_week_count} sections.\n";
@@ -1152,7 +1201,7 @@ class ai_service {
                 $guidance .= "EVERY template section MUST map to EXACTLY ONE output section.\n";
                 $guidance .= "This is NON-NEGOTIABLE. Failure to include all {$template_week_count} sections is an error.\n\n";
             }
-            
+
             $guidance .= "YOUR TASK:\n";
             $guidance .= "1. Count the template sections: {$template_week_count} sections = {$template_week_count} output sections required\n";
             $guidance .= "2. CRITICAL - DIRECT 1-to-1 SECTION MAPPING (NON-NEGOTIABLE):\n";
@@ -1180,7 +1229,7 @@ class ai_service {
             $guidance .= "   - Generate metadata suitable for each session type (e.g., Pre-session = Asynchronous reading)\n";
             $guidance .= "6. Use Moodle's flexible sections format for output\n\n";
         }
-        
+
         // Output field instruction
         $guidance .= "*** OUTPUT 'template' FIELD ***\n";
         if ($is_multiple) {
@@ -1189,25 +1238,26 @@ class ai_service {
             $guidance .= "Set 'template' value to: \"Based on existing module template\"\n";
         }
         $guidance .= "\nDo NOT include this template metadata in theme/section summaries.\n";
-        
+
         return $guidance;
     }
-    
+
     /**
      * Create compact template structure for AI consumption.
      *
      * @param array $template_data Raw extracted template data
      * @return array Compact structure with organizational patterns
      */
-    public static function create_compact_template_structure($template_data) {
+    public static function create_compact_template_structure($template_data)
+    {
         $compact = [
-            'source' => !empty($template_data['module_count']) && $template_data['module_count'] > 1 
-                ? 'multiple_modules' 
+            'source' => !empty($template_data['module_count']) && $template_data['module_count'] > 1
+                ? 'multiple_modules'
                 : 'single_module',
             'organizational_pattern' => self::extract_organizational_pattern($template_data),
             'sections' => []
         ];
-        
+
         // Process each section from the structure
         if (!empty($template_data['structure']) && is_array($template_data['structure'])) {
             foreach ($template_data['structure'] as $section) {
@@ -1216,12 +1266,12 @@ class ai_service {
                     'title' => $section['name'] ?? 'Untitled',
                     'content' => []
                 ];
-                
+
                 // Add section summary as initial context if present
                 if (!empty($section['summary'])) {
                     $section_data['summary'] = substr($section['summary'], 0, 200); // Truncate for tokens
                 }
-                
+
                 // Find activities for this section
                 if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
                     foreach ($template_data['activities'] as $activity) {
@@ -1230,7 +1280,7 @@ class ai_service {
                             $activity_item = [
                                 'type' => $activity['type'] ?? 'unknown'
                             ];
-                            
+
                             // For labels, include the intro (these are headings)
                             if ($activity['type'] === 'label' && !empty($activity['intro'])) {
                                 $activity_item['text'] = $activity['intro'];
@@ -1238,72 +1288,73 @@ class ai_service {
                                 // For other activities, just the name
                                 $activity_item['name'] = $activity['name'] ?? 'Untitled';
                             }
-                            
+
                             $section_data['content'][] = $activity_item;
                         }
                     }
                 }
-                
+
                 $compact['sections'][] = $section_data;
             }
         }
-        
+
         return $compact;
     }
-    
+
     /**
      * Extract organizational patterns from template data.
      *
      * @param array $template_data Template data
      * @return array Patterns (label sequence, typical activity count, etc.)
      */
-    private static function extract_organizational_pattern($template_data) {
+    private static function extract_organizational_pattern($template_data)
+    {
         $pattern = [
             'label_sequence' => [],
             'activity_types_used' => [],
             'typical_activities_per_section' => 0
         ];
-        
+
         if (empty($template_data['activities']) || !is_array($template_data['activities'])) {
             return $pattern;
         }
-        
+
         $label_sequence = [];
         $activity_types = [];
         $section_counts = [];
         $current_section = null;
-        
+
         foreach ($template_data['activities'] as $activity) {
             $type = $activity['type'] ?? 'unknown';
-            
+
             // Track section for counting
             $section = $activity['section'] ?? 'unknown';
             if (!isset($section_counts[$section])) {
                 $section_counts[$section] = 0;
             }
             $section_counts[$section]++;
-            
+
             // Extract label sequence from first occurrence
             if ($type === 'label' && !empty($activity['intro'])) {
                 if (!in_array($activity['intro'], $label_sequence)) {
                     $label_sequence[] = $activity['intro'];
                 }
             }
-            
+
             // Track activity types
             if (!in_array($type, $activity_types)) {
                 $activity_types[] = $type;
             }
         }
-        
+
         $pattern['label_sequence'] = $label_sequence;
         $pattern['activity_types_used'] = $activity_types;
-        
+
         // Calculate average activities per section
         if (!empty($section_counts)) {
             $pattern['typical_activities_per_section'] = (int) round(array_sum($section_counts) / count($section_counts));
         }
-        
+
         return $pattern;
     }
 
@@ -1313,7 +1364,8 @@ class ai_service {
      * @param string $prompt The analysis prompt
      * @return string Analysis text
      */
-    public static function analyze_module(string $prompt): string {
+    public static function analyze_module(string $prompt): string
+    {
         global $USER, $COURSE;
 
         try {
@@ -1339,7 +1391,7 @@ class ai_service {
             $response = $aimanager->process_action($action);
             $data = $response->get_response_data();
             $text = $data['generatedtext'] ?? ($data['generatedcontent'] ?? '');
-            
+
             if (is_string($text)) {
                 return trim($text);
             }
@@ -1360,7 +1412,8 @@ class ai_service {
      * @param int|null $courseid
      * @return array
      */
-    public static function generate_suggestions_from_map(array $sectionmap, $courseid = null): array {
+    public static function generate_suggestions_from_map(array $sectionmap, $courseid = null): array
+    {
         global $USER;
 
         try {
@@ -1385,8 +1438,8 @@ class ai_service {
             // match AI-returned free-text types back to supported keys.
             $normmap = [];
             foreach ($allowedtypes as $t) {
-                $label = (string)($supported[$t]['description'] ?? $t);
-                $stringid = (string)($supported[$t]['stringid'] ?? '');
+                $label = (string) ($supported[$t]['description'] ?? $t);
+                $stringid = (string) ($supported[$t]['stringid'] ?? '');
                 $normforms = [];
                 $normforms[] = preg_replace('/[^a-z0-9]+/', '', \core_text::strtolower($t));
                 if ($stringid !== '') {
@@ -1507,15 +1560,15 @@ class ai_service {
                 if (!is_array($s)) {
                     continue;
                 }
-                $id = isset($s['id']) ? (string)$s['id'] : (string)($i + 1);
+                $id = isset($s['id']) ? (string) $s['id'] : (string) ($i + 1);
                 $activity = $s['activity'] ?? [];
                 $rationale = $s['rationale'] ?? ($s['reason'] ?? '');
                 // Read Laurillard learning type and rationale if provided by the AI.
                 $laurillard_type = $s['laurillard_type'] ?? $s['laurillardType'] ?? $s['laurillard'] ?? '';
                 $laurillard_rationale = $s['laurillard_rationale'] ?? $s['laurillardRationale'] ?? $s['laurillard_reason'] ?? '';
-                $supported = isset($s['supported']) ? (bool)$s['supported'] : true;
+                $supported = isset($s['supported']) ? (bool) $s['supported'] : true;
                 // Attempt to normalise the returned type and match it to a supported key.
-                $rawtype = (string)($activity['type'] ?? ($activity['activity'] ?? ''));
+                $rawtype = (string) ($activity['type'] ?? ($activity['activity'] ?? ''));
                 $cand = preg_replace('/[^a-z0-9]+/', '', \core_text::strtolower($rawtype));
                 $matched = $normmap[$cand] ?? null;
                 if ($matched === null) {
@@ -1546,7 +1599,7 @@ class ai_service {
 
                 $out[] = [
                     'id' => $id,
-                    'activity' => (object)[
+                    'activity' => (object) [
                         'type' => $type_to_use,
                         'name' => $activity['name'] ?? ($activity['title'] ?? 'Suggested Activity')
                     ],

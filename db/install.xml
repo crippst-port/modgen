@@ -13,6 +13,9 @@
                 <KEY NAME="cmid_uk" TYPE="unique" FIELDS="cmid"/>
                 <KEY NAME="courseid_fk" TYPE="foreign" FIELDS="courseid" REFTABLE="course" REFFIELDS="id"/>
             </KEYS>
+            <INDEXES>
+                <INDEX NAME="courseid" UNIQUE="false" FIELDS="courseid"/>
+            </INDEXES>
         </TABLE>
         <TABLE NAME="aiplacement_modgen_templates" COMMENT="CSV templates for module generation">
             <FIELDS>

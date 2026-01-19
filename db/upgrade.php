@@ -30,7 +30,8 @@ defined('MOODLE_INTERNAL') || die();
  * @param int $oldversion Old plugin version
  * @return bool True on success
  */
-function xmldb_aiplacement_modgen_upgrade($oldversion) {
+function xmldb_aiplacement_modgen_upgrade($oldversion)
+{
     global $DB;
 
     $dbman = $DB->get_manager();
@@ -125,6 +126,20 @@ function xmldb_aiplacement_modgen_upgrade($oldversion) {
 
         // Savepoint reached.
         upgrade_plugin_savepoint(true, 2026010900, 'aiplacement', 'modgen');
+    }
+
+    // Upgrade path for version 2026011700 - add index on courseid for performance.
+    if ($oldversion < 2026011700) {
+        // Add index on courseid in aiplacement_modgen_aigen table for better query performance.
+        $table = new xmldb_table('aiplacement_modgen_aigen');
+        $index = new xmldb_index('courseid', XMLDB_INDEX_NOTUNIQUE, array('courseid'));
+
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+
+        // Savepoint reached.
+        upgrade_plugin_savepoint(true, 2026011700, 'aiplacement', 'modgen');
     }
 
     return true;

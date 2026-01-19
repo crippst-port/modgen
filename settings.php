@@ -81,6 +81,14 @@ if ($hassiteconfig) {
             '300'
         ));
 
+        $settings->add(new admin_setting_configtext(
+            'aiplacement_modgen/ai_rate_limit',
+            new lang_string('airatelimit', 'aiplacement_modgen'),
+            new lang_string('airatelimit_desc', 'aiplacement_modgen'),
+            '10',
+            PARAM_INT
+        ));
+
         // Base on existing module configuration
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/existingmoduleheading',
@@ -190,8 +198,8 @@ if ($hassiteconfig) {
         $settings->add(new admin_setting_configtextarea(
             'aiplacement_modgen/holiday_dates',
             new lang_string('holidaydates', 'aiplacement_modgen'),
-            new lang_string('holidaydates_desc', 'aiplacement_modgen') . '<br><em>' . 
-                get_string('holidaydates_format_example', 'aiplacement_modgen') . '</em>',
+            new lang_string('holidaydates_desc', 'aiplacement_modgen') . '<br><em>' .
+            get_string('holidaydates_format_example', 'aiplacement_modgen') . '</em>',
             '',
             PARAM_TEXT,
             60,

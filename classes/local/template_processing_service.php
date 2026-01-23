@@ -59,16 +59,18 @@ class template_processing_service {
         bool $includesessions
     ): array {
         global $USER;
-        
+
         $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'connected_weekly';
 
-        
+        // Initialize debug log array
+        $debuglog = [];
+
         // Step 1: Check if a CSV template was selected
         $csvfile = $this->load_csv_template($pdata);
-        
+
         // Step 2: Extract template from existing modules (if selected)
         $existing_modules = $this->get_existing_modules($pdata);
-        
+
         if (!empty($existing_modules)) {
             return $this->process_with_existing_modules(
                 $existing_modules,

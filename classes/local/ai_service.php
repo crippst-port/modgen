@@ -1018,7 +1018,7 @@ class ai_service
                 $jsondecoded = self::extract_misplaced_content_from_summaries($jsondecoded);
 
                 // Debug logging using Moodle's debugging API (only in developer mode)
-                debugging('AI response: ' . json_encode($jsondecoded), DEBUG_DEVELOPER);
+                // debugging('AI response: ' . json_encode($jsondecoded), DEBUG_DEVELOPER);
             }
 
             if (is_array($jsondecoded) && (isset($jsondecoded['sections']) || isset($jsondecoded['themes']) || isset($jsondecoded['activities']))) {

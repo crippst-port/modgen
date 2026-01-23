@@ -118,7 +118,7 @@ try {
     $extra = @ob_get_clean();
     $response = ['created' => $result['created'] ?? [], 'warnings' => $result['warnings'] ?? []];
     if ($extra !== false && trim($extra) !== '') {
-        $response['debug_extra_base64'] = base64_encode($extra);
+
     }
 
     ajax_response::success($response);

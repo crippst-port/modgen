@@ -52,7 +52,12 @@ const toggleVisibility = async(button) => {
                 button.title = await getString('aigen_hide_activity', 'aiplacement_modgen');
                 icon.className = 'fa fa-eye-slash';
                 
-                statusCell.innerHTML = `<span class="badge badge-success">${await getString('visible')}</span>`;
+                // Safe: set using DOM
+const badge = document.createElement('span');
+badge.className = 'badge badge-success';
+badge.textContent = await getString('visible');
+statusCell.innerHTML = '';
+statusCell.appendChild(badge);
                 activityName.classList.remove('text-muted');
             } else {
                 // Now hidden.
@@ -60,7 +65,12 @@ const toggleVisibility = async(button) => {
                 button.title = await getString('aigen_show_activity', 'aiplacement_modgen');
                 icon.className = 'fa fa-eye';
                 
-                statusCell.innerHTML = `<span class="badge badge-secondary">${await getString('hidden', 'aiplacement_modgen')}</span>`;
+                // Safe: set using DOM
+const badge = document.createElement('span');
+badge.className = 'badge badge-secondary';
+badge.textContent = await getString('hidden', 'aiplacement_modgen');
+statusCell.innerHTML = '';
+statusCell.appendChild(badge);
                 activityName.classList.add('text-muted');
             }
         } else {

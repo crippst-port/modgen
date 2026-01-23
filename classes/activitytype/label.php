@@ -85,10 +85,10 @@ class label implements activity_type {
             $moduleinfo->introformat = 1;
             $moduleinfo->showdescription = 1;  // Display description on course page
 
-            file_put_contents('/tmp/modgen_debug.log', "Label module info prepared: " . print_r($moduleinfo, true) . "\n", FILE_APPEND);
+
 
             $cm = create_module($moduleinfo);
-            file_put_contents('/tmp/modgen_debug.log', "Label creation SUCCESS: CM ID = " . $cm->coursemodule . "\n", FILE_APPEND);
+
             
             return [
                 'coursemodule' => $cm->coursemodule,
@@ -96,8 +96,8 @@ class label implements activity_type {
             ];
             
         } catch (\Exception $e) {
-            file_put_contents('/tmp/modgen_debug.log', "LABEL EXCEPTION: " . $e->getMessage() . "\n", FILE_APPEND);
-            file_put_contents('/tmp/modgen_debug.log', "Stack trace: " . $e->getTraceAsString() . "\n", FILE_APPEND);
+
+
             return null;
         }
     }

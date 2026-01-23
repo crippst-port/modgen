@@ -280,13 +280,19 @@ class file_processor {
      * @return bool
      */
     private function is_libreoffice_available(): bool {
+        // Use PHP's built-in functions to check for LibreOffice binary in PATH
         static $available = null;
-
         if ($available === null) {
-            $result = shell_exec('which libreoffice 2>&1');
-            $available = !empty($result);
+            $paths = explode(PATH_SEPARATOR, getenv('PATH') ?: '');
+            $found = false;
+            foreach ($paths as $path) {
+                if (is_executable($path . DIRECTORY_SEPARATOR . 'libreoffice')) {
+                    $found = true;
+                    break;
+                }
+            }
+            $available = $found;
         }
-
         return $available;
     }
 

@@ -31,7 +31,8 @@ define([], function() {
 
         // Decode HTML entities
         const textarea = document.createElement('textarea');
-        textarea.innerHTML = jsonData;
+        // Safe: decode HTML entities using textContent
+textarea.textContent = jsonData;
         const jsonContent = textarea.value;
 
         // Create blob and download

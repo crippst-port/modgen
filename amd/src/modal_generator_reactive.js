@@ -1320,7 +1320,8 @@ class ModalGeneratorComponent extends BaseComponent {
                             // Insert error at the top of the form
                             const errorDiv = document.createElement('div');
                             errorDiv.className = 'alert alert-danger form-error-message';
-                            errorDiv.innerHTML = '<p>' + (data.error || 'An error occurred') + '</p>';
+                            // Safe: set error message using textContent
+errorDiv.textContent = data.error || 'An error occurred';
                             bodyNode.insertBefore(errorDiv, bodyNode.firstChild);
 
                             // Scroll to top so error is visible

@@ -85,7 +85,11 @@ const addMarkersToActivities = (cmids) => {
         marker.className = 'aiplacement-modgen-aigen-marker ms-1';
         const tooltipText = M.util.get_string('aigenmarker_tooltip', 'aiplacement_modgen');
         marker.setAttribute('title', tooltipText);
-        marker.innerHTML = '<i class="fa fa-bolt text-info"></i>';
+        // Safe: create icon element directly
+const icon = document.createElement('i');
+icon.className = 'fa fa-bolt text-info';
+marker.innerHTML = '';
+marker.appendChild(icon);
 
         // Append to activityname div
         activityName.appendChild(marker);

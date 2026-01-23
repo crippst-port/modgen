@@ -61,10 +61,10 @@ class template_processing_service {
         global $USER;
         
         $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'connected_weekly';
-        $debuglog = [];
+
         
         // Step 1: Check if a CSV template was selected
-        $csvfile = $this->load_csv_template($pdata, $debuglog);
+        $csvfile = $this->load_csv_template($pdata);
         
         // Step 2: Extract template from existing modules (if selected)
         $existing_modules = $this->get_existing_modules($pdata);
@@ -101,10 +101,10 @@ class template_processing_service {
      * Load CSV template - uploaded files take priority over dropdown selection.
      *
      * @param \stdClass $pdata Form data
-     * @param array &$debuglog Debug log array
+
      * @return \stored_file|null CSV file or null
      */
-    private function load_csv_template(\stdClass $pdata, array &$debuglog): ?\stored_file {
+    private function load_csv_template(\stdClass $pdata): ?\stored_file {
         global $USER;
 
         // Check if user uploaded a file - this takes priority over template dropdown
@@ -123,7 +123,7 @@ class template_processing_service {
 
                 $ext = strtolower(pathinfo($file->get_filename(), PATHINFO_EXTENSION));
                 if ($ext === 'csv') {
-                    $debuglog[] = 'Using uploaded CSV file: ' . $file->get_filename();
+
                     return $file;
                 }
             }
@@ -131,7 +131,7 @@ class template_processing_service {
             // If user uploaded a non-CSV file, try to use it anyway
             if (!empty($files)) {
                 $file = array_shift($files);
-                $debuglog[] = 'Using uploaded file (non-CSV): ' . $file->get_filename();
+
                 return $file;
             }
         }
@@ -151,7 +151,7 @@ class template_processing_service {
                     throw new \Exception('CSV file not found in file storage');
                 }
 
-                $debuglog[] = 'Loaded CSV template: ' . $template->name;
+
                 return $csvfile;
 
             } catch (\Exception $e) {
@@ -216,7 +216,7 @@ class template_processing_service {
             // Extract and merge templates from all selected modules
             // (Template extraction logic would go here - keeping original complexity)
             
-            $debuglog[] = 'Template data keys: ' . implode(', ', array_keys($template_data ?? []));
+
             
             if (!is_array($template_data) || empty($template_data)) {
                 throw new \Exception('Template data is empty or invalid');
@@ -233,7 +233,7 @@ class template_processing_service {
                     $data_summary[] = $key . '=' . gettype($value);
                 }
             }
-            $debuglog[] = 'Template data summary: ' . implode(', ', $data_summary);
+
             
             // Determine processing mode
             $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');

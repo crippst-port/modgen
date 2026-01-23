@@ -183,8 +183,8 @@ class registry {
         $files = glob($directory . '/*.php');
 
         // Debug: log what files we're finding
-        file_put_contents('/tmp/modgen_debug.log', "Registry scanning directory: $directory\n", FILE_APPEND);
-        file_put_contents('/tmp/modgen_debug.log', "Found files: " . print_r($files, true) . "\n", FILE_APPEND);
+
+
 
         foreach ($files as $filepath) {
             $filename = basename($filepath, '.php');
@@ -193,34 +193,34 @@ class registry {
             }
 
             $classname = __NAMESPACE__ . '\\' . $filename;
-            file_put_contents('/tmp/modgen_debug.log', "Checking class: $classname\n", FILE_APPEND);
+
             
             if (!class_exists($classname, false)) {
                 require_once($filepath);
             }
 
             if (!class_exists($classname)) {
-                file_put_contents('/tmp/modgen_debug.log', "Class $classname does not exist after require\n", FILE_APPEND);
+
                 continue;
             }
             
             if (!is_subclass_of($classname, activity_type::class)) {
-                file_put_contents('/tmp/modgen_debug.log', "Class $classname is not subclass of activity_type\n", FILE_APPEND);
+
                 continue;
             }
 
             $type = self::normalise_type($classname::get_type());
             if ($type === '') {
-                file_put_contents('/tmp/modgen_debug.log', "Class $classname returned empty type\n", FILE_APPEND);
+
                 continue;
             }
 
             $map[$type] = $classname;
-            file_put_contents('/tmp/modgen_debug.log', "Registered $type => $classname\n", FILE_APPEND);
+
         }
 
         self::$map = $map;
-        file_put_contents('/tmp/modgen_debug.log', "Final map: " . print_r($map, true) . "\n", FILE_APPEND);
+
         return self::$map;
     }
 

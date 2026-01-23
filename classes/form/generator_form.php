@@ -143,7 +143,7 @@ class aiplacement_modgen_generator_form extends moodleform
         $buttonarray = [];
         $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('submit', 'aiplacement_modgen'));
         if (get_config('aiplacement_modgen', 'enable_ai') && get_config('aiplacement_modgen', 'enable_existing_modules')) {
-            $buttonarray[] = $mform->createElement('submit', 'debugbutton', 'DEBUG: Show Template Data');
+
         }
         $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);
 

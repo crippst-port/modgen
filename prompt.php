@@ -1123,7 +1123,7 @@ if ($pdata = $promptform->get_data()) {
     $debugprompt = isset($json['debugprompt']) ? $json['debugprompt'] : $prompt;
     $jsonstr = json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($jsonstr === false) {
-        $jsonstr = print_r($json, true);
+
     }
     // For fresh generation (start from scratch), skip re-encoding module data for summary
     // Just use a simple generated fallback summary instead

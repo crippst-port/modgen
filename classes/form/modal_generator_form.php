@@ -163,7 +163,7 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
         $buttonarray = [];
         $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('submit', 'aiplacement_modgen'));
         if (get_config('aiplacement_modgen', 'enable_ai') && get_config('aiplacement_modgen', 'enable_existing_modules')) {
-            $buttonarray[] = $mform->createElement('submit', 'debugbutton', 'DEBUG: Show Template Data');
+
         }
         $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);
         
@@ -222,13 +222,15 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
             return null;
         }
 
-        // Manually add the moduletype from POST if it's missing from $data
-        // This handles the case where the select field validation filters it out
-        if (!isset($data->moduletype) || empty($data->moduletype)) {
-            if (!empty($_POST['moduletype'])) {
-                $data->moduletype = $_POST['moduletype'];
-            }
-        }
+        // Remove direct $_POST access. If moduletype is missing, do not attempt to recover from raw POST.
+        // The form API should guarantee this is set if present and valid.
+        // If not set, leave as null and let validation handle it.
+        // (Security: never trust raw $_POST here)
+        // if (!isset($data->moduletype) || empty($data->moduletype)) {
+        //     if (!empty($_POST['moduletype'])) {
+        //         $data->moduletype = $_POST['moduletype'];
+        //     }
+        // }
 
         return $data;
     }

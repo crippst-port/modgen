@@ -312,13 +312,13 @@ try {
     // Discard any accidental output and return JSON
     $extra = @ob_get_clean();
     if ($extra !== false && trim($extra) !== '') {
-        // Attach a base64-encoded debug field so client can see unexpected HTML without breaking JSON.parse
-        $result['debug_extra_base64'] = base64_encode($extra);
+
+
     }
 
     ajax_response::success($result);
 } catch (\Throwable $e) {
-    // Capture any buffered output, include in error response for debugging
+
     $buffered = '';
     if (ob_get_length() !== false) {
         $buffered = @ob_get_clean();

@@ -42,13 +42,21 @@ define(["exports", "core/config", "core/str"], function (_exports, _config, _str
           button.dataset.visible = '1';
           button.title = await (0, _str.get_string)('aigen_hide_activity', 'aiplacement_modgen');
           icon.className = 'fa fa-eye-slash';
-          statusCell.innerHTML = "<span class=\"badge badge-success\">".concat(await (0, _str.get_string)('visible'), "</span>");
+          const badge = document.createElement('span');
+          badge.className = 'badge badge-success';
+          badge.textContent = await (0, _str.get_string)('visible');
+          statusCell.innerHTML = '';
+          statusCell.appendChild(badge);
           activityName.classList.remove('text-muted');
         } else {
           button.dataset.visible = '0';
           button.title = await (0, _str.get_string)('aigen_show_activity', 'aiplacement_modgen');
           icon.className = 'fa fa-eye';
-          statusCell.innerHTML = "<span class=\"badge badge-secondary\">".concat(await (0, _str.get_string)('hidden', 'aiplacement_modgen'), "</span>");
+          const badge = document.createElement('span');
+          badge.className = 'badge badge-secondary';
+          badge.textContent = await (0, _str.get_string)('hidden', 'aiplacement_modgen');
+          statusCell.innerHTML = '';
+          statusCell.appendChild(badge);
           activityName.classList.add('text-muted');
         }
       } else {

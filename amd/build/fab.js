@@ -17,9 +17,9 @@ define([], function () {
       const {
         html
       } = await Templates.renderForPromise('aiplacement_modgen/fab_button', context);
-      const temp = document.createElement('div');
-      temp.innerHTML = html;
-      const button = temp.firstElementChild;
+      const doc = document.createElement('div');
+      doc.innerHTML = html;
+      const button = doc.firstElementChild;
       document.body.appendChild(button);
       return button;
     };

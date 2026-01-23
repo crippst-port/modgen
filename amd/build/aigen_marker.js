@@ -57,7 +57,10 @@ define(["exports", "core/config"], function (_exports, _config) {
       marker.className = 'aiplacement-modgen-aigen-marker ms-1';
       const tooltipText = M.util.get_string('aigenmarker_tooltip', 'aiplacement_modgen');
       marker.setAttribute('title', tooltipText);
-      marker.innerHTML = '<i class="fa fa-bolt text-info"></i>';
+      const icon = document.createElement('i');
+      icon.className = 'fa fa-bolt text-info';
+      marker.innerHTML = '';
+      marker.appendChild(icon);
       activityName.appendChild(marker);
     });
   };

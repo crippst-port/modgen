@@ -1269,15 +1269,7 @@ class ModalGeneratorComponent extends BaseComponent {
             // Set action AFTER adding form fields to ensure it's not overwritten
             params.action = action;
 
-            // Disable form buttons during submission
-            const body = modal.getBody();
-            const bodyNode = body && body.length ? body.get(0) : null;
-            if (bodyNode) {
-                const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
-                buttons.forEach(button => button.disabled = true);
-            }
-
-            // Show loading indicator with context-specific message
+            // Show loading indicator
             const loadingMessage = await getString(
                 formName === 'add_theme' ? 'creatingthemes' : 'creatingsections',
                 'aiplacement_modgen'
@@ -1293,52 +1285,58 @@ class ModalGeneratorComponent extends BaseComponent {
                 body: new URLSearchParams(params),
             })
                 .then(response => response.json())
-                .then(data => {
+                .then(async data => {
                     if (data.success) {
-                        // Hide loading indicator
-                        LoadingIndicator.hideFromModal(modal);
-
                         // Parse detailed messages if present
                         const details = data.messages && data.messages.length > 0 ? data.messages : [];
 
                         // Show success message using reusable method
                         this.showSuccess(modal, data.message, details);
                     } else {
-                        // Re-enable buttons on error
-                        const body = modal.getBody();
-                        const bodyNode = body && body.length ? body.get(0) : null;
-                        if (bodyNode) {
-                            const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
-                            buttons.forEach(button => button.disabled = false);
+                        // Validation failed - reload the form with error message
+                        Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
+                            courseid: this.courseid,
+                            contextid: this.contextid,
+                        })
+                            .then((html) => {
+                                modal.setBody(html);
 
-                            // Remove any existing error messages
-                            const existingError = bodyNode.querySelector('.form-error-message');
-                            if (existingError) {
-                                existingError.remove();
-                            }
+                                // Insert error at the top of the form
+                                const newBody = modal.getBody();
+                                const newBodyNode = newBody && newBody.length ? newBody.get(0) : null;
+                                if (newBodyNode) {
+                                    const errorDiv = document.createElement('div');
+                                    errorDiv.className = 'alert alert-danger form-error-message';
+                                    errorDiv.textContent = data.error || 'An error occurred';
+                                    newBodyNode.insertBefore(errorDiv, newBodyNode.firstChild);
 
-                            // Insert error at the top of the form
-                            const errorDiv = document.createElement('div');
-                            errorDiv.className = 'alert alert-danger form-error-message';
-                            // Safe: set error message using textContent
-errorDiv.textContent = data.error || 'An error occurred';
-                            bodyNode.insertBefore(errorDiv, bodyNode.firstChild);
+                                    // Scroll to top so error is visible
+                                    newBodyNode.scrollTop = 0;
+                                }
 
-                            // Scroll to top so error is visible
-                            bodyNode.scrollTop = 0;
-                        }
+                                // Re-setup form submission and footer
+                                this.setupFormSubmission(modal, formName);
+                                this.updateFooterFromForm(modal);
+                                return html;
+                            })
+                            .catch(Notification.exception);
                     }
                     return data;
                 })
                 .catch(error => {
-                    // Re-enable buttons on exception
-                    const body = modal.getBody();
-                    const bodyNode = body && body.length ? body.get(0) : null;
-                    if (bodyNode) {
-                        const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
-                        buttons.forEach(button => button.disabled = false);
-                    }
-                    Notification.exception(error);
+                    // On exception, reload the form
+                    Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
+                        courseid: this.courseid,
+                        contextid: this.contextid,
+                    })
+                        .then((html) => {
+                            modal.setBody(html);
+                            this.setupFormSubmission(modal, formName);
+                            this.updateFooterFromForm(modal);
+                            Notification.exception(error);
+                            return html;
+                        })
+                        .catch(Notification.exception);
                 });
         });
     }

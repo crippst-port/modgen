@@ -78,7 +78,12 @@ define(["exports", "core/templates", "core/str"], function (_exports, _templates
       const {
         html
       } = await _templates.default.renderForPromise('aiplacement_modgen/loading_indicator', config);
-      container.innerHTML = html;
+      const doc = document.createElement('div');
+      doc.innerHTML = html;
+      container.innerHTML = '';
+      while (doc.firstChild) {
+        container.appendChild(doc.firstChild);
+      }
       const loadingElement = container.querySelector('.modgen-loading');
       if (loadingElement) {
         loadingElement.setAttribute('tabindex', '-1');

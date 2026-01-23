@@ -702,12 +702,6 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           }
         });
         params.action = action;
-        const body = modal.getBody();
-        const bodyNode = body && body.length ? body.get(0) : null;
-        if (bodyNode) {
-          const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
-          buttons.forEach(button => button.disabled = true);
-        }
         const loadingMessage = await (0, _str.get_string)(formName === 'add_theme' ? 'creatingthemes' : 'creatingsections', 'aiplacement_modgen');
         await LoadingIndicator.showInModal(modal, loadingMessage);
         fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/create_sections.php', {
@@ -716,37 +710,42 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
             'Content-Type': 'application/x-www-form-urlencoded'
           },
           body: new URLSearchParams(params)
-        }).then(response => response.json()).then(data => {
+        }).then(response => response.json()).then(async data => {
           if (data.success) {
-            LoadingIndicator.hideFromModal(modal);
             const details = data.messages && data.messages.length > 0 ? data.messages : [];
             this.showSuccess(modal, data.message, details);
           } else {
-            const body = modal.getBody();
-            const bodyNode = body && body.length ? body.get(0) : null;
-            if (bodyNode) {
-              const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
-              buttons.forEach(button => button.disabled = false);
-              const existingError = bodyNode.querySelector('.form-error-message');
-              if (existingError) {
-                existingError.remove();
+            _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
+              courseid: this.courseid,
+              contextid: this.contextid
+            }).then(html => {
+              modal.setBody(html);
+              const newBody = modal.getBody();
+              const newBodyNode = newBody && newBody.length ? newBody.get(0) : null;
+              if (newBodyNode) {
+                const errorDiv = document.createElement('div');
+                errorDiv.className = 'alert alert-danger form-error-message';
+                errorDiv.textContent = data.error || 'An error occurred';
+                newBodyNode.insertBefore(errorDiv, newBodyNode.firstChild);
+                newBodyNode.scrollTop = 0;
               }
-              const errorDiv = document.createElement('div');
-              errorDiv.className = 'alert alert-danger form-error-message';
-              errorDiv.innerHTML = '<p>' + (data.error || 'An error occurred') + '</p>';
-              bodyNode.insertBefore(errorDiv, bodyNode.firstChild);
-              bodyNode.scrollTop = 0;
-            }
+              this.setupFormSubmission(modal, formName);
+              this.updateFooterFromForm(modal);
+              return html;
+            }).catch(_notification.default.exception);
           }
           return data;
         }).catch(error => {
-          const body = modal.getBody();
-          const bodyNode = body && body.length ? body.get(0) : null;
-          if (bodyNode) {
-            const buttons = bodyNode.querySelectorAll('input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
-            buttons.forEach(button => button.disabled = false);
-          }
-          _notification.default.exception(error);
+          _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
+            courseid: this.courseid,
+            contextid: this.contextid
+          }).then(html => {
+            modal.setBody(html);
+            this.setupFormSubmission(modal, formName);
+            this.updateFooterFromForm(modal);
+            _notification.default.exception(error);
+            return html;
+          }).catch(_notification.default.exception);
         });
       });
     }

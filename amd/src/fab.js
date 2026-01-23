@@ -41,15 +41,10 @@ define([
         };
         
         const {html} = await Templates.renderForPromise('aiplacement_modgen/fab_button', context);
-        const temp = document.createElement('div');
         // Safe: html is from Templates.renderForPromise, which is trusted output
-// Replace with DOMParser for extra safety if needed
-const doc = document.createElement('div');
-doc.innerHTML = html;
-const button = doc.firstElementChild;
-// temp.innerHTML = html;
-// const button = temp.firstElementChild;
-        const button = temp.firstElementChild;
+        const doc = document.createElement('div');
+        doc.innerHTML = html;
+        const button = doc.firstElementChild;
         document.body.appendChild(button);
         return button;
     };

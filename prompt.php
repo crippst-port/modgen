@@ -51,6 +51,7 @@ if (!$hasprompt && !$hastemplate) {
 // Set page URL early to avoid "page did not call set_url()" errors
 $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid]));
 $PAGE->set_context($context);
+$PAGE->set_course(get_course($courseid));
 
 // Include form classes
 require_once(__DIR__ . '/classes/form/generator_form.php');
@@ -325,11 +326,12 @@ if (!$manager->get_user_policy_status($USER->id)) {
         'sesskey' => sesskey(),
         'formaction' => $PAGE->url->out(false),
     ];
-    
-    $policyformhtml = $OUTPUT->render_from_template('aiplacement_modgen/ai_policy_acceptance', $policydata);
-    
+
     if ($ajax) {
         // For AJAX requests, return policy acceptance form with modal footer.
+        // Render template (safe for AJAX context)
+        $policyformhtml = $OUTPUT->render_from_template('aiplacement_modgen/ai_policy_acceptance', $policydata);
+
         $footer = aiplacement_modgen_render_modal_footer([
             [
                 'label' => get_string('accept'),
@@ -340,14 +342,14 @@ if (!$manager->get_user_policy_status($USER->id)) {
                 'id' => 'accept-policy-btn',
             ]
         ]);
-        
+
         // Load AMD module for policy acceptance (SECURITY FIX: replaced inline JavaScript)
         $PAGE->requires->js_call_amd('aiplacement_modgen/policy_acceptance', 'init');
-        
+
         aiplacement_modgen_send_ajax_response($policyformhtml, $footer);
     } else {
         // For regular page requests, show the policy acceptance form as a full page
-        // Set up page context first
+        // Set up page context FIRST (before any output rendering)
         $pageparams = ['id' => $courseid];
         if ($embedded) {
             $pageparams['embedded'] = 1;
@@ -360,10 +362,13 @@ if (!$manager->get_user_policy_status($USER->id)) {
         if ($embedded) {
             $PAGE->set_pagelayout('embedded');
         }
-        
+
         // Load AMD module for policy acceptance
         $PAGE->requires->js_call_amd('aiplacement_modgen/policy_acceptance', 'init');
-        
+
+        // NOW render the template (after page setup is complete)
+        $policyformhtml = $OUTPUT->render_from_template('aiplacement_modgen/ai_policy_acceptance', $policydata);
+
         echo $OUTPUT->header();
         echo html_writer::div($policyformhtml, 'aiplacement-modgen__content');
         echo $OUTPUT->footer();

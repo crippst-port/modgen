@@ -57,7 +57,7 @@ define([], function() {
 
             /**
              * Handle download button click.
-             * Opens the download URL.
+             * Downloads the template file without triggering navigation warnings.
              *
              * @param {Event} e Click event
              */
@@ -69,7 +69,14 @@ define([], function() {
                     if (courseid) {
                         url += '&courseid=' + courseid;
                     }
-                    window.location.href = url;
+                    // Use temporary anchor element to trigger download without page navigation
+                    var link = document.createElement('a');
+                    link.href = url;
+                    link.download = '';
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    document.body.removeChild(link);
                 }
             }
 

@@ -17,6 +17,33 @@
 /**
  * AJAX endpoint for creating course sections (themes/weeks).
  *
+ * This endpoint handles the quick-add creation of course structure via AJAX.
+ * It supports two actions: creating themes (with optional nested weeks) and
+ * creating standalone weeks.
+ *
+ * Expected POST parameters:
+ * - courseid (int): Course ID
+ * - action (string): 'create_themes' or 'create_weeks'
+ * - sesskey (string): Session key for CSRF protection
+ * - parentsection (int, optional): Parent section number for nested structure
+ *
+ * For create_themes action:
+ * - themecount (int): Number of themes (1-maxquicksections)
+ * - weeksperTheme (int): Weeks per theme (1-maxweeksperTheme)
+ *
+ * For create_weeks action:
+ * - weekcount (int): Number of weeks (1-maxquicksections)
+ *
+ * Returns JSON response:
+ * - success (bool): Whether operation succeeded
+ * - message (string): Main success/error message
+ * - messages (array, optional): Detailed list of created sections
+ * - error (string, optional): Error message if success=false
+ * - errorcode (string, optional): Error code for localization
+ *
+ * Requires capabilities:
+ * - aiplacement/modgen:managestructure
+ *
  * @package     aiplacement_modgen
  * @copyright   2025 Tom Cripps <tom.cripps@port.ac.uk>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later

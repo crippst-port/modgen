@@ -155,6 +155,17 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       this.contextid = descriptor.contextid;
       this.currentsection = descriptor.currentsection || 0;
       this.modal = null;
+      this.progressInterval = null;
+      this.setupNavigationWarning();
+    }
+    async setupNavigationWarning() {
+      const warningMsg = await (0, _str.get_string)('creationinprogress', 'aiplacement_modgen');
+      window.addEventListener('beforeunload', e => {
+        if (window.modgenCreationInProgress) {
+          e.returnValue = warningMsg;
+          return warningMsg;
+        }
+      });
     }
     stateReady() {}
     getWatchers() {
@@ -202,7 +213,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       return aiWorkflowForms.includes(formName);
     }
     loadFormInModal(formName, title) {
-      _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
+      _fragment.default.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
         courseid: this.courseid,
         contextid: this.contextid
       }).then(html => {
@@ -273,7 +284,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       actionButtons.forEach((button, index) => {
         const label = button.tagName === 'INPUT' ? button.value || button.getAttribute('aria-label') || 'Submit' : button.textContent.trim();
         const classes = (button.className || 'btn btn-secondary').trim();
-        footerHtml += "<button type=\"button\" class=\"".concat(classes, " ").concat(index > 0 ? 'ml-2' : '', "\" data-form-button-index=\"").concat(index, "\">\n                ").concat(label, "\n            </button>");
+        footerHtml += `<button type="button" class="${classes} ${index > 0 ? 'ml-2' : ''}" data-form-button-index="${index}">
+                ${label}
+            </button>`;
       });
       footerHtml += '</div>';
       modal.setFooter(footerHtml);
@@ -310,9 +323,10 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         }
       });
     }
-    handlePromptSubmission(modal, formData) {
+    async handlePromptSubmission(modal, formData) {
       this.reactive.dispatch('setStep', STEPS.GENERATING);
-      modal.setBody(this.buildProgressHeader(STEPS.GENERATING) + '<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">Loading...</span>' + '</div>' + '<p class="mt-2">Generating content... this may take a minute.</p>' + '</div>');
+      const generatingMsg = await (0, _str.get_string)('generatingcontent', 'aiplacement_modgen');
+      modal.setBody(this.buildProgressHeader(STEPS.GENERATING) + '<div class="text-center p-5">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">Loading...</span>' + '</div>' + '<p class="mt-2">' + generatingMsg + '</p>' + '</div>');
       modal.setFooter('');
       formData.append('ajax', '1');
       formData.append('embedded', '1');
@@ -321,6 +335,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         method: 'POST',
         body: formData
       }).then(response => response.json()).then(data => {
+        this.stopProgressPolling();
         if (data.body) {
           const step = data.refresh ? STEPS.CREATING : STEPS.PREVIEW;
           this.reactive.dispatch('setStep', step);
@@ -357,6 +372,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           modal.setBody('<div class="alert alert-danger">' + data.error + '</div>');
         }
       }).catch(error => {
+        this.stopProgressPolling();
         _notification.default.exception(error);
       });
     }
@@ -404,7 +420,8 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       switch (action) {
         case 'submit':
           this.reactive.dispatch('setStep', STEPS.CREATING);
-          modal.setBody(this.buildProgressHeader(STEPS.CREATING) + '<div class=\"text-center p-5\">' + '<div class=\"spinner-border\" role=\"status\">' + '<span class=\"sr-only\">Creating...</span>' + '</div>' + '<p class=\"mt-2\">Creating activities... please wait.</p>' + '</div>');
+          window.modgenCreationInProgress = true;
+          modal.setBody(this.buildProgressHeader(STEPS.CREATING) + '<div class="text-center p-5" id="modgen-progress-container">' + '<div class="spinner-border" role="status">' + '<span class="sr-only">Creating...</span>' + '</div>' + '<p class="mt-2 modgen-progress-message">Creating activities... please wait.</p>' + '</div>');
           modal.setFooter('');
           if (form) {
             const formData = new FormData(form);
@@ -423,7 +440,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           break;
         default:
           if (form) {
-            const formBtn = form.querySelector("[name=\"".concat(action, "\"], [data-action=\"").concat(action, "\"]"));
+            const formBtn = form.querySelector(`[name="${action}"], [data-action="${action}"]`);
             if (formBtn) {
               formBtn.click();
             }
@@ -436,7 +453,8 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         html: bodyHtml
       } = await _templates.default.renderForPromise('aiplacement_modgen/success_message', {
         message: message,
-        details: details.length > 0 ? details : null
+        hasdetails: details.length > 0,
+        details: details
       });
       modal.setBody(bodyHtml);
       await this.renderFooterButtons(modal, [{
@@ -504,15 +522,15 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         if (isComplete) {
           iconClass = 'fa-check';
         }
-        html += "<div class=\"".concat(stepClass, " text-center flex-fill\">");
-        html += "<div class=\"modgen-step-icon mb-1\">";
-        html += "<i class=\"fa ".concat(iconClass, "\"></i>");
-        html += "</div>";
-        html += "<div class=\"modgen-step-label small\">".concat(step.label, "</div>");
-        html += "</div>";
+        html += `<div class="${stepClass} text-center flex-fill">`;
+        html += `<div class="modgen-step-icon mb-1">`;
+        html += `<i class="fa ${iconClass}"></i>`;
+        html += `</div>`;
+        html += `<div class="modgen-step-label small">${step.label}</div>`;
+        html += `</div>`;
         if (index < steps.length - 1) {
           const lineClass = isComplete ? 'modgen-step-line-complete' : 'modgen-step-line';
-          html += "<div class=\"".concat(lineClass, " flex-fill\" style=\"height: 2px; margin-top: -1rem;\"></div>");
+          html += `<div class="${lineClass} flex-fill" style="height: 2px; margin-top: -1rem;"></div>`;
         }
       });
       html += '</div>';
@@ -531,17 +549,17 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         });
       }
       if (!selectedSections || selectedSections.length === 0) {
-        modal.setBody('<div class="alert alert-danger">Please select at least one section</div>');
+        const noSectionsMsg = await (0, _str.get_string)('nosectionsselected', 'aiplacement_modgen');
+        modal.setBody('<div class="alert alert-danger">' + noSectionsMsg + '</div>');
         return;
       }
       let startDate = 0;
       if (bodyNode && !isRemove) {
         const startDateField = bodyNode.querySelector('select[name="startdate[day]"]');
         if (startDateField) {
-          var _bodyNode$querySelect, _bodyNode$querySelect2, _bodyNode$querySelect3;
-          const day = ((_bodyNode$querySelect = bodyNode.querySelector('select[name="startdate[day]"]')) === null || _bodyNode$querySelect === void 0 ? void 0 : _bodyNode$querySelect.value) || 1;
-          const month = ((_bodyNode$querySelect2 = bodyNode.querySelector('select[name="startdate[month]"]')) === null || _bodyNode$querySelect2 === void 0 ? void 0 : _bodyNode$querySelect2.value) || 1;
-          const year = ((_bodyNode$querySelect3 = bodyNode.querySelector('select[name="startdate[year]"]')) === null || _bodyNode$querySelect3 === void 0 ? void 0 : _bodyNode$querySelect3.value) || new Date().getFullYear();
+          const day = bodyNode.querySelector('select[name="startdate[day]"]')?.value || 1;
+          const month = bodyNode.querySelector('select[name="startdate[month]"]')?.value || 1;
+          const year = bodyNode.querySelector('select[name="startdate[year]"]')?.value || new Date().getFullYear();
           const dateObj = new Date(year, month - 1, day, 0, 0, 0);
           startDate = Math.floor(dateObj.getTime() / 1000);
         }
@@ -567,16 +585,18 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: params.toString()
-      }).then(response => response.json()).then(data => {
+      }).then(async data => {
         if (data.success) {
           this.showSuccess(modal, data.message);
         } else {
-          const errorHtml = '<div class="alert alert-danger">' + '<p>' + (data.error || 'An error occurred') + '</p>' + '</div>';
+          const genericError = await (0, _str.get_string)('genericerror', 'aiplacement_modgen');
+          const errorHtml = '<div class="alert alert-danger">' + '<p>' + (data.error || genericError) + '</p>' + '</div>';
           modal.setBody(errorHtml);
         }
-      }).catch(error => {
+      }).catch(async error => {
         window.console.error('Error processing dates:', error);
-        modal.setBody('<div class="alert alert-danger">An error occurred while processing dates</div>');
+        const processingError = await (0, _str.get_string)('genericerror', 'aiplacement_modgen');
+        modal.setBody('<div class="alert alert-danger">' + processingError + '</div>');
       });
     }
     setupDatesPreview(modal) {
@@ -597,10 +617,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           let startDate = 0;
           const dayField = bodyNode.querySelector('select[name="startdate[day]"]');
           if (dayField) {
-            var _bodyNode$querySelect4, _bodyNode$querySelect5, _bodyNode$querySelect6;
-            const day = ((_bodyNode$querySelect4 = bodyNode.querySelector('select[name="startdate[day]"]')) === null || _bodyNode$querySelect4 === void 0 ? void 0 : _bodyNode$querySelect4.value) || 1;
-            const month = ((_bodyNode$querySelect5 = bodyNode.querySelector('select[name="startdate[month]"]')) === null || _bodyNode$querySelect5 === void 0 ? void 0 : _bodyNode$querySelect5.value) || 1;
-            const year = ((_bodyNode$querySelect6 = bodyNode.querySelector('select[name="startdate[year]"]')) === null || _bodyNode$querySelect6 === void 0 ? void 0 : _bodyNode$querySelect6.value) || new Date().getFullYear();
+            const day = bodyNode.querySelector('select[name="startdate[day]"]')?.value || 1;
+            const month = bodyNode.querySelector('select[name="startdate[month]"]')?.value || 1;
+            const year = bodyNode.querySelector('select[name="startdate[year]"]')?.value || new Date().getFullYear();
             const dateObj = new Date(year, month - 1, day, 0, 0, 0);
             startDate = Math.floor(dateObj.getTime() / 1000);
           }
@@ -627,7 +646,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
               datePrefix.className = 'date-prefix';
             });
             data.sections.forEach(section => {
-              const sectionItem = bodyNode.querySelector("[data-section-id=\"".concat(section.id, "\"]"));
+              const sectionItem = bodyNode.querySelector(`[data-section-id="${section.id}"]`);
               if (!sectionItem) {
                 return;
               }
@@ -670,10 +689,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         }
       });
       modalRoot.on('submit', 'form', async e => {
-        var _e$originalEvent;
         e.preventDefault();
-        const submitter = (_e$originalEvent = e.originalEvent) === null || _e$originalEvent === void 0 ? void 0 : _e$originalEvent.submitter;
-        const buttonName = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('name')) || clickedButton;
+        const submitter = e.originalEvent?.submitter;
+        const buttonName = submitter?.getAttribute('name') || clickedButton;
         if (buttonName === 'cancel') {
           modal.destroy();
           clickedButton = null;
@@ -702,8 +720,8 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           }
         });
         params.action = action;
-        const loadingMessage = await (0, _str.get_string)(formName === 'add_theme' ? 'creatingthemes' : 'creatingsections', 'aiplacement_modgen');
-        await LoadingIndicator.showInModal(modal, loadingMessage);
+        LoadingIndicator.showInModal(modal);
+        window.modgenCreationInProgress = true;
         fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/create_sections.php', {
           method: 'POST',
           headers: {
@@ -711,21 +729,23 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           },
           body: new URLSearchParams(params)
         }).then(response => response.json()).then(async data => {
+          window.modgenCreationInProgress = false;
           if (data.success) {
             const details = data.messages && data.messages.length > 0 ? data.messages : [];
             this.showSuccess(modal, data.message, details);
           } else {
-            _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
+            _fragment.default.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
               courseid: this.courseid,
               contextid: this.contextid
-            }).then(html => {
+            }).then(async html => {
               modal.setBody(html);
               const newBody = modal.getBody();
               const newBodyNode = newBody && newBody.length ? newBody.get(0) : null;
               if (newBodyNode) {
                 const errorDiv = document.createElement('div');
                 errorDiv.className = 'alert alert-danger form-error-message';
-                errorDiv.textContent = data.error || 'An error occurred';
+                const genericError = await (0, _str.get_string)('genericerror', 'aiplacement_modgen');
+                errorDiv.textContent = data.error || genericError;
                 newBodyNode.insertBefore(errorDiv, newBodyNode.firstChild);
                 newBodyNode.scrollTop = 0;
               }
@@ -736,7 +756,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           }
           return data;
         }).catch(error => {
-          _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
+          window.modgenCreationInProgress = false;
+          this.stopProgressPolling();
+          _fragment.default.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
             courseid: this.courseid,
             contextid: this.contextid
           }).then(html => {

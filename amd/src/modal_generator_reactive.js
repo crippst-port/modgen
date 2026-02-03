@@ -305,6 +305,31 @@ class ModalGeneratorComponent extends BaseComponent {
         this.currentsection = descriptor.currentsection || 0;
         /** @type {ModgenModal|null} Reference to the active modal instance */
         this.modal = null;
+        /** @type {number|null} Progress polling interval ID */
+        this.progressInterval = null;
+        
+        // Set up navigation warning for creation in progress
+        this.setupNavigationWarning();
+    }
+    
+    /**
+     * Set up beforeunload warning to prevent accidental navigation during creation.
+     *
+     * Sets a global flag that's checked when user tries to leave the page.
+     * The browser will show a warning dialog if creation is in progress.
+     *
+     * @private
+     */
+    async setupNavigationWarning() {
+        const warningMsg = await getString('creationinprogress', 'aiplacement_modgen');
+        window.addEventListener('beforeunload', (e) => {
+            if (window.modgenCreationInProgress) {
+                // Setting returnValue triggers the browser's navigation warning dialog
+                // Don't use preventDefault() as it blocks navigation even if user clicks "Leave"
+                e.returnValue = warningMsg;
+                return warningMsg;
+            }
+        });
     }
 
     /**
@@ -606,9 +631,11 @@ class ModalGeneratorComponent extends BaseComponent {
      * @param {Object} modal The modal instance
      * @param {FormData} formData The form data
      */
-    handlePromptSubmission(modal, formData) {
+    async handlePromptSubmission(modal, formData) {
         // Update step to generating
         this.reactive.dispatch('setStep', STEPS.GENERATING);
+
+        const generatingMsg = await getString('generatingcontent', 'aiplacement_modgen');
 
         // Show loading indicator with progress header
         modal.setBody(this.buildProgressHeader(STEPS.GENERATING) +
@@ -616,7 +643,7 @@ class ModalGeneratorComponent extends BaseComponent {
             '<div class="spinner-border" role="status">' +
             '<span class="sr-only">Loading...</span>' +
             '</div>' +
-            '<p class="mt-2">Generating content... this may take a minute.</p>' +
+            '<p class="mt-2">' + generatingMsg + '</p>' +
             '</div>');
 
         // Clear footer during generation
@@ -634,6 +661,9 @@ class ModalGeneratorComponent extends BaseComponent {
         })
             .then(response => response.json())
             .then(data => {
+                // Stop progress polling when response received
+                this.stopProgressPolling();
+                
                 if (data.body) {
                     // Determine which step we're at based on response
                     const step = data.refresh ? STEPS.CREATING : STEPS.PREVIEW;
@@ -687,6 +717,8 @@ class ModalGeneratorComponent extends BaseComponent {
                 }
             })
             .catch(error => {
+                // Stop progress polling on error
+                this.stopProgressPolling();
                 Notification.exception(error);
             });
     }
@@ -779,12 +811,16 @@ class ModalGeneratorComponent extends BaseComponent {
             case 'submit':
                 // Show creating step with loading indicator
                 this.reactive.dispatch('setStep', STEPS.CREATING);
+                
+                // Set flag to warn on navigation
+                window.modgenCreationInProgress = true;
+                
                 modal.setBody(this.buildProgressHeader(STEPS.CREATING) +
-                    '<div class=\"text-center p-5\">' +
-                    '<div class=\"spinner-border\" role=\"status\">' +
-                    '<span class=\"sr-only\">Creating...</span>' +
+                    '<div class="text-center p-5" id="modgen-progress-container">' +
+                    '<div class="spinner-border" role="status">' +
+                    '<span class="sr-only">Creating...</span>' +
                     '</div>' +
-                    '<p class=\"mt-2\">Creating activities... please wait.</p>' +
+                    '<p class="mt-2 modgen-progress-message">Creating activities... please wait.</p>' +
                     '</div>');
                 modal.setFooter('');
 
@@ -839,7 +875,8 @@ class ModalGeneratorComponent extends BaseComponent {
             'aiplacement_modgen/success_message',
             {
                 message: message,
-                details: details.length > 0 ? details : null
+                hasdetails: details.length > 0,
+                details: details
             }
         );
 
@@ -996,7 +1033,8 @@ class ModalGeneratorComponent extends BaseComponent {
         }
 
         if (!selectedSections || selectedSections.length === 0) {
-            modal.setBody('<div class="alert alert-danger">Please select at least one section</div>');
+            const noSectionsMsg = await getString('nosectionsselected', 'aiplacement_modgen');
+            modal.setBody('<div class="alert alert-danger">' + noSectionsMsg + '</div>');
             return;
         }
 
@@ -1052,21 +1090,22 @@ class ModalGeneratorComponent extends BaseComponent {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: params.toString()
         })
-            .then(response => response.json())
-            .then(data => {
+            .then(async data => {
                 if (data.success) {
                     // Show success message using reusable method
                     this.showSuccess(modal, data.message);
                 } else {
+                    const genericError = await getString('genericerror', 'aiplacement_modgen');
                     const errorHtml = '<div class="alert alert-danger">' +
-                        '<p>' + (data.error || 'An error occurred') + '</p>' +
+                        '<p>' + (data.error || genericError) + '</p>' +
                         '</div>';
                     modal.setBody(errorHtml);
                 }
             })
-            .catch(error => {
+            .catch(async error => {
                 window.console.error('Error processing dates:', error);
-                modal.setBody('<div class="alert alert-danger">An error occurred while processing dates</div>');
+                const processingError = await getString('genericerror', 'aiplacement_modgen');
+                modal.setBody('<div class="alert alert-danger">' + processingError + '</div>');
             });
     }
 
@@ -1269,12 +1308,11 @@ class ModalGeneratorComponent extends BaseComponent {
             // Set action AFTER adding form fields to ensure it's not overwritten
             params.action = action;
 
-            // Show loading indicator
-            const loadingMessage = await getString(
-                formName === 'add_theme' ? 'creatingthemes' : 'creatingsections',
-                'aiplacement_modgen'
-            );
-            await LoadingIndicator.showInModal(modal, loadingMessage);
+            // Show loading indicator while creating
+            LoadingIndicator.showInModal(modal);
+
+            // Set flag to warn on navigation
+            window.modgenCreationInProgress = true;
 
             // POST to AJAX endpoint
             fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/create_sections.php', {
@@ -1286,6 +1324,9 @@ class ModalGeneratorComponent extends BaseComponent {
             })
                 .then(response => response.json())
                 .then(async data => {
+                    // Clear navigation warning flag
+                    window.modgenCreationInProgress = false;
+                    
                     if (data.success) {
                         // Parse detailed messages if present
                         const details = data.messages && data.messages.length > 0 ? data.messages : [];
@@ -1298,7 +1339,7 @@ class ModalGeneratorComponent extends BaseComponent {
                             courseid: this.courseid,
                             contextid: this.contextid,
                         })
-                            .then((html) => {
+                            .then(async (html) => {
                                 modal.setBody(html);
 
                                 // Insert error at the top of the form
@@ -1307,7 +1348,8 @@ class ModalGeneratorComponent extends BaseComponent {
                                 if (newBodyNode) {
                                     const errorDiv = document.createElement('div');
                                     errorDiv.className = 'alert alert-danger form-error-message';
-                                    errorDiv.textContent = data.error || 'An error occurred';
+                                    const genericError = await getString('genericerror', 'aiplacement_modgen');
+                                    errorDiv.textContent = data.error || genericError;
                                     newBodyNode.insertBefore(errorDiv, newBodyNode.firstChild);
 
                                     // Scroll to top so error is visible
@@ -1324,6 +1366,11 @@ class ModalGeneratorComponent extends BaseComponent {
                     return data;
                 })
                 .catch(error => {
+                    // Clear navigation warning flag on error
+                    window.modgenCreationInProgress = false;
+                    // Stop progress polling and clear navigation warning on error
+                    this.stopProgressPolling();
+                    
                     // On exception, reload the form
                     Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
                         courseid: this.courseid,

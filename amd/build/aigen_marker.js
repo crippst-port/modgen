@@ -42,7 +42,7 @@ define(["exports", "core/config"], function (_exports, _config) {
   };
   const addMarkersToActivities = cmids => {
     cmids.forEach(cmid => {
-      const activityEl = document.querySelector("li[data-for=\"cmitem\"][data-id=\"".concat(cmid, "\"]"));
+      const activityEl = document.querySelector(`li[data-for="cmitem"][data-id="${cmid}"]`);
       if (!activityEl) {
         return;
       }

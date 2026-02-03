@@ -33,13 +33,33 @@
         ]
     }
 }}
-<div class="alert alert-success">
-    <p>{{message}}</p>
-    {{#details}}
-    <ul>
-        {{#.}}
-        <li>{{.}}</li>
-        {{/.}}
-    </ul>
-    {{/details}}
+<div class="modgen-success-container text-center py-4">
+    <div class="modgen-success-icon mb-3">
+        <i class="fa fa-check-circle fa-4x text-success" aria-hidden="true"></i>
+        <span class="sr-only">{{#str}}successicon, aiplacement_modgen{{/str}}</span>
+    </div>
+    <h4 class="modgen-success-message mb-3">{{message}}</h4>
+    {{#hasdetails}}
+    <div class="modgen-success-details mt-3">
+        <p class="mb-2">
+            <a href="#" class="btn btn-sm btn-outline-secondary" 
+               data-toggle="collapse" 
+               data-target="#modgen-details-list" 
+               aria-expanded="false" 
+               aria-controls="modgen-details-list"
+               aria-label="{{#str}}showdetailsaria, aiplacement_modgen{{/str}}">
+                <i class="fa fa-list-ul" aria-hidden="true"></i> {{#str}}seedetails, aiplacement_modgen{{/str}}
+            </a>
+        </p>
+        <div class="collapse" id="modgen-details-list">
+            <div class="card card-body text-left">
+                <ul class="mb-0">
+                    {{#details}}
+                    <li>{{.}}</li>
+                    {{/details}}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {{/hasdetails}}
 </div>

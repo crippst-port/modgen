@@ -30,6 +30,7 @@ $string['pluginname'] = 'Module Assistant';
 // Error strings
 $string['jsontoolarge'] = 'JSON data is too large to process';
 $string['invalidjson'] = 'Invalid JSON data: {$a}';
+$string['locktimeout'] = 'Another user is currently creating content in this course. Please try again in a few moments.';
 
 $string['existingmodule'] = 'Base on existing module';
 $string['inputrequired'] = 'You must provide at least one of the following: a text prompt, upload a CSV file, select a structure, or choose an existing module to base this on.';
@@ -386,17 +387,34 @@ $string['invalidthemecount'] = 'Please enter a number between 1 and {$a}';
 $string['invalidweekcount'] = 'Please enter a number between 1 and {$a}';
 $string['invalidweeksperTheme'] = 'Please enter a number between 1 and {$a}';
 $string['defaultthemename'] = 'Theme {$a}';
-$string['defaultthemesummary'] = 'Placeholder theme structure. Edit this section to add your theme introduction and learning outcomes.';
+$string['defaultthemesummary'] = 'This is a new empty theme. Replace this text with a description of the content of this theme.';
 $string['defaultweekname'] = 'Theme {$a->theme} - Week {$a->week}';
 $string['defaultstandaloneweekname'] = 'Week {$a}';
-$string['defaultweeksummary'] = 'Placeholder week structure. Edit this section to add your weekly overview and key topics.';
+$string['defaultweeksummary'] = 'This is a new empty Week. Replace this text with a description of the content of this week.';
 $string['themescreated'] = '{$a} theme(s) successfully created';
 $string['weekscreated'] = '{$a} week(s) successfully created';
+$string['seedetails'] = 'See details';
 $string['returntocourseview'] = 'Return to course';
 $string['erroracquiringlock'] = 'Could not acquire course lock. Another user may be editing this course.';
 $string['errorconvertingformat'] = 'Could not convert course to flexsections format.';
 $string['introductionsectionname'] = 'Introduction & General Information';
 $string['assessmentssectionname'] = 'Assessments';
+
+// Error messages for exceptions
+$string['flexsectionsnotinstalled'] = 'The flexsections course format plugin is required but not installed. Please install the flexsections plugin before using this feature.';
+$string['flexsectionssetfailed'] = 'Failed to set course format to flexsections. Current format: {$a}';
+$string['flexsectionsmethodnotavailable'] = 'Flexsections create_new_section method not available';
+$string['themesectioncreatefailed'] = 'Failed to create theme section \'{$a}\'';
+$string['sectionnotfound'] = 'Section not found in course';
+
+// Navigation and UI messages
+$string['creationinprogress'] = 'Creation in progress. Leaving this page will abandon your changes.';
+$string['generatingcontent'] = 'Generating content... this may take a minute.';
+$string['genericerror'] = 'An error occurred';
+
+// Accessibility
+$string['successicon'] = 'Success';
+$string['showdetailsaria'] = 'Show creation details';
 
 // Dates for sections feature
 $string['datesforsections'] = 'Dates to sections...';

@@ -458,49 +458,24 @@ if ($approvedjsonparam !== null) {
         $results = $creation_result['results'];
         $activitywarnings = $creation_result['warnings'];
 
-        $resultsdata = [
-            'notifications' => [],
-            'hasresults' => !empty($results),
-            'results' => array_map(static function(string $text): array {
-                return ['text' => $text];
-            }, $results),
-            'showreturnlinkinbody' => !$ajax,
+        // Prepare data for success template
+        $successdata = [
+            'message' => get_string('sectionscreatedsuccess', 'aiplacement_modgen', count($results)),
+            'hasdetails' => !empty($results),
+            'details' => $results,
         ];
 
+        $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/success_message', $successdata);
+        
+        // Add any warnings below the success message
         if (!empty($activitywarnings)) {
+            $warningshtml = '';
             foreach ($activitywarnings as $warning) {
-                $resultsdata['notifications'][] = [
-                    'message' => $warning,
-                    'classes' => 'alert alert-warning',
-                ];
+                $warningshtml .= html_writer::div($warning, 'alert alert-warning', ['role' => 'alert']);
             }
+            $bodyhtml .= $warningshtml;
         }
-
-        if ($embedded) {
-            $resultsdata['returnlink'] = [
-                'url' => '#',
-                'label' => get_string('closemodgenmodal', 'aiplacement_modgen'),
-                'dataaction' => 'aiplacement-modgen-close',
-            ];
-            if (!$ajax) {
-                $PAGE->requires->js_call_amd('aiplacement_modgen/embedded_results', 'init');
-            }
-        } else {
-            $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
-            $resultsdata['returnlink'] = [
-                'url' => $courseurl->out(false),
-                'label' => get_string('returntocourse', 'aiplacement_modgen'),
-            ];
-        }
-
-        if (empty($results)) {
-            $resultsdata['notifications'][] = [
-                'message' => get_string('nosectionscreated', 'aiplacement_modgen'),
-                'classes' => 'alert alert-warning',
-            ];
-        }
-
-        $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/generation_results', $resultsdata);
+        
         $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
 
         if ($ajax) {

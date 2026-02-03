@@ -348,6 +348,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
             }, 100);
           }
           modal.getRoot().find('[data-action="aiplacement-modgen-close"]').on('click', () => {
+            window.modgenCreationInProgress = false;
             modal.destroy();
             if (data.refresh) {
               window.location.reload();

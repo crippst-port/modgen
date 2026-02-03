@@ -415,6 +415,8 @@ $string['genericerror'] = 'An error occurred';
 // Accessibility
 $string['successicon'] = 'Success';
 $string['showdetailsaria'] = 'Show creation details';
+$string['sectionscreatedsuccess'] = 'Successfully created {$a} section(s)';
+$string['seedetails'] = 'See details';
 
 // Dates for sections feature
 $string['datesforsections'] = 'Dates to sections...';

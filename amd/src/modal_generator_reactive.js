@@ -685,6 +685,8 @@ class ModalGeneratorComponent extends BaseComponent {
 
                     // Check for close button action
                     modal.getRoot().find('[data-action="aiplacement-modgen-close"]').on('click', () => {
+                        // Clear the navigation warning flag before closing
+                        window.modgenCreationInProgress = false;
                         modal.destroy();
                         if (data.refresh) {
                             window.location.reload();

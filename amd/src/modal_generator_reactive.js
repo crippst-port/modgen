@@ -653,6 +653,7 @@ class ModalGeneratorComponent extends BaseComponent {
         formData.append('ajax', '1');
         formData.append('embedded', '1');
         formData.append('courseid', this.courseid);
+        formData.append('sesskey', M.cfg.sesskey);
 
         // POST to prompt.php
         fetch(M.cfg.wwwroot + '/ai/placement/modgen/prompt.php', {
@@ -661,9 +662,6 @@ class ModalGeneratorComponent extends BaseComponent {
         })
             .then(response => response.json())
             .then(data => {
-                // Stop progress polling when response received
-                this.stopProgressPolling();
-                
                 if (data.body) {
                     // Determine which step we're at based on response
                     const step = data.refresh ? STEPS.CREATING : STEPS.PREVIEW;
@@ -717,9 +715,21 @@ class ModalGeneratorComponent extends BaseComponent {
                 }
             })
             .catch(error => {
-                // Stop progress polling on error
-                this.stopProgressPolling();
-                Notification.exception(error);
+                // Reload form to restore modal state
+                Fragment.loadFragment('aiplacement_modgen', 'form_template_from_prompt', this.contextid, {
+                    courseid: this.courseid,
+                    contextid: this.contextid,
+                }).then((html) => {
+                    modal.setBody(html);
+                    this.setupFormSubmission(modal, 'template_from_prompt');
+                    this.updateFooterFromForm(modal);
+                    Notification.exception(error);
+                }).catch((fragmentError) => {
+                    // If fragment reload fails, show basic error
+                    modal.setBody('<div class="alert alert-danger">An error occurred. Please try again.</div>');
+                    window.console.error('Fragment reload failed:', fragmentError);
+                    Notification.exception(error);
+                });
             });
     }
 
@@ -1368,8 +1378,6 @@ class ModalGeneratorComponent extends BaseComponent {
                 .catch(error => {
                     // Clear navigation warning flag on error
                     window.modgenCreationInProgress = false;
-                    // Stop progress polling and clear navigation warning on error
-                    this.stopProgressPolling();
                     
                     // On exception, reload the form
                     Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {

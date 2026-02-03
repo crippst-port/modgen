@@ -727,7 +727,8 @@ class ai_service
                         "- learningactivity_metadata.activityicon MUST be one of: '', 'fa-book', 'fa-book-open', 'fa-graduation-cap', 'fa-chalkboard', 'fa-chalkboard-user', 'fa-flask', 'fa-microscope', 'fa-laptop-code', 'fa-pen-to-square', 'fa-comments', 'fa-users', 'fa-lightbulb', 'fa-puzzle-piece', 'fa-clipboard-check', 'fa-file-pen', 'fa-robot'\n" .
                         "- Session-level learningactivity_metadata.instructions must be 5-8 detailed sentences for activity guidance\n" .
                         "- learningactivity_metadata.learningmode MUST be one of: 'Synchronous', 'Asynchronous', 'Not specified'\n" .
-                        "- learningactivity_metadata.learningtypes MUST be comma-separated list from: 'Acquisition', 'Collaboration', 'Discussion', 'Investigation', 'Practice', 'Production'\n" .
+                        "- learningactivity_metadata.learningtypes MUST be comma-separated list from ONLY these six types: 'Acquisition', 'Collaboration', 'Discussion', 'Investigation', 'Practice', 'Production'\n" .
+                        "- CRITICAL: 'Reflection' is NOT a valid learning type - use 'Production' or 'Practice' instead for reflective activities\n" .
                         "- learningactivity_metadata.duration MUST be a number (minutes as string)\n" .
                         "- learningactivity_metadata.groupactivity MUST be boolean (true/false)\n" .
                         "- All field values must be strings or arrays of objects, NEVER strings containing JSON\n" .
@@ -813,7 +814,8 @@ class ai_service
                         "- learningactivity_metadata.activityicon MUST be one of: '', 'fa-book', 'fa-book-open', 'fa-graduation-cap', 'fa-chalkboard', 'fa-chalkboard-user', 'fa-flask', 'fa-microscope', 'fa-laptop-code', 'fa-pen-to-square', 'fa-comments', 'fa-users', 'fa-lightbulb', 'fa-puzzle-piece', 'fa-clipboard-check', 'fa-file-pen', 'fa-robot'\n" .
                         "- Session-level learningactivity_metadata.instructions must be 5-8 detailed sentences for activity guidance\n" .
                         "- learningactivity_metadata.learningmode MUST be one of: 'Synchronous', 'Asynchronous', 'Not specified'\n" .
-                        "- learningactivity_metadata.learningtypes MUST be comma-separated list from: 'Acquisition', 'Collaboration', 'Discussion', 'Investigation', 'Practice', 'Production'\n" .
+                        "- learningactivity_metadata.learningtypes MUST be comma-separated list from ONLY these six types: 'Acquisition', 'Collaboration', 'Discussion', 'Investigation', 'Practice', 'Production'\n" .
+                        "- CRITICAL: 'Reflection' is NOT a valid learning type - use 'Production' or 'Practice' instead for reflective activities\n" .
                         "- learningactivity_metadata.duration MUST be a number (minutes as string)\n" .
                         "- learningactivity_metadata.groupactivity MUST be boolean (true/false)\n" .
                         "- learningactivity_metadata.learningoutcomes_weekly MUST be 2-3 learning objectives separated by newlines (\\n)\n" .

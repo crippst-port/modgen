@@ -106,7 +106,7 @@ define(["exports", "core/templates", "core/str"], function (_exports, _templates
       messageElement.textContent = message;
     }
     if (progress !== null && progressBar) {
-      progressBar.style.width = `${Math.min(100, Math.max(0, progress))}%`;
+      progressBar.style.width = "".concat(Math.min(100, Math.max(0, progress)), "%");
       progressBar.setAttribute('aria-valuenow', progress);
     }
   };

@@ -109,14 +109,7 @@ class theme_builder {
 
         $messages = [];
 
-        // Ensure flexsections format.
-        self::ensure_flexsections_format($courseid);
-
-        // Get fresh course object after format conversion
-        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
-
-        // Get course format and acquire lock.
-        $courseformat = course_get_format($course);
+        // Acquire lock before any course modifications to prevent nested lock conflicts.
         $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');
         $lock = $lockfactory->get_lock('course_edit_' . $courseid, 60);
 
@@ -125,6 +118,13 @@ class theme_builder {
         }
 
         try {
+            // Ensure flexsections format (must be inside try block to ensure lock release).
+            self::ensure_flexsections_format($courseid);
+
+            // Get fresh course object after format conversion.
+            $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+            $courseformat = course_get_format($course);
+
             for ($i = 1; $i <= $themecount; $i++) {
                 $themetitle = get_string('defaultthemename', 'aiplacement_modgen', $i);
                 $themesummary = get_string('defaultthemesummary', 'aiplacement_modgen');
@@ -197,14 +197,7 @@ class theme_builder {
 
         $messages = [];
 
-        // Ensure flexsections format.
-        self::ensure_flexsections_format($courseid);
-
-        // Get fresh course object after format conversion
-        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
-
-        // Get course format and acquire lock.
-        $courseformat = course_get_format($course);
+        // Acquire lock before any course modifications to prevent nested lock conflicts.
         $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');
         $lock = $lockfactory->get_lock('course_edit_' . $courseid, 60);
 
@@ -213,6 +206,13 @@ class theme_builder {
         }
 
         try {
+            // Ensure flexsections format (must be inside try block to ensure lock release).
+            self::ensure_flexsections_format($courseid);
+
+            // Get fresh course object after format conversion.
+            $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+            $courseformat = course_get_format($course);
+
             for ($i = 1; $i <= $weekcount; $i++) {
                 $weektitle = get_string('defaultstandaloneweekname', 'aiplacement_modgen', $i);
                 $weeksummary = get_string('defaultweeksummary', 'aiplacement_modgen');

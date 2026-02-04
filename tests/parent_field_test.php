@@ -184,9 +184,9 @@ class parent_field_test extends advanced_testcase {
             'Week description'
         );
 
-        // Create sessions under the week.
+        // Create session subsections under the week.
         $sessiondata = [
-            'session_1' => [
+            'session' => [
                 'description' => 'Session 1 description',
                 'learningactivity_metadata' => [
                     'name' => 'Session 1',
@@ -197,17 +197,17 @@ class parent_field_test extends advanced_testcase {
             ]
         ];
 
-        $sessionmap = session_creator::create_sessions(
-            $course->id,
+        $sessionmap = session_creator::create_session_subsections(
+            $courseformat,
             $weeksectionnum,
-            ['session_1'],
+            $course->id,
             $sessiondata
         );
 
         $this->assertNotEmpty($sessionmap, 'Session map should not be empty');
-        $this->assertArrayHasKey('session_1', $sessionmap, 'Session 1 should be in map');
+        $this->assertArrayHasKey('session', $sessionmap, 'Session should be in map');
         
-        $sessionsectionnum = $sessionmap['session_1'];
+        $sessionsectionnum = $sessionmap['session'];
 
         // Get session section record.
         $sessionsection = $DB->get_record('course_sections', [
@@ -256,9 +256,9 @@ class parent_field_test extends advanced_testcase {
             'Week description'
         );
 
-        // Create a session under the week.
+        // Create session subsections under the week.
         $sessiondata = [
-            'session_1' => [
+            'session' => [
                 'learningactivity_metadata' => [
                     'name' => 'Session 1',
                     'learning_type' => 'workshop'
@@ -266,14 +266,14 @@ class parent_field_test extends advanced_testcase {
             ]
         ];
 
-        $sessionmap = session_creator::create_sessions(
-            $course->id,
+        $sessionmap = session_creator::create_session_subsections(
+            $courseformat,
             $weeksectionnum,
-            ['session_1'],
+            $course->id,
             $sessiondata
         );
 
-        $sessionsectionnum = $sessionmap['session_1'];
+        $sessionsectionnum = $sessionmap['session'];
 
         // Verify complete parent chain.
         // Theme -> parent should be 0 or not exist.

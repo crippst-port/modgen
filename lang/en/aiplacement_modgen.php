@@ -330,8 +330,8 @@ $string['enableai_desc'] = 'When enabled, uploaded files are processed exactly a
 // Placement options
 $string['contentplacement'] = 'Content placement';
 $string['contentplacement_help'] = 'Choose whether to place new module content at the top of the course or after existing content.';
-$string['hideexistingsections'] = 'Hide existing sections and place new content at top';
-$string['hideexistingsections_help'] = 'When enabled, all existing sections in the course will be hidden (made invisible to students), and the new module structure will be placed at the top of the course. This is useful when replacing an existing course structure with a new one while preserving the old content in a hidden state.';
+$string['hideexistingsections'] = 'Hide existing sections';
+$string['hideexistingsections_help'] = 'When enabled, all existing sections in the course will be hidden (made invisible to students). The new module structure will remain visible. This is useful when replacing an existing course structure with a new one while preserving the old content in a hidden state.';
 
 // AI prompt configuration
 $string['aipromptheading'] = 'AI Generation Settings';

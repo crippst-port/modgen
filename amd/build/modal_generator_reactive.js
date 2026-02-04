@@ -684,6 +684,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
     }
     setupFormSubmission(modal, formName) {
       const modalRoot = modal.getRoot();
+      modalRoot.off('click', 'input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
+      modalRoot.off('click', '[data-form-button-index]');
+      modalRoot.off('submit', 'form');
       let clickedButton = null;
       modalRoot.on('click', 'input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]', function () {
         clickedButton = this.getAttribute('name');

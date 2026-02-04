@@ -1245,6 +1245,12 @@ class ModalGeneratorComponent extends BaseComponent {
     setupFormSubmission(modal, formName) {
         const modalRoot = modal.getRoot();
 
+        // Remove any existing event listeners to prevent double-binding bug
+        // (occurs when validation fails and form is reloaded with errors)
+        modalRoot.off('click', 'input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
+        modalRoot.off('click', '[data-form-button-index]');
+        modalRoot.off('submit', 'form');
+
         // Track which button was clicked (works for both form buttons and footer buttons)
         let clickedButton = null;
 

@@ -454,36 +454,88 @@ class section_creation_service {
     private function hide_and_reorder_sections(int $courseid, \stdClass $course, array $new_toplevel_section_ids): void {
         global $DB;
         
-        // Hide all sections except section 0 and newly created ones
-        $allsections = $DB->get_records('course_sections', ['course' => $courseid], 'section ASC');
-        foreach ($allsections as $section) {
-            if ($section->section == 0 || in_array($section->id, $new_toplevel_section_ids, true)) {
-                continue;
+        // Refresh modinfo to ensure we have latest section data
+        rebuild_course_cache($courseid, true, true);
+        $course = get_course($courseid, true); // Get fresh course object
+        $modinfo = get_fast_modinfo($course);
+        
+        // Build a map of section ID to section number for new top-level sections
+        $newsectionnumbers = [];
+        foreach ($modinfo->get_section_info_all() as $sectioninfo) {
+            if (in_array($sectioninfo->id, $new_toplevel_section_ids, true)) {
+                $newsectionnumbers[] = $sectioninfo->section;
             }
-            
-            if (!empty($section->parent) && in_array($section->parent, $new_toplevel_section_ids, true)) {
-                continue;
-            }
-            
-            $DB->set_field('course_sections', 'visible', 0, ['id' => $section->id]);
         }
         
-        // Move new sections to top
+        // Get Assessments section (should never be hidden)
+        $assessmentssection = $DB->get_record('course_sections', [
+            'course' => $courseid,
+            'name' => 'Assessments'
+        ]);
+        
+        // Hide all sections except:
+        // - Section 0
+        // - Newly created top-level sections
+        // - Children of newly created sections
+        // - Assessments section (core section)
+        foreach ($modinfo->get_section_info_all() as $sectioninfo) {
+            // Skip section 0
+            if ($sectioninfo->section == 0) {
+                continue;
+            }
+            
+            // Skip if this is a new top-level section
+            if (in_array($sectioninfo->id, $new_toplevel_section_ids, true)) {
+                continue;
+            }
+            
+            // Skip if this is the Assessments section
+            if ($assessmentssection && $sectioninfo->id == $assessmentssection->id) {
+                continue;
+            }
+            
+            // Skip if this section's parent is a new top-level section
+            // Note: $sectioninfo->parent contains section NUMBER, not ID
+            if (!empty($sectioninfo->parent) && in_array($sectioninfo->parent, $newsectionnumbers, true)) {
+                continue;
+            }
+            
+            // Hide this section
+            $DB->set_field('course_sections', 'visible', 0, ['id' => $sectioninfo->id]);
+        }
+        
+        // Refresh modinfo after hiding sections
+        rebuild_course_cache($courseid, true, true);
+        $course = get_course($courseid, true);
+        $modinfo = get_fast_modinfo($course);
+        
+        // Move new sections to top (after section 0, before Assessments if it exists)
         if (!empty($new_toplevel_section_ids)) {
+            rebuild_course_cache($courseid, true, true);
+            $course = get_course($courseid, true);
             $courseformat = course_get_format($course);
             $modinfo = get_fast_modinfo($course);
             
-            $anchorsectionnum = null;
-            foreach ($modinfo->get_section_info_all() as $s) {
-                if ($s->section > 0 && !in_array($s->id, $new_toplevel_section_ids, true) && empty($s->parent)) {
-                    $anchorsectionnum = $s->section;
+            // Find the Assessments section (usually at position 1)
+            $assessmentssection = null;
+            foreach ($modinfo->get_section_info_all() as $sinfo) {
+                if ($sinfo->name === 'Assessments') {
+                    $assessmentssection = $sinfo;
                     break;
                 }
             }
             
-            $anchor = $anchorsectionnum ?? 1;
+            // Target: move before Assessments, or to position 1 if no Assessments
+            $targetposition = $assessmentssection ? $assessmentssection->section : 1;
             
+            // Move each new section to the top (reverse order for correct final sequence)
             foreach (array_reverse($new_toplevel_section_ids) as $new_section_id) {
+                rebuild_course_cache($courseid, true, true);
+                $course = get_course($courseid, true);
+                $modinfo = get_fast_modinfo($course);
+                $courseformat = course_get_format($course);
+                
+                // Find the section to move
                 $sectioninfo = null;
                 foreach ($modinfo->get_section_info_all() as $s) {
                     if ($s->id == $new_section_id) {
@@ -492,11 +544,13 @@ class section_creation_service {
                     }
                 }
                 
-                if ($sectioninfo && method_exists($courseformat, 'move_section')) {
+                if ($sectioninfo && $sectioninfo->section != $targetposition && method_exists($courseformat, 'move_section')) {
                     try {
-                        $courseformat->move_section($sectioninfo->section, $anchor, true);
+                        // Move this section before the target position
+                        $courseformat->move_section($sectioninfo->section, $targetposition, true);
                     } catch (\Exception $e) {
                         // Continue on error
+                        debugging("Failed to move section {$sectioninfo->section}: " . $e->getMessage());
                     }
                 }
             }

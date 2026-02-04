@@ -445,7 +445,11 @@ class section_creation_service {
     }
 
     /**
-     * Hide existing sections and move new sections to top.
+     * Hide existing top-level sections and move new sections to top.
+     *
+     * Only hides top-level sections (parent = 0). All nested content (sections
+     * with parent > 0) remains visible regardless of whether their parent is
+     * hidden or newly created.
      *
      * @param int $courseid Course ID
      * @param \stdClass $course Course object
@@ -459,24 +463,16 @@ class section_creation_service {
         $course = get_course($courseid, true); // Get fresh course object
         $modinfo = get_fast_modinfo($course);
         
-        // Build a map of section ID to section number for new top-level sections
-        $newsectionnumbers = [];
-        foreach ($modinfo->get_section_info_all() as $sectioninfo) {
-            if (in_array($sectioninfo->id, $new_toplevel_section_ids, true)) {
-                $newsectionnumbers[] = $sectioninfo->section;
-            }
-        }
-        
         // Get Assessments section (should never be hidden)
         $assessmentssection = $DB->get_record('course_sections', [
             'course' => $courseid,
             'name' => 'Assessments'
         ]);
         
-        // Hide all sections except:
+        // Hide only top-level existing sections. Never hide:
         // - Section 0
         // - Newly created top-level sections
-        // - Children of newly created sections
+        // - Any nested sections (parent > 0)
         // - Assessments section (core section)
         foreach ($modinfo->get_section_info_all() as $sectioninfo) {
             // Skip section 0
@@ -494,13 +490,12 @@ class section_creation_service {
                 continue;
             }
             
-            // Skip if this section's parent is a new top-level section
-            // Note: $sectioninfo->parent contains section NUMBER, not ID
-            if (!empty($sectioninfo->parent) && in_array($sectioninfo->parent, $newsectionnumbers, true)) {
+            // Skip all nested sections (only hide top-level sections)
+            if (!empty($sectioninfo->parent) && $sectioninfo->parent > 0) {
                 continue;
             }
             
-            // Hide this section
+            // Hide this top-level existing section
             $DB->set_field('course_sections', 'visible', 0, ['id' => $sectioninfo->id]);
         }
         

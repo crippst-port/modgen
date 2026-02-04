@@ -129,8 +129,8 @@ class theme_builder {
                 $themetitle = get_string('defaultthemename', 'aiplacement_modgen', $i);
                 $themesummary = get_string('defaultthemesummary', 'aiplacement_modgen');
 
-                // Create theme section under parent.
-                $options = ['collapsed' => 1, 'parent' => $parent]; // Theme appears as link.
+                // Create theme section at top level (themes are always top-level).
+                $options = ['collapsed' => 1]; // Theme appears as link.
                 $themesectionnum = self::create_theme_section(
                     $courseid,
                     $courseformat,
@@ -281,12 +281,12 @@ class theme_builder {
         $themetitle = format_string($title, true, ['context' => $context]);
         $sectionhtml = trim($summary) !== '' ? format_text($summary, FORMAT_PLAIN, ['context' => $context]) : '';
 
-        // Create section with parent=0 (top level) and collapsed option.
+        // Create section at top level (parent=0) - themes are always top-level sections.
         $collapsed = $options['collapsed'] ?? 1;
         $themesection = self::create_section_with_parent(
             $courseid,
             $courseformat,
-            0, // parent = 0 (top level)
+            0, // Themes are always top-level
             $themetitle,
             $sectionhtml,
             FORMAT_PLAIN,

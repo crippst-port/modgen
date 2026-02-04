@@ -1102,6 +1102,7 @@ class ModalGeneratorComponent extends BaseComponent {
             headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
             body: params.toString()
         })
+            .then(response => response.json())
             .then(async data => {
                 if (data.success) {
                     // Show success message using reusable method

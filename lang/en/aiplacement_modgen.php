@@ -201,10 +201,10 @@ $string['activitytype_learningactivity'] = 'Learning Activity';
 $string['learningactivity_created'] = 'Created learning activity metadata for {$a->name} (type: {$a->type})';
 $string['learningactivity_section'] = 'Section';
 
-$string['aipolicynotaccepted'] = 'You must accept the AI policy before using the Module Assistant.';
-$string['aipolicyacceptance'] = 'AI Policy Acceptance Required';
+$string['aipolicynotaccepted'] = 'You must accept the statement before using the Module Assistant.';
+$string['aipolicyacceptance'] = 'AI statement Acceptance Required';
 $string['acceptaipolicy'] = 'I agree to the terms of AI use in this system';
-$string['aipolicyinfo'] = 'By using this AI-powered tool, you acknowledge that your data will be processed according to our AI usage policy. Please review and accept the terms to continue.';
+$string['aipolicyinfo'] = 'This tool does not currently include active AI functionality. It is designated as AI-enabled to allow for potential future enhancements. Please accept to continue.';
 $string['timeout'] = 'AI Request Timeout (seconds)';
 $string['timeout_desc'] = 'Maximum time to wait for AI responses before timing out. Default is 300 seconds (5 minutes).';
 $string['airatelimit'] = 'AI Request Rate Limit (per hour)';

@@ -596,7 +596,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           'Content-Type': 'application/x-www-form-urlencoded'
         },
         body: params.toString()
-      }).then(async data => {
+      }).then(response => response.json()).then(async data => {
         if (data.success) {
           this.showSuccess(modal, data.message);
         } else {

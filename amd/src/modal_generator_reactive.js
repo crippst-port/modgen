@@ -883,12 +883,15 @@ class ModalGeneratorComponent extends BaseComponent {
      */
     async showSuccess(modal, message, details = []) {
         // Render success message body
+        const courseUrl = M.cfg.wwwroot + '/course/view.php?id=' + this.courseid;
         const { html: bodyHtml } = await Templates.renderForPromise(
             'aiplacement_modgen/success_message',
             {
                 message: message,
                 hasdetails: details.length > 0,
-                details: details
+                details: details,
+                showcoursereturn: false, // Use modal footer button instead
+                courseurl: courseUrl
             }
         );
 

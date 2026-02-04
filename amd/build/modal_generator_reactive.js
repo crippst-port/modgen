@@ -459,12 +459,15 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
     }
     async showSuccess(modal, message) {
       let details = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
+      const courseUrl = M.cfg.wwwroot + '/course/view.php?id=' + this.courseid;
       const {
         html: bodyHtml
       } = await _templates.default.renderForPromise('aiplacement_modgen/success_message', {
         message: message,
         hasdetails: details.length > 0,
-        details: details
+        details: details,
+        showcoursereturn: false,
+        courseurl: courseUrl
       });
       modal.setBody(bodyHtml);
       await this.renderFooterButtons(modal, [{

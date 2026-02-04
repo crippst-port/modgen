@@ -21,16 +21,25 @@
 
     Context variables required for this template:
     * message - Main success message text
+    * hasdetails - Boolean indicating if details array is present
     * details - Optional array of detail messages to show in a list
+    * showcoursereturn - Optional boolean to show "Return to course" button in body
+    * courseurl - Optional URL to course page (required if showcoursereturn is true)
+
+    Note: Set showcoursereturn to true only for standalone pages without modal footers.
+    For modal contexts, use footer buttons instead to follow Moodle UX patterns.
 
     Example context (json):
     {
         "message": "Successfully created 3 sections",
+        "hasdetails": true,
         "details": [
             "Section created: Theme 1",
             "Section created: Week 1", 
             "Section created: Week 2"
-        ]
+        ],
+        "showcoursereturn": false,
+        "courseurl": "https://example.com/course/view.php?id=2"
     }
 }}
 <div class="modgen-success-container text-center py-4">
@@ -62,4 +71,11 @@
         </div>
     </div>
     {{/hasdetails}}
+    {{#showcoursereturn}}
+    <div class="modgen-success-return mt-4">
+        <a href="{{courseurl}}" class="btn btn-primary">
+            {{#str}}returntocourse, aiplacement_modgen{{/str}}
+        </a>
+    </div>
+    {{/showcoursereturn}}
 </div>

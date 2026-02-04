@@ -459,10 +459,13 @@ if ($approvedjsonparam !== null) {
         $activitywarnings = $creation_result['warnings'];
 
         // Prepare data for success template
+        $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
         $successdata = [
             'message' => get_string('sectionscreatedsuccess', 'aiplacement_modgen', count($results)),
             'hasdetails' => !empty($results),
             'details' => $results,
+            'showcoursereturn' => !$ajax, // Show button in body for standalone pages, use footer for AJAX/modal
+            'courseurl' => $courseurl->out(false),
         ];
 
         $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/success_message', $successdata);

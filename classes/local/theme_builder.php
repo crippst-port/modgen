@@ -276,36 +276,24 @@ class theme_builder {
             throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
         }
 
-        // Create top-level theme section.
-        $themesectionnum = $courseformat->create_new_section(0, null); // 0 = top level, null = append.
-
         // Format title and summary.
         // Use format_string for title (XSS-safe) and FORMAT_PLAIN for summary to prevent XSS from AI-generated content
         $themetitle = format_string($title, true, ['context' => $context]);
         $sectionhtml = trim($summary) !== '' ? format_text($summary, FORMAT_PLAIN, ['context' => $context]) : '';
 
-        // Update section - get full record to have ID for update
-        $themesection = $DB->get_record('course_sections', [
-            'course' => $courseid,
-            'section' => $themesectionnum
-        ], '*', MUST_EXIST);
-
-        $themesection->name = $themetitle;
-        $themesection->summary = $sectionhtml;
-        $themesection->summaryformat = FORMAT_PLAIN;
-
-        $DB->update_record('course_sections', $themesection);
-
-        // Set collapsed option (theme appears as link).
+        // Create section with parent=0 (top level) and collapsed option.
         $collapsed = $options['collapsed'] ?? 1;
-        if (method_exists($courseformat, 'update_section_format_options')) {
-            $courseformat->update_section_format_options([
-                'id' => $themesection->id,
-                'collapsed' => $collapsed
-            ]);
-        }
+        $themesection = self::create_section_with_parent(
+            $courseid,
+            $courseformat,
+            0, // parent = 0 (top level)
+            $themetitle,
+            $sectionhtml,
+            FORMAT_PLAIN,
+            ['collapsed' => $collapsed]
+        );
 
-        return $themesectionnum;
+        return $themesection->section;
     }
 
     /**
@@ -336,9 +324,6 @@ class theme_builder {
             throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
         }
 
-        // Create week section under parent.
-        $weeksectionnum = $courseformat->create_new_section($parentsectionnum, null);
-
         // Format week title
         $weektitle = format_string($title, true, ['context' => $context]);
 
@@ -355,26 +340,19 @@ class theme_builder {
             $weeksectionhtml = format_text($summary, FORMAT_PLAIN, ['context' => $context]);
         }
 
-        // Update week section - get full record to have ID for update
-        $weeksection = $DB->get_record('course_sections', [
-            'course' => $courseid,
-            'section' => $weeksectionnum
-        ], '*', MUST_EXIST);
-
-        $weeksection->name = $weektitle;
-        $weeksection->summary = $weeksectionhtml;
-        $weeksection->summaryformat = FORMAT_PLAIN;
-
-        $DB->update_record('course_sections', $weeksection);
-
-        // Set collapsed option (week appears as link).
+        // Create section with explicit parent and collapsed option using centralized helper.
         $collapsed = $options['collapsed'] ?? 1;
-        if (method_exists($courseformat, 'update_section_format_options')) {
-            $courseformat->update_section_format_options([
-                'id' => $weeksection->id,
-                'collapsed' => $collapsed
-            ]);
-        }
+        $weeksection = self::create_section_with_parent(
+            $courseid,
+            $courseformat,
+            $parentsectionnum,
+            $weektitle,
+            $weeksectionhtml,
+            FORMAT_PLAIN,
+            ['collapsed' => $collapsed]
+        );
+
+        $weeksectionnum = $weeksection->section;
 
         // Create learningactivity metadata module at the start of the week.
         // Use custom name from metadata if provided, otherwise use the week title
@@ -449,22 +427,18 @@ class theme_builder {
         if (!$existing) {
             // Create new section after section 0.
             if (method_exists($courseformat, 'create_new_section')) {
-                // Flexsections format - create at top level.
-                $assessmentssectionnum = $courseformat->create_new_section(0, null);
+                // Flexsections format - create at top level using centralized helper.
+                $assessmentssection = self::create_section_with_parent(
+                    $courseid,
+                    $courseformat,
+                    0, // parent = 0 (top level)
+                    $assessmentsname,
+                    '', // No summary
+                    FORMAT_HTML,
+                    [] // No additional format options
+                );
 
-                // Update the section name.
-                $assessmentssection = $DB->get_record('course_sections', [
-                    'course' => $courseid,
-                    'section' => $assessmentssectionnum
-                ], '*', MUST_EXIST);
-
-                $DB->update_record('course_sections', [
-                    'id' => $assessmentssection->id,
-                    'name' => $assessmentsname,
-                    'summary' => '',
-                    'summaryformat' => FORMAT_HTML,
-                    'timemodified' => time()
-                ]);
+                $assessmentssectionnum = $assessmentssection->section;
 
                 // Move it to position 1 (right after section 0).
                 if (method_exists($courseformat, 'move_section')) {
@@ -493,11 +467,12 @@ class theme_builder {
      * Ensure course is using flexsections format.
      *
      * Converts course to flexsections if needed.
+     * Public to allow use in tests and validation scripts.
      *
      * @param int $courseid Course ID
      * @throws \moodle_exception If conversion fails
      */
-    private static function ensure_flexsections_format($courseid) {
+    public static function ensure_flexsections_format($courseid) {
         global $DB;
 
         $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
@@ -521,5 +496,116 @@ class theme_builder {
 
         // Initialize core sections after ensuring flexsections format.
         self::initialize_core_sections($courseid);
+    }
+
+    /**
+     * Create a section with explicit parent relationship.
+     *
+     * Centralized method that encapsulates the two-step section creation pattern:
+     * 1. Create section at top level with create_new_section(0, null)
+     * 2. Explicitly set parent field via update_section_format_options
+     *
+     * Public to allow use throughout the plugin for consistent section creation.
+     *
+     * @param int $courseid Course ID
+     * @param object $courseformat Course format object (must have create_new_section method)
+     * @param int $parentsectionnum Parent section NUMBER (0 for top level)
+     * @param string $name Section name
+     * @param string $summary Section summary (already formatted/escaped)
+     * @param int $summaryformat Summary format (e.g., FORMAT_PLAIN, FORMAT_HTML)
+     * @param array $options Additional format options (e.g., ['collapsed' => 1])
+     * @return object Section record with id and section number
+     * @throws \moodle_exception If section creation fails or invalid parameters
+     */
+    public static function create_section_with_parent($courseid, $courseformat, $parentsectionnum, $name, $summary, $summaryformat, $options = []) {
+        global $DB;
+
+        // Validate parameters.
+        if (!is_numeric($courseid) || $courseid <= 0) {
+            throw new \moodle_exception('invalidcourseid', 'error');
+        }
+        if (!is_numeric($parentsectionnum) || $parentsectionnum < 0) {
+            throw new \moodle_exception('invalidsectionparent', 'aiplacement_modgen');
+        }
+        if (empty(trim($name))) {
+            throw new \moodle_exception('invalidsectionname', 'aiplacement_modgen');
+        }
+        if (!method_exists($courseformat, 'create_new_section')) {
+            throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
+        }
+        if (!method_exists($courseformat, 'update_section_format_options')) {
+            throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
+        }
+
+        // Step 1: Create section at top level.
+        $sectionnum = $courseformat->create_new_section(0, null);
+
+        // Step 2: Get full section record.
+        $section = $DB->get_record('course_sections', [
+            'course' => $courseid,
+            'section' => $sectionnum
+        ], '*', MUST_EXIST);
+
+        // Step 3: Update section properties.
+        $section->name = $name;
+        $section->summary = $summary;
+        $section->summaryformat = $summaryformat;
+        $DB->update_record('course_sections', $section);
+
+        // Step 4: CRITICAL - Explicitly set parent relationship and all format options.
+        // The parent value must be the section NUMBER (not ID).
+        // Optimize: Set parent + all options in a single call to avoid N+1 queries.
+        $formatoptions = array_merge(
+            ['id' => $section->id, 'parent' => $parentsectionnum],
+            $options
+        );
+        $courseformat->update_section_format_options($formatoptions);
+
+        return $section;
+    }
+
+    /**
+     * Validate that a section has the correct parent section number.
+     *
+     * Checks that the parent field in course_format_options matches the expected
+     * parent section number. Used for testing and debugging parent relationships.
+     *
+     * @param int $courseid Course ID
+     * @param int $sectionnumber Child section number to validate
+     * @param int $expectedparent Expected parent section number
+     * @return bool True if parent is correct, false otherwise
+     */
+    public static function validate_section_parent($courseid, $sectionnumber, $expectedparent) {
+        global $DB;
+
+        // Get section record.
+        $section = $DB->get_record('course_sections', [
+            'course' => $courseid,
+            'section' => $sectionnumber
+        ]);
+
+        if (!$section) {
+            return false;
+        }
+
+        // Get parent option.
+        $parentoption = $DB->get_record('course_format_options', [
+            'courseid' => $courseid,
+            'sectionid' => $section->id,
+            'name' => 'parent'
+        ]);
+
+        // If no parent option and expected is 0, that's valid (defaults to top level).
+        if (!$parentoption && $expectedparent == 0) {
+            return true;
+        }
+
+        // If no parent option but expected is not 0, that's invalid.
+        if (!$parentoption) {
+            return false;
+        }
+
+        // Compare parent value (stored as string) to expected parent.
+        return (int)$parentoption->value === (int)$expectedparent;
     }
 }

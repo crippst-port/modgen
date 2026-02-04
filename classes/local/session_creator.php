@@ -76,48 +76,28 @@ class session_creator {
         $sessionsectionmap = [];
         
         foreach ($sessiontypes as $sessionkey => $sessionlabel) {
-            // Create the section at top level first
-            $sessionsectionnum = $courseformat->create_new_section(0, null);
-            $sessionsectionmap[$sessionkey] = $sessionsectionnum;
-
-            // Get the full section record for database updates
-            $sessionsection = $DB->get_record('course_sections', [
-                'course' => $courseid,
-                'section' => $sessionsectionnum
-            ], '*', MUST_EXIST);
-            
-            // CRITICAL: Manually set the parent relationship using update_section_format_options
-            // The parent value should be the section NUMBER (not ID) of the parent section
-            if ($parentsectionnum > 0) {
-                $courseformat->update_section_format_options([
-                    'id' => $sessionsection->id,
-                    'parent' => $parentsectionnum
-                ]);
-            }
-
-            // Update section name
-            $sessionsection->name = $sessionlabel;
-            
-            // Add description if provided in session data (backward compatible)
-            // Use FORMAT_PLAIN to prevent XSS from AI-generated content
+            // Prepare session summary from description if provided
+            $sessionsummary = '';
             if (!empty($sessiondata[$sessionkey]) && is_array($sessiondata[$sessionkey])) {
                 $data = $sessiondata[$sessionkey];
                 if (!empty($data['description'])) {
-                    $sessionsection->summary = format_text($data['description'], FORMAT_PLAIN);
-                    $sessionsection->summaryformat = FORMAT_PLAIN;
+                    $sessionsummary = format_text($data['description'], FORMAT_PLAIN);
                 }
             }
 
-            // Update section record
-            $DB->update_record('course_sections', $sessionsection);
+            // Create session section using centralized helper
+            $sessionsection = \aiplacement_modgen\local\theme_builder::create_section_with_parent(
+                $courseid,
+                $courseformat,
+                $parentsectionnum,
+                $sessionlabel,
+                $sessionsummary,
+                FORMAT_PLAIN,
+                ['collapsed' => 0]  // Sessions don't appear as links
+            );
             
-            // Set session section to NOT appear as a link (collapsed = 0)
-            if (method_exists($courseformat, 'update_section_format_options')) {
-                $courseformat->update_section_format_options([
-                    'id' => $sessionsection->id,
-                    'collapsed' => 0
-                ]);
-            }
+            $sessionsectionnum = $sessionsection->section;
+            $sessionsectionmap[$sessionkey] = $sessionsectionnum;
 
             // Create learningactivity metadata module at the start of the session.
             // Extract metadata - new structure or backward compatible

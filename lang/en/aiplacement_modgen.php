@@ -406,6 +406,10 @@ $string['flexsectionssetfailed'] = 'Failed to set course format to flexsections.
 $string['flexsectionsmethodnotavailable'] = 'Flexsections create_new_section method not available';
 $string['themesectioncreatefailed'] = 'Failed to create theme section \'{$a}\'';
 $string['sectionnotfound'] = 'Section not found in course';
+$string['errorformatnotflexsections'] = 'Course format must be flexsections';
+$string['errorflexsectionsmissingmethod'] = 'Required flexsections method is not available';
+$string['invalidsectionparent'] = 'Invalid section parent number. Must be a non-negative integer.';
+$string['invalidsectionname'] = 'Section name cannot be empty';
 
 // Navigation and UI messages
 $string['creationinprogress'] = 'Creation in progress. Leaving this page will abandon your changes.';

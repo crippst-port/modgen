@@ -227,52 +227,34 @@ class section_creation_service {
             $summary = $theme['summary'] ?? '';
             $weeks = !empty($theme['weeks']) && is_array($theme['weeks']) ? $theme['weeks'] : [];
             
+            // Format theme title and summary
+            $themetitle = format_string($title, true, ['context' => $context]);
+            $sectionhtml = '';
+            $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
+            if ((!$ai_enabled || $generatethemeintroductions) && trim($summary) !== '') {
+                $sectionhtml = format_text($summary, FORMAT_PLAIN, ['context' => $context]);
+            }
+            
             try {
-                if (!method_exists($courseformat, 'create_new_section')) {
-                    throw new \Exception('Flexsections create_new_section method not available');
-                }
+                // Create theme section using centralized helper
+                $themesection = \aiplacement_modgen\local\theme_builder::create_section_with_parent(
+                    $course->id,
+                    $courseformat,
+                    0, // parent = 0 (top level)
+                    $themetitle,
+                    $sectionhtml,
+                    FORMAT_PLAIN,
+                    ['collapsed' => 1]
+                );
                 
-                $themesectionnum = $courseformat->create_new_section(0, null);
+                $themesectionnum = $themesection->section;
                 
                 if ($hideexistingsections) {
-                    $themesectionid = $DB->get_field('course_sections', 'id', [
-                        'course' => $course->id,
-                        'section' => $themesectionnum
-                    ]);
-                    if ($themesectionid) {
-                        $new_toplevel_section_ids[] = $themesectionid;
-                    }
+                    $new_toplevel_section_ids[] = $themesection->id;
                 }
             } catch (\Exception $e) {
                 $activitywarnings[] = "Failed to create theme section: " . $e->getMessage();
                 continue;
-            }
-            
-            $themetitle = format_string($title, true, ['context' => $context]);
-            $sectionhtml = '';
-            
-            $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
-            if ((!$ai_enabled || $generatethemeintroductions) && trim($summary) !== '') {
-                $sectionhtml = format_text($summary, FORMAT_HTML, ['context' => $context]);
-            }
-            
-            $DB->update_record('course_sections', [
-                'id' => $DB->get_field('course_sections', 'id', [
-                    'course' => $course->id,
-                    'section' => $themesectionnum
-                ]),
-                'name' => $themetitle,
-                'summary' => $sectionhtml,
-                'summaryformat' => FORMAT_HTML,
-            ]);
-            
-            $themesectionid = $DB->get_field('course_sections', 'id', [
-                'course' => $course->id,
-                'section' => $themesectionnum
-            ]);
-            
-            if (method_exists($courseformat, 'update_section_format_options')) {
-                $courseformat->update_section_format_options(['id' => $themesectionid, 'collapsed' => 1]);
             }
             
             $results[] = get_string('sectioncreated', 'aiplacement_modgen', $themetitle);

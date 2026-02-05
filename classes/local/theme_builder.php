@@ -599,52 +599,50 @@ class theme_builder {
     public static function create_section_with_parent($courseid, $courseformat, $parentsectionnum, $name, $summary, $summaryformat, $options = []) {
         global $DB;
 
-        // Validate parameters including parent existence and hierarchy depth
+        // Validate parameters including parent existence and hierarchy depth.
         self::validate_section_creation_params($courseid, $courseformat, $parentsectionnum);
 
-        // Additional validation for section name
+        // Additional validation for section name.
         if (empty(trim($name))) {
             throw new \moodle_exception('invalidsectionname', 'aiplacement_modgen');
         }
 
-        // Start transaction for atomic operation
+        // Start transaction for atomic operation.
         $transaction = $DB->start_delegated_transaction();
 
         try {
-            // Step 1: Create section WITH parent using proper flexsections API
-            // This properly handles parent relationships and hierarchy
-            $sectionnum = $courseformat->create_new_section($parentsectionnum, null);
+            // Step 1: Create section at top level first.
+            // Note: We create at top level (0) then set parent manually to avoid nested transaction issues.
+            $sectionnum = $courseformat->create_new_section(0, null);
 
-            // Step 2: Get full section record
+            // Step 2: Get full section record.
             $section = $DB->get_record('course_sections', [
                 'course' => $courseid,
                 'section' => $sectionnum
             ], '*', MUST_EXIST);
 
-            // Step 3: Update section properties (name, summary)
+            // Step 3: Update section properties (name, summary).
             $section->name = $name;
             $section->summary = $summary;
             $section->summaryformat = $summaryformat;
             $DB->update_record('course_sections', $section);
 
-            // Step 4: Set additional format options using proper flexsections API
-            // This ensures cached values are updated correctly
-            if (!empty($options)) {
-                $formatoptions = ['id' => $section->id] + $options;
-                $courseformat->update_section_format_options($formatoptions);
-            }
+            // Step 4: Set ALL format options including parent in one call.
+            // This ensures the parent is set correctly and additional options don't overwrite it.
+            $formatoptions = ['id' => $section->id, 'parent' => $parentsectionnum] + $options;
+            $courseformat->update_section_format_options($formatoptions);
 
-            // Commit transaction - all operations successful
+            // Commit transaction - all operations successful.
             $transaction->allow_commit();
 
-            // Rebuild cache AFTER successful transaction
+            // Rebuild cache AFTER successful transaction.
             rebuild_course_cache($courseid, true, true);
 
             return $section;
 
         } catch (\Exception $e) {
-            // Transaction automatically rolls back on exception
-            // No partial data will remain in database
+            // Transaction automatically rolls back on exception.
+            // No partial data will remain in database.
             throw new \moodle_exception('sectorcreationfailed', 'aiplacement_modgen', '', null,
                 'Failed to create section "' . $name . '": ' . $e->getMessage());
         }

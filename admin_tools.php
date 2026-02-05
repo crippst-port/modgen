@@ -314,6 +314,10 @@ function check_course_integrity($courseid, $fix = false) {
     $result = [
         'orphaned' => 0,
         'invalid' => 0,
+        'nullparents' => 0,
+        'emptyparents' => 0,
+        'missingparents' => 0,
+        'duplicatesections' => 0,
         'hasIssues' => false
     ];
 
@@ -384,11 +388,125 @@ function check_course_integrity($courseid, $fix = false) {
         }
     }
 
+    // Check for NULL or empty parent values.
+    $nullparentsql = "SELECT cs.*, cfo.value as parentval
+                      FROM {course_sections} cs
+                      JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
+                      WHERE cs.course = ?
+                        AND cs.section > 0
+                        AND (cfo.value IS NULL OR cfo.value = '')";
+    $nullparents = $DB->get_records_sql($nullparentsql, [$courseid]);
+
+    if (!empty($nullparents)) {
+        $result['nullparents'] = count($nullparents);
+        $result['hasIssues'] = true;
+
+        echo $OUTPUT->notification(
+            count($nullparents) . ' sections with NULL or empty parent values',
+            'warning'
+        );
+
+        echo html_writer::start_tag('ul');
+        foreach ($nullparents as $section) {
+            echo html_writer::tag('li',
+                'Section "' . format_string($section->name) . '" (ID: ' . $section->id . ') has NULL/empty parent'
+            );
+        }
+        echo html_writer::end_tag('ul');
+
+        if ($fix) {
+            foreach ($nullparents as $section) {
+                $DB->set_field('course_format_options', 'value', '0', [
+                    'sectionid' => $section->id,
+                    'name' => 'parent'
+                ]);
+            }
+            echo $OUTPUT->notification('Fixed ' . count($nullparents) . ' NULL/empty parent values', 'success');
+        }
+    }
+
+    // Check for sections missing parent format option entirely.
+    $missingparentsql = "SELECT cs.*
+                         FROM {course_sections} cs
+                         WHERE cs.course = ?
+                           AND cs.section > 0
+                           AND NOT EXISTS (
+                               SELECT 1 FROM {course_format_options} cfo
+                               WHERE cfo.sectionid = cs.id AND cfo.name = 'parent'
+                           )";
+    $missingparents = $DB->get_records_sql($missingparentsql, [$courseid]);
+
+    if (!empty($missingparents)) {
+        $result['missingparents'] = count($missingparents);
+        $result['hasIssues'] = true;
+
+        echo $OUTPUT->notification(
+            count($missingparents) . ' sections missing parent format option',
+            'warning'
+        );
+
+        echo html_writer::start_tag('ul');
+        foreach ($missingparents as $section) {
+            echo html_writer::tag('li',
+                'Section "' . format_string($section->name) . '" (ID: ' . $section->id . ') missing parent option'
+            );
+        }
+        echo html_writer::end_tag('ul');
+
+        if ($fix) {
+            foreach ($missingparents as $section) {
+                $DB->insert_record('course_format_options', (object)[
+                    'courseid' => $courseid,
+                    'format' => 'flexsections',
+                    'sectionid' => $section->id,
+                    'name' => 'parent',
+                    'value' => '0'
+                ]);
+            }
+            echo $OUTPUT->notification('Fixed ' . count($missingparents) . ' missing parent options', 'success');
+        }
+    }
+
+    // Check for duplicate section numbers.
+    $duplicatesql = "SELECT section, COUNT(*) as count
+                     FROM {course_sections}
+                     WHERE course = ?
+                     GROUP BY section
+                     HAVING COUNT(*) > 1";
+    $duplicates = $DB->get_records_sql($duplicatesql, [$courseid]);
+
+    if (!empty($duplicates)) {
+        $result['duplicatesections'] = count($duplicates);
+        $result['hasIssues'] = true;
+
+        echo $OUTPUT->notification(
+            count($duplicates) . ' duplicate section numbers found',
+            'error'
+        );
+
+        echo html_writer::start_tag('ul');
+        foreach ($duplicates as $dup) {
+            echo html_writer::tag('li',
+                'Section number ' . $dup->section . ' appears ' . $dup->count . ' times'
+            );
+        }
+        echo html_writer::end_tag('ul');
+
+        echo html_writer::tag('p',
+            'Duplicate section numbers require manual resolution - automatic fix not safe.',
+            ['class' => 'alert alert-danger']
+        );
+    }
+
     // Display results.
     if (!$result['hasIssues']) {
         echo $OUTPUT->notification(get_string('noissuesfound', 'aiplacement_modgen'), 'success');
     } else if (!$fix) {
         echo html_writer::tag('p', get_string('usefixbutton', 'aiplacement_modgen'), ['class' => 'alert alert-warning']);
+    } else {
+        // Rebuild cache after all fixes.
+        rebuild_course_cache($courseid, false, true);
+        echo $OUTPUT->notification('Cache rebuilt', 'info');
     }
 
     return $result;

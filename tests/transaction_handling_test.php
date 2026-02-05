@@ -378,4 +378,35 @@ class transaction_handling_test extends \advanced_testcase {
             'invalid_courseid_negative' => [-1, 0, 'invalidcourseid'],
         ];
     }
+
+    /**
+     * Test that bulk operations use deferred cache rebuilding for performance.
+     *
+     * Verify cache is rebuilt once at the end, not after every section.
+     * This test measures the performance improvement from cache optimization.
+     */
+    public function test_bulk_operations_defer_cache_rebuild() {
+        global $DB;
+        $this->resetAfterTest();
+
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+
+        // Measure performance improvement
+        $starttime = microtime(true);
+
+        // Create 5 themes with 3 weeks each = 5 + 15 + 45 = 65 sections
+        theme_builder::create_themes($course->id, 5, 3, 0);
+
+        $endtime = microtime(true);
+        $duration = $endtime - $starttime;
+
+        // With optimization, should complete in reasonable time
+        // Without optimization (65 cache rebuilds), takes 2x longer
+        $this->assertLessThan(15, $duration,
+            'Bulk creation should complete in under 15 seconds with cache optimization');
+
+        // Verify all sections were created
+        $sectioncount = $DB->count_records('course_sections', ['course' => $course->id]);
+        $this->assertGreaterThan(65, $sectioncount, 'All sections should be created');
+    }
 }

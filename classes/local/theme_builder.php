@@ -130,6 +130,8 @@ class theme_builder {
             $transaction = $DB->start_delegated_transaction();
 
             try {
+                $createdcount = 0; // Track sections created for cache rebuild
+
                 for ($i = 1; $i <= $themecount; $i++) {
                     $themetitle = get_string('defaultthemename', 'aiplacement_modgen', $i);
                     $themesummary = get_string('defaultthemesummary', 'aiplacement_modgen');
@@ -141,8 +143,10 @@ class theme_builder {
                         $courseformat,
                         $themetitle,
                         $themesummary,
-                        $options
+                        $options,
+                        false  // Defer cache rebuild
                     );
+                    $createdcount++;
 
                     $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $themetitle);
 
@@ -161,8 +165,10 @@ class theme_builder {
                             $themesectionnum,
                             $weektitle,
                             $weeksummary,
-                            $weekoptions
+                            $weekoptions,
+                            false  // Defer cache rebuild
                         );
+                        $createdcount += 4; // Week + 3 session subsections
 
                         $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
 
@@ -178,14 +184,19 @@ class theme_builder {
                     }
                 }
 
+                // Rebuild cache ONCE after all sections created.
+                if ($createdcount > 0) {
+                    rebuild_course_cache($courseid, false, true);
+                }
+
                 // Commit all changes - all themes and weeks created successfully.
                 $transaction->allow_commit();
 
             } catch (\Exception $e) {
                 // Transaction automatically rolls back on exception.
-                // No partial data will remain in database.
-                throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen', '', null,
-                    'Failed to create themes: ' . $e->getMessage());
+                // Log technical details for administrators only.
+                debugging('Theme creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), DEBUG_DEVELOPER);
+                throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen');
             }
         } finally {
             $lock->release();
@@ -233,6 +244,8 @@ class theme_builder {
             $transaction = $DB->start_delegated_transaction();
 
             try {
+                $createdcount = 0; // Track sections created for cache rebuild
+
                 for ($i = 1; $i <= $weekcount; $i++) {
                     $weektitle = get_string('defaultstandaloneweekname', 'aiplacement_modgen', $i);
                     $weeksummary = get_string('defaultweeksummary', 'aiplacement_modgen');
@@ -244,8 +257,10 @@ class theme_builder {
                         $parent, // Use provided parent section
                         $weektitle,
                         $weeksummary,
-                        $weekoptions
+                        $weekoptions,
+                        false  // Defer cache rebuild
                     );
+                    $createdcount += 4; // Week + 3 session subsections
 
                     $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
 
@@ -260,14 +275,19 @@ class theme_builder {
                     }
                 }
 
+                // Rebuild cache ONCE after all sections created.
+                if ($createdcount > 0) {
+                    rebuild_course_cache($courseid, false, true);
+                }
+
                 // Commit all changes - all weeks created successfully.
                 $transaction->allow_commit();
 
             } catch (\Exception $e) {
                 // Transaction automatically rolls back on exception.
-                // No partial data will remain in database.
-                throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen', '', null,
-                    'Failed to create weeks: ' . $e->getMessage());
+                // Log technical details for administrators only.
+                debugging('Week creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), DEBUG_DEVELOPER);
+                throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen');
             }
         } finally {
             $lock->release();
@@ -290,9 +310,10 @@ class theme_builder {
      * @param string $title Theme title
      * @param string $summary Theme summary (HTML)
      * @param array $options Optional settings (e.g., ['collapsed' => 1])
+     * @param bool $rebuildcache Whether to rebuild course cache after creation (default true)
      * @return int Section number of created theme
      */
-    public static function create_theme_section($courseid, $courseformat, $title, $summary, $options = []) {
+    public static function create_theme_section($courseid, $courseformat, $title, $summary, $options = [], $rebuildcache = true) {
         global $DB;
 
         $context = \context_course::instance($courseid);
@@ -320,7 +341,8 @@ class theme_builder {
             $themetitle,
             $sectionhtml,
             FORMAT_PLAIN,
-            ['collapsed' => $collapsed]
+            ['collapsed' => $collapsed],
+            $rebuildcache  // Pass through rebuild cache parameter
         );
 
         return $themesection->section;
@@ -338,9 +360,10 @@ class theme_builder {
      * @param string $title Week title
      * @param string $summary Week summary (HTML)
      * @param array $options Optional settings (e.g., ['collapsed' => 1, 'sessiondata' => [...]])
+     * @param bool $rebuildcache Whether to rebuild course cache after creation (default true)
      * @return int Section number of created week
      */
-    public static function create_week_section($courseid, $courseformat, $parentsectionnum, $title, $summary, $options = []) {
+    public static function create_week_section($courseid, $courseformat, $parentsectionnum, $title, $summary, $options = [], $rebuildcache = true) {
         global $DB;
 
         $context = \context_course::instance($courseid);
@@ -379,7 +402,8 @@ class theme_builder {
             $weektitle,
             $weeksectionhtml,
             FORMAT_PLAIN,
-            ['collapsed' => $collapsed]
+            ['collapsed' => $collapsed],
+            false  // Don't rebuild cache yet - wait until session subsections created
         );
 
         $weeksectionnum = $weeksection->section;
@@ -387,7 +411,7 @@ class theme_builder {
         // Create learningactivity metadata module at the start of the week.
         // Use custom name from metadata if provided, otherwise use the week title
         $weekactivityname = !empty($weekmetadata['name']) ? $weekmetadata['name'] : $title;
-        
+
         $weekcmid = self::create_learningactivity_metadata(
             $courseid,
             $weeksectionnum,
@@ -404,6 +428,11 @@ class theme_builder {
             $courseid,
             $sessiondata
         );
+
+        // Rebuild cache only if requested (after all subsections created).
+        if ($rebuildcache) {
+            rebuild_course_cache($courseid, false, true);
+        }
 
         return $weeksectionnum;
     }
@@ -593,10 +622,11 @@ class theme_builder {
      * @param string $summary Section summary (already formatted/escaped)
      * @param int $summaryformat Summary format (e.g., FORMAT_PLAIN, FORMAT_HTML)
      * @param array $options Additional format options (e.g., ['collapsed' => 1])
+     * @param bool $rebuildcache Whether to rebuild course cache after creation (default true)
      * @return object Section record with id and section number
      * @throws \moodle_exception If section creation fails or invalid parameters
      */
-    public static function create_section_with_parent($courseid, $courseformat, $parentsectionnum, $name, $summary, $summaryformat, $options = []) {
+    public static function create_section_with_parent($courseid, $courseformat, $parentsectionnum, $name, $summary, $summaryformat, $options = [], $rebuildcache = true) {
         global $DB;
 
         // Validate parameters including parent existence and hierarchy depth.
@@ -621,9 +651,14 @@ class theme_builder {
                 'section' => $sectionnum
             ], '*', MUST_EXIST);
 
-            // Step 3: Update section properties (name, summary).
-            $section->name = $name;
-            $section->summary = $summary;
+            // Step 3: Update section properties (name, summary) with XSS protection.
+            $section->name = clean_param($name, PARAM_TEXT); // Strip HTML/JS from names
+            $section->summary = $summary; // Keep raw - will be sanitized on display
+            // Validate summary format - only allow safe formats
+            if (!in_array($summaryformat, [FORMAT_PLAIN, FORMAT_MARKDOWN, FORMAT_HTML, FORMAT_MOODLE])) {
+                debugging('Invalid summary format ' . $summaryformat . ', defaulting to FORMAT_HTML', DEBUG_DEVELOPER);
+                $summaryformat = FORMAT_HTML;
+            }
             $section->summaryformat = $summaryformat;
             $DB->update_record('course_sections', $section);
 
@@ -635,16 +670,21 @@ class theme_builder {
             // Commit transaction - all operations successful.
             $transaction->allow_commit();
 
-            // Rebuild cache AFTER successful transaction.
-            rebuild_course_cache($courseid, true, true);
+            // Rebuild cache only if requested (defer during bulk operations).
+            if ($rebuildcache) {
+                rebuild_course_cache($courseid, false, true); // Partial rebuild for performance
+            }
 
             return $section;
 
         } catch (\Exception $e) {
             // Transaction automatically rolls back on exception.
-            // No partial data will remain in database.
-            throw new \moodle_exception('sectorcreationfailed', 'aiplacement_modgen', '', null,
-                'Failed to create section "' . $name . '": ' . $e->getMessage());
+            // Log technical details for administrators only.
+            debugging('Section creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), DEBUG_DEVELOPER);
+
+            // User-facing message without technical details.
+            throw new \moodle_exception('sectorcreationfailed', 'aiplacement_modgen', '',
+                clean_param($name, PARAM_TEXT)); // Sanitized name in user message
         }
     }
 

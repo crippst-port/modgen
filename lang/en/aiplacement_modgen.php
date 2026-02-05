@@ -31,10 +31,10 @@ $string['pluginname'] = 'Module Assistant';
 $string['jsontoolarge'] = 'JSON data is too large to process';
 $string['invalidjson'] = 'Invalid JSON data: {$a}';
 $string['locktimeout'] = 'Another user is currently creating content in this course. Please try again in a few moments.';
-$string['sectorcreationfailed'] = 'Failed to create section: {$a}';
+$string['sectorcreationfailed'] = 'Failed to create section "{$a}". Check logs for details.';
 $string['invalidparentsection'] = 'Parent section {$a} does not exist';
 $string['maxsectiondepthreached'] = 'Maximum section depth of {$a} reached';
-$string['themecreationfailed'] = 'Failed to create themes: {$a}';
+$string['themecreationfailed'] = 'Failed to create themes. Check logs for details.';
 $string['jsonsectionscreationfailed'] = 'Failed to create sections from JSON: {$a}';
 
 $string['existingmodule'] = 'Base on existing module';

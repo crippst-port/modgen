@@ -83,56 +83,71 @@ class section_creation_service {
                     }
                 }
             }
-            
+
             // Ensure course format is flexsections
             $this->ensure_flexsections_format($courseid);
-            
+
             // Initialize core sections (section 0 and Assessments)
             \aiplacement_modgen\local\theme_builder::initialize_core_sections($courseid);
-            
+
             $course = get_course($courseid, true);
             $context = \context_course::instance($courseid);
             $courseformat = course_get_format($course);
-            
-            // Process based on module type
-            if ($moduletype === 'connected_theme' && !empty($json['themes']) && is_array($json['themes'])) {
-                $result = $this->create_theme_structure(
-                    $json['themes'],
-                    $course,
-                    $context,
-                    $courseformat,
-                    $generatethemeintroductions,
-                    $createsuggestedactivities,
-                    $hideexistingsections,
-                    $new_toplevel_section_ids,
-                    $activitywarnings
-                );
-                $results = array_merge($results, $result);
-                $needscacherefresh = true;
-            } else if (!empty($json['sections']) && is_array($json['sections'])) {
-                $result = $this->create_weekly_structure(
-                    $json['sections'],
-                    $course,
-                    $context,
-                    $courseformat,
-                    $moduletype,
-                    $createsuggestedactivities,
-                    $hideexistingsections,
-                    $new_toplevel_section_ids,
-                    $activitywarnings
-                );
-                $results = array_merge($results, $result);
+
+            // Start transaction for entire JSON processing operation.
+            // This ensures all sections and activities are created atomically - all or nothing.
+            $transaction = $DB->start_delegated_transaction();
+
+            try {
+                // Process based on module type
+                if ($moduletype === 'connected_theme' && !empty($json['themes']) && is_array($json['themes'])) {
+                    $result = $this->create_theme_structure(
+                        $json['themes'],
+                        $course,
+                        $context,
+                        $courseformat,
+                        $generatethemeintroductions,
+                        $createsuggestedactivities,
+                        $hideexistingsections,
+                        $new_toplevel_section_ids,
+                        $activitywarnings
+                    );
+                    $results = array_merge($results, $result);
+                    $needscacherefresh = true;
+                } else if (!empty($json['sections']) && is_array($json['sections'])) {
+                    $result = $this->create_weekly_structure(
+                        $json['sections'],
+                        $course,
+                        $context,
+                        $courseformat,
+                        $moduletype,
+                        $createsuggestedactivities,
+                        $hideexistingsections,
+                        $new_toplevel_section_ids,
+                        $activitywarnings
+                    );
+                    $results = array_merge($results, $result);
+                }
+
+                // Handle hiding existing sections
+                if ($hideexistingsections && !empty($new_toplevel_section_ids)) {
+                    $this->hide_and_reorder_sections($courseid, $course, $new_toplevel_section_ids);
+                }
+
+                // Commit all changes - all sections and activities created successfully.
+                $transaction->allow_commit();
+
+            } catch (\Exception $e) {
+                // Transaction automatically rolls back on exception.
+                // No partial data will remain in database.
+                throw new \moodle_exception('jsonsectionscreationfailed', 'aiplacement_modgen', '', null,
+                    'Failed to create sections from JSON: ' . $e->getMessage());
             }
-            
-            // Handle hiding existing sections
-            if ($hideexistingsections && !empty($new_toplevel_section_ids)) {
-                $this->hide_and_reorder_sections($courseid, $course, $new_toplevel_section_ids);
-            }
-            
+
             if ($needscacherefresh) {
                 rebuild_course_cache($courseid, true, true);
             }
-            
+
         } finally {
             rebuild_course_cache($courseid, true, true);
             if (isset($lock)) {

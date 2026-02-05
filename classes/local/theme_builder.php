@@ -125,52 +125,67 @@ class theme_builder {
             $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
             $courseformat = course_get_format($course);
 
-            for ($i = 1; $i <= $themecount; $i++) {
-                $themetitle = get_string('defaultthemename', 'aiplacement_modgen', $i);
-                $themesummary = get_string('defaultthemesummary', 'aiplacement_modgen');
+            // Start transaction for entire bulk operation.
+            // This ensures all themes and weeks are created atomically - all or nothing.
+            $transaction = $DB->start_delegated_transaction();
 
-                // Create theme section at top level (themes are always top-level).
-                $options = ['collapsed' => 1]; // Theme appears as link.
-                $themesectionnum = self::create_theme_section(
-                    $courseid,
-                    $courseformat,
-                    $themetitle,
-                    $themesummary,
-                    $options
-                );
+            try {
+                for ($i = 1; $i <= $themecount; $i++) {
+                    $themetitle = get_string('defaultthemename', 'aiplacement_modgen', $i);
+                    $themesummary = get_string('defaultthemesummary', 'aiplacement_modgen');
 
-                $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $themetitle);
-
-                // Create weeks under this theme.
-                for ($w = 1; $w <= $weeksperTheme; $w++) {
-                    $weektitle = get_string('defaultweekname', 'aiplacement_modgen', [
-                        'theme' => $i,
-                        'week' => $w
-                    ]);
-                    $weeksummary = get_string('defaultweeksummary', 'aiplacement_modgen');
-
-                    $weekoptions = ['collapsed' => 1]; // Week appears as link.
-                    $weeksectionnum = self::create_week_section(
+                    // Create theme section at top level (themes are always top-level).
+                    $options = ['collapsed' => 1]; // Theme appears as link.
+                    $themesectionnum = self::create_theme_section(
                         $courseid,
                         $courseformat,
-                        $themesectionnum,
-                        $weektitle,
-                        $weeksummary,
-                        $weekoptions
+                        $themetitle,
+                        $themesummary,
+                        $options
                     );
 
-                    $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
+                    $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $themetitle);
 
-                    // Sessions created inside create_week_section, add messages.
-                    $sessiontypes = [
-                        get_string('presession', 'aiplacement_modgen'),
-                        get_string('session', 'aiplacement_modgen'),
-                        get_string('postsession', 'aiplacement_modgen')
-                    ];
-                    foreach ($sessiontypes as $sessionlabel) {
-                        $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $sessionlabel);
+                    // Create weeks under this theme.
+                    for ($w = 1; $w <= $weeksperTheme; $w++) {
+                        $weektitle = get_string('defaultweekname', 'aiplacement_modgen', [
+                            'theme' => $i,
+                            'week' => $w
+                        ]);
+                        $weeksummary = get_string('defaultweeksummary', 'aiplacement_modgen');
+
+                        $weekoptions = ['collapsed' => 1]; // Week appears as link.
+                        $weeksectionnum = self::create_week_section(
+                            $courseid,
+                            $courseformat,
+                            $themesectionnum,
+                            $weektitle,
+                            $weeksummary,
+                            $weekoptions
+                        );
+
+                        $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
+
+                        // Sessions created inside create_week_section, add messages.
+                        $sessiontypes = [
+                            get_string('presession', 'aiplacement_modgen'),
+                            get_string('session', 'aiplacement_modgen'),
+                            get_string('postsession', 'aiplacement_modgen')
+                        ];
+                        foreach ($sessiontypes as $sessionlabel) {
+                            $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $sessionlabel);
+                        }
                     }
                 }
+
+                // Commit all changes - all themes and weeks created successfully.
+                $transaction->allow_commit();
+
+            } catch (\Exception $e) {
+                // Transaction automatically rolls back on exception.
+                // No partial data will remain in database.
+                throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen', '', null,
+                    'Failed to create themes: ' . $e->getMessage());
             }
         } finally {
             $lock->release();
@@ -213,31 +228,46 @@ class theme_builder {
             $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
             $courseformat = course_get_format($course);
 
-            for ($i = 1; $i <= $weekcount; $i++) {
-                $weektitle = get_string('defaultstandaloneweekname', 'aiplacement_modgen', $i);
-                $weeksummary = get_string('defaultweeksummary', 'aiplacement_modgen');
+            // Start transaction for entire bulk operation.
+            // This ensures all weeks are created atomically - all or nothing.
+            $transaction = $DB->start_delegated_transaction();
 
-                $weekoptions = ['collapsed' => 1]; // Week appears as link.
-                $weeksectionnum = self::create_week_section(
-                    $courseid,
-                    $courseformat,
-                    $parent, // Use provided parent section
-                    $weektitle,
-                    $weeksummary,
-                    $weekoptions
-                );
+            try {
+                for ($i = 1; $i <= $weekcount; $i++) {
+                    $weektitle = get_string('defaultstandaloneweekname', 'aiplacement_modgen', $i);
+                    $weeksummary = get_string('defaultweeksummary', 'aiplacement_modgen');
 
-                $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
+                    $weekoptions = ['collapsed' => 1]; // Week appears as link.
+                    $weeksectionnum = self::create_week_section(
+                        $courseid,
+                        $courseformat,
+                        $parent, // Use provided parent section
+                        $weektitle,
+                        $weeksummary,
+                        $weekoptions
+                    );
 
-                // Sessions created inside create_week_section, add messages.
-                $sessiontypes = [
-                    get_string('presession', 'aiplacement_modgen'),
-                    get_string('session', 'aiplacement_modgen'),
-                    get_string('postsession', 'aiplacement_modgen')
-                ];
-                foreach ($sessiontypes as $sessionlabel) {
-                    $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $sessionlabel);
+                    $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
+
+                    // Sessions created inside create_week_section, add messages.
+                    $sessiontypes = [
+                        get_string('presession', 'aiplacement_modgen'),
+                        get_string('session', 'aiplacement_modgen'),
+                        get_string('postsession', 'aiplacement_modgen')
+                    ];
+                    foreach ($sessiontypes as $sessionlabel) {
+                        $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $sessionlabel);
+                    }
                 }
+
+                // Commit all changes - all weeks created successfully.
+                $transaction->allow_commit();
+
+            } catch (\Exception $e) {
+                // Transaction automatically rolls back on exception.
+                // No partial data will remain in database.
+                throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen', '', null,
+                    'Failed to create weeks: ' . $e->getMessage());
             }
         } finally {
             $lock->release();
@@ -499,11 +529,60 @@ class theme_builder {
     }
 
     /**
+     * Validate parameters for section creation.
+     *
+     * @param int $courseid Course ID
+     * @param object $courseformat Course format object
+     * @param int $parentsectionnum Parent section number (0 for top-level)
+     * @throws \moodle_exception If validation fails
+     */
+    private static function validate_section_creation_params($courseid, $courseformat, $parentsectionnum) {
+        global $DB;
+
+        // Basic parameter validation
+        if (!is_numeric($courseid) || $courseid <= 0) {
+            throw new \moodle_exception('invalidcourseid', 'error');
+        }
+
+        if (!is_numeric($parentsectionnum) || $parentsectionnum < 0) {
+            throw new \moodle_exception('invalidsectionparent', 'aiplacement_modgen');
+        }
+
+        if (!method_exists($courseformat, 'create_new_section')) {
+            throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
+        }
+
+        // Validate parent section exists if not top-level
+        if ($parentsectionnum > 0) {
+            $parentsection = $DB->get_record('course_sections', [
+                'course' => $courseid,
+                'section' => $parentsectionnum
+            ]);
+
+            if (!$parentsection) {
+                throw new \moodle_exception('invalidparentsection', 'aiplacement_modgen', '', $parentsectionnum);
+            }
+
+            // Check depth limit (flexsections has max depth)
+            if (method_exists($courseformat, 'get_section_depth') &&
+                method_exists($courseformat, 'get_max_section_depth')) {
+
+                $parentsectioninfo = get_fast_modinfo($courseid)->get_section_info($parentsectionnum);
+                $parentdepth = $courseformat->get_section_depth($parentsectioninfo);
+                $maxdepth = $courseformat->get_max_section_depth();
+
+                if ($parentdepth + 1 > $maxdepth) {
+                    throw new \moodle_exception('maxsectiondepthreached', 'aiplacement_modgen', '', $maxdepth);
+                }
+            }
+        }
+    }
+
+    /**
      * Create a section with explicit parent relationship.
      *
-     * Centralized method that encapsulates the two-step section creation pattern:
-     * 1. Create section at top level with create_new_section(0, null)
-     * 2. Explicitly set parent field via update_section_format_options
+     * Uses flexsections' proper APIs with transaction protection to ensure atomic section creation.
+     * If any step fails, the entire operation is rolled back automatically.
      *
      * Public to allow use throughout the plugin for consistent section creation.
      *
@@ -520,90 +599,55 @@ class theme_builder {
     public static function create_section_with_parent($courseid, $courseformat, $parentsectionnum, $name, $summary, $summaryformat, $options = []) {
         global $DB;
 
-        // Validate parameters.
-        if (!is_numeric($courseid) || $courseid <= 0) {
-            throw new \moodle_exception('invalidcourseid', 'error');
-        }
-        if (!is_numeric($parentsectionnum) || $parentsectionnum < 0) {
-            throw new \moodle_exception('invalidsectionparent', 'aiplacement_modgen');
-        }
+        // Validate parameters including parent existence and hierarchy depth
+        self::validate_section_creation_params($courseid, $courseformat, $parentsectionnum);
+
+        // Additional validation for section name
         if (empty(trim($name))) {
             throw new \moodle_exception('invalidsectionname', 'aiplacement_modgen');
         }
-        if (!method_exists($courseformat, 'create_new_section')) {
-            throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
-        }
-        if (!method_exists($courseformat, 'update_section_format_options')) {
-            throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
-        }
 
-        // Step 1: Create section at top level.
-        $sectionnum = $courseformat->create_new_section(0, null);
+        // Start transaction for atomic operation
+        $transaction = $DB->start_delegated_transaction();
 
-        // Step 2: Get full section record.
-        $section = $DB->get_record('course_sections', [
-            'course' => $courseid,
-            'section' => $sectionnum
-        ], '*', MUST_EXIST);
+        try {
+            // Step 1: Create section WITH parent using proper flexsections API
+            // This properly handles parent relationships and hierarchy
+            $sectionnum = $courseformat->create_new_section($parentsectionnum, null);
 
-        // Step 3: Update section properties.
-        $section->name = $name;
-        $section->summary = $summary;
-        $section->summaryformat = $summaryformat;
-        $DB->update_record('course_sections', $section);
+            // Step 2: Get full section record
+            $section = $DB->get_record('course_sections', [
+                'course' => $courseid,
+                'section' => $sectionnum
+            ], '*', MUST_EXIST);
 
-        // Step 4: CRITICAL - Explicitly set parent relationship and all format options.
-        // The parent value must be the section NUMBER (not ID).
-        // Note: We insert directly into course_format_options table because update_section_format_options()
-        // doesn't work reliably in all contexts (e.g., test environment).
-        
-        // First, set the parent field.
-        $parentrecord = $DB->get_record('course_format_options', [
-            'courseid' => $courseid,
-            'sectionid' => $section->id,
-            'format' => 'flexsections',
-            'name' => 'parent'
-        ]);
-        
-        if ($parentrecord) {
-            // Update existing.
-            $parentrecord->value = $parentsectionnum;
-            $DB->update_record('course_format_options', $parentrecord);
-        } else {
-            // Insert new.
-            $DB->insert_record('course_format_options', (object)[
-                'courseid' => $courseid,
-                'format' => 'flexsections',
-                'sectionid' => $section->id,
-                'name' => 'parent',
-                'value' => $parentsectionnum
-            ]);
-        }
-        
-        // Then set any additional options.
-        foreach ($options as $optionname => $optionvalue) {
-            $optionrecord = $DB->get_record('course_format_options', [
-                'courseid' => $courseid,
-                'sectionid' => $section->id,
-                'format' => 'flexsections',
-                'name' => $optionname
-            ]);
-            
-            if ($optionrecord) {
-                $optionrecord->value = $optionvalue;
-                $DB->update_record('course_format_options', $optionrecord);
-            } else {
-                $DB->insert_record('course_format_options', (object)[
-                    'courseid' => $courseid,
-                    'format' => 'flexsections',
-                    'sectionid' => $section->id,
-                    'name' => $optionname,
-                    'value' => $optionvalue
-                ]);
+            // Step 3: Update section properties (name, summary)
+            $section->name = $name;
+            $section->summary = $summary;
+            $section->summaryformat = $summaryformat;
+            $DB->update_record('course_sections', $section);
+
+            // Step 4: Set additional format options using proper flexsections API
+            // This ensures cached values are updated correctly
+            if (!empty($options)) {
+                $formatoptions = ['id' => $section->id] + $options;
+                $courseformat->update_section_format_options($formatoptions);
             }
-        }
 
-        return $section;
+            // Commit transaction - all operations successful
+            $transaction->allow_commit();
+
+            // Rebuild cache AFTER successful transaction
+            rebuild_course_cache($courseid, true, true);
+
+            return $section;
+
+        } catch (\Exception $e) {
+            // Transaction automatically rolls back on exception
+            // No partial data will remain in database
+            throw new \moodle_exception('sectorcreationfailed', 'aiplacement_modgen', '', null,
+                'Failed to create section "' . $name . '": ' . $e->getMessage());
+        }
     }
 
     /**

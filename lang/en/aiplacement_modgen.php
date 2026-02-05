@@ -31,6 +31,11 @@ $string['pluginname'] = 'Module Assistant';
 $string['jsontoolarge'] = 'JSON data is too large to process';
 $string['invalidjson'] = 'Invalid JSON data: {$a}';
 $string['locktimeout'] = 'Another user is currently creating content in this course. Please try again in a few moments.';
+$string['sectorcreationfailed'] = 'Failed to create section: {$a}';
+$string['invalidparentsection'] = 'Parent section {$a} does not exist';
+$string['maxsectiondepthreached'] = 'Maximum section depth of {$a} reached';
+$string['themecreationfailed'] = 'Failed to create themes: {$a}';
+$string['jsonsectionscreationfailed'] = 'Failed to create sections from JSON: {$a}';
 
 $string['existingmodule'] = 'Base on existing module';
 $string['inputrequired'] = 'You must provide at least one of the following: a text prompt, upload a CSV file, select a structure, or choose an existing module to base this on.';

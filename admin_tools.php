@@ -697,12 +697,14 @@ function check_course_integrity($courseid, $fix = false) {
     }
 
     // Check for circular references (recursive up to 10 levels).
+    // PostgreSQL-compatible recursive CTE for circular reference detection.
+    // Use CAST AS INTEGER instead of UNSIGNED for cross-database compatibility.
     $circularsql = "WITH RECURSIVE section_tree AS (
                         SELECT cs.id, cs.section, cs.course,
-                               CAST(cfo.value AS UNSIGNED) as parent,
+                               CAST(cfo.value AS INTEGER) as parent,
                                cs.section as root_section,
                                1 as depth,
-                               CONCAT(cs.section) as path
+                               CAST(cs.section AS VARCHAR(1000)) as path
                         FROM {course_sections} cs
                         JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
                         WHERE cs.course = ? AND cs.section > 0
@@ -710,10 +712,10 @@ function check_course_integrity($courseid, $fix = false) {
                         UNION ALL
                         
                         SELECT cs.id, cs.section, cs.course,
-                               CAST(cfo.value AS UNSIGNED) as parent,
+                               CAST(cfo.value AS INTEGER) as parent,
                                st.root_section,
                                st.depth + 1,
-                               CONCAT(st.path, '->', cs.section)
+                               CAST(st.path || '->' || cs.section AS VARCHAR(1000))
                         FROM {course_sections} cs
                         JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
                         JOIN section_tree st ON cs.section = st.parent
@@ -974,6 +976,8 @@ function display_hierarchy_analysis($courseid) {
         if ($section->section == 0) {
             $section->parent = null;
         } else {
+            // Preserve actual parent value (including NULL) for accurate orphan detection.
+            // Default to '0' only for display purposes later.
             $section->parent = $section->parent !== null ? $section->parent : '0';
         }
         $sectionsbynum[$section->section] = $section;
@@ -1065,10 +1069,19 @@ function display_hierarchy_analysis($courseid) {
             $rowclass = 'table-danger';
             $issues[] = 'Circular parent reference';
         }
-        // Check for orphaned parent.
-        else if ($section->section != 0 && $section->parent !== '0' && !isset($sectionsbynum[$section->parent])) {
-            $rowclass = 'table-danger';
-            $issues[] = 'Parent does not exist';
+        // Check for orphaned parent (parent points to non-existent section).
+        else if ($section->section != 0 && $section->parent !== '0' && $section->parent !== null) {
+            if (is_numeric($section->parent)) {
+                $parentnum = (int)$section->parent;
+                if (!isset($sectionsbynum[$parentnum])) {
+                    $rowclass = 'table-danger';
+                    $issues[] = 'Parent does not exist';
+                }
+            } else {
+                // Non-numeric parent value.
+                $rowclass = 'table-danger';
+                $issues[] = 'Invalid parent value';
+            }
         }
         // Check for hidden subsection with no activities.
         else if ($section->visible == 0 && $section->activitycount == 0 && $section->parent !== '0') {
@@ -1125,8 +1138,18 @@ function display_hierarchy_analysis($courseid) {
         if ($section->visible == 0) {
             $stats['hidden']++;
         }
-        if ($section->section != 0 && $section->parent !== '0' && !isset($sectionsbynum[$section->parent])) {
-            $stats['orphaned']++;
+        // Orphaned: parent value points to non-existent section (excluding top-level '0').
+        if ($section->section != 0 && $section->parent !== '0' && $section->parent !== null) {
+            // Check if parent is numeric and if that section exists.
+            if (is_numeric($section->parent)) {
+                $parentnum = (int)$section->parent;
+                if (!isset($sectionsbynum[$parentnum])) {
+                    $stats['orphaned']++;
+                }
+            } else {
+                // Non-numeric parent value is also invalid/orphaned.
+                $stats['orphaned']++;
+            }
         }
         $depth = $depthcache[$section->section];
         if ($depth > $stats['maxdepth']) {

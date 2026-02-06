@@ -93,7 +93,7 @@ if ($action) {
                             'courseid' => $courseid,
                             'sesskey' => sesskey()
                         ]),
-                        'Re-check',
+                        get_string('recheck', 'aiplacement_modgen'),
                         ['class' => 'btn btn-info']
                     );
 
@@ -117,7 +117,7 @@ if ($action) {
                         'courseid' => $courseid,
                         'sesskey' => sesskey()
                     ]),
-                    'Re-check Integrity',
+                    get_string('recheck', 'aiplacement_modgen'),
                     ['class' => 'btn btn-info mr-2']
                 );
 
@@ -161,7 +161,7 @@ if ($action) {
                         'courseid' => $courseid,
                         'sesskey' => sesskey()
                     ]),
-                    'Re-check Integrity',
+                    get_string('recheck', 'aiplacement_modgen'),
                     ['class' => 'btn btn-info']
                 );
                 echo html_writer::end_div();
@@ -214,7 +214,7 @@ if ($action) {
                         'courseid' => $courseid,
                         'sesskey' => sesskey()
                     ]),
-                    'Re-analyze Hierarchy',
+                    get_string('reanalyzehierarchy', 'aiplacement_modgen'),
                     ['class' => 'btn btn-info']
                 );
                 echo html_writer::end_div();
@@ -248,7 +248,7 @@ if ($action) {
                         'courseid' => $courseid,
                         'sesskey' => sesskey()
                     ]),
-                    'Re-analyze Hierarchy',
+                    get_string('reanalyzehierarchy', 'aiplacement_modgen'),
                     ['class' => 'btn btn-info']
                 );
                 echo html_writer::end_div();
@@ -338,25 +338,25 @@ function display_dashboard($courseid = 0) {
     );
     echo html_writer::end_div();
 
-    echo html_writer::empty_tag('input', [
+    echo html_writer::tag('button', get_string('checkintegrity', 'aiplacement_modgen'), [
         'type' => 'submit',
         'name' => 'action',
         'value' => 'checkintegrity',
         'class' => 'btn btn-info mr-2'
     ]);
-    echo html_writer::empty_tag('input', [
+    echo html_writer::tag('button', get_string('fixintegrity', 'aiplacement_modgen'), [
         'type' => 'submit',
         'name' => 'action',
         'value' => 'fixintegrity',
         'class' => 'btn btn-warning mr-2'
     ]);
-    echo html_writer::empty_tag('input', [
+    echo html_writer::tag('button', get_string('cleanup', 'aiplacement_modgen'), [
         'type' => 'submit',
         'name' => 'action',
         'value' => 'cleanup',
         'class' => 'btn btn-danger mr-2'
     ]);
-    echo html_writer::empty_tag('input', [
+    echo html_writer::tag('button', get_string('analyzehierarchy', 'aiplacement_modgen'), [
         'type' => 'submit',
         'name' => 'action',
         'value' => 'analyzehierarchy',

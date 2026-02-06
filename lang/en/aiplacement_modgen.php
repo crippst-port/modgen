@@ -34,6 +34,8 @@ $string['locktimeout'] = 'Another user is currently creating content in this cou
 $string['sectorcreationfailed'] = 'Failed to create section "{$a}". Check logs for details.';
 $string['invalidparentsection'] = 'Parent section {$a} does not exist';
 $string['maxsectiondepthreached'] = 'Maximum section depth of {$a} reached';
+$string['circularsectionparent'] = 'Cannot create circular reference: Section {$a->child} cannot be its own parent';
+$string['circularsectionchain'] = 'Cannot create circular reference: Section {$a->child} with parent {$a->parent} would create a loop in the hierarchy';
 $string['themecreationfailed'] = 'Failed to create themes. Check logs for details.';
 $string['jsonsectionscreationfailed'] = 'Failed to create sections from JSON: {$a}';
 

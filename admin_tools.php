@@ -9,11 +9,20 @@
 /**
  * Admin-only diagnostic and testing tools for modgen plugin.
  *
+ * SECURITY MEASURES:
+ * - require_login() + require_capability('moodle/site:config') - Admin only
+ * - require_sesskey() on ALL actions - CSRF protection
+ * - All SQL uses $DB API with parameter binding - SQL injection prevention
+ * - context_system::instance() - System-level context
+ * - format_string() on all user-generated content - XSS prevention
+ * - Capability checks in AJAX endpoints - Authorization
+ *
  * Provides secure access to:
- * - PHPUnit test execution
- * - Database integrity checking
- * - Cleanup utilities
- * - Performance monitoring
+ * - Course integrity checking and repair
+ * - Hierarchy analysis and visualization
+ * - Circular reference detection and fixing
+ * - Section cleanup utilities
+ * - Data export (JSON/HTML/Text)
  *
  * @package    aiplacement_modgen
  * @copyright  2025 University of Portsmouth
@@ -41,8 +50,11 @@ $confirm = optional_param('confirm', 0, PARAM_INT);
 
 echo $OUTPUT->header();
 
-// Handle actions.
-if ($action && confirm_sesskey()) {
+// Handle actions - SECURITY: All actions require valid sesskey.
+if ($action) {
+    // Validate sesskey for ALL actions (CSRF protection).
+    require_sesskey();
+    
     switch ($action) {
         case 'checkintegrity':
             if ($courseid > 0) {
@@ -58,6 +70,7 @@ if ($action && confirm_sesskey()) {
                         new moodle_url('/ai/placement/modgen/admin_tools.php', [
                             'action' => 'fixintegrity',
                             'courseid' => $courseid,
+                            'sesskey' => sesskey(),
                             'sesskey' => sesskey()
                         ]),
                         get_string('fixintegrity', 'aiplacement_modgen'),
@@ -940,6 +953,7 @@ function display_hierarchy_analysis($courseid) {
     );
 
     // Build complete section hierarchy.
+    // SECURITY: Using parameter binding (?) to prevent SQL injection.
     $sql = "SELECT cs.id, cs.course, cs.section, cs.name, cs.visible, cs.sequence,
                    cfo.value as parent
             FROM {course_sections} cs
@@ -1009,21 +1023,67 @@ function display_hierarchy_analysis($courseid) {
     echo html_writer::end_tag('thead');
     echo html_writer::start_tag('tbody');
 
+    // Pre-detect circular references for each section.
+    $circularSections = [];
+    foreach ($sections as $section) {
+        if ($section->section == 0 || $section->parent === '0') {
+            continue;
+        }
+        
+        $visited = [];
+        $current = $section;
+        $loopcount = 0;
+        
+        while ($current && $current->parent !== '0' && $loopcount < 20) {
+            if (isset($visited[$current->section])) {
+                $circularSections[$section->section] = true;
+                break;
+            }
+            $visited[$current->section] = true;
+            
+            $parentnum = $current->parent;
+            if (!isset($sectionsbynum[$parentnum])) {
+                break;
+            }
+            $current = $sectionsbynum[$parentnum];
+            $loopcount++;
+        }
+    }
+
     foreach ($sections as $section) {
         $depth = $depthcache[$section->section];
         $rowclass = '';
+        $issues = [];
         
-        // Highlight issues.
-        if ($section->section != 0 && $section->parent !== '0' && !isset($sectionsbynum[$section->parent])) {
-            $rowclass = 'table-danger'; // Orphaned parent.
-        } else if ($section->visible == 0 && $section->activitycount == 0 && $section->parent !== '0') {
-            $rowclass = 'table-warning'; // Hidden subsection with no activities.
+        // Check for section 0 with parent.
+        if ($section->section == 0 && $section->parent !== null) {
+            $rowclass = 'table-danger';
+            $issues[] = 'Section 0 should not have a parent';
+        }
+        // Check for circular reference.
+        else if (isset($circularSections[$section->section])) {
+            $rowclass = 'table-danger';
+            $issues[] = 'Circular parent reference';
+        }
+        // Check for orphaned parent.
+        else if ($section->section != 0 && $section->parent !== '0' && !isset($sectionsbynum[$section->parent])) {
+            $rowclass = 'table-danger';
+            $issues[] = 'Parent does not exist';
+        }
+        // Check for hidden subsection with no activities.
+        else if ($section->visible == 0 && $section->activitycount == 0 && $section->parent !== '0') {
+            $rowclass = 'table-warning';
+            $issues[] = 'Hidden, no activities';
         }
 
         echo html_writer::start_tag('tr', $rowclass ? ['class' => $rowclass] : []);
         echo html_writer::tag('td', $section->section);
-        echo html_writer::tag('td', format_string($section->name));
-        echo html_writer::tag('td', $section->parent);
+        $nameCell = format_string($section->name);
+        if (!empty($issues)) {
+            $nameCell .= ' <span class="badge badge-danger">' . implode(', ', $issues) . '</span>';
+        }
+        echo html_writer::tag('td', $nameCell);
+        echo html_writer::tag('td', $section->parent === null ? '(none)' : $section->parent);
         echo html_writer::tag('td', $depth);
         echo html_writer::tag('td', $section->visible ? 'Yes' : 'No');
         echo html_writer::tag('td', $section->activitycount);

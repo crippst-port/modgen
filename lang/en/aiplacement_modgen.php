@@ -551,3 +551,46 @@ $string['documentation'] = 'Documentation';
 $string['resourcelinks'] = 'Resource Links';
 $string['corruptionanalysis'] = 'Corruption Analysis Report';
 $string['implementationplan'] = 'Implementation Plan';
+
+// Hierarchy analysis strings.
+$string['analyzehierarchy'] = 'Analyze Hierarchy';
+$string['hierarchyanalysis'] = 'Hierarchy Analysis';
+$string['hierarchytree'] = 'Section Hierarchy Tree';
+$string['sectiondetails'] = 'Section Details Table';
+$string['hierarchystats'] = 'Hierarchy Statistics';
+$string['analyzingcourse'] = 'Analyzing hierarchy for course: {$a}';
+$string['totalsections'] = 'Total sections';
+$string['toplevelsections'] = 'Top-level sections';
+$string['maxdepth'] = 'Maximum depth';
+$string['hiddensections'] = 'Hidden sections';
+$string['orphanedsections'] = 'Orphaned sections';
+$string['circularreferences'] = 'Circular references';
+$string['idnumberconfusion'] = 'ID/number confusion';
+$string['depthviolations'] = 'Depth violations';
+$string['hiddensubsections'] = 'Hidden subsections (no activities)';
+
+// Export strings.
+$string['quickexport'] = 'Quick Hierarchy Export';
+$string['exporthierarchy'] = 'Export Hierarchy Data';
+$string['exporthierarchydesc'] = 'Export course section hierarchy without running full analysis. Useful for sharing diagnostic data when reporting issues.';
+$string['exportoptions'] = 'Export Options:';
+$string['downloadjson'] = 'Download JSON';
+$string['downloadhtml'] = 'Download HTML Report';
+$string['downloadtext'] = 'Download Text';
+$string['hierarchyexported'] = 'Hierarchy data exported successfully';
+
+// Repair action strings.
+$string['repairactions'] = 'Repair Actions:';
+$string['fixcircular'] = 'Fix Circular References';
+$string['flattenhierarchy'] = 'Flatten Hierarchy (Nuclear Option)';
+$string['confirmfixcircular'] = 'Are you sure you want to fix circular parent references? This will break cycles by setting affected sections to top-level (parent=0).';
+$string['confirmflattenhierarchy'] = 'WARNING: This will set ALL sections to top-level (parent=0), destroying the entire hierarchy structure. This is a destructive operation that cannot be undone. Are you absolutely sure you want to continue?';
+$string['fixingcircular'] = 'Fixing Circular References';
+$string['flatteninghierarchy'] = 'Flattening Hierarchy';
+$string['fixingcircularcourse'] = 'Fixing circular references in course: {$a}';
+$string['flatteningcourse'] = 'Flattening hierarchy for course: {$a}';
+$string['circularfixed'] = 'Fixed {$a} circular references';
+$string['nocircularfound'] = 'No circular references found';
+$string['circularfixerror'] = 'Error fixing circular references: {$a}';
+$string['hierarchyflattened'] = 'Hierarchy successfully flattened - all sections are now top-level';
+$string['flattenerror'] = 'Error flattening hierarchy: {$a}';

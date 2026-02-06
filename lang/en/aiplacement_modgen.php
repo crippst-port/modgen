@@ -585,8 +585,10 @@ $string['hierarchyexported'] = 'Hierarchy data exported successfully';
 
 // Repair action strings.
 $string['repairactions'] = 'Repair Actions:';
-$string['fixcircular'] = 'Fix Circular References';
-$string['flattenhierarchy'] = 'Flatten Hierarchy (Nuclear Option)';
+$string['recheck'] = 'Run Integrity Check Again';
+$string['reanalyzehierarchy'] = 'View Hierarchy Report Again';
+$string['fixcircular'] = 'Break Circular Reference Loops';
+$string['flattenhierarchy'] = 'Reset All to Top Level (Destructive)';
 $string['confirmfixcircular'] = 'Are you sure you want to fix circular parent references? This will break cycles by setting affected sections to top-level (parent=0).';
 $string['confirmflattenhierarchy'] = 'WARNING: This will set ALL sections to top-level (parent=0), destroying the entire hierarchy structure. This is a destructive operation that cannot be undone. Are you absolutely sure you want to continue?';
 $string['fixingcircular'] = 'Fixing Circular References';

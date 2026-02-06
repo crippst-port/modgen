@@ -106,13 +106,20 @@ class learningactivity implements activity_type {
         $moduleinfo->designnotes = $activitydata->designnotes ?? '';
         $moduleinfo->learningoutcomes_weekly = $activitydata->learningoutcomes_weekly ?? '';
         
-        // Instructions (can be text or editor array)
+        // Instructions (must be in editor format for learningactivity module)
         if (isset($activitydata->instructions)) {
+            $instructionstext = '';
             if (is_array($activitydata->instructions)) {
-                $moduleinfo->instructions = $activitydata->instructions['text'] ?? '';
+                $instructionstext = $activitydata->instructions['text'] ?? '';
             } else {
-                $moduleinfo->instructions = $activitydata->instructions;
+                $instructionstext = $activitydata->instructions;
             }
+            // Convert to editor format expected by learningactivity_add_instance()
+            $moduleinfo->instructions_editor = [
+                'text' => $instructionstext,
+                'format' => FORMAT_HTML,
+                'itemid' => 0
+            ];
         }
         
         // Weekly learning outcomes (for weeks only)

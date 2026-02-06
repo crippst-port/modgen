@@ -1041,8 +1041,22 @@ function display_hierarchy_analysis($courseid) {
         'toplevel' => 0,
         'maxdepth' => 0,
         'hidden' => 0,
-        'orphaned' => 0
+        'orphaned' => 0,
+        'circular' => 0,
+        'section0withparent' => 0
     ];
+
+    // Check if section 0 has a parent value.
+    if (isset($sectionsbynum[0])) {
+        $section0 = $sectionsbynum[0];
+        $section0parent = $DB->get_record('course_format_options', [
+            'sectionid' => $section0->id,
+            'name' => 'parent'
+        ]);
+        if ($section0parent) {
+            $stats['section0withparent'] = 1;
+        }
+    }
 
     foreach ($sections as $section) {
         if ($section->parent === '0') {
@@ -1057,6 +1071,33 @@ function display_hierarchy_analysis($courseid) {
         $depth = $depthcache[$section->section];
         if ($depth > $stats['maxdepth']) {
             $stats['maxdepth'] = $depth;
+        }
+    }
+
+    // Check for circular references.
+    foreach ($sections as $section) {
+        if ($section->section == 0 || $section->parent === '0') {
+            continue;
+        }
+        
+        $visited = [];
+        $current = $section;
+        $loopcount = 0;
+        
+        while ($current && $current->parent !== '0' && $loopcount < 20) {
+            if (isset($visited[$current->section])) {
+                // Found a circular reference.
+                $stats['circular']++;
+                break;
+            }
+            $visited[$current->section] = true;
+            
+            $parentnum = $current->parent;
+            if (!isset($sectionsbynum[$parentnum])) {
+                break;
+            }
+            $current = $sectionsbynum[$parentnum];
+            $loopcount++;
         }
     }
 
@@ -1075,6 +1116,14 @@ function display_hierarchy_analysis($courseid) {
     if ($stats['orphaned'] > 0) {
         echo html_writer::tag('dt', get_string('orphanedsections', 'aiplacement_modgen'), ['class' => 'col-sm-6 text-danger']);
         echo html_writer::tag('dd', $stats['orphaned'], ['class' => 'col-sm-6 text-danger font-weight-bold']);
+    }
+    if ($stats['circular'] > 0) {
+        echo html_writer::tag('dt', get_string('circularreferences', 'aiplacement_modgen'), ['class' => 'col-sm-6 text-danger']);
+        echo html_writer::tag('dd', $stats['circular'], ['class' => 'col-sm-6 text-danger font-weight-bold']);
+    }
+    if ($stats['section0withparent'] > 0) {
+        echo html_writer::tag('dt', 'Section 0 has parent', ['class' => 'col-sm-6 text-danger']);
+        echo html_writer::tag('dd', 'Yes (INVALID)', ['class' => 'col-sm-6 text-danger font-weight-bold']);
     }
     echo html_writer::end_tag('dl');
     echo html_writer::end_div();
@@ -1120,7 +1169,7 @@ function display_hierarchy_analysis($courseid) {
     echo html_writer::tag('br', '');
     
     // Repair buttons (only if issues found).
-    if ($stats['orphaned'] > 0) {
+    if ($stats['orphaned'] > 0 || $stats['circular'] > 0 || $stats['section0withparent'] > 0) {
         echo html_writer::tag('p', get_string('repairactions', 'aiplacement_modgen'), ['class' => 'font-weight-bold mt-3']);
         echo html_writer::link(
             new moodle_url('/ai/placement/modgen/admin_tools.php', [
@@ -1715,6 +1764,26 @@ function fix_circular_references($courseid) {
     $transaction = $DB->start_delegated_transaction();
 
     try {
+        // First, fix section 0 if it has a parent.
+        if (isset($sectionsbynum[0])) {
+            $section0 = $sectionsbynum[0];
+            $section0parent = $DB->get_record('course_format_options', [
+                'sectionid' => $section0->id,
+                'name' => 'parent'
+            ]);
+            if ($section0parent) {
+                $DB->delete_records('course_format_options', [
+                    'sectionid' => $section0->id,
+                    'name' => 'parent'
+                ]);
+                $fixed++;
+                echo html_writer::tag('p',
+                    'Removed invalid parent from Section 0',
+                    ['class' => 'text-success']
+                );
+            }
+        }
+
         foreach ($sections as $section) {
             if (!$section->parent || $section->parent === '0') {
                 continue;

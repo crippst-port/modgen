@@ -881,36 +881,40 @@ class ai_service
                 ];
             }
 
-            // Build final prompt - lean and direct
+            // Build final prompt using array pattern for better performance
             // IMPORTANT: Put template guidance AFTER format instruction so it clearly describes the output
-            $finalprompt = $roleinstruction .
-                $documents_text .
-                "User request: " . trim($prompt) . "\n\n" .
-                $formatinstruction .
-                $template_guidance;
+            $promptparts = [
+                $roleinstruction,
+                $documents_text,
+                "User request: " . trim($prompt) . "\n\n",
+                $formatinstruction,
+                $template_guidance
+            ];
 
             // Add completeness enforcement at END (has most weight)
             if ($structure === 'theme') {
                 if (!empty($requestedthemecount)) {
-                    $finalprompt .= "\n*** CRITICAL THEME COUNT REQUIREMENT ***\n";
-                    $finalprompt .= "YOU MUST GENERATE EXACTLY {$requestedthemecount} THEMES - NO MORE, NO LESS.\n";
-                    $finalprompt .= "This is MANDATORY and NON-NEGOTIABLE.\n";
-                    $finalprompt .= "Count your themes before returning: if you don't have {$requestedthemecount} themes, you have FAILED.\n";
-                    $finalprompt .= "REQUIRED THEME COUNT: {$requestedthemecount}\n";
-                    $finalprompt .= "Do NOT stop early. Do NOT truncate. Do NOT generate fewer than {$requestedthemecount} themes.\n";
-                    $finalprompt .= "Return ONLY valid JSON with {$requestedthemecount} themes in the themes array.\n";
+                    $promptparts[] = "\n*** CRITICAL THEME COUNT REQUIREMENT ***\n";
+                    $promptparts[] = "YOU MUST GENERATE EXACTLY {$requestedthemecount} THEMES - NO MORE, NO LESS.\n";
+                    $promptparts[] = "This is MANDATORY and NON-NEGOTIABLE.\n";
+                    $promptparts[] = "Count your themes before returning: if you don't have {$requestedthemecount} themes, you have FAILED.\n";
+                    $promptparts[] = "REQUIRED THEME COUNT: {$requestedthemecount}\n";
+                    $promptparts[] = "Do NOT stop early. Do NOT truncate. Do NOT generate fewer than {$requestedthemecount} themes.\n";
+                    $promptparts[] = "Return ONLY valid JSON with {$requestedthemecount} themes in the themes array.\n";
                 } else {
-                    $finalprompt .= "\n*** COMPLETENESS REQUIREMENT ***\n";
-                    $finalprompt .= "Generate all themes needed to cover ALL topics and content.\n";
-                    $finalprompt .= "Do NOT stop early or truncate output.\n";
-                    $finalprompt .= "Return ONLY valid JSON.\n";
+                    $promptparts[] = "\n*** COMPLETENESS REQUIREMENT ***\n";
+                    $promptparts[] = "Generate all themes needed to cover ALL topics and content.\n";
+                    $promptparts[] = "Do NOT stop early or truncate output.\n";
+                    $promptparts[] = "Return ONLY valid JSON.\n";
                 }
             } else {
-                $finalprompt .= "\n*** COMPLETENESS REQUIREMENT ***\n";
-                $finalprompt .= "Include EVERY topic from content. Do NOT truncate or stop early.\n";
-                $finalprompt .= "Generate complete response with all content.\n";
-                $finalprompt .= "Return ONLY valid JSON.\n";
+                $promptparts[] = "\n*** COMPLETENESS REQUIREMENT ***\n";
+                $promptparts[] = "Include EVERY topic from content. Do NOT truncate or stop early.\n";
+                $promptparts[] = "Generate complete response with all content.\n";
+                $promptparts[] = "Return ONLY valid JSON.\n";
             }
+
+            $finalprompt = implode('', $promptparts);
 
             // Instantiate the generate_text action with required parameters.
             $action = new \core_ai\aiactions\generate_text(
@@ -972,8 +976,12 @@ class ai_service
                 // First attempt: direct JSON decode.
                 $jsondecoded = json_decode($text, true);
 
-                // If decode failed, check why
-                if (!is_array($jsondecoded)) {
+                // Early return if successful - avoid unnecessary parsing attempts
+                if (is_array($jsondecoded)) {
+                    // Successfully decoded - skip to deep unescape step
+                    $jsondecoded = self::deep_unescape_stringified_json($jsondecoded);
+                } else {
+                    // If decode failed, try alternative parsing methods
                     $jsonError = json_last_error_msg();
                     // Don't report every JSON error, just continue to next attempt
                 }
@@ -995,12 +1003,11 @@ class ai_service
                         $jsondecoded = json_decode($unescaped, true);
                     }
                 }
-            }
 
-            // Fourth attempt: After successful decode, deeply unescape any stringified JSON within the structure
-            // This catches cases like {"themes": [{"summary": "{\"themes\": [...]}"}]}
-            if (is_array($jsondecoded)) {
-                $jsondecoded = self::deep_unescape_stringified_json($jsondecoded);
+                // Fourth attempt: After successful decode, deeply unescape any stringified JSON within the structure
+                if (is_array($jsondecoded)) {
+                    $jsondecoded = self::deep_unescape_stringified_json($jsondecoded);
+                }
             }
 
             // Log double-encoding detection
@@ -1070,8 +1077,9 @@ class ai_service
             // Last resort: wrap generated text into a label
             // For theme structure, still wrap as themes but note this is fallback
             $revised = $data['revisedprompt'] ?? '';
+            $arraykey = $structure === 'theme' ? 'themes' : 'sections';
             return [
-                $structure === 'theme' ? 'themes' : 'sections' => [
+                $arraykey => [
                     ['title' => get_string('aigensummary', 'aiplacement_modgen'), 'summary' => $text ?: ''],
                 ],
                 'template' => $revised ?: 'Generated via AI subsystem (non-JSON response)',
@@ -1518,7 +1526,7 @@ class ai_service
             }
 
             // Log AI response for debugging suggestions
-            error_log('[MODGEN-SUGGEST] AI Response received, length=' . strlen($text));
+            debugging('[MODGEN-SUGGEST] AI Response received, length=' . strlen($text), DEBUG_DEVELOPER);
 
             // Try to decode JSON from the response
             $decoded = json_decode($text, true);
@@ -1526,10 +1534,10 @@ class ai_service
                 // Try to extract JSON block from code fences or inline
                 if (preg_match('/```(?:json)?\s*(\[.*\])\s*```/s', $text, $m)) {
                     $decoded = json_decode($m[1], true);
-                    error_log('[MODGEN-SUGGEST] Extracted from code fence, count=' . (is_array($decoded) ? count($decoded) : 'not-array'));
+                    debugging('[MODGEN-SUGGEST] Extracted from code fence, count=' . (is_array($decoded) ? count($decoded) : 'not-array'), DEBUG_DEVELOPER);
                 } elseif (preg_match('/(\[\s*\{.*\}\s*\])/s', $text, $m2)) {
                     $decoded = json_decode($m2[1], true);
-                    error_log('[MODGEN-SUGGEST] Extracted from inline pattern, count=' . (is_array($decoded) ? count($decoded) : 'not-array'));
+                    debugging('[MODGEN-SUGGEST] Extracted from inline pattern, count=' . (is_array($decoded) ? count($decoded) : 'not-array'), DEBUG_DEVELOPER);
                 } else {
                     // Try to find JSON array anywhere in the text, even with text before/after
                     $stripped = trim($text);
@@ -1539,21 +1547,21 @@ class ai_service
                         $jsonstr = substr($stripped, $start, $end - $start + 1);
                         $decoded = json_decode($jsonstr, true);
                         if (is_array($decoded)) {
-                            error_log('[MODGEN-SUGGEST] Extracted from text boundaries, count=' . count($decoded));
+                            debugging('[MODGEN-SUGGEST] Extracted from text boundaries, count=' . count($decoded), DEBUG_DEVELOPER);
                         }
                     }
                 }
             } else {
-                error_log('[MODGEN-SUGGEST] Direct JSON parse successful, count=' . (is_array($decoded) ? count($decoded) : 'not-array'));
+                debugging('[MODGEN-SUGGEST] Direct JSON parse successful, count=' . (is_array($decoded) ? count($decoded) : 'not-array'), DEBUG_DEVELOPER);
             }
 
             if (!is_array($decoded)) {
-                error_log('[MODGEN-SUGGEST] Final parse failed. Raw response: ' . substr($text, 0, 500));
+                debugging('[MODGEN-SUGGEST] Final parse failed. Raw response: ' . substr($text, 0, 500), DEBUG_DEVELOPER);
                 return ['success' => false, 'error' => 'Unable to parse AI suggestions', 'raw' => $text];
             }
 
             if (empty($decoded)) {
-                error_log('[MODGEN-SUGGEST] AI returned empty array');
+                debugging('[MODGEN-SUGGEST] AI returned empty array', DEBUG_DEVELOPER);
             }
 
             // Normalize suggestions to expected shape and restrict to supported types
@@ -1595,7 +1603,7 @@ class ai_service
 
                 // Skip suggestions with completely empty/missing activity type
                 if (empty($type_to_use) && empty($rawtype)) {
-                    error_log('[MODGEN-SUGGEST] Skipping suggestion ' . $id . ' - no activity type provided');
+                    debugging('[MODGEN-SUGGEST] Skipping suggestion ' . $id . ' - no activity type provided', DEBUG_DEVELOPER);
                     continue;
                 }
 
@@ -1613,7 +1621,7 @@ class ai_service
                 ];
             }
 
-            error_log('[MODGEN-SUGGEST] Processing complete. Generated ' . count($out) . ' suggestions from ' . count($decoded) . ' AI items');
+            debugging('[MODGEN-SUGGEST] Processing complete. Generated ' . count($out) . ' suggestions from ' . count($decoded) . ' AI items', DEBUG_DEVELOPER);
             return ['success' => true, 'suggestions' => $out, 'raw' => $text];
         } catch (\Throwable $e) {
             return ['success' => false, 'error' => $e->getMessage()];

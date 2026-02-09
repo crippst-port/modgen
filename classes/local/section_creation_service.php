@@ -41,6 +41,8 @@ class section_creation_service {
     /**
      * Create sections from approved JSON structure.
      *
+     * Uses transactions and locking for atomic operations. Cache rebuild deferred until after commit.
+     *
      * @param array $json The approved JSON structure
      * @param int $courseid Course ID
      * @param string $moduletype Module type (connected_theme, connected_weekly, etc)
@@ -48,7 +50,7 @@ class section_creation_service {
      * @param bool $createsuggestedactivities Whether to create suggested activities
      * @param bool $hideexistingsections Whether to hide existing sections
      * @return array Array with 'results' and 'warnings' keys
-     * @throws \Exception If section creation fails
+     * @throws \moodle_exception If lock acquisition or section creation fails
      */
     public function create_sections_from_json(
         array $json,
@@ -144,12 +146,18 @@ class section_creation_service {
                     'Failed to create sections from JSON: ' . $e->getMessage());
             }
 
-            if ($needscacherefresh) {
-                rebuild_course_cache($courseid, true, true);
-            }
-
+        } catch (\Exception $e) {
+            // Outer catch - rethrow after cleanup in finally block
+            throw $e;
         } finally {
-            rebuild_course_cache($courseid, true, true);
+            // Only rebuild cache if transaction committed successfully
+            if ($needscacherefresh) {
+                try {
+                    rebuild_course_cache($courseid, true, true);
+                } catch (\Exception $e) {
+                    debugging(get_string('cacherebuildfailed', 'aiplacement_modgen', $e->getMessage()), DEBUG_DEVELOPER);
+                }
+            }
             if (isset($lock)) {
                 $lock->release();
             }
@@ -186,16 +194,18 @@ class section_creation_service {
             $update->format = 'flexsections';
             
             update_course($update);
-            rebuild_course_cache($courseid, true, true);
             
+            // Fallback: Direct DB update if update_course() failed
             $course = get_course($courseid, true);
-            
             if ($course->format !== 'flexsections') {
                 global $DB;
                 $DB->set_field('course', 'format', 'flexsections', ['id' => $courseid]);
-                rebuild_course_cache($courseid, true, true);
                 $course = get_course($courseid, true);
             }
+            
+            // Single rebuild after all format changes complete
+            rebuild_course_cache($courseid, true, true);
+            $course = get_course($courseid, true);
             
             if ($course->format !== 'flexsections') {
                 throw new \Exception(
@@ -259,7 +269,8 @@ class section_creation_service {
                     $themetitle,
                     $sectionhtml,
                     FORMAT_PLAIN,
-                    ['collapsed' => 1]
+                    ['collapsed' => 1],
+                    false  // Defer cache rebuild until after all themes created
                 );
                 
                 $themesectionnum = $themesection->section;
@@ -473,9 +484,9 @@ class section_creation_service {
     private function hide_and_reorder_sections(int $courseid, \stdClass $course, array $new_toplevel_section_ids): void {
         global $DB;
         
-        // Refresh modinfo to ensure we have latest section data
+        // Single rebuild at start to get fresh section data
         rebuild_course_cache($courseid, true, true);
-        $course = get_course($courseid, true); // Get fresh course object
+        $course = get_course($courseid, true);
         $modinfo = get_fast_modinfo($course);
         
         // Get Assessments section (should never be hidden)
@@ -510,24 +521,18 @@ class section_creation_service {
                 continue;
             }
             
-            // Hide this top-level existing section
+            // Hide this top-level existing section (batch DB update - no rebuild needed)
             $DB->set_field('course_sections', 'visible', 0, ['id' => $sectioninfo->id]);
         }
         
-        // Refresh modinfo after hiding sections
-        rebuild_course_cache($courseid, true, true);
-        $course = get_course($courseid, true);
-        $modinfo = get_fast_modinfo($course);
-        
         // Move new sections to top (after section 0, before Assessments if it exists)
         if (!empty($new_toplevel_section_ids)) {
-            rebuild_course_cache($courseid, true, true);
             $course = get_course($courseid, true);
             $courseformat = course_get_format($course);
-            $modinfo = get_fast_modinfo($course);
             
             // Find the Assessments section (usually at position 1)
             $assessmentssection = null;
+            $modinfo = get_fast_modinfo($course);
             foreach ($modinfo->get_section_info_all() as $sinfo) {
                 if ($sinfo->name === 'Assessments') {
                     $assessmentssection = $sinfo;
@@ -539,11 +544,10 @@ class section_creation_service {
             $targetposition = $assessmentssection ? $assessmentssection->section : 1;
             
             // Move each new section to the top (reverse order for correct final sequence)
+            // No cache rebuild in loop - move_section() handles internal updates
             foreach (array_reverse($new_toplevel_section_ids) as $new_section_id) {
-                rebuild_course_cache($courseid, true, true);
-                $course = get_course($courseid, true);
+                // Use existing modinfo (refreshed after each move by move_section())
                 $modinfo = get_fast_modinfo($course);
-                $courseformat = course_get_format($course);
                 
                 // Find the section to move
                 $sectioninfo = null;
@@ -556,16 +560,19 @@ class section_creation_service {
                 
                 if ($sectioninfo && $sectioninfo->section != $targetposition && method_exists($courseformat, 'move_section')) {
                     try {
-                        // Move this section before the target position
+                        // move_section() may trigger internal cache update
                         $courseformat->move_section($sectioninfo->section, $targetposition, true);
+                        // Force lightweight modinfo refresh (no full rebuild needed)
+                        $modinfo = get_fast_modinfo($course, $course->id, null, true);
                     } catch (\Exception $e) {
                         // Continue on error
                         debugging("Failed to move section {$sectioninfo->section}: " . $e->getMessage());
                     }
                 }
             }
-            
-            rebuild_course_cache($courseid, true, true);
         }
+        
+        // Single rebuild at end (covers all visibility + move operations)
+        rebuild_course_cache($courseid, true, true);
     }
 }

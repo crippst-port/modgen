@@ -93,7 +93,8 @@ class session_creator {
                 $sessionlabel,
                 $sessionsummary,
                 FORMAT_PLAIN,
-                ['collapsed' => 0]  // Sessions don't appear as links
+                ['collapsed' => 0],  // Sessions don't appear as links
+                false  // Defer cache rebuild until all 3 sessions created
             );
             
             $sessionsectionnum = $sessionsection->section;

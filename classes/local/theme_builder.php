@@ -517,8 +517,6 @@ class theme_builder {
                     'timemodified' => time()
                 ]);
             }
-
-            rebuild_course_cache($courseid, true);
         }
     }
 

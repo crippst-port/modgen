@@ -69,6 +69,9 @@ $parentsection = optional_param('parentsection', 0, PARAM_INT); // Current secti
 $context = context_course::instance($courseid);
 require_capability('aiplacement/modgen:managestructure', $context);
 
+// Allow extended execution time for large section creation operations.
+core_php_time_limit::raise(600);
+
 // Set page context (required by some Moodle functions).
 $PAGE->set_context($context);
 

@@ -38,6 +38,7 @@ $string['circularsectionparent'] = 'Cannot create circular reference: Section {$
 $string['circularsectionchain'] = 'Cannot create circular reference: Section {$a->child} with parent {$a->parent} would create a loop in the hierarchy';
 $string['themecreationfailed'] = 'Failed to create themes. Check logs for details.';
 $string['jsonsectionscreationfailed'] = 'Failed to create sections from JSON: {$a}';
+$string['cacherebuildfailed'] = 'Course cache rebuild failed: {$a}';
 
 $string['existingmodule'] = 'Base on existing module';
 $string['inputrequired'] = 'You must provide at least one of the following: a text prompt, upload a CSV file, select a structure, or choose an existing module to base this on.';

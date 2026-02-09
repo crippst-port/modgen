@@ -1,4 +1,4 @@
-define(["exports", "core/fragment", "core/notification", "aiplacement_modgen/modal_generator_reactive"], function (_exports, _fragment, _notification, _modal_generator_reactive) {
+define(["exports", "core/fragment", "core/notification", "aiplacement_modgen/modal_generator_reactive", "core/str"], function (_exports, _fragment, _notification, _modal_generator_reactive, _str) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -16,11 +16,50 @@ define(["exports", "core/fragment", "core/notification", "aiplacement_modgen/mod
    * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
    */
   let modalComponent = null;
+  const checkCompletedJobs = courseid => {
+    const notifiedJobs = JSON.parse(sessionStorage.getItem('modgen_notified_jobs') || '[]');
+    fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/check_job_status.php?' + new URLSearchParams({
+      courseid: courseid,
+      recent: 1,
+      sesskey: M.cfg.sesskey
+    })).then(response => response.json()).then(data => {
+      if (data.success && data.jobs && data.jobs.length > 0) {
+        let hasNewCompletions = false;
+        data.jobs.forEach(job => {
+          if (notifiedJobs.includes(job.id)) {
+            return;
+          }
+          if (job.status === 'completed') {
+            const result = job.result || {};
+            const message = result.message || 'Background job completed successfully';
+            _notification.default.addNotification({
+              message: message,
+              type: 'success'
+            });
+            hasNewCompletions = true;
+            notifiedJobs.push(job.id);
+          } else if (job.status === 'failed') {
+            const result = job.result || {};
+            _notification.default.addNotification({
+              message: 'Background job failed: ' + (result.error || 'Unknown error'),
+              type: 'error'
+            });
+            notifiedJobs.push(job.id);
+          }
+        });
+        sessionStorage.setItem('modgen_notified_jobs', JSON.stringify(notifiedJobs));
+        if (hasNewCompletions) {
+          setTimeout(() => window.location.reload(), 2000);
+        }
+      }
+    }).catch(() => {});
+  };
   const init = config => {
     if (!config.courseid || !config.contextid) {
       console.error('course_toolbar.init called with invalid config:', config);
       return;
     }
+    checkCompletedJobs(config.courseid);
     modalComponent = (0, _modal_generator_reactive.init)(config.courseid, config.contextid, config.currentsection || 0);
     _fragment.default.loadFragment('aiplacement_modgen', 'course_toolbar', config.contextid, {
       courseid: config.courseid,

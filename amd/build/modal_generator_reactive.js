@@ -476,6 +476,89 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         class: 'btn-primary'
       }], true);
     }
+    pollJobStatus(modal, jobid) {
+      console.log('[ModGen] Starting job status polling for job ID:', jobid);
+      const startTime = Date.now();
+      let pollCount = 0;
+      const maxPolls = 120;
+      const checkStatus = () => {
+        pollCount++;
+        const elapsed = Math.floor((Date.now() - startTime) / 1000);
+        console.log("[ModGen] Poll #".concat(pollCount, " at ").concat(elapsed, "s - checking job ").concat(jobid));
+        if (pollCount > maxPolls) {
+          console.warn('[ModGen] Maximum polling time exceeded, stopping');
+          modal.setBody("<div class=\"alert alert-warning\">\n                    <strong>Job is taking longer than expected.</strong><br>\n                    Your sections are still being created in the background.<br>\n                    Please refresh this page in a few minutes to see the results.\n                </div>");
+          this.renderFooterButtons(modal, [{
+            label: 'closemodgenmodal',
+            action: 'return-to-course',
+            class: 'btn-primary'
+          }], true);
+          return;
+        }
+        modal.setBody("<div class=\"alert alert-info\">\n                <div class=\"spinner-border spinner-border-sm me-2\"></div>\n                Creating sections in background... (".concat(elapsed, "s)\n                <br><small class=\"text-muted\">Poll #").concat(pollCount, "</small>\n            </div>"));
+        fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/check_job_status.php', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          body: new URLSearchParams({
+            jobid: jobid,
+            sesskey: M.cfg.sesskey
+          })
+        }).then(response => {
+          console.log('[ModGen] Poll response received, status:', response.status);
+          return response.json();
+        }).then(async data => {
+          console.log('[ModGen] Poll data:', data);
+          if (data.success) {
+            if (data.status === 'completed') {
+              console.log('[ModGen] Job completed successfully, showing success message');
+              const notifiedJobs = JSON.parse(sessionStorage.getItem('modgen_notified_jobs') || '[]');
+              if (!notifiedJobs.includes(jobid)) {
+                notifiedJobs.push(jobid);
+                sessionStorage.setItem('modgen_notified_jobs', JSON.stringify(notifiedJobs));
+              }
+              const result = data.result || {};
+              const details = result.messages || [];
+              await this.showSuccess(modal, result.message || 'Sections created successfully', details);
+              setTimeout(() => {
+                console.log('[ModGen] Reloading page to show new sections');
+                window.location.reload();
+              }, 2000);
+            } else if (data.status === 'failed') {
+              console.error('[ModGen] Job failed:', data.result);
+              const result = data.result || {};
+              modal.setBody("<div class=\"alert alert-danger\">\n                            <strong>Error:</strong> ".concat(result.error || 'Job failed', "\n                        </div>"));
+              await this.renderFooterButtons(modal, [{
+                label: 'closemodgenmodal',
+                action: 'return-to-course',
+                class: 'btn-primary'
+              }], true);
+            } else {
+              console.log("[ModGen] Job status: ".concat(data.status, ", polling again in 3s"));
+              setTimeout(checkStatus, 3000);
+            }
+          } else {
+            console.error('[ModGen] Error response:', data);
+            modal.setBody("<div class=\"alert alert-danger\">\n                        Error checking job status: ".concat(data.error || 'Unknown error', "\n                    </div>"));
+            await this.renderFooterButtons(modal, [{
+              label: 'closemodgenmodal',
+              action: 'return-to-course',
+              class: 'btn-primary'
+            }], true);
+          }
+        }).catch(async error => {
+          console.error('[ModGen] Network error:', error);
+          modal.setBody("<div class=\"alert alert-danger\">\n                    Error checking job status. Please refresh the page.\n                </div>");
+          await this.renderFooterButtons(modal, [{
+            label: 'closemodgenmodal',
+            action: 'return-to-course',
+            class: 'btn-primary'
+          }], true);
+        });
+      };
+      checkStatus();
+    }
     hideFormButtons(modal) {
       const body = modal.getBody();
       const bodyNode = body && body.length ? body.get(0) : null;
@@ -750,8 +833,13 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         }).then(response => response.json()).then(async data => {
           window.modgenCreationInProgress = false;
           if (data.success) {
-            const details = data.messages && data.messages.length > 0 ? data.messages : [];
-            this.showSuccess(modal, data.message, details);
+            if (data.queued && data.jobid) {
+              modal.setBody("<div class=\"alert alert-info\">\n                                <div class=\"spinner-border spinner-border-sm me-2\"></div>\n                                ".concat(data.message, "\n                            </div>"));
+              this.pollJobStatus(modal, data.jobid);
+            } else {
+              const details = data.messages && data.messages.length > 0 ? data.messages : [];
+              this.showSuccess(modal, data.message, details);
+            }
           } else {
             _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
               courseid: this.courseid,

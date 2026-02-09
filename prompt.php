@@ -444,19 +444,68 @@ if ($approvedjsonparam !== null) {
         $createsuggestedactivities = !empty($adata->createsuggestedactivities);
         $hideexistingsections = !empty($adata->hideexistingsections);
         
-        // Use section creation service
-        $section_service = new \aiplacement_modgen\local\section_creation_service();
-        $creation_result = $section_service->create_sections_from_json(
-            $json,
-            $courseid,
-            $moduletype,
-            $generatethemeintroductions,
-            $createsuggestedactivities,
-            $hideexistingsections
-        );
+        // Count sections to determine if background processing needed
+        $sectioncount = 0;
+        if (!empty($json['themes'])) {
+            $sectioncount += count($json['themes']);
+            foreach ($json['themes'] as $theme) {
+                if (!empty($theme['weeks'])) {
+                    $sectioncount += count($theme['weeks']);
+                }
+            }
+        } else if (!empty($json['weeks'])) {
+            $sectioncount = count($json['weeks']);
+        }
         
-        $results = $creation_result['results'];
-        $activitywarnings = $creation_result['warnings'];
+        // Use background job for large operations (10+ sections)
+        if ($sectioncount >= 10) {
+            // Create job record
+            $job = new \stdClass();
+            $job->courseid = $courseid;
+            $job->userid = $USER->id;
+            $job->action = 'create_from_json';
+            $job->status = 'queued';
+            $job->parameters = json_encode([
+                'json' => $json,
+                'moduletype' => $moduletype,
+                'generatethemeintroductions' => $generatethemeintroductions,
+                'createsuggestedactivities' => $createsuggestedactivities,
+                'hideexistingsections' => $hideexistingsections
+            ]);
+            $job->timecreated = time();
+            $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
+            
+            // Queue ad-hoc task
+            $task = new \aiplacement_modgen\task\create_sections_task();
+            $task->set_custom_data(['jobid' => $jobid]);
+            \core\task\manager::queue_adhoc_task($task);
+            
+            // Return queued response for AJAX
+            if ($ajax) {
+                \aiplacement_modgen\local\ajax_response::success([
+                    'queued' => true,
+                    'jobid' => $jobid,
+                    'message' => get_string('jobqueued', 'aiplacement_modgen', $sectioncount)
+                ]);
+            }
+            // For non-AJAX, results will be empty and handled below
+            $results = [];
+            $activitywarnings = [];
+        } else {
+            // Small operation - run synchronously
+            $section_service = new \aiplacement_modgen\local\section_creation_service();
+            $creation_result = $section_service->create_sections_from_json(
+                $json,
+                $courseid,
+                $moduletype,
+                $generatethemeintroductions,
+                $createsuggestedactivities,
+                $hideexistingsections
+            );
+            
+            $results = $creation_result['results'];
+            $activitywarnings = $creation_result['warnings'];
+        }
 
         // Prepare data for success template
         $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);

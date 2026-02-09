@@ -81,6 +81,11 @@ $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 10;
 try {
     require_once(__DIR__ . '/../classes/local/theme_builder.php');
 
+    // Determine if this should run as a background job.
+    // Use background processing for operations creating 10+ sections total.
+    $usebackground = false;
+    $totalsections = 0;
+
     if ($action === 'create_themes') {
         // Get theme parameters.
         $themecount = required_param('themecount', PARAM_INT);
@@ -101,13 +106,51 @@ try {
             );
         }
 
-        // Create themes within current section.
-        $result = \aiplacement_modgen\local\theme_builder::create_themes($courseid, $themecount, $weeksperTheme, $parentsection);
+        // Calculate total sections: themes + (themes × weeks × 4 sessions).
+        $totalsections = $themecount + ($themecount * $weeksperTheme * 4);
+        $usebackground = $totalsections >= 10;
 
-        ajax_response::success([
-            'message' => get_string('themescreated', 'aiplacement_modgen', $themecount),
-            'messages' => $result['messages'] ?? []
-        ]);
+        if ($usebackground) {
+            // Queue as background task.
+            $job = new stdClass();
+            $job->courseid = $courseid;
+            $job->userid = $USER->id;
+            $job->action = 'create_themes';
+            $job->status = 'queued';
+            $job->parameters = json_encode([
+                'themecount' => $themecount,
+                'weeksperTheme' => $weeksperTheme,
+                'parentsection' => $parentsection
+            ]);
+            $job->timecreated = time();
+            $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
+
+            // Queue ad-hoc task.
+            $task = new \aiplacement_modgen\task\create_sections_task();
+            $task->set_custom_data((object)[
+                'jobid' => $jobid,
+                'courseid' => $courseid,
+                'action' => 'create_themes',
+                'themecount' => $themecount,
+                'weeksperTheme' => $weeksperTheme,
+                'parentsection' => $parentsection
+            ]);
+            \core\task\manager::queue_adhoc_task($task);
+
+            ajax_response::success([
+                'queued' => true,
+                'jobid' => $jobid,
+                'message' => get_string('jobqueued', 'aiplacement_modgen', $totalsections)
+            ]);
+        } else {
+            // Run synchronously for small operations.
+            $result = \aiplacement_modgen\local\theme_builder::create_themes($courseid, $themecount, $weeksperTheme, $parentsection);
+
+            ajax_response::success([
+                'message' => get_string('themescreated', 'aiplacement_modgen', $themecount),
+                'messages' => $result['messages'] ?? []
+            ]);
+        }
 
     } else if ($action === 'create_weeks') {
         // Get week parameters.
@@ -121,13 +164,49 @@ try {
             );
         }
 
-        // Create weeks within current section.
-        $result = \aiplacement_modgen\local\theme_builder::create_weeks($courseid, $weekcount, $parentsection);
+        // Calculate total sections: weeks + (weeks × 3 sessions).
+        $totalsections = $weekcount + ($weekcount * 3);
+        $usebackground = $totalsections >= 10;
 
-        ajax_response::success([
-            'message' => get_string('weekscreated', 'aiplacement_modgen', $weekcount),
-            'messages' => $result['messages'] ?? []
-        ]);
+        if ($usebackground) {
+            // Queue as background task.
+            $job = new stdClass();
+            $job->courseid = $courseid;
+            $job->userid = $USER->id;
+            $job->action = 'create_weeks';
+            $job->status = 'queued';
+            $job->parameters = json_encode([
+                'weekcount' => $weekcount,
+                'parentsection' => $parentsection
+            ]);
+            $job->timecreated = time();
+            $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
+
+            // Queue ad-hoc task.
+            $task = new \aiplacement_modgen\task\create_sections_task();
+            $task->set_custom_data((object)[
+                'jobid' => $jobid,
+                'courseid' => $courseid,
+                'action' => 'create_weeks',
+                'weekcount' => $weekcount,
+                'parentsection' => $parentsection
+            ]);
+            \core\task\manager::queue_adhoc_task($task);
+
+            ajax_response::success([
+                'queued' => true,
+                'jobid' => $jobid,
+                'message' => get_string('jobqueued', 'aiplacement_modgen', $totalsections)
+            ]);
+        } else {
+            // Run synchronously for small operations.
+            $result = \aiplacement_modgen\local\theme_builder::create_weeks($courseid, $weekcount, $parentsection);
+
+            ajax_response::success([
+                'message' => get_string('weekscreated', 'aiplacement_modgen', $weekcount),
+                'messages' => $result['messages'] ?? []
+            ]);
+        }
 
     } else {
         ajax_response::error('Invalid action', 'invalidaction');

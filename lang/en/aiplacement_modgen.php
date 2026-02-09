@@ -39,6 +39,13 @@ $string['circularsectionchain'] = 'Cannot create circular reference: Section {$a
 $string['themecreationfailed'] = 'Failed to create themes. Check logs for details.';
 $string['jsonsectionscreationfailed'] = 'Failed to create sections from JSON: {$a}';
 $string['cacherebuildfailed'] = 'Course cache rebuild failed: {$a}';
+$string['jobqueued'] = 'Creation queued - {$a} sections will be created in the background. This may take a few minutes.';
+$string['jobrunning'] = 'Job is running...';
+$string['jobcompleted'] = 'Job completed successfully';
+$string['jobfailed'] = 'Job failed: {$a}';
+$string['checkingstatus'] = 'Checking job status...';
+$string['invalidaction'] = 'Invalid action';
+$string['creatingstructure'] = 'Creating Course Structure';
 
 $string['existingmodule'] = 'Base on existing module';
 $string['inputrequired'] = 'You must provide at least one of the following: a text prompt, upload a CSV file, select a structure, or choose an existing module to base this on.';

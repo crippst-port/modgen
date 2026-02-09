@@ -24,9 +24,70 @@
 import Fragment from 'core/fragment';
 import Notification from 'core/notification';
 import {init as initModalComponent} from 'aiplacement_modgen/modal_generator_reactive';
+import {getString} from 'core/str';
 
 // Store modal component instance for button handlers.
 let modalComponent = null;
+
+/**
+ * Check for recently completed background jobs and notify user.
+ *
+ * @param {number} courseid Course ID
+ */
+const checkCompletedJobs = (courseid) => {
+    // Get list of already-notified job IDs from sessionStorage
+    const notifiedJobs = JSON.parse(sessionStorage.getItem('modgen_notified_jobs') || '[]');
+    
+    fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/check_job_status.php?' + new URLSearchParams({
+        courseid: courseid,
+        recent: 1,
+        sesskey: M.cfg.sesskey
+    }))
+    .then(response => response.json())
+    .then(data => {
+        if (data.success && data.jobs && data.jobs.length > 0) {
+            let hasNewCompletions = false;
+            
+            data.jobs.forEach(job => {
+                // Skip if already notified
+                if (notifiedJobs.includes(job.id)) {
+                    return;
+                }
+                
+                if (job.status === 'completed') {
+                    const result = job.result || {};
+                    const message = result.message || 'Background job completed successfully';
+                    Notification.addNotification({
+                        message: message,
+                        type: 'success'
+                    });
+                    hasNewCompletions = true;
+                    // Mark as notified
+                    notifiedJobs.push(job.id);
+                } else if (job.status === 'failed') {
+                    const result = job.result || {};
+                    Notification.addNotification({
+                        message: 'Background job failed: ' + (result.error || 'Unknown error'),
+                        type: 'error'
+                    });
+                    // Mark as notified
+                    notifiedJobs.push(job.id);
+                }
+            });
+            
+            // Save updated notified jobs list
+            sessionStorage.setItem('modgen_notified_jobs', JSON.stringify(notifiedJobs));
+            
+            // Only reload if we found new completions
+            if (hasNewCompletions) {
+                setTimeout(() => window.location.reload(), 2000);
+            }
+        }
+    })
+    .catch(() => {
+        // Silently fail - this is just a check
+    });
+};
 
 /**
  * Initialize the course navigation toolbar.
@@ -45,6 +106,9 @@ export const init = (config) => {
         console.error('course_toolbar.init called with invalid config:', config);
         return;
     }
+
+    // Check for completed jobs on page load
+    checkCompletedJobs(config.courseid);
 
     // Initialize modal component once for reuse, passing current section.
     modalComponent = initModalComponent(config.courseid, config.contextid, config.currentsection || 0);

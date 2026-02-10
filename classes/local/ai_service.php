@@ -1400,7 +1400,7 @@ class ai_service
 
             $response = $aimanager->process_action($action);
             $data = $response->get_response_data();
-            $text = $data['generatedtext'] ?? ($data['generatedcontent'] ?? '');
+            $text = $data['generatedcontent'] ?? ($data['generatedtext'] ?? ($data['text'] ?? ($data['content'] ?? '')));
 
             if (is_string($text)) {
                 return trim($text);
@@ -1519,14 +1519,11 @@ class ai_service
             $action = new \core_ai\aiactions\generate_text($contextid, $USER->id, $prompt);
             $response = $aimanager->process_action($action);
             $data = $response->get_response_data();
-            $text = $data['generatedcontent'] ?? ($data['generatedtext'] ?? ($data['text'] ?? ''));
+            $text = $data['generatedcontent'] ?? ($data['generatedtext'] ?? ($data['text'] ?? ($data['content'] ?? '')));
 
             if (empty($text) || !is_string($text)) {
                 return ['success' => false, 'error' => 'AI returned no text'];
             }
-
-            // Log AI response for debugging suggestions
-            debugging('[MODGEN-SUGGEST] AI Response received, length=' . strlen($text), DEBUG_DEVELOPER);
 
             // Try to decode JSON from the response
             $decoded = json_decode($text, true);
@@ -1534,10 +1531,8 @@ class ai_service
                 // Try to extract JSON block from code fences or inline
                 if (preg_match('/```(?:json)?\s*(\[.*\])\s*```/s', $text, $m)) {
                     $decoded = json_decode($m[1], true);
-                    debugging('[MODGEN-SUGGEST] Extracted from code fence, count=' . (is_array($decoded) ? count($decoded) : 'not-array'), DEBUG_DEVELOPER);
                 } elseif (preg_match('/(\[\s*\{.*\}\s*\])/s', $text, $m2)) {
                     $decoded = json_decode($m2[1], true);
-                    debugging('[MODGEN-SUGGEST] Extracted from inline pattern, count=' . (is_array($decoded) ? count($decoded) : 'not-array'), DEBUG_DEVELOPER);
                 } else {
                     // Try to find JSON array anywhere in the text, even with text before/after
                     $stripped = trim($text);
@@ -1546,22 +1541,16 @@ class ai_service
                     if ($start !== false && $end !== false && $end > $start) {
                         $jsonstr = substr($stripped, $start, $end - $start + 1);
                         $decoded = json_decode($jsonstr, true);
-                        if (is_array($decoded)) {
-                            debugging('[MODGEN-SUGGEST] Extracted from text boundaries, count=' . count($decoded), DEBUG_DEVELOPER);
-                        }
                     }
                 }
-            } else {
-                debugging('[MODGEN-SUGGEST] Direct JSON parse successful, count=' . (is_array($decoded) ? count($decoded) : 'not-array'), DEBUG_DEVELOPER);
             }
 
             if (!is_array($decoded)) {
-                debugging('[MODGEN-SUGGEST] Final parse failed. Raw response: ' . substr($text, 0, 500), DEBUG_DEVELOPER);
                 return ['success' => false, 'error' => 'Unable to parse AI suggestions', 'raw' => $text];
             }
 
             if (empty($decoded)) {
-                debugging('[MODGEN-SUGGEST] AI returned empty array', DEBUG_DEVELOPER);
+                // AI returned empty array
             }
 
             // Normalize suggestions to expected shape and restrict to supported types
@@ -1603,7 +1592,6 @@ class ai_service
 
                 // Skip suggestions with completely empty/missing activity type
                 if (empty($type_to_use) && empty($rawtype)) {
-                    debugging('[MODGEN-SUGGEST] Skipping suggestion ' . $id . ' - no activity type provided', DEBUG_DEVELOPER);
                     continue;
                 }
 
@@ -1621,7 +1609,6 @@ class ai_service
                 ];
             }
 
-            debugging('[MODGEN-SUGGEST] Processing complete. Generated ' . count($out) . ' suggestions from ' . count($decoded) . ' AI items', DEBUG_DEVELOPER);
             return ['success' => true, 'suggestions' => $out, 'raw' => $text];
         } catch (\Throwable $e) {
             return ['success' => false, 'error' => $e->getMessage()];

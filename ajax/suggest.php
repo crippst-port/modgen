@@ -146,6 +146,11 @@ try {
     }
 
     $result = $serviceClass::generate_suggestions_from_map($sectionmap, $courseid);
+    
+    // Check if generation failed
+    if (!empty($result['error'])) {
+        ajax_response::error($result['error'], 'generation_failed', $result);
+    }
 
     // Compute current learning-type mix for the requested section (if any)
     // Map common module names to Laurillard learning types to keep consistent with Explore report.

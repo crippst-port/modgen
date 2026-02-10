@@ -661,7 +661,14 @@ class ModalGeneratorComponent extends BaseComponent {
             body: formData,
         })
             .then(response => response.json())
-            .then(data => {
+            .then(async data => {
+                // Check if job was queued for background processing (approval step)
+                if (data.queued && data.jobid) {
+                    // Redirect to job status page to watch progress
+                    await this.showQueuedSuccess(modal, data.message, data.jobid);
+                    return;
+                }
+                
                 if (data.body) {
                     // Determine which step we're at based on response
                     const step = data.refresh ? STEPS.CREATING : STEPS.PREVIEW;
@@ -923,6 +930,9 @@ class ModalGeneratorComponent extends BaseComponent {
      */
     async showQueuedSuccess(modal, message, jobid) {
         const statusUrl = M.cfg.wwwroot + '/ai/placement/modgen/job_status.php?jobid=' + jobid;
+        
+        // Clear navigation warning flag before redirecting
+        window.modgenCreationInProgress = false;
         
         // Close modal first
         modal.hide();

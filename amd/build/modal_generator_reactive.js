@@ -335,7 +335,11 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       fetch(M.cfg.wwwroot + '/ai/placement/modgen/prompt.php', {
         method: 'POST',
         body: formData
-      }).then(response => response.json()).then(data => {
+      }).then(response => response.json()).then(async data => {
+        if (data.queued && data.jobid) {
+          await this.showQueuedSuccess(modal, data.message, data.jobid);
+          return;
+        }
         if (data.body) {
           const step = data.refresh ? STEPS.CREATING : STEPS.PREVIEW;
           this.reactive.dispatch('setStep', step);
@@ -480,6 +484,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
     }
     async showQueuedSuccess(modal, message, jobid) {
       const statusUrl = M.cfg.wwwroot + '/ai/placement/modgen/job_status.php?jobid=' + jobid;
+      window.modgenCreationInProgress = false;
       modal.hide();
       window.location.href = statusUrl;
     }

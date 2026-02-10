@@ -912,143 +912,23 @@ class ModalGeneratorComponent extends BaseComponent {
     }
 
     /**
-     * Poll background job status until completion.
+     * Show job queued success message and redirect to job status page.
      *
-     * Checks job status every 3 seconds and updates the modal with progress.
-     * When complete, displays success/error message.
+     * Instead of polling in the modal, we redirect the user to the job status page
+     * where they can watch real-time progress.
      *
      * @param {Object} modal The modal instance
-     * @param {number} jobid The job ID to poll
+     * @param {string} message Queued message to display
+     * @param {number} jobid Job ID for status tracking
      */
-    pollJobStatus(modal, jobid) {
-        /* eslint-disable-next-line no-console */
-        console.log('[ModGen] Starting job status polling for job ID:', jobid);
+    async showQueuedSuccess(modal, message, jobid) {
+        const statusUrl = M.cfg.wwwroot + '/ai/placement/modgen/job_status.php?jobid=' + jobid;
         
-        const startTime = Date.now();
-        let pollCount = 0;
-        const maxPolls = 120; // 6 minutes maximum (120 polls × 3 seconds)
-
-        const checkStatus = () => {
-            pollCount++;
-            const elapsed = Math.floor((Date.now() - startTime) / 1000);
-
-            /* eslint-disable-next-line no-console */
-            console.log(`[ModGen] Poll #${pollCount} at ${elapsed}s - checking job ${jobid}`);
-
-            // Check if we've exceeded maximum polling time
-            if (pollCount > maxPolls) {
-                /* eslint-disable-next-line no-console */
-                console.warn('[ModGen] Maximum polling time exceeded, stopping');
-                modal.setBody(`<div class="alert alert-warning">
-                    <strong>Job is taking longer than expected.</strong><br>
-                    Your sections are still being created in the background.<br>
-                    Please refresh this page in a few minutes to see the results.
-                </div>`);
-                this.renderFooterButtons(
-                    modal,
-                    [{label: 'closemodgenmodal', action: 'return-to-course', class: 'btn-primary'}],
-                    true
-                );
-                return;
-            }
-
-            // Update progress message
-            modal.setBody(`<div class="alert alert-info">
-                <div class="spinner-border spinner-border-sm me-2"></div>
-                Creating sections in background... (${elapsed}s)
-                <br><small class="text-muted">Poll #${pollCount}</small>
-            </div>`);
-
-            fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/check_job_status.php', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/x-www-form-urlencoded'},
-                body: new URLSearchParams({
-                    jobid: jobid,
-                    sesskey: M.cfg.sesskey
-                })
-            })
-            .then(response => {
-                /* eslint-disable-next-line no-console */
-                console.log('[ModGen] Poll response received, status:', response.status);
-                return response.json();
-            })
-            .then(async data => {
-                /* eslint-disable-next-line no-console */
-                console.log('[ModGen] Poll data:', data);
-
-                if (data.success) {
-                    if (data.status === 'completed') {
-                        /* eslint-disable-next-line no-console */
-                        console.log('[ModGen] Job completed successfully, showing success message');
-                        
-                        // Mark job as notified to prevent double notification on reload
-                        const notifiedJobs = JSON.parse(sessionStorage.getItem('modgen_notified_jobs') || '[]');
-                        if (!notifiedJobs.includes(jobid)) {
-                            notifiedJobs.push(jobid);
-                            sessionStorage.setItem('modgen_notified_jobs', JSON.stringify(notifiedJobs));
-                        }
-                        
-                        // Job finished successfully
-                        const result = data.result || {};
-                        const details = result.messages || [];
-                        await this.showSuccess(modal, result.message || 'Sections created successfully', details);
-                        // Reload page to show new sections
-                        setTimeout(() => {
-                            /* eslint-disable-next-line no-console */
-                            console.log('[ModGen] Reloading page to show new sections');
-                            window.location.reload();
-                        }, 2000);
-                    } else if (data.status === 'failed') {
-                        /* eslint-disable-next-line no-console */
-                        console.error('[ModGen] Job failed:', data.result);
-                        // Job failed
-                        const result = data.result || {};
-                        modal.setBody(`<div class="alert alert-danger">
-                            <strong>Error:</strong> ${result.error || 'Job failed'}
-                        </div>`);
-                        // Add return button
-                        await this.renderFooterButtons(
-                            modal,
-                            [{label: 'closemodgenmodal', action: 'return-to-course', class: 'btn-primary'}],
-                            true
-                        );
-                    } else {
-                        /* eslint-disable-next-line no-console */
-                        console.log(`[ModGen] Job status: ${data.status}, polling again in 3s`);
-                        // Still running or queued - check again in 3 seconds
-                        setTimeout(checkStatus, 3000);
-                    }
-                } else {
-                    /* eslint-disable-next-line no-console */
-                    console.error('[ModGen] Error response:', data);
-                    // Error checking status
-                    modal.setBody(`<div class="alert alert-danger">
-                        Error checking job status: ${data.error || 'Unknown error'}
-                    </div>`);
-                    await this.renderFooterButtons(
-                        modal,
-                        [{label: 'closemodgenmodal', action: 'return-to-course', class: 'btn-primary'}],
-                        true
-                    );
-                }
-            })
-            .catch(async error => {
-                /* eslint-disable-next-line no-console */
-                console.error('[ModGen] Network error:', error);
-                // Network or parsing error
-                modal.setBody(`<div class="alert alert-danger">
-                    Error checking job status. Please refresh the page.
-                </div>`);
-                await this.renderFooterButtons(
-                    modal,
-                    [{label: 'closemodgenmodal', action: 'return-to-course', class: 'btn-primary'}],
-                    true
-                );
-            });
-        };
-
-        // Start polling immediately
-        checkStatus();
+        // Close modal first
+        modal.hide();
+        
+        // Redirect to job status page
+        window.location.href = statusUrl;
     }
 
     /**
@@ -1492,12 +1372,8 @@ class ModalGeneratorComponent extends BaseComponent {
                     if (data.success) {
                         // Check if job was queued for background processing
                         if (data.queued && data.jobid) {
-                            // Show queued message and start polling
-                            modal.setBody(`<div class="alert alert-info">
-                                <div class="spinner-border spinner-border-sm me-2"></div>
-                                ${data.message}
-                            </div>`);
-                            this.pollJobStatus(modal, data.jobid);
+                            // Redirect to job status page to watch progress
+                            await this.showQueuedSuccess(modal, data.message, data.jobid);
                         } else {
                             // Parse detailed messages if present
                             const details = data.messages && data.messages.length > 0 ? data.messages : [];

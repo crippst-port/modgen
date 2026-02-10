@@ -35,22 +35,47 @@ defined('MOODLE_INTERNAL') || die();
 class create_sections_task extends \core\task\adhoc_task {
 
     /**
+     * Get the retry delay for failed tasks.
+     *
+     * Allow up to 3 retries with 60 second delays between attempts.
+     * This handles temporary failures like database locks or race conditions.
+     *
+     * @return int Delay in seconds before retrying (0 = no retry)
+     */
+    public function get_fail_delay() {
+        // Retry with 60 second delay. Moodle will handle retry limit via attemptsavailable.
+        return 60;
+    }
+
+    /**
      * Execute the task.
      *
      * Retrieves job data, creates sections, and updates job status.
      */
     public function execute() {
-        global $DB;
+        global $DB, $CFG, $USER;
 
         $data = $this->get_custom_data();
         $jobid = $data->jobid;
 
         // Update job status to running.
-        $DB->update_record('aiplacement_modgen_jobs', [
-            'id' => $jobid,
-            'status' => 'running',
-            'timestarted' => time()
-        ]);
+        $job = $DB->get_record('aiplacement_modgen_jobs', ['id' => $jobid], '*', MUST_EXIST);
+        $job->status = 'running';
+        $job->timestarted = time();
+        $DB->update_record('aiplacement_modgen_jobs', $job);
+
+        // Set user context to the job creator for proper capability checks.
+        // Background tasks run without a user session, but module creation requires
+        // the job creator's capabilities to be checked. Save current user to restore later.
+        $originaluser = $USER;
+        try {
+            $jobuser = $DB->get_record('user', ['id' => $job->userid], '*', MUST_EXIST);
+            \core\session\manager::set_user($jobuser);
+        } catch (\Exception $e) {
+            // If user setup fails, log error but continue with system user.
+            // This allows task to proceed but may cause capability check failures.
+            debugging('Failed to set user context for job ' . $jobid . ': ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
 
         try {
             require_once(__DIR__ . '/../../classes/local/theme_builder.php');
@@ -75,8 +100,11 @@ class create_sections_task extends \core\task\adhoc_task {
                 // Template upload workflow - decode parameters and create sections.
                 require_once(__DIR__ . '/../../classes/local/section_creation_service.php');
                 $section_service = new \aiplacement_modgen\local\section_creation_service();
+                // Convert JSON stdClass to array for type safety.
+                // Task custom data stores JSON as stdClass, but service expects array.
+                $jsonarray = json_decode(json_encode($data->json), true);
                 $creation_result = $section_service->create_sections_from_json(
-                    $data->json,
+                    $jsonarray,
                     $data->courseid,
                     $data->moduletype,
                     $data->generatethemeintroductions ?? false,
@@ -105,36 +133,46 @@ class create_sections_task extends \core\task\adhoc_task {
                 
                 if (!empty($orphaned)) {
                     foreach ($orphaned as $cm) {
-                        \context_coursemodule::instance($cm->id);
+                        \context_module::instance($cm->id);
                     }
                 }
             }
 
             // Update job status to completed with results.
-            $DB->update_record('aiplacement_modgen_jobs', [
-                'id' => $jobid,
-                'status' => 'completed',
-                'result' => json_encode([
-                    'success' => true,
-                    'messages' => $result['messages'] ?? []
-                ]),
-                'timecompleted' => time()
+            $job->status = 'completed';
+            $job->result = json_encode([
+                'success' => true,
+                'messages' => $result['messages'] ?? []
             ]);
+            $job->timecompleted = time();
+            $DB->update_record('aiplacement_modgen_jobs', $job);
 
-        } catch (\Exception $e) {
-            // Update job status to failed with error message.
-            $DB->update_record('aiplacement_modgen_jobs', [
-                'id' => $jobid,
-                'status' => 'failed',
-                'result' => json_encode([
+        } catch (\Throwable $e) {
+            // Update job status - mark as failed for retry or final failure.
+            // Note: Catch Throwable (not just Exception) to handle both Exceptions and Errors (TypeError, etc.).
+            $job = $DB->get_record('aiplacement_modgen_jobs', ['id' => $jobid]);
+            if ($job) {
+                // Mark as failed - Moodle's task system will handle retries via get_fail_delay().
+                $job->status = 'failed';
+                $job->result = json_encode([
                     'success' => false,
-                    'error' => $e->getMessage()
-                ]),
-                'timecompleted' => time()
-            ]);
+                    'error' => $e->getMessage(),
+                    'will_retry' => true
+                ]);
+                // Don't set timecompleted - job may still retry
+                $DB->update_record('aiplacement_modgen_jobs', $job);
+            }
 
-            // Log the error for debugging.
+            // Log the error for debugging before re-throwing.
             debugging('Section creation task failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+
+            // Re-throw the exception so Moodle task system can handle retries.
+            throw $e;
+        } finally {
+            // Restore original user context to prevent side effects.
+            if (isset($originaluser)) {
+                \core\session\manager::set_user($originaluser);
+            }
         }
     }
 }

@@ -213,7 +213,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       return aiWorkflowForms.includes(formName);
     }
     loadFormInModal(formName, title) {
-      _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
+      _fragment.default.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
         courseid: this.courseid,
         contextid: this.contextid
       }).then(html => {
@@ -284,7 +284,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       actionButtons.forEach((button, index) => {
         const label = button.tagName === 'INPUT' ? button.value || button.getAttribute('aria-label') || 'Submit' : button.textContent.trim();
         const classes = (button.className || 'btn btn-secondary').trim();
-        footerHtml += "<button type=\"button\" class=\"".concat(classes, " ").concat(index > 0 ? 'ml-2' : '', "\" data-form-button-index=\"").concat(index, "\">\n                ").concat(label, "\n            </button>");
+        footerHtml += `<button type="button" class="${classes} ${index > 0 ? 'ml-2' : ''}" data-form-button-index="${index}">
+                ${label}
+            </button>`;
       });
       footerHtml += '</div>';
       modal.setFooter(footerHtml);
@@ -450,7 +452,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           break;
         default:
           if (form) {
-            const formBtn = form.querySelector("[name=\"".concat(action, "\"], [data-action=\"").concat(action, "\"]"));
+            const formBtn = form.querySelector(`[name="${action}"], [data-action="${action}"]`);
             if (formBtn) {
               formBtn.click();
             }
@@ -476,88 +478,10 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         class: 'btn-primary'
       }], true);
     }
-    pollJobStatus(modal, jobid) {
-      console.log('[ModGen] Starting job status polling for job ID:', jobid);
-      const startTime = Date.now();
-      let pollCount = 0;
-      const maxPolls = 120;
-      const checkStatus = () => {
-        pollCount++;
-        const elapsed = Math.floor((Date.now() - startTime) / 1000);
-        console.log("[ModGen] Poll #".concat(pollCount, " at ").concat(elapsed, "s - checking job ").concat(jobid));
-        if (pollCount > maxPolls) {
-          console.warn('[ModGen] Maximum polling time exceeded, stopping');
-          modal.setBody("<div class=\"alert alert-warning\">\n                    <strong>Job is taking longer than expected.</strong><br>\n                    Your sections are still being created in the background.<br>\n                    Please refresh this page in a few minutes to see the results.\n                </div>");
-          this.renderFooterButtons(modal, [{
-            label: 'closemodgenmodal',
-            action: 'return-to-course',
-            class: 'btn-primary'
-          }], true);
-          return;
-        }
-        modal.setBody("<div class=\"alert alert-info\">\n                <div class=\"spinner-border spinner-border-sm me-2\"></div>\n                Creating sections in background... (".concat(elapsed, "s)\n                <br><small class=\"text-muted\">Poll #").concat(pollCount, "</small>\n            </div>"));
-        fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/check_job_status.php', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          body: new URLSearchParams({
-            jobid: jobid,
-            sesskey: M.cfg.sesskey
-          })
-        }).then(response => {
-          console.log('[ModGen] Poll response received, status:', response.status);
-          return response.json();
-        }).then(async data => {
-          console.log('[ModGen] Poll data:', data);
-          if (data.success) {
-            if (data.status === 'completed') {
-              console.log('[ModGen] Job completed successfully, showing success message');
-              const notifiedJobs = JSON.parse(sessionStorage.getItem('modgen_notified_jobs') || '[]');
-              if (!notifiedJobs.includes(jobid)) {
-                notifiedJobs.push(jobid);
-                sessionStorage.setItem('modgen_notified_jobs', JSON.stringify(notifiedJobs));
-              }
-              const result = data.result || {};
-              const details = result.messages || [];
-              await this.showSuccess(modal, result.message || 'Sections created successfully', details);
-              setTimeout(() => {
-                console.log('[ModGen] Reloading page to show new sections');
-                window.location.reload();
-              }, 2000);
-            } else if (data.status === 'failed') {
-              console.error('[ModGen] Job failed:', data.result);
-              const result = data.result || {};
-              modal.setBody("<div class=\"alert alert-danger\">\n                            <strong>Error:</strong> ".concat(result.error || 'Job failed', "\n                        </div>"));
-              await this.renderFooterButtons(modal, [{
-                label: 'closemodgenmodal',
-                action: 'return-to-course',
-                class: 'btn-primary'
-              }], true);
-            } else {
-              console.log("[ModGen] Job status: ".concat(data.status, ", polling again in 3s"));
-              setTimeout(checkStatus, 3000);
-            }
-          } else {
-            console.error('[ModGen] Error response:', data);
-            modal.setBody("<div class=\"alert alert-danger\">\n                        Error checking job status: ".concat(data.error || 'Unknown error', "\n                    </div>"));
-            await this.renderFooterButtons(modal, [{
-              label: 'closemodgenmodal',
-              action: 'return-to-course',
-              class: 'btn-primary'
-            }], true);
-          }
-        }).catch(async error => {
-          console.error('[ModGen] Network error:', error);
-          modal.setBody("<div class=\"alert alert-danger\">\n                    Error checking job status. Please refresh the page.\n                </div>");
-          await this.renderFooterButtons(modal, [{
-            label: 'closemodgenmodal',
-            action: 'return-to-course',
-            class: 'btn-primary'
-          }], true);
-        });
-      };
-      checkStatus();
+    async showQueuedSuccess(modal, message, jobid) {
+      const statusUrl = M.cfg.wwwroot + '/ai/placement/modgen/job_status.php?jobid=' + jobid;
+      modal.hide();
+      window.location.href = statusUrl;
     }
     hideFormButtons(modal) {
       const body = modal.getBody();
@@ -618,15 +542,15 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         if (isComplete) {
           iconClass = 'fa-check';
         }
-        html += "<div class=\"".concat(stepClass, " text-center flex-fill\">");
-        html += "<div class=\"modgen-step-icon mb-1\">";
-        html += "<i class=\"fa ".concat(iconClass, "\"></i>");
-        html += "</div>";
-        html += "<div class=\"modgen-step-label small\">".concat(step.label, "</div>");
-        html += "</div>";
+        html += `<div class="${stepClass} text-center flex-fill">`;
+        html += `<div class="modgen-step-icon mb-1">`;
+        html += `<i class="fa ${iconClass}"></i>`;
+        html += `</div>`;
+        html += `<div class="modgen-step-label small">${step.label}</div>`;
+        html += `</div>`;
         if (index < steps.length - 1) {
           const lineClass = isComplete ? 'modgen-step-line-complete' : 'modgen-step-line';
-          html += "<div class=\"".concat(lineClass, " flex-fill\" style=\"height: 2px; margin-top: -1rem;\"></div>");
+          html += `<div class="${lineClass} flex-fill" style="height: 2px; margin-top: -1rem;"></div>`;
         }
       });
       html += '</div>';
@@ -653,10 +577,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       if (bodyNode && !isRemove) {
         const startDateField = bodyNode.querySelector('select[name="startdate[day]"]');
         if (startDateField) {
-          var _bodyNode$querySelect, _bodyNode$querySelect2, _bodyNode$querySelect3;
-          const day = ((_bodyNode$querySelect = bodyNode.querySelector('select[name="startdate[day]"]')) === null || _bodyNode$querySelect === void 0 ? void 0 : _bodyNode$querySelect.value) || 1;
-          const month = ((_bodyNode$querySelect2 = bodyNode.querySelector('select[name="startdate[month]"]')) === null || _bodyNode$querySelect2 === void 0 ? void 0 : _bodyNode$querySelect2.value) || 1;
-          const year = ((_bodyNode$querySelect3 = bodyNode.querySelector('select[name="startdate[year]"]')) === null || _bodyNode$querySelect3 === void 0 ? void 0 : _bodyNode$querySelect3.value) || new Date().getFullYear();
+          const day = bodyNode.querySelector('select[name="startdate[day]"]')?.value || 1;
+          const month = bodyNode.querySelector('select[name="startdate[month]"]')?.value || 1;
+          const year = bodyNode.querySelector('select[name="startdate[year]"]')?.value || new Date().getFullYear();
           const dateObj = new Date(year, month - 1, day, 0, 0, 0);
           startDate = Math.floor(dateObj.getTime() / 1000);
         }
@@ -714,10 +637,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           let startDate = 0;
           const dayField = bodyNode.querySelector('select[name="startdate[day]"]');
           if (dayField) {
-            var _bodyNode$querySelect4, _bodyNode$querySelect5, _bodyNode$querySelect6;
-            const day = ((_bodyNode$querySelect4 = bodyNode.querySelector('select[name="startdate[day]"]')) === null || _bodyNode$querySelect4 === void 0 ? void 0 : _bodyNode$querySelect4.value) || 1;
-            const month = ((_bodyNode$querySelect5 = bodyNode.querySelector('select[name="startdate[month]"]')) === null || _bodyNode$querySelect5 === void 0 ? void 0 : _bodyNode$querySelect5.value) || 1;
-            const year = ((_bodyNode$querySelect6 = bodyNode.querySelector('select[name="startdate[year]"]')) === null || _bodyNode$querySelect6 === void 0 ? void 0 : _bodyNode$querySelect6.value) || new Date().getFullYear();
+            const day = bodyNode.querySelector('select[name="startdate[day]"]')?.value || 1;
+            const month = bodyNode.querySelector('select[name="startdate[month]"]')?.value || 1;
+            const year = bodyNode.querySelector('select[name="startdate[year]"]')?.value || new Date().getFullYear();
             const dateObj = new Date(year, month - 1, day, 0, 0, 0);
             startDate = Math.floor(dateObj.getTime() / 1000);
           }
@@ -744,7 +666,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
               datePrefix.className = 'date-prefix';
             });
             data.sections.forEach(section => {
-              const sectionItem = bodyNode.querySelector("[data-section-id=\"".concat(section.id, "\"]"));
+              const sectionItem = bodyNode.querySelector(`[data-section-id="${section.id}"]`);
               if (!sectionItem) {
                 return;
               }
@@ -790,10 +712,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         }
       });
       modalRoot.on('submit', 'form', async e => {
-        var _e$originalEvent;
         e.preventDefault();
-        const submitter = (_e$originalEvent = e.originalEvent) === null || _e$originalEvent === void 0 ? void 0 : _e$originalEvent.submitter;
-        const buttonName = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('name')) || clickedButton;
+        const submitter = e.originalEvent?.submitter;
+        const buttonName = submitter?.getAttribute('name') || clickedButton;
         if (buttonName === 'cancel') {
           modal.destroy();
           clickedButton = null;
@@ -834,14 +755,13 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           window.modgenCreationInProgress = false;
           if (data.success) {
             if (data.queued && data.jobid) {
-              modal.setBody("<div class=\"alert alert-info\">\n                                <div class=\"spinner-border spinner-border-sm me-2\"></div>\n                                ".concat(data.message, "\n                            </div>"));
-              this.pollJobStatus(modal, data.jobid);
+              await this.showQueuedSuccess(modal, data.message, data.jobid);
             } else {
               const details = data.messages && data.messages.length > 0 ? data.messages : [];
               this.showSuccess(modal, data.message, details);
             }
           } else {
-            _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
+            _fragment.default.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
               courseid: this.courseid,
               contextid: this.contextid
             }).then(async html => {
@@ -864,7 +784,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           return data;
         }).catch(error => {
           window.modgenCreationInProgress = false;
-          _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
+          _fragment.default.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
             courseid: this.courseid,
             contextid: this.contextid
           }).then(html => {

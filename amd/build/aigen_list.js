@@ -22,7 +22,7 @@ define(["exports", "core/config", "core/str"], function (_exports, _config, _str
     const originalIconClass = icon.className;
     icon.className = 'fa fa-spinner fa-spin';
     try {
-      const response = await fetch("".concat(_config.default.wwwroot, "/ai/placement/modgen/ajax/toggle_visibility.php"), {
+      const response = await fetch(`${_config.default.wwwroot}/ai/placement/modgen/ajax/toggle_visibility.php`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded'

@@ -1,0 +1,142 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template aiplacement_modgen/job_status_page
+
+    Job status page showing real-time progress of section creation.
+
+    Context variables:
+    * jobid - Job ID
+    * courseid - Course ID
+    * coursename - Course name
+    * courseurl - URL to course
+    * status - Current job status
+    * actiondisplay - Human-readable action description
+    * timecreated - When job was created
+    * isqueued - Status is queued
+    * isrunning - Status is running
+    * iscompleted - Status is completed
+    * isfailed - Status is failed
+    * messages - Array of success messages (if completed)
+    * error - Error message (if failed)
+    * canretry - Whether job will retry (if failed)
+}}
+
+<div class="aiplacement-modgen-job-status" data-jobid="{{jobid}}">
+    
+    <div class="card">
+        <div class="card-body">
+            
+            <!-- Course Info -->
+            <div class="mb-4">
+                <h3>{{coursename}}</h3>
+                <p class="text-muted">{{actiondisplay}}</p>
+            </div>
+            
+            <!-- Status Container (updated via JS) -->
+            <div id="job-status-container">
+                
+                {{#isqueued}}
+                <div class="alert alert-info d-flex align-items-center">
+                    <div class="spinner-border text-info me-3" role="status">
+                        <span class="sr-only">{{#str}}loading{{/str}}</span>
+                    </div>
+                    <div>
+                        <strong>{{#str}}jobstatus_queued, aiplacement_modgen{{/str}}</strong>
+                        <p class="mb-0 small">{{#str}}jobstatus_queued_desc, aiplacement_modgen{{/str}}</p>
+                        <p class="mb-0 small text-muted"><em>This page will automatically redirect back to the course when creation is complete.</em></p>
+                    </div>
+                </div>
+                {{/isqueued}}
+                
+                {{#isrunning}}
+                <div class="alert alert-primary d-flex align-items-center">
+                    <div class="spinner-border text-primary me-3" role="status">
+                        <span class="sr-only">{{#str}}loading{{/str}}</span>
+                    </div>
+                    <div>
+                        <strong>{{#str}}jobstatus_running, aiplacement_modgen{{/str}}</strong>
+                        <p class="mb-0 small">{{#str}}jobstatus_running_desc, aiplacement_modgen{{/str}}</p>
+                        <p class="mb-0 small text-muted"><em>This page will automatically redirect back to the course when creation is complete.</em></p>
+                    </div>
+                </div>
+                {{/isrunning}}
+                
+                {{#iscompleted}}
+                <div class="alert alert-success">
+                    <h4 class="alert-heading">
+                        <i class="fa fa-check-circle"></i>
+                        {{#str}}jobstatus_completed, aiplacement_modgen{{/str}}
+                    </h4>
+                    {{#messages}}
+                    <p class="mb-1"><i class="fa fa-check text-success"></i> {{text}}</p>
+                    {{/messages}}
+                    <hr>
+                    <p class="mb-0">{{#str}}jobstatus_completed_redirect, aiplacement_modgen{{/str}}</p>
+                </div>
+                {{/iscompleted}}
+                
+                {{#isfailed}}
+                <div class="alert alert-danger">
+                    <h4 class="alert-heading">
+                        <i class="fa fa-exclamation-triangle"></i>
+                        {{#str}}jobstatus_failed, aiplacement_modgen{{/str}}
+                    </h4>
+                    <p><strong>{{#str}}error{{/str}}:</strong> {{error}}</p>
+                    {{#canretry}}
+                    <hr>
+                    <p class="mb-0">
+                        <i class="fa fa-refresh"></i>
+                        {{#str}}jobstatus_will_retry, aiplacement_modgen{{/str}}
+                    </p>
+                    {{/canretry}}
+                </div>
+                {{/isfailed}}
+                
+            </div>
+            
+            <!-- Actions -->
+            {{#iscompleted}}
+            <div class="mt-4" id="return-button-container">
+                <a href="{{courseurl}}" class="btn btn-primary">
+                    <i class="fa fa-arrow-left"></i>
+                    {{#str}}returntocourse, aiplacement_modgen{{/str}}
+                </a>
+            </div>
+            {{/iscompleted}}
+            
+            <!-- Debug Info (only shown if job stuck/failed) -->
+            <div class="mt-4 small text-muted">
+                <details>
+                    <summary>{{#str}}jobdetails, aiplacement_modgen{{/str}}</summary>
+                    <dl class="row mt-2">
+                        <dt class="col-sm-3">{{#str}}jobid, aiplacement_modgen{{/str}}</dt>
+                        <dd class="col-sm-9">{{jobid}}</dd>
+                        
+                        <dt class="col-sm-3">{{#str}}status{{/str}}</dt>
+                        <dd class="col-sm-9"><span class="badge badge-secondary" id="status-badge">{{status}}</span></dd>
+                        
+                        <dt class="col-sm-3">{{#str}}timecreated, aiplacement_modgen{{/str}}</dt>
+                        <dd class="col-sm-9">{{timecreated}}</dd>
+                    </dl>
+                </details>
+            </div>
+            
+        </div>
+    </div>
+    
+</div>

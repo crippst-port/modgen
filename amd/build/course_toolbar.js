@@ -48,9 +48,6 @@ define(["exports", "core/fragment", "core/notification", "aiplacement_modgen/mod
           }
         });
         sessionStorage.setItem('modgen_notified_jobs', JSON.stringify(notifiedJobs));
-        if (hasNewCompletions) {
-          setTimeout(() => window.location.reload(), 2000);
-        }
       }
     }).catch(() => {});
   };

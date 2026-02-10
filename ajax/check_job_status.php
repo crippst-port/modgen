@@ -32,10 +32,11 @@ use aiplacement_modgen\local\ajax_response;
 require_login();
 require_sesskey();
 
-// Get parameters - jobid is optional, courseid + recent flag for checking completed jobs.
+// Get parameters - jobid is optional, courseid + recent/active flags for checking jobs.
 $jobid = optional_param('jobid', 0, PARAM_INT);
 $courseid = optional_param('courseid', 0, PARAM_INT);
 $recent = optional_param('recent', 0, PARAM_INT);
+$active = optional_param('active', 0, PARAM_INT);
 
 try {
     if ($jobid) {
@@ -46,12 +47,76 @@ try {
         $context = context_course::instance($job->courseid);
         require_capability('aiplacement/modgen:managestructure', $context);
 
+        // STUCK JOB DETECTION: If job has been running for more than 5 minutes, consider it stuck.
+        // This handles cases where: PHP fatal error, server restart, task timeout, or unexpected crash.
+        $stuck = false;
+        if ($job->status === 'running' && $job->timestarted) {
+            $runningtime = time() - $job->timestarted;
+            if ($runningtime > 300) { // 5 minutes
+                $stuck = true;
+                
+                // Get the associated adhoc task to check if it actually failed.
+                $taskfailed = false;
+                $adhoctask = $DB->get_record('task_adhoc', [
+                    'classname' => '\\aiplacement_modgen\\task\\create_sections_task',
+                    'customdata' => json_encode(['jobid' => $jobid])
+                ]);
+                
+                // If task doesn't exist or has faildelay set, it failed and will retry.
+                if (!$adhoctask || $adhoctask->faildelay > 0) {
+                    $taskfailed = true;
+                }
+                
+                // If task truly failed (not just slow), requeue it.
+                if ($taskfailed) {
+                    // Reset job to queued state for retry.
+                    $job->status = 'queued';
+                    $job->timestarted = null;
+                    $DB->update_record('aiplacement_modgen_jobs', $job);
+                    
+                    // Re-queue the adhoc task if it doesn't exist.
+                    if (!$adhoctask) {
+                        $task = new \aiplacement_modgen\task\create_sections_task();
+                        
+                        // Build custom data based on job action type.
+                        $customdata = (object)[
+                            'jobid' => $jobid,
+                            'action' => $job->action,
+                            'courseid' => $job->courseid,
+                            'parentsection' => $job->parentsection
+                        ];
+                        
+                        // Add action-specific parameters.
+                        if ($job->action === 'create_themes') {
+                            $customdata->themecount = $job->themecount;
+                            $customdata->weeksperTheme = $job->weeksperTheme;
+                        } else if ($job->action === 'create_weeks') {
+                            $customdata->weekcount = $job->weekcount;
+                        } else if ($job->action === 'create_from_json') {
+                            // JSON workflow - decode the stored JSON data.
+                            $customdata->json = json_decode($job->jsondata);
+                            $customdata->moduletype = $job->moduletype ?? 'learningactivity';
+                            $customdata->generatethemeintroductions = $job->generatethemeintroductions ?? false;
+                            $customdata->createsuggestedactivities = $job->createsuggestedactivities ?? false;
+                            $customdata->hideexistingsections = $job->hideexistingsections ?? false;
+                        }
+                        
+                        $task->set_custom_data($customdata);
+                        $task->set_userid($job->userid);
+                        \core\task\manager::queue_adhoc_task($task);
+                    }
+                }
+            }
+        }
+
         // Return job status.
         $response = [
+            'id' => $job->id,
             'status' => $job->status,
             'timecreated' => $job->timecreated,
             'timestarted' => $job->timestarted,
-            'timecompleted' => $job->timecompleted
+            'timecompleted' => $job->timecompleted,
+            'stuck' => $stuck
         ];
 
         // Include result if job completed or failed.
@@ -61,6 +126,36 @@ try {
         }
 
         ajax_response::success($response);
+
+    } else if ($courseid && $active) {
+        // Check for active jobs (queued or running) in this course.
+        $context = context_course::instance($courseid);
+        require_capability('aiplacement/modgen:managestructure', $context);
+
+        $jobs = $DB->get_records_select(
+            'aiplacement_modgen_jobs',
+            'courseid = :courseid AND userid = :userid AND status IN (:queued, :running)',
+            [
+                'courseid' => $courseid,
+                'userid' => $USER->id,
+                'queued' => 'queued',
+                'running' => 'running'
+            ],
+            'timecreated ASC'
+        );
+
+        $jobsarray = [];
+        foreach ($jobs as $job) {
+            $jobsarray[] = [
+                'id' => $job->id,
+                'status' => $job->status,
+                'action' => $job->action,
+                'timecreated' => $job->timecreated,
+                'timestarted' => $job->timestarted
+            ];
+        }
+
+        ajax_response::success(['jobs' => $jobsarray]);
 
     } else if ($courseid && $recent) {
         // Check for recently completed jobs in this course (last 5 minutes).

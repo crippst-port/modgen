@@ -78,10 +78,8 @@ const checkCompletedJobs = (courseid) => {
             // Save updated notified jobs list
             sessionStorage.setItem('modgen_notified_jobs', JSON.stringify(notifiedJobs));
             
-            // Only reload if we found new completions
-            if (hasNewCompletions) {
-                setTimeout(() => window.location.reload(), 2000);
-            }
+            // Note: Auto-reload removed - user can manually refresh to see new sections.
+            // Notification will remain visible and user-dismissable.
         }
     })
     .catch(() => {

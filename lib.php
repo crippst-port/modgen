@@ -55,6 +55,15 @@ function aiplacement_modgen_extend_navigation_course(
         return;
     }
 
+    // Initialize job status banner for background task tracking on course pages
+    // (independent of edit mode - users need to see job status even when viewing)
+    if ($PAGE->pagetype === 'course-view-flexsections') {
+        $PAGE->requires->js_call_amd('aiplacement_modgen/job_status_banner', 'init', [[
+            'courseid' => $course->id,
+            'contextid' => $context->id,
+        ]]);
+    }
+
     // Navigation bar - only show in edit mode and on the course page
     if ($PAGE->user_is_editing() && $PAGE->pagetype === 'course-view-flexsections') {
         // Feature-specific visibility (combine capability + admin setting)

@@ -136,6 +136,23 @@ class section_creation_service {
                     $this->hide_and_reorder_sections($courseid, $course, $new_toplevel_section_ids);
                 }
 
+                // Ensure all course modules have contexts before committing transaction.
+                // This prevents integrity warnings during cache rebuild.
+                $sql = "SELECT cm.id
+                        FROM {course_modules} cm
+                        LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
+                        WHERE cm.course = :courseid AND ctx.id IS NULL";
+                $orphaned = $DB->get_records_sql($sql, [
+                    'courseid' => $courseid,
+                    'contextlevel' => CONTEXT_MODULE
+                ]);
+                
+                if (!empty($orphaned)) {
+                    foreach ($orphaned as $cm) {
+                        \context_module::instance($cm->id);
+                    }
+                }
+
                 // Commit all changes - all sections and activities created successfully.
                 $transaction->allow_commit();
 

@@ -47,6 +47,38 @@ $string['checkingstatus'] = 'Checking job status...';
 $string['invalidaction'] = 'Invalid action';
 $string['creatingstructure'] = 'Creating Course Structure';
 
+// Job status banner strings
+$string['jobqueuedinfo'] = 'Your request is being processed in the background. You can continue working and will see the results when complete.';
+$string['returntocourse'] = 'Return to course';
+$string['reloadpage'] = 'Reload page';
+$string['jobqueued_single'] = 'Job queued';
+$string['jobrunning_single'] = 'Creating sections...';
+$string['jobsqueued_multiple'] = '{$a} jobs queued';
+$string['jobsrunning_multiple'] = '{$a} jobs in progress';
+$string['jobcompleted_single'] = 'Job completed successfully!';
+$string['jobscompleted_multiple'] = '{$a} jobs completed successfully!';
+$string['jobfailed_single'] = 'Job failed';
+$string['jobsfailed_multiple'] = '{$a} jobs failed';
+
+// Job status page strings
+$string['jobstatuspage_title'] = 'Job Status';
+$string['jobstatus_queued'] = 'Queued';
+$string['jobstatus_queued_desc'] = 'Your job is waiting to be processed...';
+$string['jobstatus_running'] = 'Creating sections...';
+$string['jobstatus_running_desc'] = 'Please wait while your course structure is being created.';
+$string['jobstatus_completed'] = 'Completed successfully!';
+$string['jobstatus_completed_redirect'] = 'Redirecting to your course in a few seconds...';
+$string['jobstatus_failed'] = 'Job failed';
+$string['jobstatus_will_retry'] = 'This job will automatically retry in a moment...';
+$string['jobaction_create_themes'] = 'Creating {$a->themes} theme(s) with {$a->weeks} week(s) each';
+$string['jobaction_create_weeks'] = 'Creating {$a} standalone week(s)';
+$string['jobaction_create_from_json'] = 'Creating {$a} section(s) from uploaded file';
+$string['jobaction_generic'] = 'Creating course structure';
+$string['jobdetails'] = 'Job Details';
+$string['jobid'] = 'Job ID';
+$string['timecreated'] = 'Created';
+$string['unknownerror'] = 'An unknown error occurred';
+
 $string['existingmodule'] = 'Base on existing module';
 $string['inputrequired'] = 'You must provide at least one of the following: a text prompt, upload a CSV file, select a structure, or choose an existing module to base this on.';
 $string['templatefromprompt'] = 'Structure from prompt';

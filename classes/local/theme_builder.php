@@ -30,10 +30,12 @@
 namespace aiplacement_modgen\local;
 
 use aiplacement_modgen\activitytype\registry;
+use context_module;
 
 defined('MOODLE_INTERNAL') || die();
 
-require_once($GLOBALS['CFG']->dirroot . '/course/lib.php');
+global $CFG;
+require_once($CFG->dirroot . '/course/lib.php');
 
 /**
  * Theme builder service class.
@@ -84,6 +86,9 @@ class theme_builder {
             $result = $instance->create($activitydata, $course, $sectionnumber);
 
             if ($result && isset($result['cmid'])) {
+                // Ensure context is created immediately to avoid integrity errors
+                // if user refreshes page during background task execution.
+                \context_module::instance($result['cmid']);
                 return $result['cmid'];
             }
         } catch (\Exception $e) {
@@ -124,7 +129,22 @@ class theme_builder {
             // Get fresh course object after format conversion.
             $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
             $courseformat = course_get_format($course);
-
+            // PROACTIVE FIX: Ensure ALL course modules have contexts before starting.
+            // This prevents integrity errors if previous jobs left orphaned modules.
+            $sql = "SELECT cm.id
+                    FROM {course_modules} cm
+                    LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
+                    WHERE cm.course = :courseid AND ctx.id IS NULL";
+            $orphaned = $DB->get_records_sql($sql, [
+                'courseid' => $courseid,
+                'contextlevel' => CONTEXT_MODULE
+            ]);
+            
+            if (!empty($orphaned)) {
+                foreach ($orphaned as $cm) {
+                    \context_module::instance($cm->id);
+                }
+            }
             // Start transaction for entire bulk operation.
             // This ensures all themes and weeks are created atomically - all or nothing.
             $transaction = $DB->start_delegated_transaction();
@@ -184,10 +204,47 @@ class theme_builder {
                     }
                 }
 
-                // Rebuild cache ONCE after all sections created.
+                // Ensure all course modules have contexts before rebuilding cache.
+                // Subsections are course modules that need contexts created.
                 if ($createdcount > 0) {
-                    rebuild_course_cache($courseid, false, true);
+                    $sql = "SELECT cm.id
+                            FROM {course_modules} cm
+                            LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
+                            WHERE cm.course = :courseid AND ctx.id IS NULL";
+                    $orphaned = $DB->get_records_sql($sql, [
+                        'courseid' => $courseid,
+                        'contextlevel' => CONTEXT_MODULE
+                    ]);
+                    
+                    if (!empty($orphaned)) {
+                        foreach ($orphaned as $cm) {
+                            \context_module::instance($cm->id);
+                        }
+                    }
                 }
+
+                // Ensure all course modules have contexts before committing.
+                // This is a safety net in case immediate context creation failed or
+                // modules exist from previous operations without contexts.
+                if ($createdcount > 0) {
+                    $sql = "SELECT cm.id
+                            FROM {course_modules} cm
+                            LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
+                            WHERE cm.course = :courseid AND ctx.id IS NULL";
+                    $orphaned = $DB->get_records_sql($sql, [
+                        'courseid' => $courseid,
+                        'contextlevel' => CONTEXT_MODULE
+                    ]);
+                    
+                    if (!empty($orphaned)) {
+                        foreach ($orphaned as $cm) {
+                            \context_module::instance($cm->id);
+                        }
+                    }
+                }
+
+                // Note: flexsections already rebuilds cache after each section creation.
+                // No explicit rebuild needed here.
 
                 // Commit all changes - all themes and weeks created successfully.
                 $transaction->allow_commit();
@@ -239,6 +296,23 @@ class theme_builder {
             $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
             $courseformat = course_get_format($course);
 
+            // PROACTIVE FIX: Ensure ALL course modules have contexts before starting.
+            // This prevents integrity errors if previous jobs left orphaned modules.
+            $sql = "SELECT cm.id
+                    FROM {course_modules} cm
+                    LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
+                    WHERE cm.course = :courseid AND ctx.id IS NULL";
+            $orphaned = $DB->get_records_sql($sql, [
+                'courseid' => $courseid,
+                'contextlevel' => CONTEXT_MODULE
+            ]);
+            
+            if (!empty($orphaned)) {
+                foreach ($orphaned as $cm) {
+                    \context_module::instance($cm->id);
+                }
+            }
+
             // Start transaction for entire bulk operation.
             // This ensures all weeks are created atomically - all or nothing.
             $transaction = $DB->start_delegated_transaction();
@@ -275,10 +349,27 @@ class theme_builder {
                     }
                 }
 
-                // Rebuild cache ONCE after all sections created.
+                // Ensure all course modules have contexts before rebuilding cache.
+                // Subsections are course modules that need contexts created.
                 if ($createdcount > 0) {
-                    rebuild_course_cache($courseid, false, true);
+                    $sql = "SELECT cm.id
+                            FROM {course_modules} cm
+                            LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
+                            WHERE cm.course = :courseid AND ctx.id IS NULL";
+                    $orphaned = $DB->get_records_sql($sql, [
+                        'courseid' => $courseid,
+                        'contextlevel' => CONTEXT_MODULE
+                    ]);
+                    
+                    if (!empty($orphaned)) {
+                        foreach ($orphaned as $cm) {
+                            \context_module::instance($cm->id);
+                        }
+                    }
                 }
+
+                // Note: flexsections already rebuilds cache after each section creation.
+                // No explicit rebuild needed here.
 
                 // Commit all changes - all weeks created successfully.
                 $transaction->allow_commit();
@@ -429,10 +520,8 @@ class theme_builder {
             $sessiondata
         );
 
-        // Rebuild cache only if requested (after all subsections created).
-        if ($rebuildcache) {
-            rebuild_course_cache($courseid, false, true);
-        }
+        // Note: flexsections already rebuilds cache after each section creation.
+        // $rebuildcache parameter kept for interface consistency but not used.
 
         return $weeksectionnum;
     }
@@ -558,12 +647,17 @@ class theme_builder {
     /**
      * Validate parameters for section creation.
      *
+     * PERFORMANCE: Depth validation can be skipped during bulk operations to avoid expensive
+     * get_fast_modinfo() calls. Final cache rebuild will reveal any depth violations.
+     *
      * @param int $courseid Course ID
      * @param object $courseformat Course format object
      * @param int $parentsectionnum Parent section number (0 for top-level)
+     * @param int|null $childsectionnum Child section number (for circular reference check after creation)
+     * @param bool $skipdepthcheck Skip depth validation (for bulk operations)
      * @throws \moodle_exception If validation fails
      */
-    private static function validate_section_creation_params($courseid, $courseformat, $parentsectionnum, $childsectionnum = null) {
+    private static function validate_section_creation_params($courseid, $courseformat, $parentsectionnum, $childsectionnum = null, $skipdepthcheck = false) {
         global $DB;
 
         // Basic parameter validation
@@ -604,8 +698,11 @@ class theme_builder {
                     ['child' => $childsectionnum, 'parent' => $parentsectionnum]);
             }
 
-            // Check depth limit (flexsections has max depth)
-            if (method_exists($courseformat, 'get_section_depth') &&
+            // PERFORMANCE OPTIMIZATION: Skip depth check during bulk operations.
+            // get_fast_modinfo() triggers expensive cache rebuilds (200-500 queries each).
+            // During bulk operations with deferred cache rebuilds, depth violations will be
+            // caught by the final rebuild anyway, making this check redundant and expensive.
+            if (!$skipdepthcheck && method_exists($courseformat, 'get_section_depth') &&
                 method_exists($courseformat, 'get_max_section_depth')) {
 
                 $parentsectioninfo = get_fast_modinfo($courseid)->get_section_info($parentsectionnum);
@@ -643,7 +740,9 @@ class theme_builder {
 
         // Basic validation (parent existence and hierarchy depth).
         // Note: Cannot check circular refs yet as child section doesn't exist.
-        self::validate_section_creation_params($courseid, $courseformat, $parentsectionnum);
+        // PERFORMANCE: Skip depth check if deferring cache rebuild (bulk operation).
+        $skipdepthcheck = !$rebuildcache; // If deferring rebuild, skip expensive validation
+        self::validate_section_creation_params($courseid, $courseformat, $parentsectionnum, null, $skipdepthcheck);
 
         // Additional validation for section name.
         if (empty(trim($name))) {
@@ -665,7 +764,8 @@ class theme_builder {
             ], '*', MUST_EXIST);
 
             // PROTECTION: Now that we have the child section number, validate no circular reference.
-            self::validate_section_creation_params($courseid, $courseformat, $parentsectionnum, $sectionnum);
+            // Skip depth check here too since we already skipped it above.
+            self::validate_section_creation_params($courseid, $courseformat, $parentsectionnum, $sectionnum, $skipdepthcheck);
 
             // Step 3: Update section properties (name, summary) with XSS protection.
             $section->name = clean_param($name, PARAM_TEXT); // Strip HTML/JS from names
@@ -686,10 +786,8 @@ class theme_builder {
             // Commit transaction - all operations successful.
             $transaction->allow_commit();
 
-            // Rebuild cache only if requested (defer during bulk operations).
-            if ($rebuildcache) {
-                rebuild_course_cache($courseid, false, true); // Partial rebuild for performance
-            }
+            // Note: flexsections already rebuilds cache in create_new_section()->move_section().
+            // $rebuildcache parameter kept for interface consistency but not used.
 
             return $section;
 

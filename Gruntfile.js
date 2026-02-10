@@ -43,7 +43,9 @@ module.exports = function(grunt) {
                     'amd/build/suggest.js': 'amd/src/suggest.js',
                     'amd/build/aigen_marker.js': 'amd/src/aigen_marker.js',
                     'amd/build/aigen_list.js': 'amd/src/aigen_list.js',
-                    'amd/build/loading_indicator.js': 'amd/src/loading_indicator.js'
+                    'amd/build/loading_indicator.js': 'amd/src/loading_indicator.js',
+                    'amd/build/job_status_banner.js': 'amd/src/job_status_banner.js',
+                    'amd/build/job_status_page.js': 'amd/src/job_status_page.js'
                 }
             }
         },
@@ -81,7 +83,9 @@ module.exports = function(grunt) {
                     'amd/build/aigen_marker.min.js': ['amd/build/aigen_marker.js'],
                     'amd/build/aigen_list.min.js': ['amd/build/aigen_list.js'],
                     'amd/build/template_selector.min.js': ['amd/build/template_selector.js'],
-                    'amd/build/loading_indicator.min.js': ['amd/build/loading_indicator.js']
+                    'amd/build/loading_indicator.min.js': ['amd/build/loading_indicator.js'],
+                    'amd/build/job_status_banner.min.js': ['amd/build/job_status_banner.js'],
+                    'amd/build/job_status_page.min.js': ['amd/build/job_status_page.js']
                 }
             }
         },

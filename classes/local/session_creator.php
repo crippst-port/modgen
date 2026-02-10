@@ -30,6 +30,7 @@ namespace aiplacement_modgen\local;
 defined('MOODLE_INTERNAL') || die();
 
 use aiplacement_modgen\activitytype\registry;
+use context_module;
 
 /**
  * Session creator helper class.
@@ -183,16 +184,22 @@ class session_creator {
             }
         }
 
-        // Create instance
+        // Create learningactivity instance.
         try {
             $instance = new $handler();
             $result = $instance->create($activitydata, $course, $sectionnumber);
 
             if ($result && isset($result['cmid'])) {
+                // Ensure context is created immediately to avoid integrity errors
+                // if user refreshes page during background task execution.
+                \context_module::instance($result['cmid']);
                 return $result['cmid'];
             }
         } catch (\Exception $e) {
-            // Failed to create learningactivity: expected in test environment.
+            // Log the error for debugging. Learningactivity creation failures are non-fatal
+            // as the section structure can still be created without metadata modules.
+            debugging('Failed to create learningactivity in section ' . $sectionnumber . ': ' . $e->getMessage(), DEBUG_DEVELOPER);
+            error_log('aiplacement_modgen: Learningactivity creation failed in section ' . $sectionnumber . ' - ' . $e->getMessage());
         }
 
         return null;

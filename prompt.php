@@ -439,6 +439,91 @@ if ($approvedjsonparam !== null) {
             throw new \moodle_exception('invalidjson', 'aiplacement_modgen', '', json_last_error_msg());
         }
         
+        // Sanitize all text fields in the JSON structure to prevent XSS
+        if (!empty($json['themes'])) {
+            foreach ($json['themes'] as &$theme) {
+                if (isset($theme['title'])) {
+                    $theme['title'] = clean_param($theme['title'], PARAM_TEXT);
+                }
+                if (isset($theme['summary'])) {
+                    $theme['summary'] = clean_param($theme['summary'], PARAM_CLEANHTML);
+                }
+                if (isset($theme['metadata']['icon'])) {
+                    $theme['metadata']['icon'] = clean_param($theme['metadata']['icon'], PARAM_TEXT);
+                }
+                if (!empty($theme['weeks'])) {
+                    foreach ($theme['weeks'] as &$week) {
+                        if (isset($week['name'])) {
+                            $week['name'] = clean_param($week['name'], PARAM_TEXT);
+                        }
+                        if (isset($week['summary'])) {
+                            $week['summary'] = clean_param($week['summary'], PARAM_CLEANHTML);
+                        }
+                        if (!empty($week['activities'])) {
+                            foreach ($week['activities'] as &$activity) {
+                                if (isset($activity['name'])) {
+                                    $activity['name'] = clean_param($activity['name'], PARAM_TEXT);
+                                }
+                                if (isset($activity['description'])) {
+                                    $activity['description'] = clean_param($activity['description'], PARAM_CLEANHTML);
+                                }
+                                if (isset($activity['type'])) {
+                                    $activity['type'] = clean_param($activity['type'], PARAM_ALPHANUMEXT);
+                                }
+                            }
+                            unset($activity);
+                        }
+                    }
+                    unset($week);
+                }
+                if (!empty($theme['activities'])) {
+                    foreach ($theme['activities'] as &$activity) {
+                        if (isset($activity['name'])) {
+                            $activity['name'] = clean_param($activity['name'], PARAM_TEXT);
+                        }
+                        if (isset($activity['description'])) {
+                            $activity['description'] = clean_param($activity['description'], PARAM_CLEANHTML);
+                        }
+                        if (isset($activity['type'])) {
+                            $activity['type'] = clean_param($activity['type'], PARAM_ALPHANUMEXT);
+                        }
+                    }
+                    unset($activity);
+                }
+            }
+            unset($theme);
+        } else if (!empty($json['weeks'])) {
+            foreach ($json['weeks'] as &$week) {
+                if (isset($week['name'])) {
+                    $week['name'] = clean_param($week['name'], PARAM_TEXT);
+                }
+                if (isset($week['summary'])) {
+                    $week['summary'] = clean_param($week['summary'], PARAM_CLEANHTML);
+                }
+                if (!empty($week['activities'])) {
+                    foreach ($week['activities'] as &$activity) {
+                        if (isset($activity['name'])) {
+                            $activity['name'] = clean_param($activity['name'], PARAM_TEXT);
+                        }
+                        if (isset($activity['description'])) {
+                            $activity['description'] = clean_param($activity['description'], PARAM_CLEANHTML);
+                        }
+                        if (isset($activity['type'])) {
+                            $activity['type'] = clean_param($activity['type'], PARAM_ALPHANUMEXT);
+                        }
+                    }
+                    unset($activity);
+                }
+            }
+            unset($week);
+        }
+        if (isset($json['title'])) {
+            $json['title'] = clean_param($json['title'], PARAM_TEXT);
+        }
+        if (isset($json['summary'])) {
+            $json['summary'] = clean_param($json['summary'], PARAM_CLEANHTML);
+        }
+        
         $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'connected_weekly';
         $generatethemeintroductions = !empty($adata->generatethemeintroductions);
         $createsuggestedactivities = !empty($adata->createsuggestedactivities);

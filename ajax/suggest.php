@@ -77,7 +77,7 @@ try {
 
     $courseid = required_param('courseid', PARAM_INT);
     $section = optional_param('section', 0, PARAM_INT);
-    $sesskey = optional_param('sesskey', '', PARAM_RAW);
+    $sesskey = optional_param('sesskey', '', PARAM_ALPHANUM);
 
     if (!confirm_sesskey($sesskey)) {
         ajax_response::error('Invalid session key', 'invalidsesskey');

@@ -1440,6 +1440,12 @@ class ai_service
                 return ['success' => false, 'error' => 'AI policy not accepted'];
             }
 
+            // Verify user has permission to generate suggestions
+            if (!empty($courseid)) {
+                $context = \context_course::instance($courseid);
+                require_capability('aiplacement/modgen:usesuggest', $context);
+            }
+
             // Determine supported activity types from the registry and build a compact
             // prompt describing the selected section and surrounding context.
             $supported = registry::get_supported_activity_metadata();

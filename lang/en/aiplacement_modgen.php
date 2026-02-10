@@ -47,19 +47,6 @@ $string['checkingstatus'] = 'Checking job status...';
 $string['invalidaction'] = 'Invalid action';
 $string['creatingstructure'] = 'Creating Course Structure';
 
-// Job status banner strings
-$string['jobqueuedinfo'] = 'Your request is being processed in the background. You can continue working and will see the results when complete.';
-$string['returntocourse'] = 'Return to course';
-$string['reloadpage'] = 'Reload page';
-$string['jobqueued_single'] = 'Job queued';
-$string['jobrunning_single'] = 'Creating sections...';
-$string['jobsqueued_multiple'] = '{$a} jobs queued';
-$string['jobsrunning_multiple'] = '{$a} jobs in progress';
-$string['jobcompleted_single'] = 'Job completed successfully!';
-$string['jobscompleted_multiple'] = '{$a} jobs completed successfully!';
-$string['jobfailed_single'] = 'Job failed';
-$string['jobsfailed_multiple'] = '{$a} jobs failed';
-
 // Job status page strings
 $string['jobstatuspage_title'] = 'Job Status';
 $string['jobstatus_queued'] = 'Queued';

@@ -57,7 +57,7 @@ try {
     $context = context_course::instance($courseid);
     require_capability('aiplacement/modgen:usesuggest', $context);
 
-    $sesskey = required_param('sesskey', PARAM_RAW);
+    $sesskey = required_param('sesskey', PARAM_ALPHANUM);
     if (!confirm_sesskey($sesskey)) {
         ajax_response::error('Invalid session key', 'invalidsesskey');
     }
@@ -99,6 +99,23 @@ try {
 
     // Replace items with the normalized array we will send to registry
     $items = $normalized;
+    
+    // Sanitize all text fields to prevent XSS
+    foreach ($items as &$item) {
+        if (isset($item['name'])) {
+            $item['name'] = clean_param($item['name'], PARAM_TEXT);
+        }
+        if (isset($item['description'])) {
+            $item['description'] = clean_param($item['description'], PARAM_CLEANHTML);
+        }
+        if (isset($item['type'])) {
+            $item['type'] = clean_param($item['type'], PARAM_ALPHANUMEXT);
+        }
+        if (isset($item['intro'])) {
+            $item['intro'] = clean_param($item['intro'], PARAM_CLEANHTML);
+        }
+    }
+    unset($item);
 
     // Acquire course editing lock (same mechanism used by theme_builder/prompt flows)
     $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');

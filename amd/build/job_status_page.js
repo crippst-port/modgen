@@ -32,34 +32,12 @@ define(["exports", "core/ajax", "core/notification", "core/str"], function (_exp
     }
     let html = '';
     if (job.status === 'queued') {
-      html = `
-            <div class="alert alert-info d-flex align-items-center">
-                <div class="spinner-border text-info me-3" role="status">
-                    <span class="sr-only">Loading...</span>
-                </div>
-                <div>
-                    <strong>Queued</strong>
-                    <p class="mb-0 small">Your job is waiting to be processed...</p>
-                    <p class="mb-0 small text-muted"><em>This page will automatically redirect back to the course when creation is complete.</em></p>
-                </div>
-            </div>
-        `;
+      html = "\n            <div class=\"alert alert-info d-flex align-items-center\">\n                <div class=\"spinner-border text-info me-3\" role=\"status\">\n                    <span class=\"sr-only\">Loading...</span>\n                </div>\n                <div>\n                    <strong>Queued</strong>\n                    <p class=\"mb-0 small\">Your job is waiting to be processed...</p>\n                    <p class=\"mb-0 small text-muted\"><em>This page will automatically redirect back to the course when creation is complete.</em></p>\n                </div>\n            </div>\n        ";
       if (returnButtonContainer) {
         returnButtonContainer.style.display = 'none';
       }
     } else if (job.status === 'running') {
-      html = `
-            <div class="alert alert-primary d-flex align-items-center">
-                <div class="spinner-border text-primary me-3" role="status">
-                    <span class="sr-only">Loading...</span>
-                </div>
-                <div>
-                    <strong>Creating sections...</strong>
-                    <p class="mb-0 small">Please wait while your course structure is being created.</p>
-                    <p class="mb-0 small text-muted"><em>This page will automatically redirect back to the course when creation is complete.</em></p>
-                </div>
-            </div>
-        `;
+      html = "\n            <div class=\"alert alert-primary d-flex align-items-center\">\n                <div class=\"spinner-border text-primary me-3\" role=\"status\">\n                    <span class=\"sr-only\">Loading...</span>\n                </div>\n                <div>\n                    <strong>Creating sections...</strong>\n                    <p class=\"mb-0 small\">Please wait while your course structure is being created.</p>\n                    <p class=\"mb-0 small text-muted\"><em>This page will automatically redirect back to the course when creation is complete.</em></p>\n                </div>\n            </div>\n        ";
       if (returnButtonContainer) {
         returnButtonContainer.style.display = 'none';
       }
@@ -68,30 +46,13 @@ define(["exports", "core/ajax", "core/notification", "core/str"], function (_exp
       const messages = result.messages || [];
       let messagesList = '';
       messages.forEach(msg => {
-        messagesList += `<p class="mb-1"><i class="fa fa-check text-success"></i> ${msg}</p>`;
+        messagesList += "<p class=\"mb-1\"><i class=\"fa fa-check text-success\"></i> ".concat(msg, "</p>");
       });
-      html = `
-            <div class="alert alert-success">
-                <h4 class="alert-heading">
-                    <i class="fa fa-check-circle"></i>
-                    Completed successfully!
-                </h4>
-                ${messagesList}
-                <hr>
-                <p class="mb-0">Redirecting to your course in a few seconds...</p>
-            </div>
-        `;
+      html = "\n            <div class=\"alert alert-success\">\n                <h4 class=\"alert-heading\">\n                    <i class=\"fa fa-check-circle\"></i>\n                    Completed successfully!\n                </h4>\n                ".concat(messagesList, "\n                <hr>\n                <p class=\"mb-0\">Redirecting to your course in a few seconds...</p>\n            </div>\n        ");
       if (returnButtonContainer) {
         returnButtonContainer.style.display = 'block';
       } else {
-        const buttonHtml = `
-                <div class="mt-4" id="return-button-container">
-                    <a href="${config.courseurl}" class="btn btn-primary">
-                        <i class="fa fa-arrow-left"></i>
-                        Return to course home
-                    </a>
-                </div>
-            `;
+        const buttonHtml = "\n                <div class=\"mt-4\" id=\"return-button-container\">\n                    <a href=\"".concat(config.courseurl, "\" class=\"btn btn-primary\">\n                        <i class=\"fa fa-arrow-left\"></i>\n                        Return to course home\n                    </a>\n                </div>\n            ");
         container.insertAdjacentHTML('afterend', buttonHtml);
       }
       stopPolling();
@@ -104,26 +65,11 @@ define(["exports", "core/ajax", "core/notification", "core/str"], function (_exp
       const willRetry = result.will_retry || false;
       let retryHtml = '';
       if (willRetry) {
-        retryHtml = `
-                <hr>
-                <p class="mb-0">
-                    <i class="fa fa-refresh"></i>
-                    This job will automatically retry in a moment...
-                </p>
-            `;
+        retryHtml = "\n                <hr>\n                <p class=\"mb-0\">\n                    <i class=\"fa fa-refresh\"></i>\n                    This job will automatically retry in a moment...\n                </p>\n            ";
       } else {
         stopPolling();
       }
-      html = `
-            <div class="alert alert-danger">
-                <h4 class="alert-heading">
-                    <i class="fa fa-exclamation-triangle"></i>
-                    Job failed
-                </h4>
-                <p><strong>Error:</strong> ${error}</p>
-                ${retryHtml}
-            </div>
-        `;
+      html = "\n            <div class=\"alert alert-danger\">\n                <h4 class=\"alert-heading\">\n                    <i class=\"fa fa-exclamation-triangle\"></i>\n                    Job failed\n                </h4>\n                <p><strong>Error:</strong> ".concat(error, "</p>\n                ").concat(retryHtml, "\n            </div>\n        ");
       if (returnButtonContainer) {
         returnButtonContainer.style.display = 'none';
       }
@@ -145,20 +91,15 @@ define(["exports", "core/ajax", "core/notification", "core/str"], function (_exp
     }
   };
   const pollJobStatus = () => {
-    console.log('[Job Status Page] Polling job', config.jobid);
     const url = M.cfg.wwwroot + '/ai/placement/modgen/ajax/check_job_status.php?sesskey=' + M.cfg.sesskey + '&jobid=' + config.jobid;
-    console.log('[Job Status Page] Fetching:', url);
     fetch(url).then(response => {
-      console.log('[Job Status Page] Response received:', response.status);
       return response.json();
     }).then(data => {
-      console.log('[Job Status Page] Data:', data);
       if (data.success && data.status) {
         updateStatusDisplay(data);
         if (data.status === 'completed') {
           stopPolling();
           setTimeout(() => {
-            console.log('[Job Status Page] Redirecting to:', config.courseurl);
             window.location.href = config.courseurl;
           }, REDIRECT_DELAY);
         } else if (data.status === 'failed' && !data.will_retry) {
@@ -170,7 +111,6 @@ define(["exports", "core/ajax", "core/notification", "core/str"], function (_exp
     });
   };
   const startPolling = () => {
-    console.log('[Job Status Page] Starting polling with interval:', POLL_INTERVAL);
     pollJobStatus();
     pollInterval = setInterval(pollJobStatus, POLL_INTERVAL);
   };
@@ -181,21 +121,17 @@ define(["exports", "core/ajax", "core/notification", "core/str"], function (_exp
     }
   };
   const init = cfg => {
-    console.log('[Job Status Page] Initializing with config:', cfg);
     config = cfg;
     if (cfg.initialstatus === 'completed') {
-      console.log('[Job Status Page] Job already completed, will redirect');
       setTimeout(() => {
         window.location.href = config.courseurl;
       }, REDIRECT_DELAY);
     } else if (cfg.initialstatus === 'failed') {
-      console.log('[Job Status Page] Job failed, checking if will retry');
       const result = document.querySelector('[data-jobid]');
       if (result && result.dataset.willretry) {
         startPolling();
       }
     } else {
-      console.log('[Job Status Page] Job', cfg.initialstatus, '- starting polling');
       startPolling();
     }
     window.addEventListener('beforeunload', stopPolling);

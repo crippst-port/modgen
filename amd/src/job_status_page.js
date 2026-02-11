@@ -217,21 +217,15 @@ const getStatusColor = (status) => {
  * Poll job status from server.
  */
 const pollJobStatus = () => {
-    console.log('[Job Status Page] Polling job', config.jobid);
-    
     // Direct fetch approach
     const url = M.cfg.wwwroot + '/ai/placement/modgen/ajax/check_job_status.php?sesskey=' + 
                 M.cfg.sesskey + '&jobid=' + config.jobid;
     
-    console.log('[Job Status Page] Fetching:', url);
-    
     fetch(url)
         .then(response => {
-            console.log('[Job Status Page] Response received:', response.status);
             return response.json();
         })
         .then(data => {
-            console.log('[Job Status Page] Data:', data);
             if (data.success && data.status) {
                 updateStatusDisplay(data);
                 
@@ -239,7 +233,6 @@ const pollJobStatus = () => {
                 if (data.status === 'completed') {
                     stopPolling();
                     setTimeout(() => {
-                        console.log('[Job Status Page] Redirecting to:', config.courseurl);
                         window.location.href = config.courseurl;
                     }, REDIRECT_DELAY);
                 } else if (data.status === 'failed' && !data.will_retry) {
@@ -257,7 +250,6 @@ const pollJobStatus = () => {
  * Start polling for job status.
  */
 const startPolling = () => {
-    console.log('[Job Status Page] Starting polling with interval:', POLL_INTERVAL);
     // Initial poll
     pollJobStatus();
     
@@ -285,25 +277,21 @@ const stopPolling = () => {
  * @param {string} cfg.initialstatus Initial job status
  */
 export const init = (cfg) => {
-    console.log('[Job Status Page] Initializing with config:', cfg);
     config = cfg;
     
     // If job already completed/failed, don't poll
     if (cfg.initialstatus === 'completed') {
-        console.log('[Job Status Page] Job already completed, will redirect');
         // Auto-redirect after delay
         setTimeout(() => {
             window.location.href = config.courseurl;
         }, REDIRECT_DELAY);
     } else if (cfg.initialstatus === 'failed') {
-        console.log('[Job Status Page] Job failed, checking if will retry');
         // Check if will retry
         const result = document.querySelector('[data-jobid]');
         if (result && result.dataset.willretry) {
             startPolling();
         }
     } else {
-        console.log('[Job Status Page] Job', cfg.initialstatus, '- starting polling');
         // Start polling for queued/running jobs
         startPolling();
     }

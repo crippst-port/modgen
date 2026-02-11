@@ -213,7 +213,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       return aiWorkflowForms.includes(formName);
     }
     loadFormInModal(formName, title) {
-      _fragment.default.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
+      _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
         courseid: this.courseid,
         contextid: this.contextid
       }).then(html => {
@@ -284,9 +284,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       actionButtons.forEach((button, index) => {
         const label = button.tagName === 'INPUT' ? button.value || button.getAttribute('aria-label') || 'Submit' : button.textContent.trim();
         const classes = (button.className || 'btn btn-secondary').trim();
-        footerHtml += `<button type="button" class="${classes} ${index > 0 ? 'ml-2' : ''}" data-form-button-index="${index}">
-                ${label}
-            </button>`;
+        footerHtml += "<button type=\"button\" class=\"".concat(classes, " ").concat(index > 0 ? 'ml-2' : '', "\" data-form-button-index=\"").concat(index, "\">\n                ").concat(label, "\n            </button>");
       });
       footerHtml += '</div>';
       modal.setFooter(footerHtml);
@@ -456,7 +454,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           break;
         default:
           if (form) {
-            const formBtn = form.querySelector(`[name="${action}"], [data-action="${action}"]`);
+            const formBtn = form.querySelector("[name=\"".concat(action, "\"], [data-action=\"").concat(action, "\"]"));
             if (formBtn) {
               formBtn.click();
             }
@@ -547,15 +545,15 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         if (isComplete) {
           iconClass = 'fa-check';
         }
-        html += `<div class="${stepClass} text-center flex-fill">`;
-        html += `<div class="modgen-step-icon mb-1">`;
-        html += `<i class="fa ${iconClass}"></i>`;
-        html += `</div>`;
-        html += `<div class="modgen-step-label small">${step.label}</div>`;
-        html += `</div>`;
+        html += "<div class=\"".concat(stepClass, " text-center flex-fill\">");
+        html += "<div class=\"modgen-step-icon mb-1\">";
+        html += "<i class=\"fa ".concat(iconClass, "\"></i>");
+        html += "</div>";
+        html += "<div class=\"modgen-step-label small\">".concat(step.label, "</div>");
+        html += "</div>";
         if (index < steps.length - 1) {
           const lineClass = isComplete ? 'modgen-step-line-complete' : 'modgen-step-line';
-          html += `<div class="${lineClass} flex-fill" style="height: 2px; margin-top: -1rem;"></div>`;
+          html += "<div class=\"".concat(lineClass, " flex-fill\" style=\"height: 2px; margin-top: -1rem;\"></div>");
         }
       });
       html += '</div>';
@@ -582,9 +580,10 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       if (bodyNode && !isRemove) {
         const startDateField = bodyNode.querySelector('select[name="startdate[day]"]');
         if (startDateField) {
-          const day = bodyNode.querySelector('select[name="startdate[day]"]')?.value || 1;
-          const month = bodyNode.querySelector('select[name="startdate[month]"]')?.value || 1;
-          const year = bodyNode.querySelector('select[name="startdate[year]"]')?.value || new Date().getFullYear();
+          var _bodyNode$querySelect, _bodyNode$querySelect2, _bodyNode$querySelect3;
+          const day = ((_bodyNode$querySelect = bodyNode.querySelector('select[name="startdate[day]"]')) === null || _bodyNode$querySelect === void 0 ? void 0 : _bodyNode$querySelect.value) || 1;
+          const month = ((_bodyNode$querySelect2 = bodyNode.querySelector('select[name="startdate[month]"]')) === null || _bodyNode$querySelect2 === void 0 ? void 0 : _bodyNode$querySelect2.value) || 1;
+          const year = ((_bodyNode$querySelect3 = bodyNode.querySelector('select[name="startdate[year]"]')) === null || _bodyNode$querySelect3 === void 0 ? void 0 : _bodyNode$querySelect3.value) || new Date().getFullYear();
           const dateObj = new Date(year, month - 1, day, 0, 0, 0);
           startDate = Math.floor(dateObj.getTime() / 1000);
         }
@@ -642,9 +641,10 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           let startDate = 0;
           const dayField = bodyNode.querySelector('select[name="startdate[day]"]');
           if (dayField) {
-            const day = bodyNode.querySelector('select[name="startdate[day]"]')?.value || 1;
-            const month = bodyNode.querySelector('select[name="startdate[month]"]')?.value || 1;
-            const year = bodyNode.querySelector('select[name="startdate[year]"]')?.value || new Date().getFullYear();
+            var _bodyNode$querySelect4, _bodyNode$querySelect5, _bodyNode$querySelect6;
+            const day = ((_bodyNode$querySelect4 = bodyNode.querySelector('select[name="startdate[day]"]')) === null || _bodyNode$querySelect4 === void 0 ? void 0 : _bodyNode$querySelect4.value) || 1;
+            const month = ((_bodyNode$querySelect5 = bodyNode.querySelector('select[name="startdate[month]"]')) === null || _bodyNode$querySelect5 === void 0 ? void 0 : _bodyNode$querySelect5.value) || 1;
+            const year = ((_bodyNode$querySelect6 = bodyNode.querySelector('select[name="startdate[year]"]')) === null || _bodyNode$querySelect6 === void 0 ? void 0 : _bodyNode$querySelect6.value) || new Date().getFullYear();
             const dateObj = new Date(year, month - 1, day, 0, 0, 0);
             startDate = Math.floor(dateObj.getTime() / 1000);
           }
@@ -671,7 +671,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
               datePrefix.className = 'date-prefix';
             });
             data.sections.forEach(section => {
-              const sectionItem = bodyNode.querySelector(`[data-section-id="${section.id}"]`);
+              const sectionItem = bodyNode.querySelector("[data-section-id=\"".concat(section.id, "\"]"));
               if (!sectionItem) {
                 return;
               }
@@ -717,9 +717,10 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         }
       });
       modalRoot.on('submit', 'form', async e => {
+        var _e$originalEvent;
         e.preventDefault();
-        const submitter = e.originalEvent?.submitter;
-        const buttonName = submitter?.getAttribute('name') || clickedButton;
+        const submitter = (_e$originalEvent = e.originalEvent) === null || _e$originalEvent === void 0 ? void 0 : _e$originalEvent.submitter;
+        const buttonName = (submitter === null || submitter === void 0 ? void 0 : submitter.getAttribute('name')) || clickedButton;
         if (buttonName === 'cancel') {
           modal.destroy();
           clickedButton = null;
@@ -766,7 +767,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
               this.showSuccess(modal, data.message, details);
             }
           } else {
-            _fragment.default.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
+            _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
               courseid: this.courseid,
               contextid: this.contextid
             }).then(async html => {
@@ -789,7 +790,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           return data;
         }).catch(error => {
           window.modgenCreationInProgress = false;
-          _fragment.default.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
+          _fragment.default.loadFragment('aiplacement_modgen', "form_".concat(formName), this.contextid, {
             courseid: this.courseid,
             contextid: this.contextid
           }).then(html => {

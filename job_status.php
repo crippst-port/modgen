@@ -64,13 +64,17 @@ switch ($job->action) {
         $actiondisplay = get_string('jobaction_create_weeks', 'aiplacement_modgen', $weekcount);
         break;
     case 'create_from_json':
-        $jsondata = $params->json ?? null;
+        // Try to get JSON data - it might be in $params->json or directly in $params
+        $jsondata = $params->json ?? $params;
         $sectioncount = 0;
         if ($jsondata && is_object($jsondata)) {
+            // Check all possible structure keys
             if (!empty($jsondata->themes)) {
                 $sectioncount = count($jsondata->themes);
             } else if (!empty($jsondata->weeks)) {
                 $sectioncount = count($jsondata->weeks);
+            } else if (!empty($jsondata->sections)) {
+                $sectioncount = count($jsondata->sections);
             }
         }
         $actiondisplay = get_string('jobaction_create_from_json', 'aiplacement_modgen', $sectioncount);
@@ -100,7 +104,7 @@ if ($job->status === 'completed' && $job->result) {
     $result = json_decode($job->result, true);
     $templatedata['result'] = $result;
     if (!empty($result['messages'])) {
-        $templatedata['messages'] = array_map(function($msg) {
+        $templatedata['messages'] = array_map(function ($msg) {
             return ['text' => $msg];
         }, $result['messages']);
     }

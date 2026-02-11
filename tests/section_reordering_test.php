@@ -58,6 +58,7 @@ class section_reordering_test extends advanced_testcase {
     public function test_existing_sections_hidden_when_flag_true() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
@@ -126,6 +127,7 @@ class section_reordering_test extends advanced_testcase {
     public function test_section_zero_never_hidden() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
@@ -171,6 +173,7 @@ class section_reordering_test extends advanced_testcase {
     public function test_child_sections_remain_visible() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
@@ -243,6 +246,7 @@ class section_reordering_test extends advanced_testcase {
     public function test_new_sections_moved_to_top() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
@@ -324,6 +328,7 @@ class section_reordering_test extends advanced_testcase {
     public function test_existing_sections_stay_visible_when_flag_false() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
@@ -378,6 +383,7 @@ class section_reordering_test extends advanced_testcase {
     public function test_multiple_new_themes_all_visible() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
@@ -435,6 +441,7 @@ class section_reordering_test extends advanced_testcase {
     public function test_hiding_sections_multiple_times_idempotent() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
@@ -503,6 +510,7 @@ class section_reordering_test extends advanced_testcase {
     public function test_assessments_section_not_hidden() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);

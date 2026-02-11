@@ -65,7 +65,9 @@ class privacy_test extends provider_testcase
      */
     public function test_get_contexts_for_userid()
     {
+        global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $user1 = $this->getDataGenerator()->create_user();
         $user2 = $this->getDataGenerator()->create_user();
@@ -73,10 +75,14 @@ class privacy_test extends provider_testcase
         $course2 = $this->getDataGenerator()->create_course();
 
         // Create job for user1 in course1.
-        $this->create_test_job($user1->id, $course1->id, 'create_themes');
+        $job1id = $this->create_test_job($user1->id, $course1->id, 'create_themes');
 
         // Create job for user2 in course2.
-        $this->create_test_job($user2->id, $course2->id, 'create_weeks');
+        $job2id = $this->create_test_job($user2->id, $course2->id, 'create_weeks');
+
+        // Verify jobs were created
+        $this->assertTrue($DB->record_exists('aiplacement_modgen_jobs', ['id' => $job1id]), 'Job 1 should exist');
+        $this->assertTrue($DB->record_exists('aiplacement_modgen_jobs', ['id' => $job2id]), 'Job 2 should exist');
 
         // Get contexts for user1.
         $contextlist = provider::get_contexts_for_userid($user1->id);
@@ -85,15 +91,17 @@ class privacy_test extends provider_testcase
         $contexts = $contextlist->get_contextids();
         $this->assertCount(1, $contexts);
 
-        // Verify it's the correct course context.
         $coursecontext1 = \context_course::instance($course1->id);
-        $this->assertContains($coursecontext1->id, $contexts);
+
+        // Verify it's the correct course context.
+        // Note: get_contextids() returns strings, so we need to convert for comparison
+        $this->assertContains((string)$coursecontext1->id, $contexts, 'Should contain the expected course context');
 
         // Verify user2's context is different.
         $contextlist2 = provider::get_contexts_for_userid($user2->id);
         $contexts2 = $contextlist2->get_contextids();
         $coursecontext2 = \context_course::instance($course2->id);
-        $this->assertContains($coursecontext2->id, $contexts2);
+        $this->assertContains((string)$coursecontext2->id, $contexts2);
     }
 
     /**
@@ -102,6 +110,7 @@ class privacy_test extends provider_testcase
     public function test_export_user_data()
     {
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $user = $this->getDataGenerator()->create_user();
         $course = $this->getDataGenerator()->create_course();
@@ -141,6 +150,7 @@ class privacy_test extends provider_testcase
     {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $user1 = $this->getDataGenerator()->create_user();
         $user2 = $this->getDataGenerator()->create_user();
@@ -173,6 +183,7 @@ class privacy_test extends provider_testcase
     {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $user1 = $this->getDataGenerator()->create_user();
         $user2 = $this->getDataGenerator()->create_user();
@@ -206,7 +217,9 @@ class privacy_test extends provider_testcase
      */
     public function test_get_users_in_context()
     {
+        global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $user1 = $this->getDataGenerator()->create_user();
         $user2 = $this->getDataGenerator()->create_user();
@@ -224,10 +237,12 @@ class privacy_test extends provider_testcase
         provider::get_users_in_context($userlist);
 
         $userids = $userlist->get_userids();
+
         $this->assertCount(2, $userids);
-        $this->assertContains($user1->id, $userids);
-        $this->assertContains($user2->id, $userids);
-        $this->assertNotContains($user3->id, $userids);
+        // Note: get_userids() returns integers, user->id is string, so we need to convert for comparison
+        $this->assertContains((int)$user1->id, $userids);
+        $this->assertContains((int)$user2->id, $userids);
+        $this->assertNotContains((int)$user3->id, $userids);
     }
 
     /**
@@ -237,6 +252,7 @@ class privacy_test extends provider_testcase
     {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $user1 = $this->getDataGenerator()->create_user();
         $user2 = $this->getDataGenerator()->create_user();

@@ -53,6 +53,7 @@ class parent_field_test extends advanced_testcase {
     public function test_theme_section_has_zero_parent() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         // Create course and convert to flexsections format.
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
@@ -102,6 +103,7 @@ class parent_field_test extends advanced_testcase {
     public function test_week_section_has_correct_parent_number() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         // Create course and convert to flexsections format.
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
@@ -161,6 +163,7 @@ class parent_field_test extends advanced_testcase {
     public function test_session_section_has_correct_parent_number() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         // Create course and convert to flexsections format.
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
@@ -233,6 +236,7 @@ class parent_field_test extends advanced_testcase {
     public function test_complete_hierarchy_parent_chain() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         // Create course and convert to flexsections format.
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
@@ -328,6 +332,7 @@ class parent_field_test extends advanced_testcase {
      */
     public function test_section_info_parent_property() {
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         // Create course and convert to flexsections format.
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
@@ -368,6 +373,7 @@ class parent_field_test extends advanced_testcase {
     public function test_validate_section_parent_helper() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         // Create course and convert to flexsections format.
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
@@ -417,6 +423,7 @@ class parent_field_test extends advanced_testcase {
     public function test_multiple_themes_and_weeks() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         // Create course and convert to flexsections format.
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);

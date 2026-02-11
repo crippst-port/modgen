@@ -49,6 +49,7 @@ class transaction_handling_test extends \advanced_testcase {
     public function test_section_creation_rollback_on_error() {
         global $DB;
         $this->resetAfterTest();
+        $this->setAdminUser();
 
         // Create test course with flexsections format.
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
@@ -114,6 +115,7 @@ class transaction_handling_test extends \advanced_testcase {
      */
     public function test_parent_validation_prevents_invalid_parent() {
         $this->resetAfterTest();
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
         $courseformat = \course_get_format($course);
@@ -140,6 +142,7 @@ class transaction_handling_test extends \advanced_testcase {
      */
     public function test_empty_section_name_rejected() {
         $this->resetAfterTest();
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
         $courseformat = \course_get_format($course);
@@ -167,6 +170,7 @@ class transaction_handling_test extends \advanced_testcase {
     public function test_successful_section_creation_with_parent() {
         global $DB;
         $this->resetAfterTest();
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
         $courseformat = \course_get_format($course);
@@ -218,6 +222,7 @@ class transaction_handling_test extends \advanced_testcase {
     public function test_bulk_theme_creation_atomicity() {
         global $DB;
         $this->resetAfterTest();
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
 
@@ -271,6 +276,7 @@ class transaction_handling_test extends \advanced_testcase {
     public function test_bulk_week_creation_atomicity() {
         global $DB;
         $this->resetAfterTest();
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
 
@@ -322,6 +328,7 @@ class transaction_handling_test extends \advanced_testcase {
      */
     public function test_requires_flexsections_format() {
         $this->resetAfterTest();
+        $this->setAdminUser();
 
         // Create course with non-flexsections format.
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
@@ -344,6 +351,7 @@ class transaction_handling_test extends \advanced_testcase {
      */
     public function test_validation_with_invalid_params($courseid, $parentsection, $expectedexception) {
         $this->resetAfterTest();
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
         $courseformat = \course_get_format($course);
@@ -388,6 +396,7 @@ class transaction_handling_test extends \advanced_testcase {
     public function test_bulk_operations_defer_cache_rebuild() {
         global $DB;
         $this->resetAfterTest();
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
 

@@ -55,6 +55,7 @@ class lock_handling_test extends advanced_testcase {
      */
     public function test_lock_acquired_before_creation() {
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
@@ -93,6 +94,7 @@ class lock_handling_test extends advanced_testcase {
      */
     public function test_lock_released_after_completion() {
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
@@ -142,6 +144,7 @@ class lock_handling_test extends advanced_testcase {
      */
     public function test_lock_released_on_exception() {
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
@@ -234,6 +237,7 @@ class lock_handling_test extends advanced_testcase {
     public function test_cache_rebuilt_in_finally_block() {
         global $DB;
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
@@ -306,6 +310,7 @@ class lock_handling_test extends advanced_testcase {
      */
     public function test_concurrent_requests_serialize() {
         $this->resetAfterTest(true);
+        $this->setAdminUser();
 
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);

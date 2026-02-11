@@ -65,7 +65,8 @@ class comprehensive_workflow_test extends advanced_testcase {
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest(true);
-        
+        $this->setAdminUser();
+
         // Create test course.
         $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         

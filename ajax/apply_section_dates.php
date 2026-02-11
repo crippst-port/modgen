@@ -49,7 +49,7 @@ $PAGE->set_context($context);
 
 // Acquire course lock.
 $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');
-$lock = $lockfactory->get_lock('course_edit_' . $courseid, 600);
+$lock = $lockfactory->get_lock('course_edit_' . $courseid, 60);
 
 if (!$lock) {
     ajax_response::error(
@@ -94,15 +94,15 @@ try {
 
     // Apply dates sequentially to selected sections in order they appear
     require_once($CFG->dirroot . '/ai/placement/modgen/classes/local/date_calculator.php');
-    
+
     // Parse holidays from config
     $holidayconfig = get_config('aiplacement_modgen', 'holiday_dates');
     $holidays = date_calculator::parse_holidays($holidayconfig);
-    
+
     // Get course for start date
     $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
     $coursestartdate = $startdate > 0 ? $startdate : (!empty($course->startdate) ? $course->startdate : time());
-    
+
     // Sort selected sections by section number to apply dates in order
     $selectedsections = [];
     foreach ($selectedids as $sectionid) {
@@ -110,7 +110,7 @@ try {
             $selectedsections[] = $sectionmap[$sectionid];
         }
     }
-    usort($selectedsections, function($a, $b) {
+    usort($selectedsections, function ($a, $b) {
         return $a->section <=> $b->section;
     });
 

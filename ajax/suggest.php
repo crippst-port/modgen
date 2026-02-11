@@ -146,7 +146,12 @@ try {
     }
 
     $result = $serviceClass::generate_suggestions_from_map($sectionmap, $courseid);
-    
+
+    // Limit suggestions to prevent unlimited processing (Performance optimization).
+    if (!empty($result['suggestions']) && is_array($result['suggestions'])) {
+        $result['suggestions'] = array_slice($result['suggestions'], 0, 20);
+    }
+
     // Check if generation failed
     if (!empty($result['error'])) {
         ajax_response::error($result['error'], 'generation_failed', $result);
@@ -310,7 +315,8 @@ try {
         'labels' => $labels,
         'data' => $data,
         'colors' => array_map(function ($k) use ($colors) {
-            return $colors[$k]; }, $labels),
+            return $colors[$k];
+        }, $labels),
         'hasActivities' => $hasactivities,
     ];
 

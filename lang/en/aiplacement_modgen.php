@@ -640,3 +640,6 @@ $string['privacy:metadata:jobs:timecreated'] = 'When the job was queued';
 $string['privacy:metadata:jobs:timestarted'] = 'When the job started execution';
 $string['privacy:metadata:jobs:timecompleted'] = 'When the job completed or failed';
 $string['privacy:path:jobs'] = 'Module generation jobs';
+
+// Scheduled task strings.
+$string['cleanupold jobs'] = 'Clean up old job records';

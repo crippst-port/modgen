@@ -77,16 +77,16 @@ try {
     foreach ($items as $idx => $it) {
         // If it's an object decode into array first
         if ($it instanceof stdClass) {
-            $it = (array)$it;
+            $it = (array) $it;
         }
         if (isset($it['activity']) && (is_array($it['activity']) || $it['activity'] instanceof stdClass)) {
-            $act = (array)$it['activity'];
+            $act = (array) $it['activity'];
         } else if (isset($it['type']) || isset($it['name'])) {
             // Already in the expected flat shape
-            $act = (array)$it;
+            $act = (array) $it;
         } else {
             // Unknown shape: keep as-is to allow registry to report meaningful warnings
-            $act = (array)$it;
+            $act = (array) $it;
         }
 
         // Ensure type is present and trimmed
@@ -99,7 +99,7 @@ try {
 
     // Replace items with the normalized array we will send to registry
     $items = $normalized;
-    
+
     // Sanitize all text fields to prevent XSS
     foreach ($items as &$item) {
         if (isset($item['name'])) {
@@ -119,7 +119,7 @@ try {
 
     // Acquire course editing lock (same mechanism used by theme_builder/prompt flows)
     $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');
-    $lock = $lockfactory->get_lock('course_edit_' . $courseid, 600);
+    $lock = $lockfactory->get_lock('course_edit_' . $courseid, 60);
     if (!$lock) {
         ajax_response::error('Could not acquire course editing lock', 'lock_failed');
     }

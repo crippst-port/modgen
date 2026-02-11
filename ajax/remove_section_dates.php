@@ -47,7 +47,7 @@ $PAGE->set_context($context);
 
 // Acquire course lock.
 $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');
-$lock = $lockfactory->get_lock('course_edit_' . $courseid, 600);
+$lock = $lockfactory->get_lock('course_edit_' . $courseid, 60);
 
 if (!$lock) {
     ajax_response::error(
@@ -84,7 +84,7 @@ try {
 
     foreach ($selectedids as $sectionid) {
         $section = $DB->get_record('course_sections', ['id' => $sectionid], '*', MUST_EXIST);
-        
+
         // Remove existing date from name.
         $newname = date_calculator::remove_existing_date($section->name);
 

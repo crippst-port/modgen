@@ -131,6 +131,7 @@ try {
             'weeksperTheme' => $weeksperTheme,
             'parentsection' => $parentsection
         ]);
+        $task->set_userid($USER->id);
         \core\task\manager::queue_adhoc_task($task);
 
         ajax_response::success([
@@ -176,6 +177,7 @@ try {
             'weekcount' => $weekcount,
             'parentsection' => $parentsection
         ]);
+        $task->set_userid($USER->id);
         \core\task\manager::queue_adhoc_task($task);
 
         ajax_response::success([

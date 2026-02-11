@@ -571,6 +571,7 @@ if ($approvedjsonparam !== null) {
             'createsuggestedactivities' => $createsuggestedactivities,
             'hideexistingsections' => $hideexistingsections
         ]);
+        $task->set_userid($USER->id);
         \core\task\manager::queue_adhoc_task($task);
         
         // Return queued response for AJAX

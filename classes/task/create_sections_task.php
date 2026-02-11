@@ -58,8 +58,25 @@ class create_sections_task extends \core\task\adhoc_task {
         $data = $this->get_custom_data();
         $jobid = $data->jobid;
 
+        // Debug logging to help diagnose failures
+        mtrace('Starting create_sections_task for job ID: ' . $jobid);
+
         // Update job status to running.
-        $job = $DB->get_record('aiplacement_modgen_jobs', ['id' => $jobid], '*', MUST_EXIST);
+        // Note: Don't use MUST_EXIST to avoid race condition where task executes
+        // before job record is committed to database in a separate transaction.
+        // Instead, retry if job doesn't exist yet.
+        $job = $DB->get_record('aiplacement_modgen_jobs', ['id' => $jobid]);
+
+        if (!$job) {
+            // Job record not found - likely a race condition. Wait and retry.
+            mtrace('Job record not found yet for job ID ' . $jobid . ' - waiting 2 seconds for database commit');
+            sleep(2);
+            $job = $DB->get_record('aiplacement_modgen_jobs', ['id' => $jobid]);
+
+            if (!$job) {
+                throw new \moodle_exception('Job record not found for job ID ' . $jobid);
+            }
+        }
         $job->status = 'running';
         $job->timestarted = time();
         $DB->update_record('aiplacement_modgen_jobs', $job);
@@ -157,6 +174,7 @@ class create_sections_task extends \core\task\adhoc_task {
                 $job->result = json_encode([
                     'success' => false,
                     'error' => $e->getMessage(),
+                    'trace' => $e->getTraceAsString(),
                     'will_retry' => true
                 ]);
                 // Don't set timecompleted - job may still retry
@@ -164,6 +182,8 @@ class create_sections_task extends \core\task\adhoc_task {
             }
 
             // Log the error for debugging before re-throwing.
+            mtrace('Section creation task failed for job ' . $jobid . ': ' . $e->getMessage());
+            mtrace('Stack trace: ' . $e->getTraceAsString());
             debugging('Section creation task failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
 
             // Re-throw the exception so Moodle task system can handle retries.

@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Plugin version and other meta-data are defined here.
+ * Plugin uninstall procedure.
  *
  * @package     aiplacement_modgen
  * @copyright   2025 Tom Cripps <tom.cripps@port.ac.uk>
@@ -24,8 +24,17 @@
 
 defined('MOODLE_INTERNAL') || die();
 
-$plugin->component = 'aiplacement_modgen';
-$plugin->release = '0.6.0';
-$plugin->version = 2026021000;
-$plugin->requires = 2022112800;
-$plugin->maturity = MATURITY_BETA;
+/**
+ * Custom uninstallation procedure.
+ *
+ * @return bool Success status
+ */
+function xmldb_aiplacement_modgen_uninstall()
+{
+    global $DB;
+
+    // Delete all job records.
+    $DB->delete_records('aiplacement_modgen_jobs');
+
+    return true;
+}

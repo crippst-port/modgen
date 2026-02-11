@@ -627,3 +627,16 @@ $string['nocircularfound'] = 'No circular references found';
 $string['circularfixerror'] = 'Error fixing circular references: {$a}';
 $string['hierarchyflattened'] = 'Hierarchy successfully flattened - all sections are now top-level';
 $string['flattenerror'] = 'Error flattening hierarchy: {$a}';
+
+// Privacy API strings.
+$string['privacy:metadata:jobs'] = 'Background job records for section creation operations';
+$string['privacy:metadata:jobs:userid'] = 'The ID of the user who queued the creation job';
+$string['privacy:metadata:jobs:courseid'] = 'The ID of the course where sections are being created';
+$string['privacy:metadata:jobs:action'] = 'The type of creation action (create_themes, create_weeks, create_from_json)';
+$string['privacy:metadata:jobs:parameters'] = 'JSON parameters for the job, may include user prompts or template selections';
+$string['privacy:metadata:jobs:result'] = 'JSON result data from the job execution, may include AI-generated content';
+$string['privacy:metadata:jobs:status'] = 'Current status of the job (queued, running, completed, failed)';
+$string['privacy:metadata:jobs:timecreated'] = 'When the job was queued';
+$string['privacy:metadata:jobs:timestarted'] = 'When the job started execution';
+$string['privacy:metadata:jobs:timecompleted'] = 'When the job completed or failed';
+$string['privacy:path:jobs'] = 'Module generation jobs';

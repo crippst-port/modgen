@@ -42,7 +42,7 @@ class cleanup_old_jobs_task extends \core\task\scheduled_task
      */
     public function get_name()
     {
-        return get_string('cleanupold jobs', 'aiplacement_modgen');
+        return get_string('cleanupoldjobs', 'aiplacement_modgen');
     }
 
     /**

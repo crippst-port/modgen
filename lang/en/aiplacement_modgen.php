@@ -642,4 +642,4 @@ $string['privacy:metadata:jobs:timecompleted'] = 'When the job completed or fail
 $string['privacy:path:jobs'] = 'Module generation jobs';
 
 // Scheduled task strings.
-$string['cleanupold jobs'] = 'Clean up old job records';
+$string['cleanupoldjobs'] = 'Clean up old job records';

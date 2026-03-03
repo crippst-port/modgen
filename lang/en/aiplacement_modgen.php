@@ -201,6 +201,7 @@ $string['closemodgenmodal'] = 'Close and return to module';
 $string['modalinaccessible'] = 'To access the full Module Creator form, please use the "Create Module" link from the course navigation menu.';
 $string['missingcourseid'] = 'Course ID is required to use the Module Assistant.';
 
+
 // Tabbed interface
 $string['generatetablabel'] = 'Generate from Structure';
 
@@ -532,6 +533,7 @@ $string['modgen:generatewithprompt'] = 'Generate content with AI prompt';
 $string['modgen:generatefromtemplate'] = 'Generate content from templates';
 $string['modgen:usesuggest'] = 'Use AI activity suggestions';
 $string['modgen:managetemplates'] = 'Manage site-wide templates';
+$string['modgen:viewexplore'] = 'View Explore Report';
 $string['sectionplaceholder'] = 'Section {$a}';
 
 // Admin tools page

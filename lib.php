@@ -104,8 +104,8 @@ function aiplacement_modgen_extend_navigation_course(
 /**
  * Fragment callback to render the course toolbar.
  *
- * Renders the Module Assistant toolbar with generator and explore buttons
- * based on plugin configuration and user permissions.
+ * Renders the Module Assistant toolbar buttons based on plugin configuration
+ * and user permissions.
  *
  * @param array $args Fragment arguments containing:
  *                    - courseid: Course ID (required)
@@ -137,7 +137,8 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     $hasanycapability = has_capability('aiplacement/modgen:managestructure', $context) ||
                         has_capability('aiplacement/modgen:managedates', $context) ||
                         has_capability('aiplacement/modgen:generatewithprompt', $context) ||
-                        has_capability('aiplacement/modgen:generatefromtemplate', $context);
+                        has_capability('aiplacement/modgen:generatefromtemplate', $context) ||
+                        has_capability('aiplacement/modgen:usesuggest', $context);
 
     if (!$hasanycapability) {
         throw new required_capability_exception($context, 'aiplacement/modgen:managestructure',

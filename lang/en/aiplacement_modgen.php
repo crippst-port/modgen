@@ -533,7 +533,6 @@ $string['modgen:generatewithprompt'] = 'Generate content with AI prompt';
 $string['modgen:generatefromtemplate'] = 'Generate content from templates';
 $string['modgen:usesuggest'] = 'Use AI activity suggestions';
 $string['modgen:managetemplates'] = 'Manage site-wide templates';
-$string['modgen:viewexplore'] = 'View Explore Report';
 $string['sectionplaceholder'] = 'Section {$a}';
 
 // Admin tools page

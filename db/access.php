@@ -26,14 +26,6 @@
 defined('MOODLE_INTERNAL') || die();
 
 $capabilities = [
-    // View AI course insights and analytics
-    'aiplacement/modgen:viewexplore' => [
-        'riskbitmask' => RISK_PERSONAL,
-        'captype' => 'read',
-        'contextlevel' => CONTEXT_COURSE,
-        'archetypes' => [],
-    ],
-    
     // Manage course structure (themes, weeks)
     'aiplacement/modgen:managestructure' => [
         'riskbitmask' => RISK_DATALOSS,

@@ -134,14 +134,13 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     }
     
     // Verify permissions - user must have at least one toolbar capability
-    $hasanycapability = has_capability('aiplacement/modgen:viewexplore', $context) ||
-                        has_capability('aiplacement/modgen:managestructure', $context) ||
+    $hasanycapability = has_capability('aiplacement/modgen:managestructure', $context) ||
                         has_capability('aiplacement/modgen:managedates', $context) ||
                         has_capability('aiplacement/modgen:generatewithprompt', $context) ||
                         has_capability('aiplacement/modgen:generatefromtemplate', $context);
-    
+
     if (!$hasanycapability) {
-        throw new required_capability_exception($context, 'aiplacement/modgen:viewexplore', 
+        throw new required_capability_exception($context, 'aiplacement/modgen:managestructure',
             'nopermissions', '');
     }
     

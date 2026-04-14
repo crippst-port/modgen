@@ -36,9 +36,8 @@ $context = context_course::instance($courseid);
 require_login($course);
 $cangenerate = has_capability('aiplacement/modgen:generatewithprompt', $context) ||
                has_capability('aiplacement/modgen:generatefromtemplate', $context);
-$canviewexplore = has_capability('aiplacement/modgen:viewexplore', $context);
-if (!$cangenerate && !$canviewexplore) {
-    throw new required_capability_exception($context, 'aiplacement/modgen:viewexplore', 
+if (!$cangenerate) {
+    throw new required_capability_exception($context, 'aiplacement/modgen:generatewithprompt',
         'nopermissions', 'error');
 }
 

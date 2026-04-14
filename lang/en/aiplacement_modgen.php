@@ -645,3 +645,15 @@ $string['privacy:path:jobs'] = 'Module generation jobs';
 
 // Scheduled task strings.
 $string['cleanupoldjobs'] = 'Clean up old job records';
+
+// File upload form strings.
+$string['contentfile'] = 'Content file';
+$string['selectactivitytype'] = 'Create as activity type';
+$string['activityintro'] = 'Introduction';
+$string['uploadandcreate'] = 'Upload and create';
+
+// File processor warning strings.
+$string['unsupportedfiletype'] = 'Unsupported file type: {$a}';
+$string['conversionfailed'] = 'Could not convert file "{$a}" to HTML';
+$string['fallbacktoplaintext'] = 'HTML conversion failed; content extracted as plain text';
+$string['couldnotextractcontent'] = 'Could not extract content from file "{$a}"';

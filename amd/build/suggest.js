@@ -62,15 +62,15 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
       if (isComplete) {
         iconClass = 'fa-check';
       }
-      html += "<div class=\"".concat(stepClass, " text-center flex-fill\">");
-      html += "<div class=\"modgen-step-icon mb-1\">";
-      html += "<i class=\"fa ".concat(iconClass, "\"></i>");
-      html += "</div>";
-      html += "<div class=\"modgen-step-label small\">".concat(step.label, "</div>");
-      html += "</div>";
+      html += `<div class="${stepClass} text-center flex-fill">`;
+      html += `<div class="modgen-step-icon mb-1">`;
+      html += `<i class="fa ${iconClass}"></i>`;
+      html += `</div>`;
+      html += `<div class="modgen-step-label small">${step.label}</div>`;
+      html += `</div>`;
       if (index < steps.length - 1) {
         const lineClass = isComplete ? 'modgen-step-line-complete' : 'modgen-step-line';
-        html += "<div class=\"".concat(lineClass, " flex-fill\" style=\"height: 2px; margin-top: -1rem;\"></div>");
+        html += `<div class="${lineClass} flex-fill" style="height: 2px; margin-top: -1rem;"></div>`;
       }
     });
     html += '</div>';

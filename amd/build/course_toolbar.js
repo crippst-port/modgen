@@ -62,7 +62,6 @@ define(["exports", "core/fragment", "core/notification", "aiplacement_modgen/mod
       courseid: config.courseid,
       contextid: config.contextid,
       showgenerator: config.showgenerator ? 1 : 0,
-      showexplore: config.showexplore ? 1 : 0,
       showsuggest: config.showsuggest ? 1 : 0,
       showmanagestructure: config.showmanagestructure ? 1 : 0,
       showmanagedates: config.showmanagedates ? 1 : 0,

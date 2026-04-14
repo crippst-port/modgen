@@ -94,7 +94,6 @@ const checkCompletedJobs = (courseid) => {
  * @param {number} config.courseid Course ID
  * @param {number} config.contextid Context ID
  * @param {boolean} config.showgenerator Show generator button
- * @param {boolean} config.showexplore Show explore button
  * @param {number} config.currentsection Current section number (for context-aware creation)
  */
 export const init = (config) => {
@@ -116,7 +115,6 @@ export const init = (config) => {
         courseid: config.courseid,
         contextid: config.contextid,
         showgenerator: config.showgenerator ? 1 : 0,
-        showexplore: config.showexplore ? 1 : 0,
         showsuggest: config.showsuggest ? 1 : 0,
         showmanagestructure: config.showmanagestructure ? 1 : 0,
         showmanagedates: config.showmanagedates ? 1 : 0,

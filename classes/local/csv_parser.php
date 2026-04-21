@@ -46,8 +46,8 @@ class csv_parser {
      * @throws \Exception if CSV parsing fails
      */
     public static function detect_csv_format(\stored_file $file): string {
-        $content = $file->get_content();
-        
+        $content = self::get_content($file);
+
         if (empty($content)) {
             // Default to weekly if file is empty
             return 'connected_weekly';
@@ -104,8 +104,8 @@ class csv_parser {
      * @throws \Exception if CSV parsing fails
      */
     public static function parse_csv_to_structure(\stored_file $file, string $moduletype): array {
-        $content = $file->get_content();
-        
+        $content = self::get_content($file);
+
         if (empty($content)) {
             throw new \Exception('CSV file is empty');
         }
@@ -127,6 +127,22 @@ class csv_parser {
         }
 
         return $structure;
+    }
+
+    /**
+     * Get file content with UTF-8 BOM stripped if present.
+     */
+    private static function get_content(\stored_file $file): string {
+        $content = $file->get_content();
+        // Strip UTF-8 BOM if present (common in Excel UTF-8 exports).
+        if (substr($content, 0, 3) === "\xEF\xBB\xBF") {
+            $content = substr($content, 3);
+        }
+        // Convert Windows-1252/Latin-1 exports to UTF-8.
+        if (!mb_check_encoding($content, 'UTF-8')) {
+            $content = mb_convert_encoding($content, 'UTF-8', 'Windows-1252');
+        }
+        return $content;
     }
 
     /**

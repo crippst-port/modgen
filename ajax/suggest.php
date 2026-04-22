@@ -34,33 +34,11 @@ require_once($configpath);
 require_once(__DIR__ . '/../lib.php');
 
 use aiplacement_modgen\local\ajax_response;
+use aiplacement_modgen\ai_service;
 
-// Ensure the ai_service class is available. The class historically lives in
-// `classes/local/ai_service.php` but its namespace may be `aiplacement_modgen`
-// (not `...\local`). Detect which is present and require the file if needed.
-$serviceClass = null;
-if (class_exists('\\aiplacement_modgen\\ai_service')) {
-    $serviceClass = '\\aiplacement_modgen\\ai_service';
-} elseif (class_exists('\\aiplacement_modgen\\local\\ai_service')) {
-    $serviceClass = '\\aiplacement_modgen\\local\\ai_service';
-} else {
-    $aisvcpath = __DIR__ . '/../classes/local/ai_service.php';
-    if (file_exists($aisvcpath)) {
-        require_once($aisvcpath);
-        if (class_exists('\\aiplacement_modgen\\ai_service')) {
-            $serviceClass = '\\aiplacement_modgen\\ai_service';
-        } elseif (class_exists('\\aiplacement_modgen\\local\\ai_service')) {
-            $serviceClass = '\\aiplacement_modgen\\local\\ai_service';
-        }
-    }
-}
+require_once(__DIR__ . '/../classes/local/ai_service.php');
 
 defined('MOODLE_INTERNAL') || die();
-
-// If we couldn't locate the ai_service class, return a JSON error immediately.
-if ($serviceClass === null) {
-    ajax_response::error('ai_service class not found', 'service_not_found');
-}
 
 // Prevent PHP from outputting HTML errors directly to the response
 @ini_set('display_errors', '0');
@@ -145,7 +123,7 @@ try {
         }
     }
 
-    $result = $serviceClass::generate_suggestions_from_map($sectionmap, $courseid);
+    $result = ai_service::generate_suggestions_from_map($sectionmap, $courseid);
 
     // Limit suggestions to prevent unlimited processing (Performance optimization).
     if (!empty($result['suggestions']) && is_array($result['suggestions'])) {

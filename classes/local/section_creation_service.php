@@ -61,12 +61,20 @@ class section_creation_service {
         bool $hideexistingsections
     ): array {
         global $DB;
-        
+
         $results = [];
         $activitywarnings = [];
         $needscacherefresh = false;
         $new_toplevel_section_ids = [];
-        
+
+        // Refuse before doing any work if this structure would push the course past
+        // the section limit (flexsections section creation is ~O(n^2) in total
+        // sections). Fails fast and cheap, before locking or creating anything.
+        \aiplacement_modgen\local\theme_builder::enforce_section_limit(
+            $courseid,
+            \aiplacement_modgen\local\theme_builder::count_projected_sections_from_json($json, $moduletype)
+        );
+
         // Lock the course to prevent concurrent access
         $lockkey = 'aiplacement_modgen_building_' . $courseid;
         $lock = \core\lock\lock_config::get_lock_factory('aiplacement_modgen')->get_lock(

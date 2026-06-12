@@ -37,7 +37,20 @@ class constants {
     
     /** @var int Generation lock timeout in seconds (10 minutes) */
     public const GENERATION_LOCK_TIMEOUT = 600;
-    
+
+    /**
+     * @var int Default maximum total sections per course (existing + projected).
+     *
+     * flexsections renumbers and rebuilds the course on every section insert, so
+     * section creation is ~O(n^2) in the course's total section count. Measured on
+     * this codebase, per-section time climbs from ~24ms at 47 sections to ~430ms at
+     * ~490 (memory stays ~105MB in isolation, but a real production course hit the
+     * 512MB limit around 400 sections). This cap keeps a course below the size where
+     * generation becomes pathologically slow or risks exhausting memory. Override via
+     * the 'maxtotalsections' admin setting.
+     */
+    public const MAX_TOTAL_SECTIONS = 300;
+
     /** @var int Maximum file upload size in bytes (10MB) */
     public const MAX_UPLOAD_SIZE = 10485760;
     

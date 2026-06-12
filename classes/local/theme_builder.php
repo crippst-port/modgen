@@ -99,6 +99,87 @@ class theme_builder {
     }
 
     /**
+     * Enforce the per-course total-section safety limit.
+     *
+     * Counts the course's existing sections and refuses the operation if adding
+     * $projectedsections would push the total past the configured maximum
+     * ('maxtotalsections', default constants::MAX_TOTAL_SECTIONS). This guards every
+     * creation entry point — Quick Add, template/JSON and any retry — against the
+     * ~O(n^2) flexsections reorder cost that makes large courses pathologically slow
+     * and can exhaust memory. Call this BEFORE acquiring locks or starting work so it
+     * fails fast and cheap without creating partial content.
+     *
+     * @param int $courseid Course ID.
+     * @param int $projectedsections Number of sections this operation will add.
+     * @throws \moodle_exception If the resulting total would exceed the limit.
+     */
+    public static function enforce_section_limit($courseid, $projectedsections) {
+        global $DB;
+
+        $max = (int) get_config('aiplacement_modgen', 'maxtotalsections');
+        if ($max <= 0) {
+            $max = constants::MAX_TOTAL_SECTIONS;
+        }
+
+        $existing = $DB->count_records('course_sections', ['course' => $courseid]);
+        $total = $existing + (int) $projectedsections;
+
+        if ($total > $max) {
+            throw new \moodle_exception('sectionlimitexceeded', 'aiplacement_modgen', '', (object) [
+                'existing' => $existing,
+                'total' => $total,
+                'max' => $max,
+            ]);
+        }
+    }
+
+    /**
+     * Estimate how many course sections an approved JSON structure will create.
+     *
+     * Counts themes, weeks and sessions (each becomes a section). Session phases for
+     * connected_weekly default to 3 (pre/session/post) when not explicitly listed, so
+     * the estimate is intentionally slightly conservative (over- rather than
+     * under-counting) to keep the safety limit on the cautious side.
+     *
+     * @param array $json Approved JSON structure.
+     * @param string $moduletype Module type (connected_theme, connected_weekly, etc).
+     * @return int Projected number of sections.
+     */
+    public static function count_projected_sections_from_json(array $json, $moduletype) {
+        $count = 0;
+
+        if ($moduletype === 'connected_theme' && !empty($json['themes']) && is_array($json['themes'])) {
+            foreach ($json['themes'] as $theme) {
+                if (!is_array($theme)) {
+                    continue;
+                }
+                $count++; // Theme section.
+                $weeks = (!empty($theme['weeks']) && is_array($theme['weeks'])) ? $theme['weeks'] : [];
+                foreach ($weeks as $week) {
+                    if (!is_array($week)) {
+                        continue;
+                    }
+                    $count++; // Week section.
+                    $sessions = (!empty($week['sessions']) && is_array($week['sessions'])) ? $week['sessions'] : [];
+                    $count += $sessions ? count($sessions) : 0;
+                }
+            }
+        } else if (!empty($json['sections']) && is_array($json['sections'])) {
+            foreach ($json['sections'] as $section) {
+                if (!is_array($section)) {
+                    continue;
+                }
+                $count++; // Week/section.
+                $sessions = (!empty($section['sessions']) && is_array($section['sessions'])) ? $section['sessions'] : [];
+                // connected_weekly always materialises 3 session subsections.
+                $count += $sessions ? count($sessions) : ($moduletype === 'connected_weekly' ? 3 : 0);
+            }
+        }
+
+        return $count;
+    }
+
+    /**
      * Create multiple themes with default structure (Quick Add workflow).
      *
      * Each theme contains one week with pre-session, session, post-session subsections.
@@ -113,6 +194,10 @@ class theme_builder {
         global $DB;
 
         $messages = [];
+
+        // Refuse before doing any work if this would push the course past the section
+        // limit. Each theme is 1 section; each week is 1 + 3 session subsections.
+        self::enforce_section_limit($courseid, $themecount + ($themecount * $weeksperTheme * 4));
 
         // Acquire lock before any course modifications to prevent nested lock conflicts.
         $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');
@@ -279,6 +364,10 @@ class theme_builder {
         global $DB;
 
         $messages = [];
+
+        // Refuse before doing any work if this would push the course past the section
+        // limit. Each week is 1 section + 3 session subsections.
+        self::enforce_section_limit($courseid, $weekcount * 4);
 
         // Acquire lock before any course modifications to prevent nested lock conflicts.
         $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');

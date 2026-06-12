@@ -391,6 +391,38 @@ final class adhoc_task_integrity_test extends advanced_testcase {
     }
 
     /**
+     * A section-limit rejection is a PERMANENT failure: the task must mark the job
+     * failed with will_retry=false, record a completion time, and return WITHOUT
+     * throwing (so Moodle dequeues it) — retrying could never succeed and would
+     * mislead the user with a "will retry" message.
+     *
+     * @covers ::execute
+     */
+    public function test_section_limit_failure_is_terminal_not_retried(): void {
+        set_config('maxtotalsections', 20, 'aiplacement_modgen');
+
+        // 10 themes x 5 weeks => far over 20: create_themes throws sectionlimitexceeded.
+        $jobid = $this->make_job('create_themes', ['themecount' => 10, 'weeksperTheme' => 5, 'parentsection' => 0]);
+        $custom = ['action' => 'create_themes', 'themecount' => 10, 'weeksperTheme' => 5, 'parentsection' => 0];
+
+        // Must NOT throw out of execute() (a permanent failure is handled internally).
+        $this->run_task($this->make_task($jobid, $custom));
+        $this->resetDebugging();
+
+        $job = $this->job($jobid);
+        $this->assertSame('failed', $job->status);
+        $this->assertNotNull($job->timecompleted,
+            'A terminal failure records its completion time.');
+        $result = json_decode($job->result, true);
+        $this->assertFalse($result['will_retry'] ?? true,
+            'A section-limit failure must not be flagged for retry.');
+
+        // Nothing was created (the guard fails before any work).
+        $this->assertSame(0, $this->count_generated_toplevel(),
+            'A rejected over-limit job must not create partial content.');
+    }
+
+    /**
      * A retry that finally SUCCEEDS must overwrite an earlier 'failed' job state —
      * the job must not be left contradicting its actual outcome.
      *

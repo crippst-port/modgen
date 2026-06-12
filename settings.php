@@ -188,6 +188,14 @@ if ($hassiteconfig) {
             PARAM_INT
         ));
 
+        $settings->add(new admin_setting_configtext(
+            'aiplacement_modgen/maxtotalsections',
+            new lang_string('maxtotalsections', 'aiplacement_modgen'),
+            new lang_string('maxtotalsections_desc', 'aiplacement_modgen'),
+            (string) \aiplacement_modgen\local\constants::MAX_TOTAL_SECTIONS,
+            PARAM_INT
+        ));
+
         // Dates for sections - Holiday configuration
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/datesforsectionsheading',

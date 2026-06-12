@@ -220,28 +220,41 @@ class create_sections_task extends \core\task\adhoc_task {
             }
 
         } catch (\Throwable $e) {
-            // Update job status - mark as failed for retry or final failure.
             // Note: Catch Throwable (not just Exception) to handle both Exceptions and Errors (TypeError, etc.).
+            //
+            // Distinguish PERMANENT failures (retrying cannot possibly help — the
+            // request itself is invalid) from TRANSIENT ones (DB lock, race) that
+            // Moodle should retry. A section-limit rejection is permanent: the course
+            // is too large and nothing changes between attempts, so retrying just
+            // fails identically and misleads the user with a "will retry" message.
+            $permanentcodes = ['sectionlimitexceeded'];
+            $ispermanent = ($e instanceof \moodle_exception) && in_array($e->errorcode, $permanentcodes, true);
+
             $job = $DB->get_record('aiplacement_modgen_jobs', ['id' => $jobid]);
             if ($job) {
-                // Mark as failed - Moodle's task system will handle retries via get_fail_delay().
                 $job->status = 'failed';
                 $job->result = json_encode([
                     'success' => false,
                     'error' => $e->getMessage(),
-                    'trace' => $e->getTraceAsString(),
-                    'will_retry' => true
+                    'will_retry' => !$ispermanent,
                 ]);
-                // Don't set timecompleted - job may still retry
+                if ($ispermanent) {
+                    // Terminal failure: record completion so the UI shows it as done.
+                    $job->timecompleted = time();
+                }
                 $DB->update_record('aiplacement_modgen_jobs', $job);
             }
 
-            // Log the error for debugging before re-throwing.
             mtrace('Section creation task failed for job ' . $jobid . ': ' . $e->getMessage());
-            mtrace('Stack trace: ' . $e->getTraceAsString());
             debugging('Section creation task failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
 
-            // Re-throw the exception so Moodle task system can handle retries.
+            if ($ispermanent) {
+                // Return normally so Moodle dequeues the task instead of retrying a
+                // failure that can never succeed.
+                return;
+            }
+
+            // Transient: re-throw so Moodle's task system retries via get_fail_delay().
             throw $e;
         } finally {
             // Restore original user context to prevent side effects.

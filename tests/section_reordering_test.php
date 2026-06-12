@@ -51,6 +51,38 @@ require_once($CFG->dirroot . '/course/lib.php');
 class section_reordering_test extends advanced_testcase {
 
     /**
+     * Create a genuine pre-existing top-level content section that is eligible to be
+     * hidden by the hideexistingsections flow.
+     *
+     * NOTE: the Moodle data generator's create_course_section() returns whatever
+     * section already occupies the requested number rather than inserting a new one.
+     * After ensure_flexsections_format() runs, section 1 is the protected Assessments
+     * core section (which the service deliberately never hides), so asking the
+     * generator for 'section => 1' yields the Assessments record and any visibility
+     * assertion on it fails. Instead we create a real new top-level section via the
+     * plugin's own helper — exactly how a genuine existing section would have been
+     * made — and return its stable record.
+     *
+     * @param int $courseid Course ID.
+     * @param string $name Section name.
+     * @return \stdClass The created course_sections record.
+     */
+    private function create_existing_top_level_section(int $courseid, string $name): \stdClass {
+        global $DB;
+
+        $courseformat = \course_get_format($courseid);
+        $section = theme_builder::create_section_with_parent(
+            $courseid, $courseformat, 0, $name, '', FORMAT_PLAIN, ['collapsed' => 1]
+        );
+
+        // Ensure it starts visible so "should become hidden" assertions are meaningful.
+        $DB->set_field('course_sections', 'visible', 1, ['id' => $section->id]);
+        rebuild_course_cache($courseid, true, true);
+
+        return $DB->get_record('course_sections', ['id' => $section->id], '*', MUST_EXIST);
+    }
+
+    /**
      * Test that existing sections are hidden when hideexistingsections=true.
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
@@ -63,20 +95,9 @@ class section_reordering_test extends advanced_testcase {
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
 
-        // Create some existing sections manually using the generator
-        $existingsection1 = $this->getDataGenerator()->create_course_section([
-            'course' => $course->id,
-            'section' => 1,
-            'name' => 'Old Section 1',
-            'visible' => 1
-        ]);
-
-        $existingsection2 = $this->getDataGenerator()->create_course_section([
-            'course' => $course->id,
-            'section' => 2,
-            'name' => 'Old Section 2',
-            'visible' => 1
-        ]);
+        // Create genuine existing top-level content sections (not core sections).
+        $existingsection1 = $this->create_existing_top_level_section($course->id, 'Old Section 1');
+        $existingsection2 = $this->create_existing_top_level_section($course->id, 'Old Section 2');
 
         // Verify they're visible initially
         $section1 = $DB->get_record('course_sections', ['id' => $existingsection1->id]);
@@ -178,13 +199,8 @@ class section_reordering_test extends advanced_testcase {
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
 
-        // Create existing section
-        $existingsection = $this->getDataGenerator()->create_course_section([
-            'course' => $course->id,
-            'section' => 1,
-            'name' => 'Old Section',
-            'visible' => 1
-        ]);
+        // Create a genuine existing top-level content section (not a core section).
+        $existingsection = $this->create_existing_top_level_section($course->id, 'Old Section');
 
         // Create new structure with weeks (child sections)
         $structure = [
@@ -388,13 +404,8 @@ class section_reordering_test extends advanced_testcase {
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
 
-        // Create existing section
-        $existingsection = $this->getDataGenerator()->create_course_section([
-            'course' => $course->id,
-            'section' => 1,
-            'name' => 'Old Section',
-            'visible' => 1
-        ]);
+        // Create a genuine existing top-level content section (not a core section).
+        $existingsection = $this->create_existing_top_level_section($course->id, 'Old Section');
 
         // Create multiple new themes
         $structure = [
@@ -446,13 +457,8 @@ class section_reordering_test extends advanced_testcase {
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
 
-        // Create existing section
-        $existingsection = $this->getDataGenerator()->create_course_section([
-            'course' => $course->id,
-            'section' => 1,
-            'name' => 'Old Section',
-            'visible' => 1
-        ]);
+        // Create a genuine existing top-level content section (not a core section).
+        $existingsection = $this->create_existing_top_level_section($course->id, 'Old Section');
 
         $service = new section_creation_service();
 

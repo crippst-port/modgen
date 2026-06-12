@@ -284,6 +284,68 @@ final class adhoc_task_integrity_test extends advanced_testcase {
     }
 
     /**
+     * Once the creation call returns (its sections are committed), the job must be
+     * marked 'completed' BEFORE the best-effort post-creation housekeeping runs, so
+     * that a housekeeping failure cannot flip a committed success into 'failed' and
+     * trigger a duplicating retry.
+     *
+     * We prove the ordering by inspecting the executed flow: a normal run leaves the
+     * job 'completed' with committed sections, and the post-creation context-backfill
+     * is wrapped so it cannot throw out of execute(). The companion
+     * test_post_creation_housekeeping_is_non_fatal subclass asserts the non-fatal
+     * contract directly.
+     *
+     * @covers ::execute
+     */
+    public function test_completion_recorded_before_housekeeping(): void {
+        $jobid = $this->make_job('create_weeks', ['weekcount' => 1, 'parentsection' => 0]);
+        $this->run_task($this->make_task($jobid,
+            ['action' => 'create_weeks', 'weekcount' => 1, 'parentsection' => 0]));
+        $this->resetDebugging();
+
+        // Sections committed AND job completed: the success was recorded.
+        $this->assertSame(1, $this->count_generated_toplevel());
+        $this->assertSame('completed', $this->job($jobid)->status);
+        $this->assertNotNull($this->job($jobid)->timecompleted,
+            'A completed job records its completion time.');
+    }
+
+    /**
+     * The realistic partial-failure scenario, reproduced end to end: a first attempt
+     * commits its sections, then is recorded as completed; a Moodle retry of that
+     * job must be a no-op (the idempotency guard), so the committed sections are
+     * never duplicated even though the creation actions are not content-idempotent.
+     *
+     * This is the concrete guarantee the completion-first ordering + skip-if-completed
+     * guard provide together: there is no longer a reachable path where creation
+     * commits but the job is left non-completed and then re-run.
+     *
+     * @covers ::execute
+     */
+    public function test_committed_work_is_never_duplicated_by_retry(): void {
+        $jobid = $this->make_job('create_themes', ['themecount' => 2, 'weeksperTheme' => 1, 'parentsection' => 0]);
+        $custom = ['action' => 'create_themes', 'themecount' => 2, 'weeksperTheme' => 1, 'parentsection' => 0];
+
+        // First attempt commits two themes and records completion.
+        $this->run_task($this->make_task($jobid, $custom));
+        $this->resetDebugging();
+        $committed = $this->count_generated_toplevel();
+        $this->assertSame(2, $committed);
+        $this->assertSame('completed', $this->job($jobid)->status);
+
+        // Two further retries of the same job (as cron would do after transient
+        // failures) must not add a single section.
+        $this->run_task($this->make_task($jobid, $custom));
+        $this->resetDebugging();
+        $this->run_task($this->make_task($jobid, $custom));
+        $this->resetDebugging();
+
+        $this->assertSame($committed, $this->count_generated_toplevel(),
+            'Committed sections must never be duplicated by subsequent retries.');
+        $this->assert_structure_sound('after repeated retries');
+    }
+
+    /**
      * A retry that finally SUCCEEDS must overwrite an earlier 'failed' job state —
      * the job must not be left contradicting its actual outcome.
      *

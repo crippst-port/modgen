@@ -43,6 +43,7 @@ $string['jobqueued'] = 'Creation queued - {$a} sections will be created in the b
 $string['jobrunning'] = 'Job is running...';
 $string['jobcompleted'] = 'Job completed successfully';
 $string['jobfailed'] = 'Job failed: {$a}';
+$string['jobinterrupted'] = 'A previous attempt was interrupted before completing (the course may be too large to process in one run). To avoid creating duplicate sections, the job was not retried. Please review the course and, if needed, start a smaller generation.';
 $string['checkingstatus'] = 'Checking job status...';
 $string['invalidaction'] = 'Invalid action';
 $string['creatingstructure'] = 'Creating Course Structure';

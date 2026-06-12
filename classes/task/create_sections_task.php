@@ -87,6 +87,32 @@ class create_sections_task extends \core\task\adhoc_task {
             return;
         }
 
+        // Interrupted-attempt guard: a job found in 'running' at the start of execute()
+        // means a PREVIOUS attempt of this task set it running but never reached either
+        // 'completed' or the catch block that sets 'failed' — i.e. the process was killed
+        // mid-flight (e.g. out of memory / SIGKILL while flexsections reordered a large
+        // course). Moodle's adhoc task locking guarantees this task is not running
+        // concurrently, so 'running' here is always a dead prior attempt, not a live one.
+        //
+        // That prior attempt may have committed an unknown number of sections. Re-running
+        // would duplicate them (creation is not content-idempotent), and we must not delete
+        // sections a user may now be editing. So we stop here: mark the job terminally
+        // failed (no further retry) and return normally so Moodle dequeues the task rather
+        // than retrying it into an ever-growing, eventually-unopenable course.
+        if ($job->status === 'running') {
+            mtrace('Job ID ' . $jobid . ' was left in \'running\' by an interrupted prior attempt '
+                . '(likely out of memory) - not re-running to avoid duplicating committed sections');
+            $job->status = 'failed';
+            $job->result = json_encode([
+                'success' => false,
+                'error' => get_string('jobinterrupted', 'aiplacement_modgen'),
+                'will_retry' => false,
+            ]);
+            $job->timecompleted = time();
+            $DB->update_record('aiplacement_modgen_jobs', $job);
+            return;
+        }
+
         $job->status = 'running';
         $job->timestarted = time();
         $DB->update_record('aiplacement_modgen_jobs', $job);

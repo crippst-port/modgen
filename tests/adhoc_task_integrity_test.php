@@ -346,6 +346,51 @@ final class adhoc_task_integrity_test extends advanced_testcase {
     }
 
     /**
+     * Interrupted-attempt guard: a job left in 'running' (a prior attempt was killed
+     * mid-flight, e.g. out of memory) must NOT be re-run. Re-running would duplicate
+     * whatever sections the dead attempt had already committed. The guard must stop:
+     * leave existing sections untouched, mark the job terminally failed (will_retry
+     * false), and return without throwing so Moodle dequeues the task.
+     *
+     * This is the exact production incident that bloated a real course to 400
+     * sections: an OOM kill left the job 'running', and cron retried it into oblivion.
+     *
+     * @covers ::execute
+     */
+    public function test_interrupted_running_job_is_not_rerun(): void {
+        global $DB;
+
+        // Simulate a prior attempt that committed some sections then was killed:
+        // create real sections, then leave the job stuck in 'running'.
+        $jobid = $this->make_job('create_themes', ['themecount' => 2, 'weeksperTheme' => 1, 'parentsection' => 0]);
+        $custom = ['action' => 'create_themes', 'themecount' => 2, 'weeksperTheme' => 1, 'parentsection' => 0];
+        $this->run_task($this->make_task($jobid, $custom));
+        $this->resetDebugging();
+        $committed = $this->count_generated_toplevel();
+        $this->assertSame(2, $committed, 'Prior attempt committed two themes.');
+
+        // Force the stuck state an OOM kill would leave behind.
+        $DB->set_field('aiplacement_modgen_jobs', 'status', 'running', ['id' => $jobid]);
+        $DB->set_field('aiplacement_modgen_jobs', 'timecompleted', null, ['id' => $jobid]);
+
+        // Moodle retries the task. The guard must refuse to re-run.
+        $this->run_task($this->make_task($jobid, $custom));
+        $this->resetDebugging();
+
+        // No duplication.
+        $this->assertSame($committed, $this->count_generated_toplevel(),
+            'An interrupted (running) job must not be re-run into duplicate sections.');
+
+        // Terminally failed, not retried.
+        $job = $this->job($jobid);
+        $this->assertSame('failed', $job->status, 'Interrupted job must be marked failed.');
+        $result = json_decode($job->result, true);
+        $this->assertFalse($result['will_retry'] ?? true,
+            'Interrupted job must not be flagged for further retries.');
+        $this->assert_structure_sound('after interrupted-job guard');
+    }
+
+    /**
      * A retry that finally SUCCEEDS must overwrite an earlier 'failed' job state —
      * the job must not be left contradicting its actual outcome.
      *

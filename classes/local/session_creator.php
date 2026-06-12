@@ -44,10 +44,11 @@ class session_creator {
      * @param int $parentsectionnum The parent section number to create subsections under
      * @param int $courseid The course ID
      * @param array|null $sessiondata Optional session data with 'presession', 'session', 'postsession' keys
+     * @param bool $createsummaryactivities Whether to create the learningactivity summary module in each session
      * @return array Associative array mapping session type to section number ['presession' => N, 'session' => N, 'postsession' => N]
      * @throws \Exception If course format is not flexsections or method is missing
      */
-    public static function create_session_subsections($courseformat, $parentsectionnum, $courseid, $sessiondata = null) {
+    public static function create_session_subsections($courseformat, $parentsectionnum, $courseid, $sessiondata = null, $createsummaryactivities = true) {
         global $DB;
         
         // Validate course format
@@ -101,34 +102,38 @@ class session_creator {
             $sessionsectionnum = $sessionsection->section;
             $sessionsectionmap[$sessionkey] = $sessionsectionnum;
 
-            // Create learningactivity metadata module at the start of the session.
-            // Extract metadata - new structure or backward compatible
-            $metadata = [];
-            $activityname = $sessionlabel . ' activity'; // Default name
-            
-            if (!empty($sessiondata[$sessionkey]) && is_array($sessiondata[$sessionkey])) {
-                $data = $sessiondata[$sessionkey];
-                if (isset($data['learningactivity_metadata']) && is_array($data['learningactivity_metadata'])) {
-                    // New structure with separate metadata
-                    $metadata = $data['learningactivity_metadata'];
-                    // Use custom name if provided, otherwise use default
-                    if (!empty($metadata['name'])) {
-                        $activityname = $metadata['name'];
+            // Create learningactivity summary module at the start of the session,
+            // unless summary activities are switched off (e.g. Quick Add, where they
+            // would be empty placeholders).
+            if ($createsummaryactivities) {
+                // Extract metadata - new structure or backward compatible
+                $metadata = [];
+                $activityname = $sessionlabel . ' activity'; // Default name
+
+                if (!empty($sessiondata[$sessionkey]) && is_array($sessiondata[$sessionkey])) {
+                    $data = $sessiondata[$sessionkey];
+                    if (isset($data['learningactivity_metadata']) && is_array($data['learningactivity_metadata'])) {
+                        // New structure with separate metadata
+                        $metadata = $data['learningactivity_metadata'];
+                        // Use custom name if provided, otherwise use default
+                        if (!empty($metadata['name'])) {
+                            $activityname = $metadata['name'];
+                        }
+                    } else if (!empty($data['description'])) {
+                        // Backward compatibility: use description as instructions
+                        $metadata['instructions'] = $data['description'];
                     }
-                } else if (!empty($data['description'])) {
-                    // Backward compatibility: use description as instructions
-                    $metadata['instructions'] = $data['description'];
                 }
+
+                $sessioncmid = self::create_learningactivity_metadata(
+                    $courseid,
+                    $sessionsectionnum,
+                    'activity',
+                    $activityname,
+                    $metadata,
+                    false  // Don't validate - allows empty metadata from Quick Add
+                );
             }
-            
-            $sessioncmid = self::create_learningactivity_metadata(
-                $courseid,
-                $sessionsectionnum,
-                'activity',
-                $activityname,
-                $metadata,
-                false  // Don't validate - allows empty metadata from Quick Add
-            );
         }
         
         return $sessionsectionmap;

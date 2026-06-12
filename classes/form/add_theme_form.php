@@ -70,8 +70,18 @@ class aiplacement_modgen_add_theme_form extends moodleform {
         $mform->addHelpButton('weeksperTheme', 'weeksperTheme', 'aiplacement_modgen');
         // Add hint text showing the maximum
         $hinttext = 'Enter a number between 1 and ' . $maxweeksperTheme;
-        $mform->addElement('static', 'weeksperTheme_hint', '', 
+        $mform->addElement('static', 'weeksperTheme_hint', '',
             html_writer::tag('small', $hinttext, ['class' => 'form-text text-muted']));
+
+        // Optionally create the learningactivity "section summary" placeholder modules.
+        // The help text only mentions the AI-metadata caveat when AI is enabled.
+        $mform->addElement('advcheckbox', 'createsummaryactivities',
+            get_string('createsummaryactivities', 'aiplacement_modgen'));
+        $mform->setType('createsummaryactivities', PARAM_BOOL);
+        $mform->setDefault('createsummaryactivities', 0);
+        $summaryhelp = get_config('aiplacement_modgen', 'enable_ai')
+            ? 'createsummaryactivitiesai' : 'createsummaryactivities';
+        $mform->addHelpButton('createsummaryactivities', $summaryhelp, 'aiplacement_modgen');
 
         // Action buttons
         $this->add_action_buttons(true, get_string('generatorbutton', 'aiplacement_modgen'));

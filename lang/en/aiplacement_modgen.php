@@ -368,6 +368,12 @@ $string['contentplacement'] = 'Content placement';
 $string['contentplacement_help'] = 'Choose whether to place new module content at the top of the course or after existing content.';
 $string['hideexistingsections'] = 'Hide existing sections';
 $string['hideexistingsections_help'] = 'When enabled, all existing sections in the course will be hidden (made invisible to students). The new module structure will remain visible. This is useful when replacing an existing course structure with a new one while preserving the old content in a hidden state.';
+$string['createsummaryactivities'] = 'Add a section summary activity to each section';
+$string['createsummaryactivities_help'] = 'When enabled, a Learning Activity "section summary" is added to the top of each week and session to hold learning design details (duration, learning type, instructions). Leave it off for a lighter structure of empty sections you can fill in later, which also makes large structures noticeably faster to create.';
+$string['createsummaryactivitiesai'] = 'Add a section summary activity to each section';
+$string['createsummaryactivitiesai_help'] = 'When enabled, a Learning Activity "section summary" is added to the top of each week and session to hold learning design details (duration, learning type, instructions). Leave it off for a lighter structure of empty sections you can fill in later, which also makes large structures noticeably faster to create.
+
+Note: if you are generating with AI, turning this off means any learning-design details the AI produced (durations, learning types, instructions) will not be added to the course — only the section structure is created.';
 
 // AI prompt configuration
 $string['aipromptheading'] = 'AI Generation Settings';

@@ -64,6 +64,10 @@ require_sesskey();
 $courseid = required_param('courseid', PARAM_INT);
 $action = required_param('action', PARAM_ALPHAEXT); // 'create_themes' or 'create_weeks' (ALPHAEXT allows underscores)
 $parentsection = optional_param('parentsection', 0, PARAM_INT); // Current section to add content within
+// Whether to create the learningactivity "section summary" placeholder modules.
+// The Quick Add forms always submit this (advcheckbox, default off); this fallback
+// only applies to callers that omit the field entirely.
+$createsummaryactivities = optional_param('createsummaryactivities', 0, PARAM_BOOL);
 
 // Verify course access and permissions.
 $context = context_course::instance($courseid);
@@ -116,7 +120,8 @@ try {
         $job->parameters = json_encode([
             'themecount' => $themecount,
             'weeksperTheme' => $weeksperTheme,
-            'parentsection' => $parentsection
+            'parentsection' => $parentsection,
+            'createsummaryactivities' => $createsummaryactivities
         ]);
         $job->timecreated = time();
         $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
@@ -129,7 +134,8 @@ try {
             'action' => 'create_themes',
             'themecount' => $themecount,
             'weeksperTheme' => $weeksperTheme,
-            'parentsection' => $parentsection
+            'parentsection' => $parentsection,
+            'createsummaryactivities' => $createsummaryactivities
         ]);
         $task->set_userid($USER->id);
         \core\task\manager::queue_adhoc_task($task);
@@ -163,7 +169,8 @@ try {
         $job->status = 'queued';
         $job->parameters = json_encode([
             'weekcount' => $weekcount,
-            'parentsection' => $parentsection
+            'parentsection' => $parentsection,
+            'createsummaryactivities' => $createsummaryactivities
         ]);
         $job->timecreated = time();
         $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
@@ -175,7 +182,8 @@ try {
             'courseid' => $courseid,
             'action' => 'create_weeks',
             'weekcount' => $weekcount,
-            'parentsection' => $parentsection
+            'parentsection' => $parentsection,
+            'createsummaryactivities' => $createsummaryactivities
         ]);
         $task->set_userid($USER->id);
         \core\task\manager::queue_adhoc_task($task);

@@ -190,7 +190,7 @@ class theme_builder {
      * @param int $parent Parent section number (0 = top level, N = nested under section N)
      * @return array Result with 'success' boolean and 'messages' array
      */
-    public static function create_themes($courseid, $themecount, $weeksperTheme, $parent = 0) {
+    public static function create_themes($courseid, $themecount, $weeksperTheme, $parent = 0, $createsummaryactivities = true) {
         global $DB;
 
         $messages = [];
@@ -263,7 +263,10 @@ class theme_builder {
                         ]);
                         $weeksummary = get_string('defaultweeksummary', 'aiplacement_modgen');
 
-                        $weekoptions = ['collapsed' => 1]; // Week appears as link.
+                        $weekoptions = [
+                            'collapsed' => 1, // Week appears as link.
+                            'createsummaryactivities' => $createsummaryactivities,
+                        ];
                         $weeksectionnum = self::create_week_section(
                             $courseid,
                             $courseformat,
@@ -360,7 +363,7 @@ class theme_builder {
      * @param int $parent Parent section number (0 = top level, N = nested under section N)
      * @return array Result with 'success' boolean and 'messages' array
      */
-    public static function create_weeks($courseid, $weekcount, $parent = 0) {
+    public static function create_weeks($courseid, $weekcount, $parent = 0, $createsummaryactivities = true) {
         global $DB;
 
         $messages = [];
@@ -413,7 +416,10 @@ class theme_builder {
                     $weektitle = get_string('defaultstandaloneweekname', 'aiplacement_modgen', $i);
                     $weeksummary = get_string('defaultweeksummary', 'aiplacement_modgen');
 
-                    $weekoptions = ['collapsed' => 1]; // Week appears as link.
+                    $weekoptions = [
+                        'collapsed' => 1, // Week appears as link.
+                        'createsummaryactivities' => $createsummaryactivities,
+                    ];
                     $weeksectionnum = self::create_week_section(
                         $courseid,
                         $courseformat,
@@ -588,17 +594,24 @@ class theme_builder {
 
         $weeksectionnum = $weeksection->section;
 
+        // Whether to create the learningactivity "section summary" placeholder modules.
+        // Quick Add can switch these off (they hold no metadata there and are pure
+        // clutter); the AI/JSON path leaves it on so the modules carry real metadata.
+        $createsummaryactivities = $options['createsummaryactivities'] ?? true;
+
         // Create learningactivity metadata module at the start of the week.
         // Use custom name from metadata if provided, otherwise use the week title
-        $weekactivityname = !empty($weekmetadata['name']) ? $weekmetadata['name'] : $title;
+        if ($createsummaryactivities) {
+            $weekactivityname = !empty($weekmetadata['name']) ? $weekmetadata['name'] : $title;
 
-        $weekcmid = self::create_learningactivity_metadata(
-            $courseid,
-            $weeksectionnum,
-            'section',
-            $weekactivityname,
-            $weekmetadata
-        );
+            $weekcmid = self::create_learningactivity_metadata(
+                $courseid,
+                $weeksectionnum,
+                'section',
+                $weekactivityname,
+                $weekmetadata
+            );
+        }
 
         // Create session subsections using shared helper.
         $sessiondata = $options['sessiondata'] ?? null;
@@ -606,7 +619,8 @@ class theme_builder {
             $courseformat,
             $weeksectionnum,
             $courseid,
-            $sessiondata
+            $sessiondata,
+            $createsummaryactivities
         );
 
         // Note: flexsections already rebuilds cache after each section creation.

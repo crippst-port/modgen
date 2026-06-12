@@ -58,7 +58,8 @@ class section_creation_service {
         string $moduletype,
         bool $generatethemeintroductions,
         bool $createsuggestedactivities,
-        bool $hideexistingsections
+        bool $hideexistingsections,
+        bool $createsummaryactivities = true
     ): array {
         global $DB;
 
@@ -120,7 +121,8 @@ class section_creation_service {
                         $createsuggestedactivities,
                         $hideexistingsections,
                         $new_toplevel_section_ids,
-                        $activitywarnings
+                        $activitywarnings,
+                        $createsummaryactivities
                     );
                     $results = array_merge($results, $result);
                     $needscacherefresh = true;
@@ -134,7 +136,8 @@ class section_creation_service {
                         $createsuggestedactivities,
                         $hideexistingsections,
                         $new_toplevel_section_ids,
-                        $activitywarnings
+                        $activitywarnings,
+                        $createsummaryactivities
                     );
                     $results = array_merge($results, $result);
                 }
@@ -263,7 +266,8 @@ class section_creation_service {
         bool $createsuggestedactivities,
         bool $hideexistingsections,
         array &$new_toplevel_section_ids,
-        array &$activitywarnings
+        array &$activitywarnings,
+        bool $createsummaryactivities = true
     ): array {
         global $DB;
         $results = [];
@@ -336,6 +340,7 @@ class section_creation_service {
                                 'sessiondata' => $sessions,
                                 'createactivities' => $createsuggestedactivities,
                                 'metadata' => $weekmetadata,
+                                'createsummaryactivities' => $createsummaryactivities,
                             ]
                         );
                         
@@ -385,10 +390,11 @@ class section_creation_service {
         bool $createsuggestedactivities,
         bool $hideexistingsections,
         array &$new_toplevel_section_ids,
-        array &$activitywarnings
+        array &$activitywarnings,
+        bool $createsummaryactivities = true
     ): array {
         $results = [];
-        
+
         foreach ($sections as $sectiondata) {
             if (!is_array($sectiondata)) {
                 continue;
@@ -443,6 +449,7 @@ class section_creation_service {
                         'sessiondata' => $weekSessionData,
                         'createactivities' => $createsuggestedactivities,
                         'metadata' => $weekmetadata,
+                        'createsummaryactivities' => $createsummaryactivities,
                     ]
                 );
                 

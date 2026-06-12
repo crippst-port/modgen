@@ -141,13 +141,15 @@ class create_sections_task extends \core\task\adhoc_task {
                     $data->courseid,
                     $data->themecount,
                     $data->weeksperTheme,
-                    $data->parentsection
+                    $data->parentsection,
+                    $data->createsummaryactivities ?? true
                 );
             } else if ($data->action === 'create_weeks') {
                 $result = \aiplacement_modgen\local\theme_builder::create_weeks(
                     $data->courseid,
                     $data->weekcount,
-                    $data->parentsection
+                    $data->parentsection,
+                    $data->createsummaryactivities ?? true
                 );
             } else if ($data->action === 'create_from_json') {
                 // Template upload workflow - decode parameters and create sections.
@@ -162,7 +164,8 @@ class create_sections_task extends \core\task\adhoc_task {
                     $data->moduletype,
                     $data->generatethemeintroductions ?? false,
                     $data->createsuggestedactivities ?? false,
-                    $data->hideexistingsections ?? false
+                    $data->hideexistingsections ?? false,
+                    $data->createsummaryactivities ?? true
                 );
                 $result = [
                     'success' => true,

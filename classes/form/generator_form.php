@@ -137,6 +137,14 @@ class aiplacement_modgen_generator_form extends moodleform
         $mform->setType('hideexistingsections', PARAM_BOOL);
         $mform->setDefault('hideexistingsections', 0);
 
+        // Checkbox to add the learningactivity "section summary" placeholder to each
+        // section. The help text only mentions the AI-metadata caveat when AI is enabled.
+        $mform->addElement('advcheckbox', 'createsummaryactivities', get_string('createsummaryactivities', 'aiplacement_modgen'));
+        $summaryhelp = $ai_enabled ? 'createsummaryactivitiesai' : 'createsummaryactivities';
+        $mform->addHelpButton('createsummaryactivities', $summaryhelp, 'aiplacement_modgen');
+        $mform->setType('createsummaryactivities', PARAM_BOOL);
+        $mform->setDefault('createsummaryactivities', 0);
+
         $mform->closeHeaderBefore('buttonar');
 
         // Add both submit button and debug button (debug button only if AI and existing modules enabled)

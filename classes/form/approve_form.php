@@ -61,7 +61,10 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->addElement('hidden', 'hideexistingsections', $this->_customdata['hideexistingsections'] ?? 0);
         $mform->setType('hideexistingsections', PARAM_BOOL);
         $mform->setDefault('hideexistingsections', $this->_customdata['hideexistingsections'] ?? 0);
-        
+        $mform->addElement('hidden', 'createsummaryactivities', $this->_customdata['createsummaryactivities'] ?? 0);
+        $mform->setType('createsummaryactivities', PARAM_BOOL);
+        $mform->setDefault('createsummaryactivities', $this->_customdata['createsummaryactivities'] ?? 0);
+
         // Add regenerate button if AI is enabled AND user chose AI options (not from template)
         if (get_config('aiplacement_modgen', 'enable_ai') && !empty($this->_customdata['usedaioptions'])) {
             $buttonarray = [];

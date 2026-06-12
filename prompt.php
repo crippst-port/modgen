@@ -415,6 +415,7 @@ $generatethemeintroductionsparam = optional_param('generatethemeintroductions', 
 $createsuggestedactivitiesparam = optional_param('createsuggestedactivities', 0, PARAM_BOOL);
 $generatedsummaryparam = optional_param('generatedsummary', '', PARAM_RAW);
 $hideexistingsectionsparam = optional_param('hideexistingsections', 0, PARAM_BOOL);
+$createsummaryactivitiesparam = optional_param('createsummaryactivities', 0, PARAM_BOOL);
 if ($approvedjsonparam !== null) {
     $approveform = new aiplacement_modgen_approve_form(null, [
         'courseid' => $courseid,
@@ -424,6 +425,7 @@ if ($approvedjsonparam !== null) {
         'createsuggestedactivities' => $createsuggestedactivitiesparam,
         'generatedsummary' => $generatedsummaryparam,
         'hideexistingsections' => $hideexistingsectionsparam,
+        'createsummaryactivities' => $createsummaryactivitiesparam,
         'embedded' => $embedded ? 1 : 0,
     ]);
 }
@@ -528,7 +530,8 @@ if ($approvedjsonparam !== null) {
         $generatethemeintroductions = !empty($adata->generatethemeintroductions);
         $createsuggestedactivities = !empty($adata->createsuggestedactivities);
         $hideexistingsections = !empty($adata->hideexistingsections);
-        
+        $createsummaryactivities = !empty($adata->createsummaryactivities);
+
         // Count sections for display purposes
         $sectioncount = 0;
         if (!empty($json['themes'])) {
@@ -554,11 +557,12 @@ if ($approvedjsonparam !== null) {
             'moduletype' => $moduletype,
             'generatethemeintroductions' => $generatethemeintroductions,
             'createsuggestedactivities' => $createsuggestedactivities,
-            'hideexistingsections' => $hideexistingsections
+            'hideexistingsections' => $hideexistingsections,
+            'createsummaryactivities' => $createsummaryactivities
         ]);
         $job->timecreated = time();
         $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
-        
+
         // Queue ad-hoc task - must pass all required parameters in custom_data
         $task = new \aiplacement_modgen\task\create_sections_task();
         $task->set_custom_data((object)[
@@ -569,7 +573,8 @@ if ($approvedjsonparam !== null) {
             'moduletype' => $moduletype,
             'generatethemeintroductions' => $generatethemeintroductions,
             'createsuggestedactivities' => $createsuggestedactivities,
-            'hideexistingsections' => $hideexistingsections
+            'hideexistingsections' => $hideexistingsections,
+            'createsummaryactivities' => $createsummaryactivities
         ]);
         $task->set_userid($USER->id);
         \core\task\manager::queue_adhoc_task($task);
@@ -958,7 +963,9 @@ if ($pdata = $promptform->get_data()) {
     
     // Check if user wants to hide existing sections and place new content at top
     $hideexistingsections = !empty($pdata->hideexistingsections);
-    
+    // Check if user wants the learningactivity "section summary" placeholders.
+    $createsummaryactivities = !empty($pdata->createsummaryactivities);
+
     // For connected layouts, ALWAYS generate the sessions structure, but respect activity creation preference
     $includesessions = $generatesessioninstructions || ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme');
     $includeactivities = $createsuggestedactivities;
@@ -1259,6 +1266,7 @@ if ($pdata = $promptform->get_data()) {
         'createsuggestedactivities' => $createsuggestedactivities ? 1 : 0,
         'generatedsummary' => $summarytext,
         'hideexistingsections' => $hideexistingsections ? 1 : 0,
+        'createsummaryactivities' => $createsummaryactivities ? 1 : 0,
         'embedded' => $embedded ? 1 : 0,
         'usedaioptions' => (!empty($prompt) || $expandonthemes || $generateexamplecontent) ? 1 : 0,
     ]);

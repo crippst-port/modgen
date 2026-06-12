@@ -77,6 +77,16 @@ class create_sections_task extends \core\task\adhoc_task {
                 throw new \moodle_exception('Job record not found for job ID ' . $jobid);
             }
         }
+
+        // Idempotency guard: this task is re-run by Moodle on retry (see get_fail_delay())
+        // against the same job. The creation actions are not self-undoing, so re-running a
+        // job that already finished would duplicate every section it created. If the job is
+        // already completed, treat this execution as a no-op success.
+        if ($job->status === 'completed') {
+            mtrace('Job ID ' . $jobid . ' is already completed - skipping to avoid duplicate sections');
+            return;
+        }
+
         $job->status = 'running';
         $job->timestarted = time();
         $DB->update_record('aiplacement_modgen_jobs', $job);

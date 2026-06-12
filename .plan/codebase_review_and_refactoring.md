@@ -24,39 +24,12 @@ This document outlines a comprehensive review of the `aiplacement_modgen` plugin
 
 **Problem**: Inconsistent AMD module patterns causing loading failures
 
-**Current State**:
-- `course_toolbar.js` still uses ES6 `import/export` syntax — **not yet converted to native AMD**
-- `lib.php` `[[config]]` double-wrapping — **already fixed** ✅ (current code correctly passes one config object)
-- Build workaround (source copied to build) still in effect for course_toolbar
+**Current State** ✅ DONE — No action needed:
+- `course_toolbar.js` uses ES6 `import/export` — this **is** Moodle standard practice. Grunt/Babel transpiles it to AMD correctly. The build file is clean with no nested `define()` issues.
+- `lib.php` `[[config]]` double-wrapping — already fixed ✅
+- No build workaround in effect; Grunt transpilation works correctly for this file.
 
-**Impact**:
-- Module loading failures
-- "Mismatched anonymous define()" errors
-- Maintenance complexity
-
-**Recommendation**:
-```javascript
-// CONVERT FROM (ES6):
-import Fragment from 'core/fragment';
-export const init = (config) => { ... }
-
-// TO (Native AMD):
-define(['core/fragment'], function(Fragment) {
-    const init = (config) => { ... };
-    return { init: init };
-});
-```
-
-**Benefits**:
-- No Babel transpilation needed
-- Consistent with Moodle standards
-- Matches existing modules (`embedded_prompt.js`, `suggest.js`)
-- Eliminates build step issues
-
-**Files to update**:
-- `amd/src/course_toolbar.js` - Convert to native AMD ❌
-- `lib.php` param wrapping - ✅ already correct
-- `Gruntfile.js` - Remove course_toolbar from Babel task (or keep for consistency)
+**Conclusion**: Converting to "pure/native AMD" would be going backwards. ES6 + Grunt is the recommended modern Moodle pattern. All other modules in this plugin also use ES6 imports.
 
 ---
 
@@ -123,9 +96,9 @@ namespace aiplacement_modgen;  // NOT aiplacement_modgen\local
 
 ## 3. ARCHITECTURE IMPROVEMENTS
 
-### 3.1 Build System Simplification ❌ OUTSTANDING (linked to 1.1)
+### 3.1 Build System Simplification ✅ DONE
 
-Resolves once `course_toolbar.js` is converted to native AMD — that removes the need for the manual copy workaround and aligns all modules.
+`course_toolbar.js` transpiles correctly via Grunt/Babel — no manual copy workaround needed. All modules use ES6 consistently.
 
 ---
 
@@ -215,7 +188,7 @@ Three things remain from the original review:
 
 | # | Item | File(s) | Priority |
 |---|------|---------|----------|
-| 1 | Convert `course_toolbar.js` to native AMD | `amd/src/course_toolbar.js`, `Gruntfile.js` | **High** |
+| 1 | ~~Convert `course_toolbar.js` to native AMD~~ — not needed; ES6 + Grunt is Moodle standard | — | ✅ N/A |
 | 2 | Simplify namespace detection in suggest.php | `ajax/suggest.php` | ✅ DONE |
 | 3 | Delete orphaned `job_poller.js` *(newly identified)* | `amd/src/job_poller.js` | ✅ DONE |
 
@@ -226,18 +199,15 @@ Three things remain from the original review:
 
 ## 10. RISKS AND MITIGATION
 
-### Risk 1: course_toolbar AMD conversion
-Converting `course_toolbar.js` from ES6 to AMD is the most impactful remaining change. Test thoroughly — it drives the Quick Add modal, job notifications, and toolbar rendering.
+### Risk 1: course_toolbar AMD conversion ✅ RESOLVED
+No conversion needed — ES6 is Moodle standard. Grunt transpilation produces correct AMD output.
 
 ---
 
 ## 11. SUMMARY OF FILES REQUIRING CHANGES
 
 ### Still outstanding:
-- `amd/src/course_toolbar.js` — Convert to native AMD ❌
-- `Gruntfile.js` — Remove Babel for course_toolbar once converted ❌
-- `ajax/suggest.php` — Remove 3-way namespace detection, use `\aiplacement_modgen\ai_service` directly ❌
-- `amd/src/job_poller.js` — DELETE (orphaned, no callers) ❌
+- *(none — all items resolved)*
 
 ### Already done:
 - `lib.php` — debug logs removed, settings_helper used, param wrapping correct ✅

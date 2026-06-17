@@ -67,6 +67,10 @@ try {
         $context = context_course::instance($job->courseid);
         require_capability('aiplacement/modgen:managestructure', $context);
 
+        if ((int)$job->userid !== (int)$USER->id) {
+            throw new moodle_exception('nopermissions', 'error', '', 'view this job');
+        }
+
         // STUCK JOB DETECTION: If job has been running for more than 5 minutes, consider it stuck.
         // This handles cases where: PHP fatal error, server restart, task timeout, or unexpected crash.
         $stuck = false;

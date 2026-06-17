@@ -48,6 +48,15 @@ $action = optional_param('action', '', PARAM_ALPHA);
 $courseid = optional_param('courseid', 0, PARAM_INT);
 $confirm = optional_param('confirm', 0, PARAM_INT);
 
+// File downloads must be handled before any page output, otherwise download
+// headers are sent after the Moodle page header has already started.
+if ($action === 'exporthierarchy' && $courseid > 0) {
+    require_sesskey();
+    $format = optional_param('format', 'json', PARAM_ALPHA);
+    export_hierarchy_data($courseid, $format);
+    die();
+}
+
 echo $OUTPUT->header();
 
 // Handle actions - SECURITY: All actions require valid sesskey.
@@ -192,11 +201,7 @@ if ($action) {
             break;
 
         case 'exporthierarchy':
-            if ($courseid > 0) {
-                $format = optional_param('format', 'json', PARAM_ALPHA);
-                export_hierarchy_data($courseid, $format);
-                die(); // Export sends file and exits
-            } else {
+            if ($courseid <= 0) {
                 echo $OUTPUT->notification(get_string('selectcourse', 'aiplacement_modgen'), 'error');
             }
             break;

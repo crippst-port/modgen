@@ -38,6 +38,26 @@ $courseid = optional_param('courseid', 0, PARAM_INT);
 $recent = optional_param('recent', 0, PARAM_INT);
 $active = optional_param('active', 0, PARAM_INT);
 
+/**
+ * Find a queued or failed adhoc section-creation task for a job.
+ *
+ * Moodle stores task custom data as the full JSON payload, not just {"jobid": N},
+ * so an exact DB lookup by partial customdata misses legitimate pending tasks.
+ *
+ * @param int $jobid Job id.
+ * @return \core\task\adhoc_task|null Matching pending task, if any.
+ */
+function aiplacement_modgen_find_section_creation_task(int $jobid): ?\core\task\adhoc_task {
+    $tasks = \core\task\manager::get_adhoc_tasks('\\aiplacement_modgen\\task\\create_sections_task');
+    foreach ($tasks as $task) {
+        $data = $task->get_custom_data();
+        if (!empty($data->jobid) && (int)$data->jobid === $jobid) {
+            return $task;
+        }
+    }
+    return null;
+}
+
 try {
     if ($jobid) {
         // Check specific job status.
@@ -54,57 +74,19 @@ try {
             $runningtime = time() - $job->timestarted;
             if ($runningtime > 300) { // 5 minutes
                 $stuck = true;
-                
-                // Get the associated adhoc task to check if it actually failed.
-                $taskfailed = false;
-                $adhoctask = $DB->get_record('task_adhoc', [
-                    'classname' => '\\aiplacement_modgen\\task\\create_sections_task',
-                    'customdata' => json_encode(['jobid' => $jobid])
-                ]);
-                
-                // If task doesn't exist or has faildelay set, it failed and will retry.
-                if (!$adhoctask || $adhoctask->faildelay > 0) {
-                    $taskfailed = true;
-                }
-                
-                // If task truly failed (not just slow), requeue it.
-                if ($taskfailed) {
-                    // Reset job to queued state for retry.
-                    $job->status = 'queued';
-                    $job->timestarted = null;
-                    $DB->update_record('aiplacement_modgen_jobs', $job);
-                    
-                    // Re-queue the adhoc task if it doesn't exist.
-                    if (!$adhoctask) {
-                        $task = new \aiplacement_modgen\task\create_sections_task();
-                        
-                        // Build custom data based on job action type.
-                        $customdata = (object)[
-                            'jobid' => $jobid,
-                            'action' => $job->action,
-                            'courseid' => $job->courseid,
-                            'parentsection' => $job->parentsection
-                        ];
-                        
-                        // Add action-specific parameters.
-                        if ($job->action === 'create_themes') {
-                            $customdata->themecount = $job->themecount;
-                            $customdata->weeksperTheme = $job->weeksperTheme;
-                        } else if ($job->action === 'create_weeks') {
-                            $customdata->weekcount = $job->weekcount;
-                        } else if ($job->action === 'create_from_json') {
-                            // JSON workflow - decode the stored JSON data.
-                            $customdata->json = json_decode($job->jsondata);
-                            $customdata->moduletype = $job->moduletype ?? 'learningactivity';
-                            $customdata->generatethemeintroductions = $job->generatethemeintroductions ?? false;
-                            $customdata->createsuggestedactivities = $job->createsuggestedactivities ?? false;
-                            $customdata->hideexistingsections = $job->hideexistingsections ?? false;
-                        }
-                        
-                        $task->set_custom_data($customdata);
-                        $task->set_userid($job->userid);
-                        \core\task\manager::queue_adhoc_task($task);
-                    }
+
+                $adhoctask = aiplacement_modgen_find_section_creation_task($jobid);
+
+                // If a matching task still exists, Moodle owns the retry lifecycle.
+                // If it is missing, queue a small recovery task without changing the
+                // job back to queued. The task's interrupted-attempt guard sees the
+                // stale 'running' status and marks the job failed without re-running
+                // non-idempotent section creation.
+                if (!$adhoctask) {
+                    $task = new \aiplacement_modgen\task\create_sections_task();
+                    $task->set_custom_data((object)['jobid' => $jobid]);
+                    $task->set_userid($job->userid);
+                    \core\task\manager::queue_adhoc_task($task, true);
                 }
             }
         }

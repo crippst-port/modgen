@@ -39,6 +39,10 @@ if (!has_capability('moodle/course:update', $context) && !is_siteadmin()) {
     print_error('nopermissions', 'error', '', 'access diagnostics');
 }
 
+if ($fix) {
+    require_sesskey();
+}
+
 // Set page context to avoid debugging warnings
 global $PAGE;
 $PAGE->set_context($context);
@@ -320,7 +324,8 @@ if (empty($issues)) {
 
     // Offer fix option for orphaned sections
     if (!empty($orphaned) && !$fix) {
-        echo "<p><a href='?courseid=$courseid&fix=1' class='fix-button'>Attempt Automatic Fix</a></p>";
+        echo "<p><a href='?courseid=$courseid&fix=1&sesskey=" . sesskey()
+            . "' class='fix-button'>Attempt Automatic Fix</a></p>";
         echo "<p class='warning'><strong>Warning:</strong> This will set all orphaned sections to top-level (parent = 0). ";
         echo "Make a database backup before proceeding!</p>";
     }

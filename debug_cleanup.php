@@ -32,6 +32,10 @@ if (!has_capability('moodle/course:update', $context) && !is_siteadmin()) {
     print_error('nopermissions', 'error', '', 'access diagnostics');
 }
 
+if ($delete && !$backup) {
+    require_sesskey();
+}
+
 // Set page context
 global $PAGE;
 $PAGE->set_context($context);
@@ -72,7 +76,8 @@ if ($delete && $backup) {
     echo "<li>Test on a development/staging environment first</li>";
     echo "<li>Verify which sections will be deleted (see list below)</li>";
     echo "</ol>";
-    echo "<p>To proceed after backing up: <a href='?courseid=$courseid&delete=1&backup=0' class='delete'>CONFIRM DELETE (I have a backup)</a></p>";
+    echo "<p>To proceed after backing up: <a href='?courseid=$courseid&delete=1&backup=0&sesskey="
+        . sesskey() . "' class='delete'>CONFIRM DELETE (I have a backup)</a></p>";
     echo "<p><a href='?courseid=$courseid'>Cancel and review only</a></p>";
     echo "</div>";
     $delete = 0; // Don't actually delete until confirmed

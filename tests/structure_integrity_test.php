@@ -23,7 +23,7 @@
  * and transaction tests by:
  *
  *   1. Providing a single reusable integrity auditor (audit_structure()) that asserts
- *      every invariant debug_integrity.php checks for, over the WHOLE course at once.
+ *      every invariant the admin integrity tooling checks for, over the WHOLE course at once.
  *   2. Proving the section creation service never emits a corrupt structure across
  *      realistic, large, and adversarial (malformed AI JSON) inputs.
  *   3. Proving the generated structure survives Moodle's own state rendering
@@ -81,7 +81,7 @@ final class structure_integrity_test extends advanced_testcase {
     /**
      * Audit a course's section structure for every corruption class.
      *
-     * Mirrors the checks performed by debug_integrity.php, but as a pure function
+     * Mirrors the admin integrity checks, but as a pure function
      * returning a list of problems instead of rendering HTML. An empty list means
      * the structure is sound.
      *

@@ -22,7 +22,7 @@
  *
  *   1. Structural: leftover course_format_options 'parent' rows pointing at a
  *      section that no longer exists — i.e. orphaned references that 500 the
- *      flexsections editor, the exact fault debug_integrity.php hunts for.
+ *      flexsections editor, the exact fault the admin integrity tooling hunts for.
  *   2. Referential: the plugin's own aiplacement_modgen_aigen tracker table
  *      holding rows for cmids that have been deleted. The course_module_deleted
  *      event observer (-> aigen_tracker::remove_marker) is supposed to prevent

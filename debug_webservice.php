@@ -4,6 +4,8 @@
  *
  * This mimics the actual web service to identify which section/module causes the 500 error.
  *
+ * Admin-only direct diagnostic endpoint.
+ *
  * Access: http://localhost/moodle45/ai/placement/modgen/debug_webservice.php?courseid=214
  */
 
@@ -14,16 +16,13 @@ require_once($CFG->dirroot . '/course/lib.php');
 // Get course ID
 $courseid = required_param('courseid', PARAM_INT);
 
-// Security: Must be logged in to the course
-require_login($courseid, false);
+// Security: direct diagnostics are site-admin only because this page exposes
+// low-level course format internals and stack traces.
+require_login();
+require_capability('moodle/site:config', context_system::instance());
 
 $course = get_course($courseid);
 $context = context_course::instance($courseid);
-
-// Security: Must have course update capability (teachers/managers) OR be site admin
-if (!has_capability('moodle/course:update', $context) && !is_siteadmin()) {
-    print_error('nopermissions', 'error', '', 'access diagnostics');
-}
 
 // Set page context to avoid debugging warnings
 global $PAGE;

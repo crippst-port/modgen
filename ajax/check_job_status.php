@@ -27,6 +27,7 @@ define('AJAX_SCRIPT', true);
 require_once(__DIR__ . '/../../../../config.php');
 
 use aiplacement_modgen\local\ajax_response;
+use aiplacement_modgen\local\job_status_helper;
 
 // Require login and valid session.
 require_login();
@@ -38,26 +39,6 @@ $courseid = optional_param('courseid', 0, PARAM_INT);
 $recent = optional_param('recent', 0, PARAM_INT);
 $active = optional_param('active', 0, PARAM_INT);
 
-/**
- * Find a queued or failed adhoc section-creation task for a job.
- *
- * Moodle stores task custom data as the full JSON payload, not just {"jobid": N},
- * so an exact DB lookup by partial customdata misses legitimate pending tasks.
- *
- * @param int $jobid Job id.
- * @return \core\task\adhoc_task|null Matching pending task, if any.
- */
-function aiplacement_modgen_find_section_creation_task(int $jobid): ?\core\task\adhoc_task {
-    $tasks = \core\task\manager::get_adhoc_tasks('\\aiplacement_modgen\\task\\create_sections_task');
-    foreach ($tasks as $task) {
-        $data = $task->get_custom_data();
-        if (!empty($data->jobid) && (int)$data->jobid === $jobid) {
-            return $task;
-        }
-    }
-    return null;
-}
-
 try {
     if ($jobid) {
         // Check specific job status.
@@ -67,7 +48,7 @@ try {
         $context = context_course::instance($job->courseid);
         require_capability('aiplacement/modgen:managestructure', $context);
 
-        if ((int)$job->userid !== (int)$USER->id) {
+        if (!job_status_helper::user_can_view_job($job, (int)$USER->id)) {
             throw new moodle_exception('nopermissions', 'error', '', 'view this job');
         }
 
@@ -79,19 +60,12 @@ try {
             if ($runningtime > 300) { // 5 minutes
                 $stuck = true;
 
-                $adhoctask = aiplacement_modgen_find_section_creation_task($jobid);
-
                 // If a matching task still exists, Moodle owns the retry lifecycle.
                 // If it is missing, queue a small recovery task without changing the
                 // job back to queued. The task's interrupted-attempt guard sees the
                 // stale 'running' status and marks the job failed without re-running
                 // non-idempotent section creation.
-                if (!$adhoctask) {
-                    $task = new \aiplacement_modgen\task\create_sections_task();
-                    $task->set_custom_data((object)['jobid' => $jobid]);
-                    $task->set_userid($job->userid);
-                    \core\task\manager::queue_adhoc_task($task, true);
-                }
+                job_status_helper::queue_missing_task_recovery($job);
             }
         }
 

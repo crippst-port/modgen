@@ -49,9 +49,11 @@ function aiplacement_modgen_extend_navigation_course(
     $cangenerateprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
     $cangeneratetemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
     $canusesuggest = has_capability('aiplacement/modgen:usesuggest', $context);
+    $cancheckstructure = has_capability('aiplacement/modgen:checkstructure', $context);
 
     // Hide toolbar if user has no modgen capabilities
-    if (!$canmanagestructure && !$canmanagedates && !$cangenerateprompt && !$cangeneratetemplate && !$canusesuggest) {
+    if (!$canmanagestructure && !$canmanagedates && !$cangenerateprompt
+            && !$cangeneratetemplate && !$canusesuggest && !$cancheckstructure) {
         return;
     }
 
@@ -89,6 +91,7 @@ function aiplacement_modgen_extend_navigation_course(
             'showmanagedates' => $canmanagedates,
             'showtemplatefromfile' => $cangeneratetemplate,
             'showtemplatefromptompt' => $cangenerateprompt && $aienabled,
+            'showcheckstructure' => $cancheckstructure,
             'currentsection' => $currentsection,
         ]]);
 
@@ -124,6 +127,7 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     $showmanagedates = !empty($args['showmanagedates']);
     $showtemplatefromfile = !empty($args['showtemplatefromfile']);
     $showtemplatefromptompt = !empty($args['showtemplatefromptompt']);
+    $showcheckstructure = !empty($args['showcheckstructure']);
 
     // Verify course exists and get context
     $course = get_course($courseid);
@@ -138,7 +142,8 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
                         has_capability('aiplacement/modgen:managedates', $context) ||
                         has_capability('aiplacement/modgen:generatewithprompt', $context) ||
                         has_capability('aiplacement/modgen:generatefromtemplate', $context) ||
-                        has_capability('aiplacement/modgen:usesuggest', $context);
+                        has_capability('aiplacement/modgen:usesuggest', $context) ||
+                        has_capability('aiplacement/modgen:checkstructure', $context);
 
     if (!$hasanycapability) {
         throw new required_capability_exception($context, 'aiplacement/modgen:managestructure',
@@ -153,7 +158,8 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
         $showmanagestructure,
         $showmanagedates,
         $showtemplatefromfile,
-        $showtemplatefromptompt
+        $showtemplatefromptompt,
+        $showcheckstructure
     );
     
     // Get the plugin renderer and render the toolbar

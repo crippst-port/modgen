@@ -120,6 +120,7 @@ export const init = (config) => {
         showmanagedates: config.showmanagedates ? 1 : 0,
         showtemplatefromfile: config.showtemplatefromfile ? 1 : 0,
         showtemplatefromptompt: config.showtemplatefromptompt ? 1 : 0,
+        showcheckstructure: config.showcheckstructure ? 1 : 0,
         currentsection: config.currentsection || 0,
     })
     .then((html) => {

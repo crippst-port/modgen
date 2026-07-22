@@ -57,6 +57,9 @@ class course_toolbar implements renderable, templatable {
     /** @var bool Whether to show template from prompt button */
     private $showtemplatefromptompt;
 
+    /** @var bool Whether to show check structure button */
+    private $showcheckstructure;
+
     /**
      * Constructor.
      *
@@ -67,15 +70,17 @@ class course_toolbar implements renderable, templatable {
      * @param bool $showmanagedates Whether to show dates to sections button
      * @param bool $showtemplatefromfile Whether to show template from file button
      * @param bool $showtemplatefromptompt Whether to show template from prompt button
+     * @param bool $showcheckstructure Whether to show check structure button
      */
     public function __construct(
-        int $courseid, 
-        bool $showgenerator = false, 
+        int $courseid,
+        bool $showgenerator = false,
         bool $showsuggest = false,
         bool $showmanagestructure = false,
         bool $showmanagedates = false,
         bool $showtemplatefromfile = false,
-        bool $showtemplatefromptompt = false
+        bool $showtemplatefromptompt = false,
+        bool $showcheckstructure = false
     ) {
         $this->courseid = $courseid;
         $this->showgenerator = $showgenerator || $showtemplatefromptompt; // Legacy support
@@ -84,6 +89,7 @@ class course_toolbar implements renderable, templatable {
         $this->showmanagedates = $showmanagedates;
         $this->showtemplatefromfile = $showtemplatefromfile;
         $this->showtemplatefromptompt = $showtemplatefromptompt;
+        $this->showcheckstructure = $showcheckstructure;
     }
 
     /**
@@ -102,7 +108,12 @@ class course_toolbar implements renderable, templatable {
         $data->showmanagedates = $this->showmanagedates;
         $data->showtemplatefromfile = $this->showtemplatefromfile;
         $data->showtemplatefromptompt = $this->showtemplatefromptompt;
-        
+        $data->showcheckstructure = $this->showcheckstructure;
+        if ($this->showcheckstructure) {
+            $checkstructureurl = new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $this->courseid]);
+            $data->checkstructureurl = $checkstructureurl->out(false);
+        }
+
         // Always provide generator URL (needed for "Template from file" link)
         $generatorurl = new moodle_url('/ai/placement/modgen/modal.php', ['id' => $this->courseid]);
         $data->generatorurl = $generatorurl->out(false);

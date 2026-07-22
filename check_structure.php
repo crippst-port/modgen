@@ -1,0 +1,291 @@
+<?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Course structure diagnostic and repair tool for editors.
+ *
+ * SECURITY MEASURES:
+ * - require_login() — authentication required
+ * - require_capability('aiplacement/modgen:checkstructure') — course-level gate
+ * - require_sesskey() on ALL write actions — CSRF protection
+ * - required_param('id', PARAM_INT) — no user string in SQL
+ * - All user-generated names passed through format_string() — XSS prevention
+ *
+ * @package    aiplacement_modgen
+ * @copyright  2025 University of Portsmouth
+ * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+require_once(__DIR__ . '/../../../config.php');
+
+use aiplacement_modgen\local\integrity_checker;
+
+// Required: course ID.
+$courseid = required_param('id', PARAM_INT);
+$action   = optional_param('action', '', PARAM_ALPHA);
+$confirm  = optional_param('confirm', 0, PARAM_INT);
+
+// Security: require login and capability in course context.
+require_login($courseid);
+$course  = get_course($courseid);
+$context = context_course::instance($courseid);
+require_capability('aiplacement/modgen:checkstructure', $context);
+
+// Page setup.
+$PAGE->set_course($course);
+$PAGE->set_context($context);
+$PAGE->set_url('/ai/placement/modgen/check_structure.php', ['id' => $courseid]);
+$PAGE->set_title(get_string('checkstructurepage', 'aiplacement_modgen'));
+$PAGE->set_heading(format_string($course->fullname));
+$PAGE->set_pagelayout('course');
+$PAGE->requires->css('/ai/placement/modgen/styles.css');
+
+// Handle fix actions — all require sesskey.
+if ($action && $confirm) {
+    require_sesskey();
+
+    switch ($action) {
+        case 'fixintegrity':
+            $result = integrity_checker::fix_integrity($courseid);
+            redirect(
+                new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $courseid, 'check' => 1]),
+                get_string('fixintegrity_done', 'aiplacement_modgen', $result['fixed']),
+                null,
+                \core\output\notification::NOTIFY_SUCCESS
+            );
+            break;
+
+        case 'fixcleanup':
+            $result = integrity_checker::cleanup_orphaned($courseid);
+            $msg = $result['deleted'] > 0
+                ? get_string('fixcleanup_done', 'aiplacement_modgen', $result['deleted'])
+                : get_string('fixcleanup_none', 'aiplacement_modgen');
+            redirect(
+                new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $courseid, 'check' => 1]),
+                $msg,
+                null,
+                \core\output\notification::NOTIFY_SUCCESS
+            );
+            break;
+
+        case 'fixcircular':
+            $result = integrity_checker::fix_circular($courseid);
+            $msg = $result['fixed'] > 0
+                ? get_string('fixcircular_done', 'aiplacement_modgen', $result['fixed'])
+                : get_string('fixcircular_none', 'aiplacement_modgen');
+            redirect(
+                new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $courseid, 'check' => 1]),
+                $msg,
+                null,
+                \core\output\notification::NOTIFY_SUCCESS
+            );
+            break;
+    }
+}
+
+// Show confirmation page for fix actions (not yet confirmed).
+if ($action && !$confirm) {
+    require_sesskey();
+
+    $confirmstrings = [
+        'fixintegrity' => 'fixintegrity_confirm',
+        'fixcleanup'   => 'fixcleanup_confirm',
+        'fixcircular'  => 'fixcircular_confirm',
+    ];
+
+    if (isset($confirmstrings[$action])) {
+        echo $OUTPUT->header();
+        echo $OUTPUT->confirm(
+            get_string($confirmstrings[$action], 'aiplacement_modgen'),
+            new moodle_url('/ai/placement/modgen/check_structure.php', [
+                'id'      => $courseid,
+                'action'  => $action,
+                'confirm' => 1,
+                'sesskey' => sesskey(),
+            ]),
+            new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $courseid, 'check' => 1])
+        );
+        echo $OUTPUT->footer();
+        die();
+    }
+}
+
+// Run check if requested.
+$check   = optional_param('check', 0, PARAM_INT);
+$diag    = null;
+if ($check) {
+    $diag = integrity_checker::check($courseid);
+}
+
+echo $OUTPUT->header();
+echo $OUTPUT->heading(get_string('checkstructurepage', 'aiplacement_modgen'), 2);
+echo html_writer::tag('p', get_string('checkstructuredesc', 'aiplacement_modgen'));
+
+// Run check button.
+echo html_writer::start_div('mb-4');
+echo html_writer::link(
+    new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $courseid, 'check' => 1]),
+    get_string('checkstructurerun', 'aiplacement_modgen'),
+    ['class' => 'btn btn-primary']
+);
+echo html_writer::end_div();
+
+if ($diag !== null) {
+    echo $OUTPUT->heading(get_string('checkstructureresults', 'aiplacement_modgen'), 3);
+
+    if (!$diag['has_issues']) {
+        echo $OUTPUT->notification(get_string('checkstructure_noissues', 'aiplacement_modgen'), 'success');
+    } else {
+        $issuecount = count(array_filter($diag['counts'], fn($v) => $v > 0));
+        echo $OUTPUT->notification(
+            get_string('checkstructure_issuesfound', 'aiplacement_modgen', $issuecount),
+            'warning'
+        );
+    }
+
+    // Issue summary table.
+    echo html_writer::start_div('table-responsive mb-4');
+    echo html_writer::start_tag('table', ['class' => 'table table-sm table-bordered']);
+    echo html_writer::start_tag('thead');
+    echo html_writer::start_tag('tr');
+    echo html_writer::tag('th', 'Check');
+    echo html_writer::tag('th', 'Issues found');
+    echo html_writer::end_tag('tr');
+    echo html_writer::end_tag('thead');
+    echo html_writer::start_tag('tbody');
+
+    $checkkeys = [
+        'section0_with_parent',
+        'orphaned_options',
+        'invalid_parents',
+        'null_parents',
+        'missing_parents',
+        'duplicate_sections',
+        'circular_refs',
+        'orphaned_sections',
+    ];
+    foreach ($checkkeys as $key) {
+        $count = $diag['counts'][$key];
+        $rowclass = $count > 0 ? 'table-warning' : '';
+        echo html_writer::start_tag('tr', ['class' => $rowclass]);
+        echo html_writer::tag('td', get_string('diag_' . $key, 'aiplacement_modgen'));
+        echo html_writer::tag('td', $count > 0 ? (string)$count : '✓');
+        echo html_writer::end_tag('tr');
+    }
+    echo html_writer::end_tag('tbody');
+    echo html_writer::end_tag('table');
+    echo html_writer::end_div();
+
+    // Fix sections — shown only when relevant issues exist.
+    $fixintegrity = $diag['counts']['section0_with_parent'] > 0
+        || $diag['counts']['orphaned_options'] > 0
+        || $diag['counts']['invalid_parents'] > 0
+        || $diag['counts']['null_parents'] > 0
+        || $diag['counts']['missing_parents'] > 0;
+
+    if ($fixintegrity) {
+        echo $OUTPUT->heading(get_string('fixintegrity_label', 'aiplacement_modgen'), 4);
+        echo html_writer::tag('p', get_string('fixintegrity_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
+        echo html_writer::link(
+            new moodle_url('/ai/placement/modgen/check_structure.php', [
+                'id'      => $courseid,
+                'action'  => 'fixintegrity',
+                'sesskey' => sesskey(),
+            ]),
+            get_string('fixintegrity_label', 'aiplacement_modgen'),
+            ['class' => 'btn btn-warning mb-4']
+        );
+    }
+
+    if ($diag['counts']['orphaned_sections'] > 0) {
+        echo $OUTPUT->heading(get_string('fixcleanup_label', 'aiplacement_modgen'), 4);
+        echo html_writer::tag('p', get_string('fixcleanup_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
+        echo html_writer::link(
+            new moodle_url('/ai/placement/modgen/check_structure.php', [
+                'id'      => $courseid,
+                'action'  => 'fixcleanup',
+                'sesskey' => sesskey(),
+            ]),
+            get_string('fixcleanup_label', 'aiplacement_modgen'),
+            ['class' => 'btn btn-danger mb-4']
+        );
+    }
+
+    if ($diag['counts']['circular_refs'] > 0) {
+        echo $OUTPUT->heading(get_string('fixcircular_label', 'aiplacement_modgen'), 4);
+        echo html_writer::tag('p', get_string('fixcircular_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
+        echo html_writer::link(
+            new moodle_url('/ai/placement/modgen/check_structure.php', [
+                'id'      => $courseid,
+                'action'  => 'fixcircular',
+                'sesskey' => sesskey(),
+            ]),
+            get_string('fixcircular_label', 'aiplacement_modgen'),
+            ['class' => 'btn btn-danger mb-4']
+        );
+    }
+
+    // Section detail table.
+    echo $OUTPUT->heading(get_string('sectiondetails', 'aiplacement_modgen'), 3);
+    echo html_writer::start_div('table-responsive mb-4');
+    echo html_writer::start_tag('table', ['class' => 'table table-striped table-bordered table-sm']);
+    echo html_writer::start_tag('thead');
+    echo html_writer::start_tag('tr');
+    echo html_writer::tag('th', 'Sec #');
+    echo html_writer::tag('th', 'Name');
+    echo html_writer::tag('th', 'Parent');
+    echo html_writer::tag('th', 'Depth');
+    echo html_writer::tag('th', 'Visible');
+    echo html_writer::tag('th', 'Activities');
+    echo html_writer::tag('th', 'DB ID');
+    echo html_writer::tag('th', 'Issues');
+    echo html_writer::end_tag('tr');
+    echo html_writer::end_tag('thead');
+    echo html_writer::start_tag('tbody');
+
+    foreach ($diag['sections'] as $s) {
+        $rowclass = $s->has_row_issues ? 'table-warning' : '';
+        echo html_writer::start_tag('tr', ['class' => $rowclass]);
+        echo html_writer::tag('td', $s->section);
+        echo html_writer::tag('td', format_string($s->name ?? '(unnamed)'));
+        echo html_writer::tag('td', $s->section == 0 ? '—' : ($s->parent ?? 'missing'));
+        echo html_writer::tag('td', $s->depth);
+        echo html_writer::tag('td', $s->visible ? 'Yes' : 'No');
+        echo html_writer::tag('td', $s->activitycount);
+        echo html_writer::tag('td', $s->id);
+        echo html_writer::tag('td', $s->has_row_issues
+            ? html_writer::tag('span', implode('; ', $s->row_issues), ['class' => 'text-danger small'])
+            : '✓'
+        );
+        echo html_writer::end_tag('tr');
+    }
+
+    echo html_writer::end_tag('tbody');
+    echo html_writer::end_tag('table');
+    echo html_writer::end_div();
+}
+
+// Back to course link.
+echo html_writer::tag('div',
+    html_writer::link(
+        new moodle_url('/course/view.php', ['id' => $courseid]),
+        get_string('checkstructure_backtocourse', 'aiplacement_modgen'),
+        ['class' => 'btn btn-secondary']
+    ),
+    ['class' => 'mt-3']
+);
+
+echo $OUTPUT->footer();

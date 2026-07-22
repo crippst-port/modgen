@@ -228,6 +228,20 @@ if ($hassiteconfig) {
             new lang_string('managetemplates_desc', 'aiplacement_modgen', $manageurl->out())
         ));
 
+        // Admin diagnostic tools link.
+        $settings->add(new admin_setting_heading(
+            'aiplacement_modgen/admintoolsheading',
+            new lang_string('admintools_link', 'aiplacement_modgen'),
+            ''
+        ));
+
+        $admintoolsurl = new moodle_url('/ai/placement/modgen/admin_tools.php');
+        $settings->add(new admin_setting_description(
+            'aiplacement_modgen/admintools_link',
+            '',
+            new lang_string('admintools_link_desc', 'aiplacement_modgen', $admintoolsurl->out())
+        ));
+
         // Add file upload or other settings as needed.
     }
 }

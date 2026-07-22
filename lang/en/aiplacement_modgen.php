@@ -654,7 +654,7 @@ $string['checkstructure_missing'] = 'missing';
 
 // Settings page external link.
 $string['admintools_link'] = 'Admin Diagnostic Tools';
-$string['admintools_link_desc'] = 'Open the admin-level diagnostic and repair tools for the Module Generator plugin.';
+$string['admintools_link_desc'] = 'Open the admin-level diagnostic and repair tools for the Module Generator plugin. <a href="{$a}">Admin Diagnostic Tools</a>';
 $string['depthviolations'] = 'Depth violations';
 $string['hiddensubsections'] = 'Hidden subsections (no activities)';
 

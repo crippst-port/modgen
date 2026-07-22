@@ -274,22 +274,22 @@ class integrity_checker {
         foreach ($sectionrows as $s) {
             $rowissues = [];
             if ($s->section == 0 && $s->parent !== null) {
-                $rowissues[] = 'Section 0 should not have a parent';
+                $rowissues[] = get_string('row_section0hasparent', 'aiplacement_modgen');
             }
             if (isset($invalids[$s->id])) {
-                $rowissues[] = 'Invalid parent: ' . $invalids[$s->id]->parentnum;
+                $rowissues[] = get_string('row_invalidparent', 'aiplacement_modgen', $invalids[$s->id]->parentnum);
             }
             if (isset($nulls[$s->id])) {
-                $rowissues[] = 'Null/empty parent value';
+                $rowissues[] = get_string('row_nullparent', 'aiplacement_modgen');
             }
             if (isset($missing[$s->id])) {
-                $rowissues[] = 'Missing parent option';
+                $rowissues[] = get_string('row_missingparent', 'aiplacement_modgen');
             }
             if (isset($circularsections[$s->section])) {
-                $rowissues[] = 'Circular reference';
+                $rowissues[] = get_string('row_circularref', 'aiplacement_modgen');
             }
             if (isset($orphsects[$s->id])) {
-                $rowissues[] = 'Orphaned (hidden, no activities)';
+                $rowissues[] = get_string('row_orphaned', 'aiplacement_modgen');
             }
 
             $s->depth = $depthcache[$s->section] ?? 0;
@@ -327,7 +327,7 @@ class integrity_checker {
         foreach ($rows as $row) {
             $DB->delete_records('course_format_options', ['id' => $row->id]);
             $fixed++;
-            $details[] = 'Removed parent from section 0';
+            $details[] = get_string('detail_removedsection0parent', 'aiplacement_modgen');
         }
 
         // Fix orphaned format options.
@@ -343,7 +343,7 @@ class integrity_checker {
                 $DB->delete_records('course_format_options', ['id' => $row->id]);
                 $fixed++;
             }
-            $details[] = 'Removed ' . count($rows) . ' orphaned format options';
+            $details[] = get_string('detail_removedorphanedoptions', 'aiplacement_modgen', count($rows));
         }
 
         // Fix invalid parent references (set to 0 = top level).
@@ -365,7 +365,7 @@ class integrity_checker {
                 ]);
                 $fixed++;
             }
-            $details[] = 'Reset ' . count($rows) . ' invalid parent references to top-level';
+            $details[] = get_string('detail_resetinvalidparents', 'aiplacement_modgen', count($rows));
         }
 
         // Fix null/empty parent values.
@@ -382,7 +382,7 @@ class integrity_checker {
                 $DB->set_field('course_format_options', 'value', '0', ['id' => $row->cfoid]);
                 $fixed++;
             }
-            $details[] = 'Fixed ' . count($rows) . ' null/empty parent values';
+            $details[] = get_string('detail_fixednullparents', 'aiplacement_modgen', count($rows));
         }
 
         // Insert missing parent options.
@@ -406,7 +406,7 @@ class integrity_checker {
                 ]);
                 $fixed++;
             }
-            $details[] = 'Inserted ' . count($rows) . ' missing parent options';
+            $details[] = get_string('detail_insertedmissingparents', 'aiplacement_modgen', count($rows));
         }
 
         if ($fixed > 0) {
@@ -488,7 +488,7 @@ class integrity_checker {
                     'name'      => 'parent',
                 ]);
                 $fixed++;
-                $details[] = 'Removed parent from Section 0';
+                $details[] = get_string('detail_removedsection0parent', 'aiplacement_modgen');
             }
 
             foreach ($sections as $s) {
@@ -518,7 +518,10 @@ class integrity_checker {
                         'name'      => 'parent',
                     ]);
                     $fixed++;
-                    $details[] = 'Broke circular ref at section "' . format_string($s->name) . '" (sec ' . $s->section . ')';
+                    $details[] = get_string('detail_brokecircular', 'aiplacement_modgen', (object) [
+                        'name'    => format_string($s->name),
+                        'section' => $s->section,
+                    ]);
                 }
             }
 

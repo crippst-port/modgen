@@ -652,6 +652,20 @@ $string['checkstructure_ok'] = '✓';
 $string['checkstructure_unnamed'] = '(unnamed)';
 $string['checkstructure_missing'] = 'missing';
 
+// integrity_checker row-issue and fix-detail messages.
+$string['row_section0hasparent'] = 'Section 0 should not have a parent';
+$string['row_invalidparent'] = 'Invalid parent: {$a}';
+$string['row_nullparent'] = 'Null/empty parent value';
+$string['row_missingparent'] = 'Missing parent option';
+$string['row_circularref'] = 'Circular reference';
+$string['row_orphaned'] = 'Orphaned (hidden, no activities)';
+$string['detail_removedsection0parent'] = 'Removed parent from section 0';
+$string['detail_removedorphanedoptions'] = 'Removed {$a} orphaned format options';
+$string['detail_resetinvalidparents'] = 'Reset {$a} invalid parent references to top-level';
+$string['detail_fixednullparents'] = 'Fixed {$a} null/empty parent values';
+$string['detail_insertedmissingparents'] = 'Inserted {$a} missing parent options';
+$string['detail_brokecircular'] = 'Broke circular ref at section "{$a->name}" (sec {$a->section})';
+
 // Settings page external link.
 $string['admintools_link'] = 'Admin Diagnostic Tools';
 $string['admintools_link_desc'] = 'Open the admin-level diagnostic and repair tools for the Module Generator plugin. <a href="{$a}">Admin Diagnostic Tools</a>';

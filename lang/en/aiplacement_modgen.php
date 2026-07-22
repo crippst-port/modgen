@@ -617,6 +617,7 @@ $string['fixintegrity_desc'] = 'Resets invalid parent references to top-level an
 $string['fixintegrity_confirm'] = 'Repair structure data for this course? This resets invalid parent references to top-level (parent=0) and deletes orphaned format options. This cannot be undone.';
 $string['fixintegrity_done'] = 'Structure data repaired. {$a} item(s) fixed.';
 $string['fixintegrity_none'] = 'No structural data issues found to repair.';
+$string['fixdetails'] = 'Details: {$a}';
 
 $string['fixcleanup_label'] = 'Remove Orphaned Sections';
 $string['fixcleanup_desc'] = 'Permanently deletes hidden course sections that contain no activities and are no longer reachable.';

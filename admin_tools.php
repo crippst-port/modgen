@@ -472,10 +472,13 @@ function check_course_integrity($courseid, $fix = false) {
 
     if ($fix) {
         $result = integrity_checker::fix_integrity($courseid);
-        echo $OUTPUT->notification(
-            'Fixed ' . $result['fixed'] . ' item(s). Details: ' . implode('; ', $result['details']),
-            $result['fixed'] > 0 ? 'success' : 'info'
-        );
+        $message = $result['fixed'] > 0
+            ? get_string('fixintegrity_done', 'aiplacement_modgen', $result['fixed'])
+            : get_string('fixintegrity_none', 'aiplacement_modgen');
+        if (!empty($result['details'])) {
+            $message .= ' ' . get_string('fixdetails', 'aiplacement_modgen', implode('; ', $result['details']));
+        }
+        echo $OUTPUT->notification($message, $result['fixed'] > 0 ? 'success' : 'info');
         $diag = integrity_checker::check($courseid);
         render_integrity_results($diag);
         return ['hasIssues' => $diag['has_issues']] + $diag['counts'];
@@ -499,30 +502,31 @@ function render_integrity_results(array $diag): void {
         return;
     }
 
-    $labels = [
-        'section0_with_parent' => 'Section 0 with parent',
-        'orphaned_options'     => 'Orphaned format options',
-        'invalid_parents'      => 'Invalid parent references',
-        'null_parents'         => 'Null/empty parent values',
-        'missing_parents'      => 'Missing parent records',
-        'duplicate_sections'   => 'Duplicate section numbers',
-        'circular_refs'        => 'Circular references',
-        'orphaned_sections'    => 'Orphaned empty sections',
+    $checkkeys = [
+        'section0_with_parent',
+        'orphaned_options',
+        'invalid_parents',
+        'null_parents',
+        'missing_parents',
+        'duplicate_sections',
+        'circular_refs',
+        'orphaned_sections',
     ];
 
     echo html_writer::start_div('table-responsive mb-3');
     echo html_writer::start_tag('table', ['class' => 'table table-sm table-bordered']);
     echo html_writer::start_tag('thead');
     echo html_writer::tag('tr',
-        html_writer::tag('th', 'Check') . html_writer::tag('th', 'Issues'));
+        html_writer::tag('th', get_string('checkstructure_col_check', 'aiplacement_modgen')) .
+        html_writer::tag('th', get_string('checkstructure_col_issuesfound', 'aiplacement_modgen')));
     echo html_writer::end_tag('thead');
     echo html_writer::start_tag('tbody');
-    foreach ($labels as $key => $label) {
+    foreach ($checkkeys as $key) {
         $count = $diag['counts'][$key] ?? 0;
         $rowclass = $count > 0 ? 'table-warning' : '';
         echo html_writer::start_tag('tr', ['class' => $rowclass]);
-        echo html_writer::tag('td', $label);
-        echo html_writer::tag('td', $count > 0 ? (string)$count : '✓');
+        echo html_writer::tag('td', get_string('diag_' . $key, 'aiplacement_modgen'));
+        echo html_writer::tag('td', $count > 0 ? (string)$count : get_string('checkstructure_ok', 'aiplacement_modgen'));
         echo html_writer::end_tag('tr');
     }
     echo html_writer::end_tag('tbody');

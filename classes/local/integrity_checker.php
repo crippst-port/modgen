@@ -196,14 +196,24 @@ class integrity_checker {
                           FROM section_tree
                          WHERE section = root_section AND depth > 1";
         try {
-            $rows = $DB->get_records_sql($circularsql, [$courseid, $courseid]);
+            // Use a recordset and build a plain sequential array: the query has no unique
+            // id column, and get_records_sql() would key (and silently collapse) rows by
+            // root_section, which is not guaranteed unique across distinct cycles.
+            $rows = [];
+            $recordset = $DB->get_recordset_sql($circularsql, [$courseid, $courseid]);
+            foreach ($recordset as $row) {
+                $rows[] = $row;
+            }
+            $recordset->close();
             if (!empty($rows)) {
-                $result['issues']['circular_refs'] = array_values($rows);
+                $result['issues']['circular_refs'] = $rows;
                 $result['counts']['circular_refs'] = count($rows);
                 $result['has_issues'] = true;
             }
-        } catch (\Exception $e) {
-            // CTE not supported — silently skip circular check.
+        } catch (\dml_exception $e) {
+            // Recursive CTE not supported on this DB engine, or a query-level failure —
+            // log for developers/admins rather than silently reporting "no issues".
+            debugging('Circular reference check failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
 
         // --- Check 8: Orphaned sections (hidden, no activities, cleanup target) ---
@@ -513,14 +523,16 @@ class integrity_checker {
             }
 
             $transaction->allow_commit();
-
-            if ($fixed > 0) {
-                rebuild_course_cache($courseid, false, true);
-            }
-
         } catch (\Exception $e) {
             $transaction->rollback($e);
             throw $e;
+        }
+
+        // Outside the transaction: allow_commit() disposes it, so a failure here must not
+        // attempt a rollback (rollback() on a disposed transaction throws its own
+        // "already disposed" exception, masking the real error).
+        if ($fixed > 0) {
+            rebuild_course_cache($courseid, false, true);
         }
 
         return ['fixed' => $fixed, 'details' => $details];

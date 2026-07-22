@@ -110,7 +110,8 @@ class course_toolbar implements renderable, templatable {
         $data->showtemplatefromptompt = $this->showtemplatefromptompt;
         $data->showcheckstructure = $this->showcheckstructure;
         if ($this->showcheckstructure) {
-            $checkstructureurl = new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $this->courseid]);
+            $checkstructureurl = new moodle_url('/ai/placement/modgen/check_structure.php',
+                ['id' => $this->courseid, 'check' => 1]);
             $data->checkstructureurl = $checkstructureurl->out(false);
         }
 

@@ -32,6 +32,8 @@
 require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir . '/adminlib.php');
 
+use aiplacement_modgen\local\integrity_checker;
+
 // Security: Require admin login.
 require_login();
 require_capability('moodle/site:config', context_system::instance());
@@ -466,436 +468,66 @@ function display_statistics() {
  * @return array Array with counts of issues found/fixed
  */
 function check_course_integrity($courseid, $fix = false) {
-    global $DB, $OUTPUT;
+    global $OUTPUT;
 
-    $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+    if ($fix) {
+        $result = integrity_checker::fix_integrity($courseid);
+        echo $OUTPUT->notification(
+            'Fixed ' . $result['fixed'] . ' item(s). Details: ' . implode('; ', $result['details']),
+            $result['fixed'] > 0 ? 'success' : 'info'
+        );
+        $diag = integrity_checker::check($courseid);
+        render_integrity_results($diag);
+        return ['hasIssues' => $diag['has_issues']] + $diag['counts'];
+    }
 
-    echo html_writer::tag('p',
-        get_string('checkingcourse', 'aiplacement_modgen', format_string($course->fullname)),
-        ['class' => 'alert alert-info']
-    );
+    $diag = integrity_checker::check($courseid);
+    render_integrity_results($diag);
+    return ['hasIssues' => $diag['has_issues']] + $diag['counts'];
+}
 
-    $result = [
-        'orphaned' => 0,
-        'invalid' => 0,
-        'nullparents' => 0,
-        'emptyparents' => 0,
-        'missingparents' => 0,
-        'duplicatesections' => 0,
-        'section0withparent' => 0,
-        'hasIssues' => false
+/**
+ * Render the integrity check results HTML from a check() result array.
+ *
+ * @param array $diag Return value of integrity_checker::check()
+ */
+function render_integrity_results(array $diag): void {
+    global $OUTPUT;
+
+    if (!$diag['has_issues']) {
+        echo $OUTPUT->notification(get_string('noissuesfound', 'aiplacement_modgen'), 'success');
+        return;
+    }
+
+    $labels = [
+        'section0_with_parent' => 'Section 0 with parent',
+        'orphaned_options'     => 'Orphaned format options',
+        'invalid_parents'      => 'Invalid parent references',
+        'null_parents'         => 'Null/empty parent values',
+        'missing_parents'      => 'Missing parent records',
+        'duplicate_sections'   => 'Duplicate section numbers',
+        'circular_refs'        => 'Circular references',
+        'orphaned_sections'    => 'Orphaned empty sections',
     ];
 
-    // Check for Section 0 having a parent (should NEVER happen).
-    $section0sql = "SELECT cs.*, cfo.value as parentval
-                    FROM {course_sections} cs
-                    JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                    WHERE cs.course = ?
-                      AND cs.section = 0
-                      AND cfo.value IS NOT NULL";
-    $section0issues = $DB->get_records_sql($section0sql, [$courseid]);
-
-    if (!empty($section0issues)) {
-        $result['section0withparent'] = count($section0issues);
-        $result['hasIssues'] = true;
-
-        echo $OUTPUT->notification(
-            'Section 0 (general section) has a parent value - this should never happen!',
-            'error'
-        );
-
-        echo html_writer::start_tag('ul');
-        foreach ($section0issues as $section) {
-            echo html_writer::tag('li',
-                'Section 0 "' . format_string($section->name) . '" (ID: ' . $section->id . ') has parent: ' . $section->parentval
-            );
-        }
-        echo html_writer::end_tag('ul');
-
-        if ($fix) {
-            foreach ($section0issues as $section) {
-                // Delete the parent option for section 0.
-                $DB->delete_records('course_format_options', [
-                    'sectionid' => $section->id,
-                    'name' => 'parent'
-                ]);
-            }
-            echo $OUTPUT->notification('Removed parent from Section 0', 'success');
-        }
+    echo html_writer::start_div('table-responsive mb-3');
+    echo html_writer::start_tag('table', ['class' => 'table table-sm table-bordered']);
+    echo html_writer::start_tag('thead');
+    echo html_writer::tag('tr',
+        html_writer::tag('th', 'Check') . html_writer::tag('th', 'Issues'));
+    echo html_writer::end_tag('thead');
+    echo html_writer::start_tag('tbody');
+    foreach ($labels as $key => $label) {
+        $count = $diag['counts'][$key] ?? 0;
+        $rowclass = $count > 0 ? 'table-warning' : '';
+        echo html_writer::start_tag('tr', ['class' => $rowclass]);
+        echo html_writer::tag('td', $label);
+        echo html_writer::tag('td', $count > 0 ? (string)$count : '✓');
+        echo html_writer::end_tag('tr');
     }
-
-    // Check for orphaned format options.
-    $orphanedsql = "SELECT cfo.*
-                    FROM {course_format_options} cfo
-                    WHERE cfo.courseid = ?
-                      AND cfo.sectionid NOT IN (SELECT id FROM {course_sections} WHERE course = ?)";
-    $orphaned = $DB->get_records_sql($orphanedsql, [$courseid, $courseid]);
-
-    if (!empty($orphaned)) {
-        $result['orphaned'] = count($orphaned);
-        $result['hasIssues'] = true;
-
-        echo $OUTPUT->notification(
-            get_string('orphanedoptions', 'aiplacement_modgen', count($orphaned)),
-            'warning'
-        );
-
-        if ($fix) {
-            foreach ($orphaned as $option) {
-                $DB->delete_records('course_format_options', ['id' => $option->id]);
-            }
-            echo $OUTPUT->notification(get_string('fixedorphaned', 'aiplacement_modgen', count($orphaned)), 'success');
-        }
-    }
-
-    // Check for invalid parent references.
-    // Note: cfo.value is stored as TEXT, so we need to cast it to INTEGER for comparison.
-    $invalidsql = "SELECT cs.*, cfo.value as parentnum
-                   FROM {course_sections} cs
-                   JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                   WHERE cs.course = ?
-                     AND " . $DB->sql_cast_char2int('cfo.value') . " > 0
-                     AND " . $DB->sql_cast_char2int('cfo.value') . " NOT IN (SELECT section FROM {course_sections} WHERE course = ?)";
-    $invalidsections = $DB->get_records_sql($invalidsql, [$courseid, $courseid]);
-
-    if (!empty($invalidsections)) {
-        $result['invalid'] = count($invalidsections);
-        $result['hasIssues'] = true;
-
-        echo $OUTPUT->notification(
-            get_string('invalidparents', 'aiplacement_modgen', count($invalidsections)),
-            'warning'
-        );
-
-        // Show details of invalid sections
-        echo html_writer::start_tag('ul');
-        foreach ($invalidsections as $section) {
-            echo html_writer::tag('li',
-                'Section "' . format_string($section->name) . '" (ID: ' . $section->id . ') has invalid parent: ' . $section->parentnum
-            );
-        }
-        echo html_writer::end_tag('ul');
-
-        if ($fix) {
-            foreach ($invalidsections as $section) {
-                // Set parent to 0 (top level).
-                $DB->set_field('course_format_options', 'value', 0, [
-                    'sectionid' => $section->id,
-                    'name' => 'parent'
-                ]);
-            }
-            echo $OUTPUT->notification(get_string('fixedinvalid', 'aiplacement_modgen', count($invalidsections)), 'success');
-
-            // Rebuild cache after fixing.
-            rebuild_course_cache($courseid, false, true);
-        }
-    }
-
-    // Check for NULL or empty parent values.
-    $nullparentsql = "SELECT cs.*, cfo.value as parentval
-                      FROM {course_sections} cs
-                      JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                      WHERE cs.course = ?
-                        AND cs.section > 0
-                        AND (cfo.value IS NULL OR cfo.value = '')";
-    $nullparents = $DB->get_records_sql($nullparentsql, [$courseid]);
-
-    if (!empty($nullparents)) {
-        $result['nullparents'] = count($nullparents);
-        $result['hasIssues'] = true;
-
-        echo $OUTPUT->notification(
-            count($nullparents) . ' sections with NULL or empty parent values',
-            'warning'
-        );
-
-        echo html_writer::start_tag('ul');
-        foreach ($nullparents as $section) {
-            echo html_writer::tag('li',
-                'Section "' . format_string($section->name) . '" (ID: ' . $section->id . ') has NULL/empty parent'
-            );
-        }
-        echo html_writer::end_tag('ul');
-
-        if ($fix) {
-            foreach ($nullparents as $section) {
-                $DB->set_field('course_format_options', 'value', '0', [
-                    'sectionid' => $section->id,
-                    'name' => 'parent'
-                ]);
-            }
-            echo $OUTPUT->notification('Fixed ' . count($nullparents) . ' NULL/empty parent values', 'success');
-        }
-    }
-
-    // Check for sections missing parent format option entirely.
-    $missingparentsql = "SELECT cs.*
-                         FROM {course_sections} cs
-                         WHERE cs.course = ?
-                           AND cs.section > 0
-                           AND NOT EXISTS (
-                               SELECT 1 FROM {course_format_options} cfo
-                               WHERE cfo.sectionid = cs.id AND cfo.name = 'parent'
-                           )";
-    $missingparents = $DB->get_records_sql($missingparentsql, [$courseid]);
-
-    if (!empty($missingparents)) {
-        $result['missingparents'] = count($missingparents);
-        $result['hasIssues'] = true;
-
-        echo $OUTPUT->notification(
-            count($missingparents) . ' sections missing parent format option',
-            'warning'
-        );
-
-        echo html_writer::start_tag('ul');
-        foreach ($missingparents as $section) {
-            echo html_writer::tag('li',
-                'Section #' . $section->section . ' "' . format_string($section->name) . '" (ID: ' . $section->id . ') missing parent option'
-            );
-        }
-        echo html_writer::end_tag('ul');
-
-        if ($fix) {
-            foreach ($missingparents as $section) {
-                $DB->insert_record('course_format_options', (object)[
-                    'courseid' => $courseid,
-                    'format' => 'flexsections',
-                    'sectionid' => $section->id,
-                    'name' => 'parent',
-                    'value' => '0'
-                ]);
-            }
-            echo $OUTPUT->notification('Fixed ' . count($missingparents) . ' missing parent options', 'success');
-        }
-    }
-
-    // Check for duplicate section numbers.
-    $duplicatesql = "SELECT section, COUNT(*) as count
-                     FROM {course_sections}
-                     WHERE course = ?
-                     GROUP BY section
-                     HAVING COUNT(*) > 1";
-    $duplicates = $DB->get_records_sql($duplicatesql, [$courseid]);
-
-    if (!empty($duplicates)) {
-        $result['duplicatesections'] = count($duplicates);
-        $result['hasIssues'] = true;
-
-        echo $OUTPUT->notification(
-            count($duplicates) . ' duplicate section numbers found',
-            'error'
-        );
-
-        echo html_writer::start_tag('ul');
-        foreach ($duplicates as $dup) {
-            echo html_writer::tag('li',
-                'Section number ' . $dup->section . ' appears ' . $dup->count . ' times'
-            );
-        }
-        echo html_writer::end_tag('ul');
-
-        echo html_writer::tag('p',
-            'Duplicate section numbers require manual resolution - automatic fix not safe.',
-            ['class' => 'alert alert-danger']
-        );
-    }
-
-    // Check for circular references (recursive up to 10 levels).
-    // PostgreSQL-compatible recursive CTE for circular reference detection.
-    // Use CAST AS INTEGER instead of UNSIGNED for cross-database compatibility.
-    $circularsql = "WITH RECURSIVE section_tree AS (
-                        SELECT cs.id, cs.section, cs.course,
-                               CAST(cfo.value AS INTEGER) as parent,
-                               cs.section as root_section,
-                               1 as depth,
-                               CAST(cs.section AS VARCHAR(1000)) as path
-                        FROM {course_sections} cs
-                        JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                        WHERE cs.course = ? AND cs.section > 0
-                        
-                        UNION ALL
-                        
-                        SELECT cs.id, cs.section, cs.course,
-                               CAST(cfo.value AS INTEGER) as parent,
-                               st.root_section,
-                               st.depth + 1,
-                               CAST(st.path || '->' || cs.section AS VARCHAR(1000))
-                        FROM {course_sections} cs
-                        JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                        JOIN section_tree st ON cs.section = st.parent
-                        WHERE st.depth < 10 AND st.course = ?
-                    )
-                    SELECT DISTINCT root_section, path
-                    FROM section_tree
-                    WHERE section = root_section AND depth > 1";
-    
-    $circularrefs = $DB->get_records_sql($circularsql, [$courseid, $courseid]);
-
-    if (!empty($circularrefs)) {
-        $result['circularrefs'] = count($circularrefs);
-        $result['hasIssues'] = true;
-
-        echo $OUTPUT->notification(
-            count($circularrefs) . ' sections with circular parent references detected',
-            'error'
-        );
-
-        echo html_writer::start_tag('ul');
-        foreach ($circularrefs as $circular) {
-            echo html_writer::tag('li',
-                'Circular reference found: ' . $circular->path
-            );
-        }
-        echo html_writer::end_tag('ul');
-
-        echo html_writer::tag('p',
-            'Use "Fix Circular References" action from Analyze Hierarchy to resolve.',
-            ['class' => 'alert alert-warning']
-        );
-    }
-
-    // Check for ID vs number confusion (parent values much larger than max section number).
-    $maxsectionsql = "SELECT MAX(section) as maxsection FROM {course_sections} WHERE course = ?";
-    $maxsection = $DB->get_record_sql($maxsectionsql, [$courseid]);
-    
-    if ($maxsection) {
-        $maxparentval = $maxsection->maxsection * 2; // Threshold: 2x max section number.
-        
-        $idconfusionsql = "SELECT cs.*, cfo.value as parentval
-                           FROM {course_sections} cs
-                           JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                           WHERE cs.course = ?
-                             AND " . $DB->sql_cast_char2int('cfo.value') . " > ?";
-        $idconfusion = $DB->get_records_sql($idconfusionsql, [$courseid, $maxparentval]);
-
-        if (!empty($idconfusion)) {
-            $result['idconfusion'] = count($idconfusion);
-            $result['hasIssues'] = true;
-
-            echo $OUTPUT->notification(
-                count($idconfusion) . ' sections with possible ID/number confusion',
-                'warning'
-            );
-
-            echo html_writer::start_tag('ul');
-            foreach ($idconfusion as $section) {
-                echo html_writer::tag('li',
-                    'Section "' . format_string($section->name) . '" (ID: ' . $section->id . ') has parent value: ' . $section->parentval . ' (max section number is ' . $maxsection->maxsection . ')'
-                );
-            }
-            echo html_writer::end_tag('ul');
-
-            echo html_writer::tag('p',
-                'Parent values should be section numbers (0-' . $maxsection->maxsection . '), not section IDs.',
-                ['class' => 'alert alert-info']
-            );
-        }
-    }
-
-    // Check for depth violations (if flexsections format is active).
-    if ($course->format === 'flexsections') {
-        try {
-            $courseformat = course_get_format($courseid);
-            if (method_exists($courseformat, 'get_max_section_depth')) {
-                $maxdepth = $courseformat->get_max_section_depth();
-                
-                // Build depth calculation query.
-                $depthsql = "WITH RECURSIVE section_depth AS (
-                                SELECT cs.id, cs.section, cs.name,
-                                       CAST(cfo.value AS UNSIGNED) as parent,
-                                       1 as depth
-                                FROM {course_sections} cs
-                                LEFT JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                                WHERE cs.course = ? AND (cfo.value = '0' OR cfo.value IS NULL)
-                                
-                                UNION ALL
-                                
-                                SELECT cs.id, cs.section, cs.name,
-                                       CAST(cfo.value AS UNSIGNED) as parent,
-                                       sd.depth + 1
-                                FROM {course_sections} cs
-                                JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                                JOIN section_depth sd ON cs.section = CAST(cfo.value AS UNSIGNED)
-                                WHERE sd.depth < 20
-                            )
-                            SELECT id, section, name, depth
-                            FROM section_depth
-                            WHERE depth > ?";
-                
-                $depthviolations = $DB->get_records_sql($depthsql, [$courseid, $maxdepth]);
-
-                if (!empty($depthviolations)) {
-                    $result['depthviolations'] = count($depthviolations);
-                    $result['hasIssues'] = true;
-
-                    echo $OUTPUT->notification(
-                        count($depthviolations) . ' sections exceed maximum depth of ' . $maxdepth,
-                        'warning'
-                    );
-
-                    echo html_writer::start_tag('ul');
-                    foreach ($depthviolations as $section) {
-                        echo html_writer::tag('li',
-                            'Section "' . format_string($section->name) . '" is at depth ' . $section->depth
-                        );
-                    }
-                    echo html_writer::end_tag('ul');
-                }
-            }
-        } catch (Exception $e) {
-            // Silently continue if depth check fails.
-        }
-    }
-
-    // Check for hidden subsections with no activities.
-    $hiddensubsectionssql = "SELECT cs.id, cs.section, cs.name
-                             FROM {course_sections} cs
-                             JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                             WHERE cs.course = ?
-                               AND cs.visible = 0
-                               AND cs.section > 0
-                               AND " . $DB->sql_cast_char2int('cfo.value') . " > 0
-                               AND NOT EXISTS (
-                                   SELECT 1 FROM {course_modules} cm WHERE cm.section = cs.id
-                               )";
-    $hiddensubsections = $DB->get_records_sql($hiddensubsectionssql, [$courseid]);
-
-    if (!empty($hiddensubsections)) {
-        $result['hiddensubsections'] = count($hiddensubsections);
-        // Not marking as hasIssues since these might be intentional.
-
-        echo $OUTPUT->notification(
-            count($hiddensubsections) . ' hidden subsections with no activities found',
-            'info'
-        );
-
-        echo html_writer::start_tag('ul');
-        foreach ($hiddensubsections as $section) {
-            echo html_writer::tag('li',
-                'Section "' . format_string($section->name) . '" (ID: ' . $section->id . ')'
-            );
-        }
-        echo html_writer::end_tag('ul');
-
-        echo html_writer::tag('p',
-            'These can be cleaned up using the "Clean Up" action if they are not needed.',
-            ['class' => 'alert alert-info']
-        );
-    }
-
-    // Display results.
-    if (!$result['hasIssues']) {
-        echo $OUTPUT->notification(get_string('noissuesfound', 'aiplacement_modgen'), 'success');
-    } else if (!$fix) {
-        echo html_writer::tag('p', get_string('usefixbutton', 'aiplacement_modgen'), ['class' => 'alert alert-warning']);
-    } else {
-        // Rebuild cache after all fixes.
-        rebuild_course_cache($courseid, false, true);
-        echo $OUTPUT->notification('Cache rebuilt', 'info');
-    }
-
-    return $result;
+    echo html_writer::end_tag('tbody');
+    echo html_writer::end_tag('table');
+    echo html_writer::end_div();
 }
 
 /**
@@ -904,44 +536,18 @@ function check_course_integrity($courseid, $fix = false) {
  * @param int $courseid Course ID
  */
 function cleanup_orphaned_sections($courseid) {
-    global $DB, $OUTPUT;
+    global $OUTPUT;
 
-    $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+    $result = integrity_checker::cleanup_orphaned($courseid);
 
-    echo html_writer::tag('p',
-        get_string('cleaningcourse', 'aiplacement_modgen', format_string($course->fullname)),
-        ['class' => 'alert alert-info']
-    );
-
-    // Find hidden sections with no activities.
-    $sql = "SELECT cs.id, cs.section, cs.name
-            FROM {course_sections} cs
-            WHERE cs.course = ?
-              AND cs.visible = 0
-              AND cs.section > 0
-              AND NOT EXISTS (
-                  SELECT 1 FROM {course_modules} cm WHERE cm.section = cs.id
-              )";
-    $sections = $DB->get_records_sql($sql, [$courseid]);
-
-    if (empty($sections)) {
+    if ($result['deleted'] === 0) {
         echo $OUTPUT->notification(get_string('nosectionstoclean', 'aiplacement_modgen'), 'info');
-        return;
+    } else {
+        echo $OUTPUT->notification(
+            get_string('sectionsdeleted', 'aiplacement_modgen', $result['deleted']),
+            'success'
+        );
     }
-
-    $count = 0;
-    foreach ($sections as $section) {
-        // Delete format options first.
-        $DB->delete_records('course_format_options', ['sectionid' => $section->id]);
-        // Delete section.
-        $DB->delete_records('course_sections', ['id' => $section->id]);
-        $count++;
-    }
-
-    echo $OUTPUT->notification(get_string('sectionsdeleted', 'aiplacement_modgen', $count), 'success');
-
-    // Rebuild cache.
-    rebuild_course_cache($courseid, false, true);
 }
 
 /**
@@ -1831,103 +1437,27 @@ function generate_text_export($export, $sectionsbynum) {
  * @param int $courseid Course ID
  */
 function fix_circular_references($courseid) {
-    global $DB, $OUTPUT;
-
-    $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
-
-    echo html_writer::tag('p',
-        get_string('fixingcircularcourse', 'aiplacement_modgen', format_string($course->fullname)),
-        ['class' => 'alert alert-info']
-    );
-
-    // Get all sections.
-    $sql = "SELECT cs.id, cs.course, cs.section, cs.name, cfo.value as parent
-            FROM {course_sections} cs
-            LEFT JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-            WHERE cs.course = ?
-            ORDER BY cs.section ASC";
-    $sections = $DB->get_records_sql($sql, [$courseid]);
-
-    $fixed = 0;
-    $transaction = $DB->start_delegated_transaction();
+    global $OUTPUT;
 
     try {
-        // First, fix section 0 if it has a parent.
-        if (isset($sectionsbynum[0])) {
-            $section0 = $sectionsbynum[0];
-            $section0parent = $DB->get_record('course_format_options', [
-                'sectionid' => $section0->id,
-                'name' => 'parent'
-            ]);
-            if ($section0parent) {
-                $DB->delete_records('course_format_options', [
-                    'sectionid' => $section0->id,
-                    'name' => 'parent'
-                ]);
-                $fixed++;
-                echo html_writer::tag('p',
-                    'Removed invalid parent from Section 0',
-                    ['class' => 'text-success']
-                );
+        $result = integrity_checker::fix_circular($courseid);
+
+        if ($result['fixed'] > 0) {
+            foreach ($result['details'] as $detail) {
+                echo html_writer::tag('p', $detail, ['class' => 'text-success']);
             }
-        }
-
-        foreach ($sections as $section) {
-            if (!$section->parent || $section->parent === '0') {
-                continue;
-            }
-
-            // Check for circular reference.
-            $visited = [];
-            $current = $section;
-            $depth = 0;
-            $hascircular = false;
-
-            while ($current && $current->parent !== '0' && $depth < 20) {
-                if (isset($visited[$current->section])) {
-                    $hascircular = true;
-                    break;
-                }
-                $visited[$current->section] = true;
-
-                $parentnum = $current->parent;
-                $current = null;
-                foreach ($sections as $s) {
-                    if ($s->section == $parentnum) {
-                        $current = $s;
-                        break;
-                    }
-                }
-                $depth++;
-            }
-
-            if ($hascircular) {
-                // Break the cycle by setting this section to top level.
-                $DB->set_field('course_format_options', 'value', '0', [
-                    'sectionid' => $section->id,
-                    'name' => 'parent'
-                ]);
-                $fixed++;
-                
-                echo html_writer::tag('p',
-                    'Fixed circular reference for section "' . format_string($section->name) . '" (ID: ' . $section->id . ')',
-                    ['class' => 'text-success']
-                );
-            }
-        }
-
-        $transaction->allow_commit();
-
-        if ($fixed > 0) {
-            echo $OUTPUT->notification(get_string('circularfixed', 'aiplacement_modgen', $fixed), 'success');
-            rebuild_course_cache($courseid, false, true);
+            echo $OUTPUT->notification(
+                get_string('circularfixed', 'aiplacement_modgen', $result['fixed']),
+                'success'
+            );
         } else {
             echo $OUTPUT->notification(get_string('nocircularfound', 'aiplacement_modgen'), 'info');
         }
-
-    } catch (Exception $e) {
-        $transaction->rollback($e);
-        echo $OUTPUT->notification(get_string('circularfixerror', 'aiplacement_modgen', $e->getMessage()), 'error');
+    } catch (\Exception $e) {
+        echo $OUTPUT->notification(
+            get_string('circularfixerror', 'aiplacement_modgen', $e->getMessage()),
+            'error'
+        );
     }
 }
 

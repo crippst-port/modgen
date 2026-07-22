@@ -599,6 +599,49 @@ $string['hiddensections'] = 'Hidden sections';
 $string['orphanedsections'] = 'Orphaned sections';
 $string['circularreferences'] = 'Circular references';
 $string['idnumberconfusion'] = 'ID/number confusion';
+
+// Check Structure page (course-editor diagnostic tool).
+$string['checkstructure'] = 'Check Structure';
+$string['modgen:checkstructure'] = 'View and fix course structure diagnostics';
+$string['checkstructuredesc'] = 'Run a full integrity check on this course\'s section structure and apply repairs.';
+$string['checkstructurepage'] = 'Course Structure Diagnostics';
+$string['checkstructurerun'] = 'Run Check';
+$string['checkstructureresults'] = 'Diagnostic Results';
+$string['checkstructure_noissues'] = 'No structural issues detected. ✓';
+$string['checkstructure_issuesfound'] = '{$a} issue type(s) detected — see details below.';
+$string['checkstructure_backtocourse'] = 'Back to Course';
+
+// Fix action labels and descriptions.
+$string['fixintegrity_label'] = 'Repair Structure Data';
+$string['fixintegrity_desc'] = 'Resets invalid parent references to top-level and removes orphaned format options. Affects: orphaned options, invalid parents, null/empty parents, missing parent records, section 0 with parent.';
+$string['fixintegrity_confirm'] = 'Repair structure data for this course? This resets invalid parent references to top-level (parent=0) and deletes orphaned format options. This cannot be undone.';
+$string['fixintegrity_done'] = 'Structure data repaired. {$a} item(s) fixed.';
+
+$string['fixcleanup_label'] = 'Remove Orphaned Sections';
+$string['fixcleanup_desc'] = 'Permanently deletes hidden course sections that contain no activities and are no longer reachable.';
+$string['fixcleanup_confirm'] = 'Remove orphaned sections from this course? This permanently deletes all hidden empty sections. This cannot be undone.';
+$string['fixcleanup_done'] = '{$a} orphaned section(s) removed.';
+$string['fixcleanup_none'] = 'No orphaned sections found.';
+
+$string['fixcircular_label'] = 'Fix Circular References';
+$string['fixcircular_desc'] = 'Detects parent loops that prevent sections from loading correctly and breaks them by resetting affected sections to top-level.';
+$string['fixcircular_confirm'] = 'Fix circular parent references in this course? Sections in a loop will be reset to top-level (parent=0). This cannot be undone.';
+$string['fixcircular_done'] = '{$a} circular reference(s) fixed.';
+$string['fixcircular_none'] = 'No circular references found.';
+
+// Diagnostic issue labels for results table.
+$string['diag_section0_with_parent'] = 'Section 0 with parent';
+$string['diag_orphaned_options'] = 'Orphaned format options';
+$string['diag_invalid_parents'] = 'Invalid parent references';
+$string['diag_null_parents'] = 'Null/empty parent values';
+$string['diag_missing_parents'] = 'Missing parent records';
+$string['diag_duplicate_sections'] = 'Duplicate section numbers';
+$string['diag_circular_refs'] = 'Circular references';
+$string['diag_orphaned_sections'] = 'Orphaned empty sections';
+
+// Settings page external link.
+$string['admintools_link'] = 'Admin Diagnostic Tools';
+$string['admintools_link_desc'] = 'Open the admin-level diagnostic and repair tools for the Module Generator plugin.';
 $string['depthviolations'] = 'Depth violations';
 $string['hiddensubsections'] = 'Hidden subsections (no activities)';
 

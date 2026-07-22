@@ -30,7 +30,6 @@ defined('MOODLE_INTERNAL') || die();
  * Helper class for sending consistent AJAX JSON responses.
  */
 class ajax_response {
-
     /**
      * Send a success response and terminate script.
      *

@@ -34,22 +34,19 @@ defined('MOODLE_INTERNAL') || die();
  */
 class cleanup_old_jobs_task extends \core\task\scheduled_task
 {
-
     /**
      * Get a descriptive name for this task.
      *
      * @return string
      */
-    public function get_name()
-    {
+    public function get_name() {
         return get_string('cleanupoldjobs', 'aiplacement_modgen');
     }
 
     /**
      * Execute the task - delete jobs older than 30 days.
      */
-    public function execute()
-    {
+    public function execute() {
         global $DB;
 
         $retentiondays = 30;

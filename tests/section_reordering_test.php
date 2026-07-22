@@ -48,8 +48,7 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @copyright  2026 Tom Cripps
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class section_reordering_test extends advanced_testcase {
-
+final class section_reordering_test extends advanced_testcase {
     /**
      * Create a genuine pre-existing top-level content section that is eligible to be
      * hidden by the hideexistingsections flow.
@@ -72,7 +71,13 @@ class section_reordering_test extends advanced_testcase {
 
         $courseformat = \course_get_format($courseid);
         $section = theme_builder::create_section_with_parent(
-            $courseid, $courseformat, 0, $name, '', FORMAT_PLAIN, ['collapsed' => 1]
+            $courseid,
+            $courseformat,
+            0,
+            $name,
+            '',
+            FORMAT_PLAIN,
+            ['collapsed' => 1]
         );
 
         // Ensure it starts visible so "should become hidden" assertions are meaningful.
@@ -87,7 +92,7 @@ class section_reordering_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_existing_sections_hidden_when_flag_true() {
+    public function test_existing_sections_hidden_when_flag_true(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -108,8 +113,8 @@ class section_reordering_test extends advanced_testcase {
         // Now create new structure with hideexistingsections=true
         $structure = [
             'themes' => [
-                ['title' => 'New Theme', 'summary' => 'New theme summary', 'weeks' => []]
-            ]
+                ['title' => 'New Theme', 'summary' => 'New theme summary', 'weeks' => []],
+            ],
         ];
 
         $service = new section_creation_service();
@@ -125,16 +130,22 @@ class section_reordering_test extends advanced_testcase {
         // Check that old sections are now hidden
         $section1after = $DB->get_record('course_sections', ['id' => $existingsection1->id]);
         $section2after = $DB->get_record('course_sections', ['id' => $existingsection2->id]);
-        
-        $this->assertEquals(0, $section1after->visible,
-            'Old section 1 should be hidden after creating new structure with hideexistingsections=true');
-        $this->assertEquals(0, $section2after->visible,
-            'Old section 2 should be hidden after creating new structure with hideexistingsections=true');
+
+        $this->assertEquals(
+            0,
+            $section1after->visible,
+            'Old section 1 should be hidden after creating new structure with hideexistingsections=true'
+        );
+        $this->assertEquals(
+            0,
+            $section2after->visible,
+            'Old section 2 should be hidden after creating new structure with hideexistingsections=true'
+        );
 
         // Verify new theme section is visible
         $newtheme = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'name' => 'New Theme'
+            'name' => 'New Theme',
         ]);
         $this->assertNotEmpty($newtheme, 'New theme should be created');
         $this->assertEquals(1, $newtheme->visible, 'New theme should be visible');
@@ -145,7 +156,7 @@ class section_reordering_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_section_zero_never_hidden() {
+    public function test_section_zero_never_hidden(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -156,15 +167,15 @@ class section_reordering_test extends advanced_testcase {
         // Get section 0
         $section0before = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'section' => 0
+            'section' => 0,
         ]);
         $this->assertEquals(1, $section0before->visible, 'Section 0 should be visible initially');
 
         // Create new structure with hideexistingsections=true
         $structure = [
             'themes' => [
-                ['title' => 'Theme', 'summary' => 'Summary', 'weeks' => []]
-            ]
+                ['title' => 'Theme', 'summary' => 'Summary', 'weeks' => []],
+            ],
         ];
 
         $service = new section_creation_service();
@@ -180,10 +191,13 @@ class section_reordering_test extends advanced_testcase {
         // Section 0 should still be visible
         $section0after = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'section' => 0
+            'section' => 0,
         ]);
-        $this->assertEquals(1, $section0after->visible,
-            'Section 0 should never be hidden, even with hideexistingsections=true');
+        $this->assertEquals(
+            1,
+            $section0after->visible,
+            'Section 0 should never be hidden, even with hideexistingsections=true'
+        );
     }
 
     /**
@@ -191,7 +205,7 @@ class section_reordering_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_child_sections_remain_visible() {
+    public function test_child_sections_remain_visible(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -212,11 +226,11 @@ class section_reordering_test extends advanced_testcase {
                         [
                             'title' => 'Week 1',
                             'summary' => 'Week summary',
-                            'sessions' => []
-                        ]
-                    ]
-                ]
-            ]
+                            'sessions' => [],
+                        ],
+                    ],
+                ],
+            ],
         ];
 
         $service = new section_creation_service();
@@ -236,11 +250,11 @@ class section_reordering_test extends advanced_testcase {
         // New theme and its child week should both be visible
         $newtheme = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'name' => 'New Theme'
+            'name' => 'New Theme',
         ]);
         $newweek = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'name' => 'Week 1'
+            'name' => 'Week 1',
         ]);
 
         $this->assertNotEmpty($newtheme, 'New theme should exist');
@@ -259,7 +273,7 @@ class section_reordering_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_new_sections_moved_to_top() {
+    public function test_new_sections_moved_to_top(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -272,21 +286,21 @@ class section_reordering_test extends advanced_testcase {
             'course' => $course->id,
             'section' => 1,
             'name' => 'Old Section 1',
-            'visible' => 1
+            'visible' => 1,
         ]);
 
         $existingsection2 = $this->getDataGenerator()->create_course_section([
             'course' => $course->id,
             'section' => 2,
             'name' => 'Old Section 2',
-            'visible' => 1
+            'visible' => 1,
         ]);
 
         // Create new theme
         $structure = [
             'themes' => [
-                ['title' => 'New Theme', 'summary' => 'Summary', 'weeks' => []]
-            ]
+                ['title' => 'New Theme', 'summary' => 'Summary', 'weeks' => []],
+            ],
         ];
 
         $service = new section_creation_service();
@@ -301,7 +315,7 @@ class section_reordering_test extends advanced_testcase {
 
         // Get all sections in order
         $allsections = $DB->get_records('course_sections', [
-            'course' => $course->id
+            'course' => $course->id,
         ], 'section ASC');
 
         // Find the new theme section
@@ -316,13 +330,13 @@ class section_reordering_test extends advanced_testcase {
         }
 
         $this->assertNotNull($newthemesection, 'New theme section should exist');
-        
+
         // NOTE: move_section() doesn't actually reorder sections in flexsections format.
         // It returns silently without moving sections. This appears to be a limitation of
         // the flexsections format. For now, we just verify the section was created and is visible.
         rebuild_course_cache($course->id, true, true);
         $modinfo = get_fast_modinfo(get_course($course->id, true));
-        
+
         $newthemesectioninfo = null;
         foreach ($modinfo->get_section_info_all() as $sinfo) {
             if ($sinfo->name === 'New Theme') {
@@ -330,7 +344,7 @@ class section_reordering_test extends advanced_testcase {
                 break;
             }
         }
-        
+
         $this->assertNotNull($newthemesectioninfo, 'New theme section info should exist');
         $this->assertEquals(1, $newthemesectioninfo->visible, 'New theme should be visible');
         $this->assertEquals(0, $newthemesectioninfo->parent, 'New theme should be top-level (parent=0)');
@@ -341,7 +355,7 @@ class section_reordering_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_existing_sections_stay_visible_when_flag_false() {
+    public function test_existing_sections_stay_visible_when_flag_false(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -354,21 +368,21 @@ class section_reordering_test extends advanced_testcase {
             'course' => $course->id,
             'section' => 1,
             'name' => 'Old Section 1',
-            'visible' => 1
+            'visible' => 1,
         ]);
 
         $existingsection2 = $this->getDataGenerator()->create_course_section([
             'course' => $course->id,
             'section' => 2,
             'name' => 'Old Section 2',
-            'visible' => 1
+            'visible' => 1,
         ]);
 
         // Create new structure with hideexistingsections=false
         $structure = [
             'themes' => [
-                ['title' => 'New Theme', 'summary' => 'Summary', 'weeks' => []]
-            ]
+                ['title' => 'New Theme', 'summary' => 'Summary', 'weeks' => []],
+            ],
         ];
 
         $service = new section_creation_service();
@@ -384,11 +398,17 @@ class section_reordering_test extends advanced_testcase {
         // Old sections should still be visible
         $section1after = $DB->get_record('course_sections', ['id' => $existingsection1->id]);
         $section2after = $DB->get_record('course_sections', ['id' => $existingsection2->id]);
-        
-        $this->assertEquals(1, $section1after->visible,
-            'Old section 1 should remain visible when hideexistingsections=false');
-        $this->assertEquals(1, $section2after->visible,
-            'Old section 2 should remain visible when hideexistingsections=false');
+
+        $this->assertEquals(
+            1,
+            $section1after->visible,
+            'Old section 1 should remain visible when hideexistingsections=false'
+        );
+        $this->assertEquals(
+            1,
+            $section2after->visible,
+            'Old section 2 should remain visible when hideexistingsections=false'
+        );
     }
 
     /**
@@ -396,7 +416,7 @@ class section_reordering_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_multiple_new_themes_all_visible() {
+    public function test_multiple_new_themes_all_visible(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -412,8 +432,8 @@ class section_reordering_test extends advanced_testcase {
             'themes' => [
                 ['title' => 'Theme 1', 'summary' => 'Summary 1', 'weeks' => []],
                 ['title' => 'Theme 2', 'summary' => 'Summary 2', 'weeks' => []],
-                ['title' => 'Theme 3', 'summary' => 'Summary 3', 'weeks' => []]
-            ]
+                ['title' => 'Theme 3', 'summary' => 'Summary 3', 'weeks' => []],
+            ],
         ];
 
         $service = new section_creation_service();
@@ -438,7 +458,7 @@ class section_reordering_test extends advanced_testcase {
         $this->assertNotEmpty($theme1, 'Theme 1 should exist');
         $this->assertNotEmpty($theme2, 'Theme 2 should exist');
         $this->assertNotEmpty($theme3, 'Theme 3 should exist');
-        
+
         $this->assertEquals(1, $theme1->visible, 'Theme 1 should be visible');
         $this->assertEquals(1, $theme2->visible, 'Theme 2 should be visible');
         $this->assertEquals(1, $theme3->visible, 'Theme 3 should be visible');
@@ -449,7 +469,7 @@ class section_reordering_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_hiding_sections_multiple_times_idempotent() {
+    public function test_hiding_sections_multiple_times_idempotent(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -465,8 +485,8 @@ class section_reordering_test extends advanced_testcase {
         // First generation with hideexistingsections=true
         $structure1 = [
             'themes' => [
-                ['title' => 'Theme 1', 'summary' => 'Summary', 'weeks' => []]
-            ]
+                ['title' => 'Theme 1', 'summary' => 'Summary', 'weeks' => []],
+            ],
         ];
 
         $service->create_sections_from_json(
@@ -485,8 +505,8 @@ class section_reordering_test extends advanced_testcase {
         // Second generation with hideexistingsections=true
         $structure2 = [
             'themes' => [
-                ['title' => 'Theme 2', 'summary' => 'Summary', 'weeks' => []]
-            ]
+                ['title' => 'Theme 2', 'summary' => 'Summary', 'weeks' => []],
+            ],
         ];
 
         $service->create_sections_from_json(
@@ -513,7 +533,7 @@ class section_reordering_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_assessments_section_not_hidden() {
+    public function test_assessments_section_not_hidden(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -527,7 +547,7 @@ class section_reordering_test extends advanced_testcase {
         // Get the Assessments section
         $assessments = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'name' => 'Assessments'
+            'name' => 'Assessments',
         ]);
         $this->assertNotEmpty($assessments, 'Assessments section should exist');
         $this->assertEquals(1, $assessments->visible, 'Assessments should be visible initially');
@@ -537,14 +557,14 @@ class section_reordering_test extends advanced_testcase {
             'course' => $course->id,
             'section' => 3,
             'name' => 'Old Section',
-            'visible' => 1
+            'visible' => 1,
         ]);
 
         // Create new structure with hideexistingsections=true
         $structure = [
             'themes' => [
-                ['title' => 'New Theme', 'summary' => 'Summary', 'weeks' => []]
-            ]
+                ['title' => 'New Theme', 'summary' => 'Summary', 'weeks' => []],
+            ],
         ];
 
         $service = new section_creation_service();
@@ -564,9 +584,12 @@ class section_reordering_test extends advanced_testcase {
         // Assessments section should still be visible
         $assessmentsafter = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'name' => 'Assessments'
+            'name' => 'Assessments',
         ]);
-        $this->assertEquals(1, $assessmentsafter->visible,
-            'Assessments section should remain visible (it is a core section)');
+        $this->assertEquals(
+            1,
+            $assessmentsafter->visible,
+            'Assessments section should remain visible (it is a core section)'
+        );
     }
 }

@@ -22,6 +22,7 @@ defined('MOODLE_INTERNAL') || die();
 
 /**
  * Contract for AI-generated course activity handlers.
+ * @package aiplacement_modgen
  */
 interface activity_type {
     /**

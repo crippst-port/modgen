@@ -29,7 +29,6 @@ namespace aiplacement_modgen\local;
 
 defined('MOODLE_INTERNAL') || die();
 class learningactivity_validator {
-
     /**
      * Get valid activity icons from learningactivity module.
      *
@@ -37,10 +36,10 @@ class learningactivity_validator {
      */
     public static function get_valid_icons() {
         return [
-            '', 'fa-book', 'fa-book-open', 'fa-graduation-cap', 'fa-chalkboard', 
-            'fa-chalkboard-user', 'fa-flask', 'fa-microscope', 'fa-laptop-code', 
-            'fa-pen-to-square', 'fa-comments', 'fa-users', 'fa-lightbulb', 
-            'fa-puzzle-piece', 'fa-clipboard-check', 'fa-file-pen', 'fa-robot'
+            '', 'fa-book', 'fa-book-open', 'fa-graduation-cap', 'fa-chalkboard',
+            'fa-chalkboard-user', 'fa-flask', 'fa-microscope', 'fa-laptop-code',
+            'fa-pen-to-square', 'fa-comments', 'fa-users', 'fa-lightbulb',
+            'fa-puzzle-piece', 'fa-clipboard-check', 'fa-file-pen', 'fa-robot',
         ];
     }
 
@@ -148,20 +147,20 @@ class learningactivity_validator {
         // Learningtypes (comma-separated string, validate each type)
         $validated['learningtypes'] = null;
         if (isset($metadata['learningtypes']) && !empty($metadata['learningtypes'])) {
-            $types = is_array($metadata['learningtypes']) 
+            $types = is_array($metadata['learningtypes'])
                 ? $metadata['learningtypes']
                 : array_map('trim', explode(',', $metadata['learningtypes']));
-            
+
             $validtypes = self::get_valid_learningtypes();
             $sanitizedtypes = [];
-            
+
             foreach ($types as $type) {
                 $type = trim($type);
                 if (in_array($type, $validtypes, true)) {
                     $sanitizedtypes[] = $type;
                 }
             }
-            
+
             if (!empty($sanitizedtypes)) {
                 $validated['learningtypes'] = implode(',', $sanitizedtypes);
             }

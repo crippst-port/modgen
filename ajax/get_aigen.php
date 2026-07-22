@@ -49,10 +49,10 @@ try {
               JOIN {course_modules} cm ON cm.id = ag.cmid
              WHERE ag.courseid = :courseid
                AND cm.deletioninprogress = 0";
-    
+
     $records = $DB->get_records_sql($sql, ['courseid' => $courseid]);
     $modinfo = get_fast_modinfo($course);
-    
+
     $validcmids = [];
     foreach ($records as $record) {
         if (!isset($modinfo->cms[$record->cmid])) {

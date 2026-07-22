@@ -32,7 +32,7 @@ defined('MOODLE_INTERNAL') || die();
 
 /**
  * Handles file uploads and extraction for activity creation.
- * 
+ *
  * Uses Moodle's native file conversion API for document processing.
  * Supports conversion via configured converters (unoconv, googledrive, etc.).
  */
@@ -148,7 +148,7 @@ class file_processor {
             // If no conversion available, try direct conversion
             // Create a new conversion request
             $conversion = new conversion($file, 'html');
-            
+
             // Start the conversion (async-friendly)
             if ($conversion->start_conversion()) {
                 // Try to get the result (may be async)

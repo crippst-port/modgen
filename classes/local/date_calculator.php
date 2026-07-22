@@ -30,7 +30,6 @@ defined('MOODLE_INTERNAL') || die();
  * Service class for calculating section dates with holiday support.
  */
 class date_calculator {
-
     /**
      * Detect the layout type of a course module.
      *
@@ -41,56 +40,56 @@ class date_calculator {
     public static function detect_course_layout($courseid) {
         $modinfo = get_fast_modinfo($courseid);
         $sections = $modinfo->get_section_info_all();
-        
+
         // Build section hierarchy.
         $sectionhierarchy = self::build_section_hierarchy($sections);
-        
+
         // Get session names for detection.
         $sessionnames = [
             get_string('presession', 'aiplacement_modgen'),
             get_string('session', 'aiplacement_modgen'),
-            get_string('postsession', 'aiplacement_modgen')
+            get_string('postsession', 'aiplacement_modgen'),
         ];
-        
+
         $hasthemes = false;
         $hasweeksunderThemes = false;
         $hasstandaloneweeks = false;
         $toplevelcount = 0;
-        
+
         foreach ($sections as $section) {
             // Skip section 0.
             if ($section->section == 0) {
                 continue;
             }
-            
+
             // Skip Introduction & Assessments sections.
             $introsectionname = get_string('introductionsectionname', 'aiplacement_modgen');
             $assessmentssectionname = get_string('assessmentssectionname', 'aiplacement_modgen');
             if ($section->name === $introsectionname || $section->name === $assessmentssectionname) {
                 continue;
             }
-            
+
             // Skip session subsections.
             if (in_array($section->name, $sessionnames)) {
                 continue;
             }
-            
+
             $isparent = isset($sectionhierarchy['parents'][$section->id]);
             $hasparent = !empty($section->parent);
-            
+
             // Top-level section (no parent).
             if (!$hasparent) {
                 $toplevelcount++;
-                
+
                 // Check if this top-level section has children.
                 if ($isparent) {
                     $hasthemes = true;
-                    
+
                     // Check what kind of children it has.
                     foreach ($sectionhierarchy['parents'][$section->id] as $childid) {
                         $childindex = $sectionhierarchy['id_to_index'][$childid];
                         $childsection = $sections[$childindex];
-                        
+
                         // If child is NOT a session, it's a week.
                         if (!in_array($childsection->name, $sessionnames)) {
                             $hasweeksunderThemes = true;
@@ -103,7 +102,7 @@ class date_calculator {
                 }
             }
         }
-        
+
         // Determine layout type based on what we found.
         if ($hasthemes && $hasweeksunderThemes) {
             return [
@@ -114,7 +113,7 @@ class date_calculator {
                     'has_weeks_under_themes' => true,
                     'top_level_sections' => $toplevelcount,
                     'hierarchy_levels' => 3, // Theme → Week → Session
-                ]
+                ],
             ];
         } else if ($hasthemes && !$hasweeksunderThemes) {
             return [
@@ -125,7 +124,7 @@ class date_calculator {
                     'has_weeks_under_themes' => false,
                     'top_level_sections' => $toplevelcount,
                     'hierarchy_levels' => 2, // Theme (as week) → Session
-                ]
+                ],
             ];
         } else {
             return [
@@ -136,7 +135,7 @@ class date_calculator {
                     'has_weeks_under_themes' => false,
                     'top_level_sections' => $toplevelcount,
                     'hierarchy_levels' => 1, // Week only (may have sessions)
-                ]
+                ],
             ];
         }
     }
@@ -185,7 +184,7 @@ class date_calculator {
         $sessionnames = [
             get_string('presession', 'aiplacement_modgen'),
             get_string('session', 'aiplacement_modgen'),
-            get_string('postsession', 'aiplacement_modgen')
+            get_string('postsession', 'aiplacement_modgen'),
         ];
 
         $results = [];
@@ -217,7 +216,7 @@ class date_calculator {
 
             // Determine if this section should get week dates based on layout type.
             $shouldgetdates = false;
-            
+
             switch ($layout['type']) {
                 case 'theme_based':
                     // Only child sections (weeks under themes) get dates, not themes themselves.
@@ -226,14 +225,14 @@ class date_calculator {
                         $shouldgetdates = true;
                     }
                     break;
-                    
+
                 case 'week_based':
                     // Top-level parent sections (themes acting as weeks) get dates.
                     if ($istoplevel && $isparent) {
                         $shouldgetdates = true;
                     }
                     break;
-                    
+
                 case 'flat':
                     // All top-level sections get dates.
                     if ($istoplevel) {
@@ -277,7 +276,7 @@ class date_calculator {
                     'end_timestamp' => $weekenddate,
                     'parent_id' => $parentid,
                     'layout_type' => $layout['type'],
-                    'skipped_holidays' => $skipedholidays
+                    'skipped_holidays' => $skipedholidays,
                 ];
 
                 // Move to next week (skip holidays).
@@ -345,7 +344,7 @@ class date_calculator {
                     'start_timestamp' => $themestartts,
                     'end_timestamp' => $themeendts,
                     'parent_id' => $themeparentid,
-                    'layout_type' => $layout['type']
+                    'layout_type' => $layout['type'],
                 ];
             }
         }
@@ -385,7 +384,7 @@ class date_calculator {
 
         return [
             'parents' => $parents,
-            'id_to_index' => $idtoindex
+            'id_to_index' => $idtoindex,
         ];
     }
 
@@ -420,7 +419,7 @@ class date_calculator {
 
         return [
             'start' => $weekstart,
-            'skipped_holidays' => $overlappingholidays
+            'skipped_holidays' => $overlappingholidays,
         ];
     }
 
@@ -558,7 +557,7 @@ class date_calculator {
                 continue;
             }
 
-            list($name, $daterange) = array_map('trim', explode(':', $line, 2));
+            [$name, $daterange] = array_map('trim', explode(':', $line, 2));
 
             if (empty($name) || empty($daterange)) {
                 debugging("Invalid holiday format on line " . ($linenum + 1) . ": empty name or date range", DEBUG_DEVELOPER);
@@ -594,7 +593,7 @@ class date_calculator {
                 'name' => $name,
                 'start' => $startdate,
                 'end' => $enddate,
-                'line' => $linenum + 1
+                'line' => $linenum + 1,
             ];
         }
 
@@ -614,10 +613,10 @@ class date_calculator {
 
         // Try standard formats first.
         $formats = [
-            'dmY' => '/^(\d{2})(\d{2})(\d{4})$/',           // DDMMYYYY
-            'd/m/Y' => '/^(\d{2})\/(\d{2})\/(\d{4})$/',     // DD/MM/YYYY
-            'd-m-Y' => '/^(\d{2})-(\d{2})-(\d{4})$/',       // DD-MM-YYYY
-            'd.m.Y' => '/^(\d{2})\.(\d{2})\.(\d{4})$/',     // DD.MM.YYYY
+            'dmY' => '/^(\d{2})(\d{2})(\d{4})$/', // DDMMYYYY
+            'd/m/Y' => '/^(\d{2})\/(\d{2})\/(\d{4})$/', // DD/MM/YYYY
+            'd-m-Y' => '/^(\d{2})-(\d{2})-(\d{4})$/', // DD-MM-YYYY
+            'd.m.Y' => '/^(\d{2})\.(\d{2})\.(\d{4})$/', // DD.MM.YYYY
         ];
 
         foreach ($formats as $format => $pattern) {

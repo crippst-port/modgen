@@ -31,7 +31,6 @@ namespace aiplacement_modgen;
  * allowing users to generate module content using AI.
  */
 class placement extends \core_ai\placement {
-
     /**
      * Return the list of actions supported by this placement.
      *

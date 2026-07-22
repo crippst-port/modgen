@@ -32,7 +32,6 @@ defined('MOODLE_INTERNAL') || die();
  * Creates Forum activities for course discussions and collaborative learning.
  */
 class forum implements activity_type {
-    
     /** @inheritDoc */
     public static function get_type(): string {
         return 'forum';
@@ -55,7 +54,7 @@ class forum implements activity_type {
         require_once($CFG->dirroot . '/course/modlib.php');
 
         $name = trim($activitydata->name ?? '');
-        
+
         if ($name === '') {
             return null;
         }
@@ -71,14 +70,14 @@ class forum implements activity_type {
         $moduleinfo->section = $sectionnumber;
         $moduleinfo->visible = 1;
         $moduleinfo->name = $name;
-        
+
         // Forum intro
         $moduleinfo->introeditor = [
             'text' => $intro,
             'format' => 1,
-            'itemid' => 0
+            'itemid' => 0,
         ];
-        
+
         // Forum-specific fields
         $moduleinfo->introformat = 1;
         $moduleinfo->showdescription = 1;  // Display description on course page
@@ -100,13 +99,13 @@ class forum implements activity_type {
 
         try {
             $cm = \create_module($moduleinfo);
-            
+
             $forumid = $cm->instance;
             $cmid = $cm->coursemodule;
 
             return [
                 'coursemodule' => $cmid,
-                'instance' => $forumid
+                'instance' => $forumid,
             ];
         } catch (\Exception $e) {
             return null;
@@ -121,7 +120,7 @@ class forum implements activity_type {
      */
     private function normalize_forum_type(string $type): string {
         $type = strtolower(trim($type));
-        
+
         // Map common variations to valid types
         $map = [
             'q&a' => 'qanda',
@@ -139,11 +138,11 @@ class forum implements activity_type {
             'each' => 'eachuser',
             'teacher' => 'teacher',
         ];
-        
+
         if (isset($map[$type])) {
             return $map[$type];
         }
-        
+
         // Default to general discussion
         return 'general';
     }

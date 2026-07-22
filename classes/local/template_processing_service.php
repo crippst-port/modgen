@@ -37,7 +37,6 @@ require_once(__DIR__ . '/ai_service.php');
  * Service for processing templates and generating module structures.
  */
 class template_processing_service {
-
     /**
      * Process template data and generate module structure.
      *
@@ -85,7 +84,7 @@ class template_processing_service {
                 $debuglog
             );
         }
-        
+
         // No existing module template - use CSV or generate fresh
         return $this->process_without_existing_modules(
             $pdata,
@@ -125,7 +124,6 @@ class template_processing_service {
 
                 $ext = strtolower(pathinfo($file->get_filename(), PATHINFO_EXTENSION));
                 if ($ext === 'csv') {
-
                     return $file;
                 }
             }
@@ -153,9 +151,7 @@ class template_processing_service {
                     throw new \Exception('CSV file not found in file storage');
                 }
 
-
                 return $csvfile;
-
             } catch (\Exception $e) {
                 throw new \Exception('Error loading template: ' . $e->getMessage());
             }
@@ -172,7 +168,7 @@ class template_processing_service {
      */
     private function get_existing_modules(\stdClass $pdata): array {
         $existing_modules = [];
-        
+
         if (!empty($pdata->existing_modules)) {
             if (is_array($pdata->existing_modules)) {
                 $existing_modules = array_map('intval', array_filter($pdata->existing_modules));
@@ -180,7 +176,7 @@ class template_processing_service {
                 $existing_modules = [(int)$pdata->existing_modules];
             }
         }
-        
+
         return array_unique(array_filter($existing_modules));
     }
 
@@ -214,16 +210,14 @@ class template_processing_service {
         try {
             $template_reader = new template_reader();
             $template_data = null;
-            
+
             // Extract and merge templates from all selected modules
             // (Template extraction logic would go here - keeping original complexity)
-            
 
-            
             if (!is_array($template_data) || empty($template_data)) {
                 throw new \Exception('Template data is empty or invalid');
             }
-            
+
             // Validate template data
             $data_summary = [];
             foreach ($template_data as $key => $value) {
@@ -236,16 +230,15 @@ class template_processing_service {
                 }
             }
 
-            
             // Determine processing mode
             $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
             $expand_on_themes = !empty($pdata->expandonthemes);
             $has_user_prompt = !empty($pdata->prompt) && trim($pdata->prompt) !== '';
             $has_csv_file = !empty($pdata->supportingfiles) || !empty($csvfile);
             $generate_examples = !empty($pdata->generateexamplecontent);
-            
+
             $csvservice = new csv_processing_service();
-            
+
             if ($csvservice->should_use_pure_csv_mode($ai_enabled, $has_csv_file, $has_user_prompt, $expand_on_themes, $generate_examples)) {
                 return $this->process_pure_csv_mode($csvfile, $pdata, $moduletype);
             } else {
@@ -260,10 +253,9 @@ class template_processing_service {
                     $includesessions
                 );
             }
-            
         } catch (\Exception $e) {
             $debuglog[] = 'Template extraction failed: ' . $e->getMessage();
-            
+
             // Fall back to normal generation
             return $this->process_without_existing_modules(
                 $pdata,
@@ -302,15 +294,15 @@ class template_processing_service {
         bool $includesessions
     ): array {
         global $USER;
-        
+
         $ai_enabled = get_config('aiplacement_modgen', 'enable_ai');
         $expand_on_themes = !empty($pdata->expandonthemes);
         $has_user_prompt = !empty($pdata->prompt) && trim($pdata->prompt) !== '';
         $has_csv_file = !empty($pdata->supportingfiles) || !empty($csvfile);
         $generate_examples = !empty($pdata->generateexamplecontent);
-        
+
         $csvservice = new csv_processing_service();
-        
+
         if ($csvservice->should_use_pure_csv_mode($ai_enabled, $has_csv_file, $has_user_prompt, $expand_on_themes, $generate_examples)) {
             return $this->process_pure_csv_mode($csvfile, $pdata, $moduletype);
         } else {
@@ -338,31 +330,31 @@ class template_processing_service {
      */
     private function process_pure_csv_mode(?\stored_file $csvfile, \stdClass $pdata, string $moduletype): array {
         global $USER;
-        
+
         if (empty($csvfile)) {
             $draftitemid = $pdata->supportingfiles;
             $usercontext = \context_user::instance($USER->id);
             $fs = get_file_storage();
             $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-            
+
             if (empty($files)) {
                 throw new \Exception('No CSV file found in draft area');
             }
-            
+
             $csvfile = array_shift($files);
         }
-        
+
         // Auto-detect CSV format if needed
         if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
             $detectedformat = csv_parser::detect_csv_format($csvfile);
             $moduletype = $detectedformat;
         }
-        
+
         $result = csv_parser::parse_csv_to_structure($csvfile, $moduletype);
-        
+
         // Return structure with the detected/used module type
         $result['_detected_moduletype'] = $moduletype;
-        
+
         return $result;
     }
 
@@ -390,31 +382,31 @@ class template_processing_service {
         bool $includesessions
     ): array {
         global $USER;
-        
+
         $csv_structure = null;
         $has_csv_file = !empty($pdata->supportingfiles) || !empty($csvfile);
-        
+
         if ($has_csv_file) {
             if (empty($csvfile)) {
                 $usercontext = \context_user::instance($USER->id);
                 $csvservice = new csv_processing_service();
                 $csvfile = $csvservice->get_csv_file($csvfile, $pdata->supportingfiles, $usercontext->id);
             }
-            
+
             if (!empty($csvfile)) {
                 if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
                     $detectedformat = csv_parser::detect_csv_format($csvfile);
                     $moduletype = $detectedformat;
                 }
-                
+
                 $csv_structure = csv_parser::parse_csv_to_structure($csvfile, $moduletype);
             }
         }
-        
+
         // Build AI instructions
         $ai_instructions = $this->build_ai_instructions($csv_structure, $pdata);
         $compositeprompt = $compositeprompt . $ai_instructions;
-        
+
         $result = \aiplacement_modgen\ai_service::generate_module(
             $compositeprompt,
             $supportingfiles,
@@ -424,10 +416,10 @@ class template_processing_service {
             $includeactivities,
             $includesessions
         );
-        
+
         // Return structure with the detected/used module type
         $result['_detected_moduletype'] = $moduletype;
-        
+
         return $result;
     }
 
@@ -442,13 +434,13 @@ class template_processing_service {
         if ($csv_structure === null) {
             return '';
         }
-        
+
         $expand_on_themes = !empty($pdata->expandonthemes);
-        
+
         // Count themes/weeks
         $themecount = 0;
         $weekcount = 0;
-        
+
         if (!empty($csv_structure['themes']) && is_array($csv_structure['themes'])) {
             $themecount = count($csv_structure['themes']);
             foreach ($csv_structure['themes'] as $theme) {
@@ -457,7 +449,7 @@ class template_processing_service {
                 }
             }
         }
-        
+
         $instructions = "\n\n*** BASE STRUCTURE FROM CSV ***\n";
         $instructions .= json_encode($csv_structure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         $instructions .= "\n\n*** CRITICAL STRUCTURAL REQUIREMENTS ***\n";
@@ -471,7 +463,7 @@ class template_processing_service {
         $instructions .= "- Your output MUST have EXACTLY " . $themecount . " themes (this is non-negotiable)\n";
         $instructions .= "- Return ONLY the exact structure shown above - no modifications to theme/week count\n\n";
         $instructions .= "- The number of sections in your output MUST match the CSV exactly\n\n";
-        
+
         if ($expand_on_themes) {
             $instructions .= "*** TITLE ENHANCEMENT INSTRUCTIONS ***\n";
             $instructions .= "Improve the section titles with these requirements:\n";
@@ -480,7 +472,7 @@ class template_processing_service {
             $instructions .= "- Avoid marketing language or overly casual tone\n";
             $instructions .= "- Focus on clarity and academic rigor\n";
             $instructions .= "- Enhanced titles should be scholarly but accessible\n";
-            
+
             if (!empty($pdata->generateexamplecontent)) {
                 $instructions .= "\n*** ADDITIONAL CONTENT GENERATION ***\n";
                 $instructions .= "Generate example content ONLY within the existing structure:\n";
@@ -496,7 +488,7 @@ class template_processing_service {
             $instructions .= "- Return titles exactly as provided\n";
             $instructions .= "- Only add content if explicitly requested\n";
         }
-        
+
         return $instructions;
     }
 }

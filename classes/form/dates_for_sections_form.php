@@ -30,20 +30,19 @@ require_once($CFG->libdir . '/formslib.php');
  * Form for applying dates to sections.
  */
 class aiplacement_modgen_dates_for_sections_form extends moodleform {
-
     /**
      * Form definition.
      */
     public function definition() {
         global $PAGE;
-        
+
         $mform = $this->_form;
         $customdata = $this->_customdata;
 
         // Hidden course ID.
         $mform->addElement('hidden', 'courseid');
         $mform->setType('courseid', PARAM_INT);
-        
+
         // Hidden field for selected sections (populated by JavaScript)
         $mform->addElement('hidden', 'selectedsections');
         $mform->setType('selectedsections', PARAM_RAW);
@@ -67,7 +66,7 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
             $tablehtml = $this->render_sections_table($customdata['sections']);
             $mform->addElement('html', $tablehtml);
         } else {
-            $mform->addElement('html', '<p class="alert alert-info">' . 
+            $mform->addElement('html', '<p class="alert alert-info">' .
                 get_string('nosectionsavailable', 'aiplacement_modgen') . '</p>');
         }
 
@@ -80,16 +79,25 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
 
         // Action buttons.
         $buttongroup = [];
-        $buttongroup[] = $mform->createElement('submit', 'submitbutton', 
+        $buttongroup[] = $mform->createElement(
+            'submit',
+            'submitbutton',
             get_string('applydates', 'aiplacement_modgen'),
-            ['class' => 'btn btn-primary']);
-        $buttongroup[] = $mform->createElement('submit', 'removedates', 
+            ['class' => 'btn btn-primary']
+        );
+        $buttongroup[] = $mform->createElement(
+            'submit',
+            'removedates',
             get_string('removealldates', 'aiplacement_modgen'),
-            ['class' => 'btn btn-warning']);
-        $buttongroup[] = $mform->createElement('cancel', 'cancel', 
+            ['class' => 'btn btn-warning']
+        );
+        $buttongroup[] = $mform->createElement(
+            'cancel',
+            'cancel',
             get_string('cancel'),
-            ['class' => 'btn btn-secondary']);
-        
+            ['class' => 'btn btn-secondary']
+        );
+
         $mform->addGroup($buttongroup, 'buttonar', '', [' '], false);
         $mform->setType('buttonar', PARAM_RAW);
     }
@@ -104,7 +112,7 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
         global $PAGE;
 
         // Sort sections by section number to maintain course order.
-        usort($sections, function($a, $b) {
+        usort($sections, function ($a, $b) {
             return $a['section'] <=> $b['section'];
         });
 
@@ -133,12 +141,12 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
         // Build maps for quick lookup
         $sectionmap = [];
         $childrenmap = [];
-        
+
         foreach ($sections as $section) {
             $sectionmap[$section['id']] = $section;
             $childrenmap[$section['id']] = [];
         }
-        
+
         // Build parent-child relationships
         foreach ($sections as $section) {
             if (!empty($section['parent_id'])) {
@@ -148,7 +156,7 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
                 }
             }
         }
-        
+
         // Build hierarchical structure starting with top-level sections
         $hierarchy = [];
         foreach ($sections as $section) {
@@ -157,7 +165,7 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
                 $hierarchy[] = $this->build_section_node($section, $childrenmap, $sectionmap, 0);
             }
         }
-        
+
         return $hierarchy;
     }
 
@@ -181,7 +189,7 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
             'haschildren' => !empty($childrenmap[$section['id']]),
             'children' => [],
         ];
-        
+
         // Recursively add children
         if (!empty($childrenmap[$section['id']])) {
             foreach ($childrenmap[$section['id']] as $childid) {
@@ -195,7 +203,7 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
                 }
             }
         }
-        
+
         return $node;
     }
 

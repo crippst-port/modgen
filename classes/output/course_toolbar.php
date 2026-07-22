@@ -38,22 +38,22 @@ use moodle_url;
 class course_toolbar implements renderable, templatable {
     /** @var int Course ID */
     private $courseid;
-    
+
     /** @var bool Whether to show AI prompt generator button */
     private $showgenerator;
-    
+
     /** @var bool Whether to show suggest button */
     private $showsuggest;
-    
+
     /** @var bool Whether to show manage structure buttons (themes/weeks) */
     private $showmanagestructure;
-    
+
     /** @var bool Whether to show manage dates button */
     private $showmanagedates;
-    
+
     /** @var bool Whether to show template from file button */
     private $showtemplatefromfile;
-    
+
     /** @var bool Whether to show template from prompt button */
     private $showtemplatefromptompt;
 
@@ -100,7 +100,7 @@ class course_toolbar implements renderable, templatable {
      */
     public function export_for_template(renderer_base $output): stdClass {
         global $DB;
-        
+
         $data = new stdClass();
         $data->showgenerator = $this->showgenerator;
         $data->showsuggest = $this->showsuggest;
@@ -110,15 +110,17 @@ class course_toolbar implements renderable, templatable {
         $data->showtemplatefromptompt = $this->showtemplatefromptompt;
         $data->showcheckstructure = $this->showcheckstructure;
         if ($this->showcheckstructure) {
-            $checkstructureurl = new moodle_url('/ai/placement/modgen/check_structure.php',
-                ['id' => $this->courseid, 'check' => 1]);
+            $checkstructureurl = new moodle_url(
+                '/ai/placement/modgen/check_structure.php',
+                ['id' => $this->courseid, 'check' => 1]
+            );
             $data->checkstructureurl = $checkstructureurl->out(false);
         }
 
         // Always provide generator URL (needed for "Template from file" link)
         $generatorurl = new moodle_url('/ai/placement/modgen/modal.php', ['id' => $this->courseid]);
         $data->generatorurl = $generatorurl->out(false);
-        
+
         // Get count of unedited AI-generated activities in this course.
         // Use the same logic as aigen_list.php - check if modules exist in modinfo and clean up orphans.
         $sql = "SELECT ag.id, ag.cmid
@@ -126,11 +128,11 @@ class course_toolbar implements renderable, templatable {
                   JOIN {course_modules} cm ON cm.id = ag.cmid
                  WHERE ag.courseid = :courseid
                    AND cm.deletioninprogress = 0";
-        
+
         $records = $DB->get_records_sql($sql, ['courseid' => $this->courseid]);
         $course = get_course($this->courseid);
         $modinfo = get_fast_modinfo($course);
-        
+
         $validcount = 0;
         foreach ($records as $record) {
             if (!isset($modinfo->cms[$record->cmid])) {
@@ -140,21 +142,21 @@ class course_toolbar implements renderable, templatable {
                 $validcount++;
             }
         }
-        
+
         $data->aigencount = $validcount;
         $data->hasaigen = $validcount > 0;
-        
+
         if ($data->hasaigen) {
             $aigenlisturl = new moodle_url('/ai/placement/modgen/aigen_list.php', ['id' => $this->courseid]);
             $data->aigenlisturl = $aigenlisturl->out(false);
         }
-        
+
         // Get help links from settings
         $helplinks = [];
         for ($i = 1; $i <= 5; $i++) {
             $text = get_config('aiplacement_modgen', "helplink{$i}_text");
             $url = get_config('aiplacement_modgen', "helplink{$i}_url");
-            
+
             // Only include links that have both text and URL
             if (!empty($text) && !empty($url)) {
                 $helplinks[] = [
@@ -163,10 +165,10 @@ class course_toolbar implements renderable, templatable {
                 ];
             }
         }
-        
+
         $data->helplinks = $helplinks;
         $data->showhelplinks = !empty($helplinks);
-        
+
         return $data;
     }
 }

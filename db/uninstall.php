@@ -29,8 +29,7 @@ defined('MOODLE_INTERNAL') || die();
  *
  * @return bool Success status
  */
-function xmldb_aiplacement_modgen_uninstall()
-{
+function xmldb_aiplacement_modgen_uninstall() {
     global $DB;
 
     // Delete all job records.

@@ -47,8 +47,7 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @coversDefaultClass \aiplacement_modgen\local\theme_builder
  */
-class comprehensive_workflow_test extends advanced_testcase {
-
+final class comprehensive_workflow_test extends advanced_testcase {
     /**
      * @var stdClass Test course object.
      */
@@ -69,7 +68,7 @@ class comprehensive_workflow_test extends advanced_testcase {
 
         // Create test course.
         $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        
+
         // Convert to flexsections.
         theme_builder::ensure_flexsections_format($this->course->id);
         $this->courseformat = \course_get_format($this->course->id);
@@ -96,7 +95,7 @@ class comprehensive_workflow_test extends advanced_testcase {
             $parentoption = $DB->get_record('course_format_options', [
                 'courseid' => $this->course->id,
                 'sectionid' => $section->id,
-                'name' => 'parent'
+                'name' => 'parent',
             ]);
 
             if (!$parentoption) {
@@ -123,7 +122,7 @@ class comprehensive_workflow_test extends advanced_testcase {
             // Verify parent section exists.
             $parentsection = $DB->get_record('course_sections', [
                 'course' => $this->course->id,
-                'section' => $parentvalue
+                'section' => $parentvalue,
             ]);
 
             if (!$parentsection) {
@@ -133,7 +132,7 @@ class comprehensive_workflow_test extends advanced_testcase {
 
         return [
             'valid' => empty($errors),
-            'errors' => $errors
+            'errors' => $errors,
         ];
     }
 
@@ -153,20 +152,25 @@ class comprehensive_workflow_test extends advanced_testcase {
         // Get the section.
         $section = $DB->get_record('course_sections', [
             'course' => $courseid,
-            'section' => $sectionnum
+            'section' => $sectionnum,
         ], '*', MUST_EXIST);
 
         // Check parent field exists.
         $parentoption = $DB->get_record('course_format_options', [
             'courseid' => $courseid,
             'sectionid' => $section->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ]);
 
-        $this->assertNotFalse($parentoption, 
-            "Section {$sectionnum} should have parent field in course {$courseid}");
-        $this->assertEquals($expectedparent, $parentoption->value, 
-            "Section {$sectionnum} parent should be {$expectedparent} in course {$courseid}");
+        $this->assertNotFalse(
+            $parentoption,
+            "Section {$sectionnum} should have parent field in course {$courseid}"
+        );
+        $this->assertEquals(
+            $expectedparent,
+            $parentoption->value,
+            "Section {$sectionnum} parent should be {$expectedparent} in course {$courseid}"
+        );
     }
 
     /**
@@ -193,7 +197,7 @@ class comprehensive_workflow_test extends advanced_testcase {
      * @covers \aiplacement_modgen\local\theme_builder::create_theme_section
      * @covers \aiplacement_modgen\local\theme_builder::create_week_section
      */
-    public function test_quick_add_creates_valid_parent_fields() {
+    public function test_quick_add_creates_valid_parent_fields(): void {
         // Create theme 1 and validate immediately.
         $theme1 = theme_builder::create_theme_section(
             $this->course->id,
@@ -259,9 +263,9 @@ class comprehensive_workflow_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_csv_import_creates_valid_parent_fields() {
+    public function test_csv_import_creates_valid_parent_fields(): void {
         global $DB;
-        
+
         // Simulate JSON structure from CSV import.
         $jsonstructure = [
             'themes' => [
@@ -275,8 +279,8 @@ class comprehensive_workflow_test extends advanced_testcase {
                             'sessions' => [
                                 'presession' => ['description' => 'Pre-session work'],
                                 'session' => ['description' => 'Main session'],
-                                'postsession' => ['description' => 'Post-session work']
-                            ]
+                                'postsession' => ['description' => 'Post-session work'],
+                            ],
                         ],
                         [
                             'title' => 'Week 2',
@@ -284,12 +288,12 @@ class comprehensive_workflow_test extends advanced_testcase {
                             'sessions' => [
                                 'presession' => ['description' => 'Pre-session work'],
                                 'session' => ['description' => 'Main session'],
-                                'postsession' => ['description' => 'Post-session work']
-                            ]
-                        ]
-                    ]
-                ]
-            ]
+                                'postsession' => ['description' => 'Post-session work'],
+                            ],
+                        ],
+                    ],
+                ],
+            ],
         ];
 
         // Create sections from JSON.
@@ -305,101 +309,127 @@ class comprehensive_workflow_test extends advanced_testcase {
 
         // Verify method executed without errors.
         $this->assertIsArray($results, 'Should return results array');
-        
+
         // Verify at least one section was created with parent field.
-        $namedsections = $DB->get_records_select('course_sections', 
+        $namedsections = $DB->get_records_select(
+            'course_sections',
             'course = ? AND section > 0 AND name IS NOT NULL AND name != ?',
-            [$this->course->id, '']);
-        
-        $this->assertGreaterThan(0, count($namedsections), 
-            'CSV import should create at least one named section');
-        
+            [$this->course->id, '']
+        );
+
+        $this->assertGreaterThan(
+            0,
+            count($namedsections),
+            'CSV import should create at least one named section'
+        );
+
         // Check that created sections have parent fields WITH CORRECT VALUES.
         $themes = [];
         $weeks = [];
         $sessions = [];
-        
+
         foreach ($namedsections as $section) {
             if (strpos($section->name, 'Theme') !== false) {
                 $themes[] = $section;
             } else if (strpos($section->name, 'Week') !== false) {
                 $weeks[] = $section;
-            } else if (strpos($section->name, 'session') !== false || 
-                       strpos($section->name, 'Session') !== false) {
+            } else if (
+                strpos($section->name, 'session') !== false ||
+                       strpos($section->name, 'Session') !== false
+            ) {
                 $sessions[] = $section;
             }
         }
-        
+
         // Verify we found the expected sections.
         $this->assertGreaterThan(0, count($themes), 'Should create at least one theme');
         $this->assertGreaterThan(0, count($weeks), 'Should create at least one week');
-        
+
         // Verify themes have parent=0.
         foreach ($themes as $theme) {
             $parentfield = $DB->get_record('course_format_options', [
                 'courseid' => $this->course->id,
                 'sectionid' => $theme->id,
                 'format' => 'flexsections',
-                'name' => 'parent'
+                'name' => 'parent',
             ]);
-            
+
             $this->assertNotFalse($parentfield, "Theme '{$theme->name}' should have parent field");
-            $this->assertEquals('0', $parentfield->value, 
-                "Theme '{$theme->name}' should have parent=0");
+            $this->assertEquals(
+                '0',
+                $parentfield->value,
+                "Theme '{$theme->name}' should have parent=0"
+            );
         }
-        
+
         // Verify weeks have parent=theme section number.
         foreach ($weeks as $week) {
             $parentfield = $DB->get_record('course_format_options', [
                 'courseid' => $this->course->id,
                 'sectionid' => $week->id,
                 'format' => 'flexsections',
-                'name' => 'parent'
+                'name' => 'parent',
             ]);
-            
+
             $this->assertNotFalse($parentfield, "Week '{$week->name}' should have parent field");
-            
+
             // Parent should be a theme section number (not 0).
             $parentnum = (int)$parentfield->value;
-            $this->assertGreaterThan(0, $parentnum, 
-                "Week '{$week->name}' should have theme as parent (not 0)");
-            
+            $this->assertGreaterThan(
+                0,
+                $parentnum,
+                "Week '{$week->name}' should have theme as parent (not 0)"
+            );
+
             // Verify parent section exists and is a theme.
             $parentsection = $DB->get_record('course_sections', [
                 'course' => $this->course->id,
-                'section' => $parentnum
+                'section' => $parentnum,
             ]);
-            $this->assertNotFalse($parentsection, 
-                "Week '{$week->name}' parent section should exist");
-            $this->assertStringContainsString('Theme', $parentsection->name,
-                "Week '{$week->name}' parent should be a theme");
+            $this->assertNotFalse(
+                $parentsection,
+                "Week '{$week->name}' parent section should exist"
+            );
+            $this->assertStringContainsString(
+                'Theme',
+                $parentsection->name,
+                "Week '{$week->name}' parent should be a theme"
+            );
         }
-        
+
         // If sessions were created, verify they have parent=week section number.
         foreach ($sessions as $session) {
             $parentfield = $DB->get_record('course_format_options', [
                 'courseid' => $this->course->id,
                 'sectionid' => $session->id,
                 'format' => 'flexsections',
-                'name' => 'parent'
+                'name' => 'parent',
             ]);
-            
+
             $this->assertNotFalse($parentfield, "Session '{$session->name}' should have parent field");
-            
+
             // Parent should be a week section number.
             $parentnum = (int)$parentfield->value;
-            $this->assertGreaterThan(0, $parentnum, 
-                "Session '{$session->name}' should have week as parent (not 0)");
-            
+            $this->assertGreaterThan(
+                0,
+                $parentnum,
+                "Session '{$session->name}' should have week as parent (not 0)"
+            );
+
             // Verify parent section exists and is a week.
             $parentsection = $DB->get_record('course_sections', [
                 'course' => $this->course->id,
-                'section' => $parentnum
+                'section' => $parentnum,
             ]);
-            $this->assertNotFalse($parentsection, 
-                "Session '{$session->name}' parent section should exist");
-            $this->assertStringContainsString('Week', $parentsection->name,
-                "Session '{$session->name}' parent should be a week");
+            $this->assertNotFalse(
+                $parentsection,
+                "Session '{$session->name}' parent section should exist"
+            );
+            $this->assertStringContainsString(
+                'Week',
+                $parentsection->name,
+                "Session '{$session->name}' parent should be a week"
+            );
         }
     }
 
@@ -409,7 +439,7 @@ class comprehensive_workflow_test extends advanced_testcase {
      * @covers \aiplacement_modgen\local\theme_builder::create_theme_section
      * @covers \aiplacement_modgen\local\theme_builder::create_week_section
      */
-    public function test_delete_and_recreate_maintains_valid_parents() {
+    public function test_delete_and_recreate_maintains_valid_parents(): void {
         global $DB;
 
         // Create initial structure.
@@ -431,13 +461,13 @@ class comprehensive_workflow_test extends advanced_testcase {
         // Validate initial state using immediate validation.
         $this->assert_section_has_parent($theme1, 0, $this->course->id);
         $this->assert_section_has_parent($week1, $theme1, $this->course->id);
-        
+
         $initialcount = $this->count_sections_with_parents();
 
         // Delete the week section.
         $weeksection = $DB->get_record('course_sections', [
             'course' => $this->course->id,
-            'section' => $week1
+            'section' => $week1,
         ], '*', MUST_EXIST);
 
         // Delete section and its format options.
@@ -470,7 +500,7 @@ class comprehensive_workflow_test extends advanced_testcase {
      * @covers \aiplacement_modgen\local\theme_builder::create_theme_section
      * @covers \aiplacement_modgen\local\theme_builder::create_week_section
      */
-    public function test_multiple_delete_create_cycles() {
+    public function test_multiple_delete_create_cycles(): void {
         global $DB;
 
         // Run 5 cycles of create/delete/recreate.
@@ -508,7 +538,7 @@ class comprehensive_workflow_test extends advanced_testcase {
             // Delete one week.
             $section = $DB->get_record('course_sections', [
                 'course' => $this->course->id,
-                'section' => $week1
+                'section' => $week1,
             ]);
 
             if ($section) {
@@ -542,9 +572,9 @@ class comprehensive_workflow_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\session_creator::create_sessions
      */
-    public function test_session_creation_with_parent_validation() {
+    public function test_session_creation_with_parent_validation(): void {
         global $DB;
-        
+
         // Create theme and week.
         $theme = theme_builder::create_theme_section(
             $this->course->id,
@@ -562,25 +592,28 @@ class comprehensive_workflow_test extends advanced_testcase {
             ['sessiondata' => [
                 'presession' => ['description' => 'Pre-session work'],
                 'session' => ['description' => 'Main session'],
-                'postsession' => ['description' => 'Post-session work']
+                'postsession' => ['description' => 'Post-session work'],
             ]]
         );
 
         // Validate theme and week immediately.
         $this->assert_section_has_parent($theme, 0, $this->course->id);
         $this->assert_section_has_parent($week, $theme, $this->course->id);
-        
+
         // Verify week section was created successfully.
         // Session creation is complex and tested elsewhere - here we just verify
         // the basic theme/week structure works.
         $weeksection = $DB->get_record('course_sections', [
             'course' => $this->course->id,
-            'section' => $week
+            'section' => $week,
         ]);
-        
+
         $this->assertNotFalse($weeksection, 'Week section should exist');
-        $this->assertEquals('Week with Sessions', $weeksection->name, 
-            'Week section should have correct name');
+        $this->assertEquals(
+            'Week with Sessions',
+            $weeksection->name,
+            'Week section should have correct name'
+        );
     }
 
     /**
@@ -588,11 +621,11 @@ class comprehensive_workflow_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\theme_builder::create_section_with_parent
      */
-    public function test_centralized_helper_validates_parameters() {
+    public function test_centralized_helper_validates_parameters(): void {
         // Test invalid course ID.
         $this->expectException(\moodle_exception::class);
         $this->expectExceptionMessage('invalid course');
-        
+
         theme_builder::create_section_with_parent(
             -1, // Invalid course ID
             $this->courseformat,
@@ -608,10 +641,10 @@ class comprehensive_workflow_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\theme_builder::create_section_with_parent
      */
-    public function test_centralized_helper_rejects_negative_parent() {
+    public function test_centralized_helper_rejects_negative_parent(): void {
         $this->expectException(\moodle_exception::class);
         $this->expectExceptionMessage('Invalid section parent');
-        
+
         theme_builder::create_section_with_parent(
             $this->course->id,
             $this->courseformat,
@@ -627,10 +660,10 @@ class comprehensive_workflow_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\theme_builder::create_section_with_parent
      */
-    public function test_centralized_helper_rejects_empty_name() {
+    public function test_centralized_helper_rejects_empty_name(): void {
         $this->expectException(\moodle_exception::class);
         $this->expectExceptionMessage('Section name cannot be empty');
-        
+
         theme_builder::create_section_with_parent(
             $this->course->id,
             $this->courseformat,
@@ -646,7 +679,7 @@ class comprehensive_workflow_test extends advanced_testcase {
      *
      * Tests that we can detect sections with non-existent parent numbers.
      */
-    public function test_orphaned_section_detection() {
+    public function test_orphaned_section_detection(): void {
         global $DB;
 
         // Create valid structure.
@@ -669,7 +702,7 @@ class comprehensive_workflow_test extends advanced_testcase {
         $orphannum = $this->courseformat->create_new_section(0, null);
         $orphan = $DB->get_record('course_sections', [
             'course' => $this->course->id,
-            'section' => $orphannum
+            'section' => $orphannum,
         ], '*', MUST_EXIST);
 
         $orphan->name = 'Orphaned Section';
@@ -681,23 +714,23 @@ class comprehensive_workflow_test extends advanced_testcase {
             'format' => 'flexsections',
             'sectionid' => $orphan->id,
             'name' => 'parent',
-            'value' => '999' // Non-existent parent
+            'value' => '999', // Non-existent parent
         ]);
 
         // Verify orphan has invalid parent.
         $parentfield = $DB->get_record('course_format_options', [
             'courseid' => $this->course->id,
             'sectionid' => $orphan->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ]);
-        
+
         $this->assertNotFalse($parentfield, 'Orphan should have parent field');
         $this->assertEquals('999', $parentfield->value, 'Parent should point to non-existent section 999');
-        
+
         // Verify the referenced section doesn't exist.
         $parentexists = $DB->record_exists('course_sections', [
             'course' => $this->course->id,
-            'section' => 999
+            'section' => 999,
         ]);
         $this->assertFalse($parentexists, 'Parent section 999 should not exist (demonstrating orphan)');
     }
@@ -707,7 +740,7 @@ class comprehensive_workflow_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\theme_builder::initialize_core_sections
      */
-    public function test_assessments_section_has_valid_parent() {
+    public function test_assessments_section_has_valid_parent(): void {
         global $DB;
 
         // Initialize core sections (creates Assessments section).
@@ -717,7 +750,7 @@ class comprehensive_workflow_test extends advanced_testcase {
         $assessmentsname = get_string('assessmentssectionname', 'aiplacement_modgen');
         $assessments = $DB->get_record('course_sections', [
             'course' => $this->course->id,
-            'name' => $assessmentsname
+            'name' => $assessmentsname,
         ]);
 
         $this->assertNotFalse($assessments, 'Assessments section should exist');
@@ -729,7 +762,7 @@ class comprehensive_workflow_test extends advanced_testcase {
         $parentoption = $DB->get_record('course_format_options', [
             'courseid' => $this->course->id,
             'sectionid' => $assessments->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ]);
 
         $this->assertNotFalse($parentoption, 'Assessments section should have parent field');
@@ -738,7 +771,7 @@ class comprehensive_workflow_test extends advanced_testcase {
 
     /**
      * EXTREME STRESS TEST: Test solution under heavy load to ensure database integrity.
-     * 
+     *
      * This test pushes the parent field fix to reasonable production limits:
      * - Creates 5 courses in parallel
      * - Each course gets 3 themes with 10 weeks each = 30 weeks per course
@@ -751,7 +784,7 @@ class comprehensive_workflow_test extends advanced_testcase {
      * @covers \aiplacement_modgen\local\theme_builder::create_theme_section
      * @covers \aiplacement_modgen\local\theme_builder::create_week_section
      */
-    public function test_extreme_stress_parent_fields() {
+    public function test_extreme_stress_parent_fields(): void {
         global $DB;
 
         $starttime = microtime(true);
@@ -762,9 +795,9 @@ class comprehensive_workflow_test extends advanced_testcase {
         for ($i = 1; $i <= 5; $i++) {
             $course = $this->getDataGenerator()->create_course([
                 'shortname' => "STRESS{$i}",
-                'fullname' => "Stress Test Course {$i}"
+                'fullname' => "Stress Test Course {$i}",
             ]);
-            
+
             // Convert to flexsections.
             theme_builder::ensure_flexsections_format($course->id);
             $courses[] = $course;
@@ -776,10 +809,10 @@ class comprehensive_workflow_test extends advanced_testcase {
         // For each course, create heavy structure: 3 themes × 10 weeks = 30 weeks.
         foreach ($courses as $courseindex => $course) {
             $coursethemes = [];
-            
+
             // Get course format object.
             $courseformat = course_get_format($course->id);
-            
+
             // Create 3 themes per course.
             for ($themenum = 1; $themenum <= 3; $themenum++) {
                 $themename = "Course{$courseindex}-Theme{$themenum}";
@@ -789,14 +822,14 @@ class comprehensive_workflow_test extends advanced_testcase {
                     $themename,
                     "Theme {$themenum} summary"
                 );
-                
+
                 // Validate theme immediately.
                 $this->assertGreaterThan(0, $themesectionnum, "Theme {$themename} should be created");
                 $this->assert_section_has_parent($themesectionnum, 0, $course->id);
                 $totalassertions += 2;
-                
+
                 $coursethemes[] = $themesectionnum;
-                
+
                 // Create 10 weeks under this theme.
                 for ($weeknum = 1; $weeknum <= 10; $weeknum++) {
                     $weekname = "{$themename}-Week{$weeknum}";
@@ -807,50 +840,58 @@ class comprehensive_workflow_test extends advanced_testcase {
                         $weekname,
                         "Week {$weeknum} summary for stress testing"
                     );
-                    
+
                     // Validate week immediately.
                     $this->assertGreaterThan(0, $weeksectionnum, "Week {$weekname} should be created");
                     $this->assert_section_has_parent($weeksectionnum, $themesectionnum, $course->id);
                     $totalassertions += 2;
                 }
             }
-            
+
             // Verify this course has expected number of sections.
             // 3 themes + (3 themes × 10 weeks) + (30 weeks × 3 sessions) + 1 assessments = 124 sections.
             $allsections = $DB->get_records('course_sections', ['course' => $course->id]);
-            $this->assertGreaterThanOrEqual(34, count($allsections), 
-                "Course {$course->shortname} should have at least 34 sections (3 themes + 30 weeks + assessments)");
+            $this->assertGreaterThanOrEqual(
+                34,
+                count($allsections),
+                "Course {$course->shortname} should have at least 34 sections (3 themes + 30 weeks + assessments)"
+            );
             $totalassertions++;
         }
 
         // Cross-course validation: Ensure no parent field corruption across courses.
         foreach ($courses as $course) {
             $coursesections = $DB->get_records('course_sections', ['course' => $course->id]);
-            
+
             foreach ($coursesections as $section) {
                 // Get parent option for this section.
                 $parentoption = $DB->get_record('course_format_options', [
                     'courseid' => $course->id,
                     'sectionid' => $section->id,
                     'format' => 'flexsections',
-                    'name' => 'parent'
+                    'name' => 'parent',
                 ]);
-                
+
                 if ($parentoption) {
                     // Verify parent field has correct courseid.
-                    $this->assertEquals($course->id, $parentoption->courseid,
-                        "Section {$section->id} parent field has wrong courseid");
+                    $this->assertEquals(
+                        $course->id,
+                        $parentoption->courseid,
+                        "Section {$section->id} parent field has wrong courseid"
+                    );
                     $totalassertions++;
-                    
+
                     // Verify parent value is valid (either 0 or references a section in same course).
                     $parentvalue = (int)$parentoption->value;
                     if ($parentvalue > 0) {
                         $parentsection = $DB->get_record('course_sections', [
                             'course' => $course->id,
-                            'section' => $parentvalue
+                            'section' => $parentvalue,
                         ]);
-                        $this->assertNotFalse($parentsection,
-                            "Section {$section->id} parent {$parentvalue} should exist in course {$course->id}");
+                        $this->assertNotFalse(
+                            $parentsection,
+                            "Section {$section->id} parent {$parentvalue} should exist in course {$course->id}"
+                        );
                         $totalassertions++;
                     }
                 }
@@ -860,7 +901,7 @@ class comprehensive_workflow_test extends advanced_testcase {
         // Test deletion and recreation cycle.
         $testcourse = $courses[0];
         $originalsectioncount = $DB->count_records('course_sections', ['course' => $testcourse->id]);
-        
+
         // Delete all weeks (should be safe, leaves themes).
         $weeks = $DB->get_records_sql(
             "SELECT cs.id, cs.section
@@ -870,30 +911,33 @@ class comprehensive_workflow_test extends advanced_testcase {
              ORDER BY cs.section DESC",
             [$testcourse->id]
         );
-        
+
         foreach ($weeks as $week) {
             course_delete_section($testcourse, $week, true, true);
         }
-        
+
         $afterteletioncount = $DB->count_records('course_sections', ['course' => $testcourse->id]);
-        $this->assertLessThan($originalsectioncount, $afterteletioncount,
-            'Should have fewer sections after deletion');
+        $this->assertLessThan(
+            $originalsectioncount,
+            $afterteletioncount,
+            'Should have fewer sections after deletion'
+        );
         $totalassertions++;
-        
+
         // Recreate structure - verify no corruption.
         $testcourseformat = course_get_format($testcourse->id);
-        
+
         $newtheme = theme_builder::create_theme_section(
             $testcourse->id,
             $testcourseformat,
             'Recreated Theme',
             'After deletion'
         );
-        
+
         $this->assertGreaterThan(0, $newtheme, 'Should recreate theme after deletion');
         $this->assert_section_has_parent($newtheme, 0, $testcourse->id);
         $totalassertions += 2;
-        
+
         $newweek = theme_builder::create_week_section(
             $testcourse->id,
             $testcourseformat,
@@ -901,7 +945,7 @@ class comprehensive_workflow_test extends advanced_testcase {
             'Recreated Week',
             'After deletion test'
         );
-        
+
         $this->assertGreaterThan(0, $newweek, 'Should recreate week after deletion');
         $this->assert_section_has_parent($newweek, $newtheme, $testcourse->id);
         $totalassertions += 2;
@@ -913,10 +957,12 @@ class comprehensive_workflow_test extends advanced_testcase {
              LEFT JOIN {course_sections} cs ON cs.id = cfo.sectionid
              WHERE cfo.name = 'parent' AND cs.id IS NULL"
         );
-        
-        $this->assertEmpty($orphanedparents,
-            'Should have no orphaned parent fields (parent field without section): ' . 
-            count($orphanedparents) . ' found');
+
+        $this->assertEmpty(
+            $orphanedparents,
+            'Should have no orphaned parent fields (parent field without section): ' .
+            count($orphanedparents) . ' found'
+        );
         $totalassertions++;
 
         // Performance guard (advisory, not a tight benchmark).
@@ -927,23 +973,30 @@ class comprehensive_workflow_test extends advanced_testcase {
         // regression (e.g. an accidental per-section full cache rebuild), and emit
         // the real timing below for visibility.
         $elapsed = microtime(true) - $starttime;
-        $this->assertLessThan(120, $elapsed,
+        $this->assertLessThan(
+            120,
+            $elapsed,
             "Stress test took {$elapsed}s — well beyond the expected envelope, indicating "
-            . 'a performance regression (e.g. redundant cache rebuilds), not just a slow machine.');
+            . 'a performance regression (e.g. redundant cache rebuilds), not just a slow machine.'
+        );
         $totalassertions++;
 
         // Report statistics.
         $totalsections = $DB->count_records('course_sections', []);
         $totalparentfields = $DB->count_records('course_format_options', ['name' => 'parent']);
-        
+
         // Run statistics. Printing to stdout would flag the test risky under the
         // strict-output PHPUnit config, so surface them only as a debugging() line
         // (visible with developer debugging, silent otherwise) and assert the
         // headline integrity facts instead of echoing decorative output.
         debugging(sprintf(
             'Stress test: %d courses, %d sections, %d parent fields, %d assertions, %.2fs (%.1f sections/s)',
-            count($courses), $totalsections, $totalparentfields, $totalassertions,
-            $elapsed, $totalsections / $elapsed
+            count($courses),
+            $totalsections,
+            $totalparentfields,
+            $totalassertions,
+            $elapsed,
+            $totalsections / $elapsed
         ), DEBUG_DEVELOPER);
         $this->resetDebugging();
     }
@@ -955,7 +1008,7 @@ class comprehensive_workflow_test extends advanced_testcase {
      */
     public function test_create_section_throws_exception_for_invalid_courseid(): void {
         $this->expectException(\dml_missing_record_exception::class);
-        
+
         // Attempt to create section in non-existent course.
         theme_builder::create_theme_section(
             99999999, // Invalid course ID
@@ -973,7 +1026,7 @@ class comprehensive_workflow_test extends advanced_testcase {
     public function test_create_section_throws_exception_for_empty_name(): void {
         $this->expectException(\moodle_exception::class);
         $this->expectExceptionMessage('Section name cannot be empty');
-        
+
         theme_builder::create_theme_section(
             $this->course->id,
             $this->courseformat,
@@ -990,7 +1043,7 @@ class comprehensive_workflow_test extends advanced_testcase {
     public function test_deep_nesting_hierarchy(): void {
         // Create nested structure: theme -> week -> (would be sessions)
         // format_flexsections typically allows multiple levels.
-        
+
         $theme = theme_builder::create_theme_section(
             $this->course->id,
             $this->courseformat,
@@ -998,7 +1051,7 @@ class comprehensive_workflow_test extends advanced_testcase {
             'First level'
         );
         $this->assert_section_has_parent($theme, 0);
-        
+
         $week = theme_builder::create_week_section(
             $this->course->id,
             $this->courseformat,
@@ -1007,21 +1060,24 @@ class comprehensive_workflow_test extends advanced_testcase {
             'Second level'
         );
         $this->assert_section_has_parent($week, $theme);
-        
+
         // Weeks create session subsections automatically (3 levels deep).
         // Verify all subsections have correct parents.
         $allsections = get_fast_modinfo($this->course)->get_section_info_all();
         $sessionsfound = 0;
-        
+
         foreach ($allsections as $section) {
             if ($section->section > $week) {
                 // These are subsections created by create_week_section.
                 $sessionsfound++;
             }
         }
-        
-        $this->assertGreaterThanOrEqual(3, $sessionsfound, 
-            'Should create at least 3 session subsections under week');
+
+        $this->assertGreaterThanOrEqual(
+            3,
+            $sessionsfound,
+            'Should create at least 3 session subsections under week'
+        );
     }
 
     /**
@@ -1032,7 +1088,7 @@ class comprehensive_workflow_test extends advanced_testcase {
     public function test_rapid_sequential_creation(): void {
         $startime = microtime(true);
         $sections = [];
-        
+
         // Create 20 sections rapidly.
         for ($i = 1; $i <= 20; $i++) {
             $sectionnum = theme_builder::create_theme_section(
@@ -1042,20 +1098,26 @@ class comprehensive_workflow_test extends advanced_testcase {
                 "Rapid creation test {$i}"
             );
             $sections[] = $sectionnum;
-            
+
             // Validate immediately.
             $this->assert_section_has_parent($sectionnum, 0);
         }
-        
+
         $elapsed = microtime(true) - $startime;
-        
+
         // Performance assertion: should complete in reasonable time.
-        $this->assertLessThan(5, $elapsed, 
-            "Should create 20 sections in under 5 seconds (took {$elapsed}s)");
-        
+        $this->assertLessThan(
+            5,
+            $elapsed,
+            "Should create 20 sections in under 5 seconds (took {$elapsed}s)"
+        );
+
         // Data integrity: all sections should exist with unique numbers.
-        $this->assertCount(20, array_unique($sections), 
-            'Should create 20 unique section numbers');
+        $this->assertCount(
+            20,
+            array_unique($sections),
+            'Should create 20 unique section numbers'
+        );
     }
 
     /**
@@ -1065,7 +1127,7 @@ class comprehensive_workflow_test extends advanced_testcase {
      */
     public function test_creation_idempotency(): void {
         global $DB;
-        
+
         // Create initial structure.
         $theme1 = theme_builder::create_theme_section(
             $this->course->id,
@@ -1073,13 +1135,13 @@ class comprehensive_workflow_test extends advanced_testcase {
             'Idempotency Theme',
             'First creation'
         );
-        
+
         $initialcount = $DB->count_records('course_sections', ['course' => $this->course->id]);
         $initialparentcount = $DB->count_records('course_format_options', [
             'courseid' => $this->course->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ]);
-        
+
         // Create another theme (not duplicate, just additional).
         $theme2 = theme_builder::create_theme_section(
             $this->course->id,
@@ -1087,19 +1149,25 @@ class comprehensive_workflow_test extends advanced_testcase {
             'Idempotency Theme 2',
             'Second creation'
         );
-        
+
         $aftercount = $DB->count_records('course_sections', ['course' => $this->course->id]);
         $afterparentcount = $DB->count_records('course_format_options', [
             'courseid' => $this->course->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ]);
-        
+
         // Should have exactly 1 more section and 1 more parent field.
-        $this->assertEquals($initialcount + 1, $aftercount,
-            'Should add exactly 1 section');
-        $this->assertEquals($initialparentcount + 1, $afterparentcount,
-            'Should add exactly 1 parent field');
-        
+        $this->assertEquals(
+            $initialcount + 1,
+            $aftercount,
+            'Should add exactly 1 section'
+        );
+        $this->assertEquals(
+            $initialparentcount + 1,
+            $afterparentcount,
+            'Should add exactly 1 parent field'
+        );
+
         // Original section should still have correct parent.
         $this->assert_section_has_parent($theme1, 0);
         $this->assert_section_has_parent($theme2, 0);
@@ -1112,13 +1180,13 @@ class comprehensive_workflow_test extends advanced_testcase {
      */
     public function test_transaction_rollback_integrity(): void {
         global $DB;
-        
+
         $initialsections = $DB->count_records('course_sections', ['course' => $this->course->id]);
         $initialparents = $DB->count_records('course_format_options', [
             'courseid' => $this->course->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ]);
-        
+
         // Attempt invalid operation that should fail.
         try {
             theme_builder::create_theme_section(
@@ -1131,18 +1199,24 @@ class comprehensive_workflow_test extends advanced_testcase {
         } catch (\dml_missing_record_exception $e) {
             // Expected exception.
         }
-        
+
         // Verify database unchanged after failure.
         $aftersections = $DB->count_records('course_sections', ['course' => $this->course->id]);
         $afterparents = $DB->count_records('course_format_options', [
             'courseid' => $this->course->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ]);
-        
-        $this->assertEquals($initialsections, $aftersections,
-            'Section count should be unchanged after failed operation');
-        $this->assertEquals($initialparents, $afterparents,
-            'Parent field count should be unchanged after failed operation');
+
+        $this->assertEquals(
+            $initialsections,
+            $aftersections,
+            'Section count should be unchanged after failed operation'
+        );
+        $this->assertEquals(
+            $initialparents,
+            $afterparents,
+            'Parent field count should be unchanged after failed operation'
+        );
     }
 
     /**
@@ -1152,7 +1226,7 @@ class comprehensive_workflow_test extends advanced_testcase {
      */
     public function test_parent_referential_integrity(): void {
         global $DB;
-        
+
         // Create structure with multiple levels.
         $theme = theme_builder::create_theme_section(
             $this->course->id,
@@ -1160,7 +1234,7 @@ class comprehensive_workflow_test extends advanced_testcase {
             'Integrity Test Theme',
             'Parent integrity testing'
         );
-        
+
         $week1 = theme_builder::create_week_section(
             $this->course->id,
             $this->courseformat,
@@ -1168,7 +1242,7 @@ class comprehensive_workflow_test extends advanced_testcase {
             'Integrity Test Week 1',
             'Child 1'
         );
-        
+
         $week2 = theme_builder::create_week_section(
             $this->course->id,
             $this->courseformat,
@@ -1176,34 +1250,36 @@ class comprehensive_workflow_test extends advanced_testcase {
             'Integrity Test Week 2',
             'Child 2'
         );
-        
+
         // Verify ALL parent fields reference existing sections.
         $allparents = $DB->get_records('course_format_options', [
             'courseid' => $this->course->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ]);
-        
+
         foreach ($allparents as $parentoption) {
             $parentvalue = (int)$parentoption->value;
-            
+
             if ($parentvalue === 0) {
                 continue; // Top level is valid.
             }
-            
+
             // Verify parent section exists.
             $parentsection = $DB->get_record('course_sections', [
                 'course' => $this->course->id,
-                'section' => $parentvalue
+                'section' => $parentvalue,
             ]);
-            
-            $this->assertNotFalse($parentsection,
-                "Parent value {$parentvalue} should reference existing section");
+
+            $this->assertNotFalse(
+                $parentsection,
+                "Parent value {$parentvalue} should reference existing section"
+            );
         }
     }
 
     /**
      * REGRESSION TEST: Verify the original bug (orphaned sections) is fixed.
-     * 
+     *
      * Original issue: Quick Add created sections without parent fields, causing:
      * - 500 errors when calling core_courseformat_get_state
      * - Orphaned sections that couldn't be properly displayed
@@ -1239,20 +1315,25 @@ class comprehensive_workflow_test extends advanced_testcase {
         // Immediately verify parent field exists (this was missing before).
         $themesection = $DB->get_record('course_sections', [
             'course' => $testcourse->id,
-            'section' => $theme
+            'section' => $theme,
         ], '*', MUST_EXIST);
 
         $parentfield = $DB->get_record('course_format_options', [
             'courseid' => $testcourse->id,
             'format' => 'flexsections',
             'name' => 'parent',
-            'sectionid' => $themesection->id
+            'sectionid' => $themesection->id,
         ]);
 
-        $this->assertNotFalse($parentfield, 
-            'REGRESSION: Section created without parent field (original bug reproduced!)');
-        $this->assertEquals('0', $parentfield->value,
-            'Theme should have parent=0');
+        $this->assertNotFalse(
+            $parentfield,
+            'REGRESSION: Section created without parent field (original bug reproduced!)'
+        );
+        $this->assertEquals(
+            '0',
+            $parentfield->value,
+            'Theme should have parent=0'
+        );
 
         // PART 2: Verify the API call that was failing with 500 error now works.
         $week = theme_builder::create_week_section(
@@ -1268,18 +1349,20 @@ class comprehensive_workflow_test extends advanced_testcase {
         try {
             // Get course format and try to retrieve state.
             $format = course_get_format($testcourse->id);
-            
+
             // This internally calls the logic that was failing.
             $modinfo = get_fast_modinfo($testcourse);
             $sections = $modinfo->get_section_info_all();
-            
+
             // If we get here, the API works (no 500 error).
             $this->assertTrue(true, 'Course format state retrieved successfully');
-            
+
             // Verify we got sections back.
-            $this->assertGreaterThan(0, count($sections),
-                'Should retrieve section list without errors');
-            
+            $this->assertGreaterThan(
+                0,
+                count($sections),
+                'Should retrieve section list without errors'
+            );
         } catch (\Exception $e) {
             $this->fail('REGRESSION: core_courseformat_get_state equivalent failed with: ' . $e->getMessage());
         }
@@ -1287,7 +1370,7 @@ class comprehensive_workflow_test extends advanced_testcase {
         // PART 3: Verify NO orphaned sections exist from OUR operations.
         // Check all sections created in this test course.
         $newsections = $DB->get_records('course_sections', [
-            'course' => $testcourse->id
+            'course' => $testcourse->id,
         ], 'id DESC', '*', 0, 10); // Limit to last 10 sections
 
         $orphancount = 0;
@@ -1307,7 +1390,7 @@ class comprehensive_workflow_test extends advanced_testcase {
                 'courseid' => $testcourse->id,
                 'sectionid' => $section->id,
                 'format' => 'flexsections',
-                'name' => 'parent'
+                'name' => 'parent',
             ]);
 
             if (!$hasparent) {
@@ -1317,13 +1400,16 @@ class comprehensive_workflow_test extends advanced_testcase {
             }
         }
 
-        $this->assertEquals(0, $orphancount,
-            "REGRESSION: Quick Add created {$orphancount} orphaned sections (original bug reproduced!)");
+        $this->assertEquals(
+            0,
+            $orphancount,
+            "REGRESSION: Quick Add created {$orphancount} orphaned sections (original bug reproduced!)"
+        );
     }
 
     /**
      * SIMULATION TEST: Test how system handles orphaned sections if they exist.
-     * 
+     *
      * Simulates the OLD broken state to verify:
      * 1. System detects orphaned sections
      * 2. Provides helpful error messages (not 500 errors)
@@ -1350,13 +1436,13 @@ class comprehensive_workflow_test extends advanced_testcase {
         // Now manually create an orphaned section to simulate the old bug.
         // create_new_section returns section NUMBER, not object.
         $orphanedsectionnum = $courseformat->create_new_section(0, null);
-        
+
         // Get the section object.
         $orphanedsection = $DB->get_record('course_sections', [
             'course' => $testcourse->id,
-            'section' => $orphanedsectionnum
+            'section' => $orphanedsectionnum,
         ], '*', MUST_EXIST);
-        
+
         $orphanedsection->name = 'Orphaned Section (simulated bug)';
         $DB->update_record('course_sections', $orphanedsection);
 
@@ -1366,35 +1452,39 @@ class comprehensive_workflow_test extends advanced_testcase {
             'courseid' => $testcourse->id,
             'sectionid' => $orphanedsection->id,
             'format' => 'flexsections',
-            'name' => 'parent'
+            'name' => 'parent',
         ]);
 
-        $this->assertFalse($hasparent,
-            'Simulated orphaned section should NOT have parent field');
+        $this->assertFalse(
+            $hasparent,
+            'Simulated orphaned section should NOT have parent field'
+        );
 
         // Verify error is clearly about missing parent field.
         $allsections = $DB->get_records('course_sections', ['course' => $testcourse->id]);
         $orphanfound = false;
-        
+
         foreach ($allsections as $section) {
             if ($section->section == 0) {
                 continue;
             }
-            
+
             $haspfield = $DB->record_exists('course_format_options', [
                 'courseid' => $testcourse->id,
                 'sectionid' => $section->id,
                 'format' => 'flexsections',
-                'name' => 'parent'
+                'name' => 'parent',
             ]);
-            
+
             if (!$haspfield && $section->id == $orphanedsection->id) {
                 $orphanfound = true;
                 break;
             }
         }
 
-        $this->assertTrue($orphanfound,
-            'Should be able to detect the orphaned section we created');
+        $this->assertTrue(
+            $orphanfound,
+            'Should be able to detect the orphaned section we created'
+        );
     }
 }

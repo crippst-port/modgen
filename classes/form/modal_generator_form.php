@@ -36,7 +36,6 @@ defined('MOODLE_INTERNAL') || die();
  * Uses simple HTML file inputs to avoid filemanager initialization issues.
  */
 class aiplacement_modgen_modal_generator_form extends moodleform {
-
     /**
      * @var array Module type options available for this form
      */
@@ -70,11 +69,11 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
         $templates = $this->get_available_templates();
         if (!empty($templates) && count($templates) > 1) { // More than just the "None selected" option
             $mform->addElement('header', 'selecttemplateheader', get_string('selecttemplate', 'aiplacement_modgen'));
-            
+
             $mform->addElement('select', 'selected_template_id', get_string('csvtemplate', 'aiplacement_modgen'), $templates);
             $mform->setType('selected_template_id', PARAM_INT);
             $mform->addHelpButton('selected_template_id', 'csvtemplate', 'aiplacement_modgen');
-            
+
             // Download button only (form submit handles using the template)
             $mform->addElement('html', '<div class="form-group row fitem">
                 <div class="col-md-3"></div>
@@ -100,8 +99,13 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
             // Support up to 3 templates via multiselect
             $existingmodules = $this->get_editable_courses();
 
-            $mform->addElement('select', 'existing_modules', get_string('existingmodule', 'aiplacement_modgen'), $existingmodules,
-                ['multiple' => 'multiple', 'size' => 4]);
+            $mform->addElement(
+                'select',
+                'existing_modules',
+                get_string('existingmodule', 'aiplacement_modgen'),
+                $existingmodules,
+                ['multiple' => 'multiple', 'size' => 4]
+            );
             $mform->setType('existing_modules', PARAM_SEQUENCE);
             $mform->addHelpButton('existing_modules', 'existingmodule', 'aiplacement_modgen');
         }
@@ -142,37 +146,36 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
 
         // === SUGGESTED CONTENT SECTION === (only if AI enabled AND user has usesuggest capability)
         if ($ai_enabled && $canusesuggest) {
-        $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
+            $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
 
-        // Expand on themes option - enhances section titles and descriptions
-        $mform->addElement('advcheckbox', 'expandonthemes', get_string('expandonthemes', 'aiplacement_modgen'));
-        $mform->addHelpButton('expandonthemes', 'expandonthemes', 'aiplacement_modgen');
-        $mform->setType('expandonthemes', PARAM_BOOL);
-        $mform->setDefault('expandonthemes', 0); // Default to OFF
+            // Expand on themes option - enhances section titles and descriptions
+            $mform->addElement('advcheckbox', 'expandonthemes', get_string('expandonthemes', 'aiplacement_modgen'));
+            $mform->addHelpButton('expandonthemes', 'expandonthemes', 'aiplacement_modgen');
+            $mform->setType('expandonthemes', PARAM_BOOL);
+            $mform->setDefault('expandonthemes', 0); // Default to OFF
 
-        // Single consolidated checkbox for all example content
-        $mform->addElement('advcheckbox', 'generateexamplecontent', get_string('generateexamplecontent', 'aiplacement_modgen'));
-        $mform->addHelpButton('generateexamplecontent', 'generateexamplecontent', 'aiplacement_modgen');
-        $mform->setType('generateexamplecontent', PARAM_BOOL);
-        $mform->setDefault('generateexamplecontent', 0);
+            // Single consolidated checkbox for all example content
+            $mform->addElement('advcheckbox', 'generateexamplecontent', get_string('generateexamplecontent', 'aiplacement_modgen'));
+            $mform->addHelpButton('generateexamplecontent', 'generateexamplecontent', 'aiplacement_modgen');
+            $mform->setType('generateexamplecontent', PARAM_BOOL);
+            $mform->setDefault('generateexamplecontent', 0);
 
-        $mform->closeHeaderBefore('buttonar');
+            $mform->closeHeaderBefore('buttonar');
         } // End AI-enabled section
 
         // Add both submit button and debug button (debug button only if AI and existing modules enabled)
         $buttonarray = [];
         $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('submit', 'aiplacement_modgen'));
         if (get_config('aiplacement_modgen', 'enable_ai') && get_config('aiplacement_modgen', 'enable_existing_modules')) {
-
         }
         $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);
-        
+
         // Load template selector JavaScript if templates exist
         $templates = $this->get_available_templates();
         if (count($templates) > 1) {
             global $PAGE;
             $PAGE->requires->js_call_amd('aiplacement_modgen/template_selector', 'init', [
-                ['downloadUrl' => (new moodle_url('/ai/placement/modgen/download_template.php'))->out(false), 'courseid' => $this->_customdata['courseid']]
+                ['downloadUrl' => (new moodle_url('/ai/placement/modgen/download_template.php'))->out(false), 'courseid' => $this->_customdata['courseid']],
             ]);
         }
     }
@@ -227,9 +230,9 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
         // If not set, leave as null and let validation handle it.
         // (Security: never trust raw $_POST here)
         // if (!isset($data->moduletype) || empty($data->moduletype)) {
-        //     if (!empty($_POST['moduletype'])) {
-        //         $data->moduletype = $_POST['moduletype'];
-        //     }
+        // if (!empty($_POST['moduletype'])) {
+        // $data->moduletype = $_POST['moduletype'];
+        // }
         // }
 
         return $data;
@@ -272,15 +275,15 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
      */
     private function get_available_templates() {
         global $DB;
-        
+
         $options = [0 => get_string('notemplateselected', 'aiplacement_modgen')];
-        
+
         $templates = $DB->get_records('aiplacement_modgen_templates', null, 'sortorder ASC');
         foreach ($templates as $template) {
             $description = !empty($template->description) ? ' - ' . substr($template->description, 0, 50) : '';
             $options[$template->id] = $template->name . $description;
         }
-        
+
         return $options;
     }
 }

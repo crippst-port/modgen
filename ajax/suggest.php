@@ -73,7 +73,7 @@ try {
         $templclass = 'aiplacement_modgen\\local\\template_reader';
         if (class_exists($templclass)) {
             $templatereaderavailable = true;
-        } elseif (file_exists(__DIR__ . '/../classes/local/template_reader.php')) {
+        } else if (file_exists(__DIR__ . '/../classes/local/template_reader.php')) {
             require_once(__DIR__ . '/../classes/local/template_reader.php');
             $templatereaderavailable = class_exists($templclass);
         }
@@ -162,7 +162,7 @@ try {
         'scorm' => 'Production',
         // Collaboration (webconferencing)
         'bigbluebuttonbn' => 'Collaboration',
-        'zoom' => 'Collaboration'
+        'zoom' => 'Collaboration',
     ];
 
     $learning_counts = [
@@ -213,7 +213,7 @@ try {
                         $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
                         if (!empty($dbcms)) {
                             $moduleids = array_unique(array_column((array) $dbcms, 'module'));
-                            list($insql, $params) = $DB->get_in_or_equal($moduleids);
+                            [$insql, $params] = $DB->get_in_or_equal($moduleids);
                             $modules = $DB->get_records_select('modules', "id $insql", $params);
 
                             foreach ($dbcms as $dcm) {
@@ -228,7 +228,7 @@ try {
                     $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
                     if (!empty($dbcms)) {
                         $moduleids = array_unique(array_column((array) $dbcms, 'module'));
-                        list($insql, $params) = $DB->get_in_or_equal($moduleids);
+                        [$insql, $params] = $DB->get_in_or_equal($moduleids);
                         $modules = $DB->get_records_select('modules', "id $insql", $params);
 
                         foreach ($dbcms as $dcm) {
@@ -243,7 +243,7 @@ try {
                 $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
                 if (!empty($dbcms)) {
                     $moduleids = array_unique(array_column((array) $dbcms, 'module'));
-                    list($insql, $params) = $DB->get_in_or_equal($moduleids);
+                    [$insql, $params] = $DB->get_in_or_equal($moduleids);
                     $modules = $DB->get_records_select('modules', "id $insql", $params);
 
                     foreach ($dbcms as $dcm) {
@@ -301,13 +301,10 @@ try {
     // Discard any accidental output and return JSON
     $extra = @ob_get_clean();
     if ($extra !== false && trim($extra) !== '') {
-
-
     }
 
     ajax_response::success($result);
 } catch (\Throwable $e) {
-
     $buffered = '';
     if (ob_get_length() !== false) {
         $buffered = @ob_get_clean();

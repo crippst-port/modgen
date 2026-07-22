@@ -33,7 +33,6 @@ defined('MOODLE_INTERNAL') || die();
  * Ad-hoc task for background section creation.
  */
 class create_sections_task extends \core\task\adhoc_task {
-
     /**
      * Get the retry delay for failed tasks.
      *
@@ -169,7 +168,7 @@ class create_sections_task extends \core\task\adhoc_task {
                 );
                 $result = [
                     'success' => true,
-                    'messages' => array_column($creation_result['results'], 'message')
+                    'messages' => array_column($creation_result['results'], 'message'),
                 ];
             } else {
                 throw new \moodle_exception('invalidaction', 'aiplacement_modgen');
@@ -191,7 +190,7 @@ class create_sections_task extends \core\task\adhoc_task {
             $job->status = 'completed';
             $job->result = json_encode([
                 'success' => true,
-                'messages' => $result['messages'] ?? []
+                'messages' => $result['messages'] ?? [],
             ]);
             $job->timecompleted = time();
             $DB->update_record('aiplacement_modgen_jobs', $job);
@@ -207,7 +206,7 @@ class create_sections_task extends \core\task\adhoc_task {
                             WHERE cm.course = :courseid AND ctx.id IS NULL";
                     $orphaned = $DB->get_records_sql($sql, [
                         'courseid' => $data->courseid,
-                        'contextlevel' => CONTEXT_MODULE
+                        'contextlevel' => CONTEXT_MODULE,
                     ]);
 
                     if (!empty($orphaned)) {
@@ -221,7 +220,6 @@ class create_sections_task extends \core\task\adhoc_task {
                         . $e->getMessage(), DEBUG_DEVELOPER);
                 }
             }
-
         } catch (\Throwable $e) {
             // Note: Catch Throwable (not just Exception) to handle both Exceptions and Errors (TypeError, etc.).
             //

@@ -35,7 +35,6 @@ defined('MOODLE_INTERNAL') || die();
  * Tests that plugin string references resolve to local language definitions.
  */
 final class language_string_test extends basic_testcase {
-
     /** Plugin component name. */
     private const COMPONENT = 'aiplacement_modgen';
 

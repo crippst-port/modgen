@@ -135,7 +135,6 @@ try {
     $extra = @ob_get_clean();
     $response = ['created' => $result['created'] ?? [], 'warnings' => $result['warnings'] ?? []];
     if ($extra !== false && trim($extra) !== '') {
-
     }
 
     ajax_response::success($response);

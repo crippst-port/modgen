@@ -34,7 +34,6 @@ defined('MOODLE_INTERNAL') || die();
  * Label activity type for creating label activities.
  */
 class quiz implements activity_type {
-
     /** @inheritDoc */
     public static function get_type(): string {
         return 'quiz';
@@ -59,7 +58,7 @@ class quiz implements activity_type {
         // Extract name and intro, ensuring proper handling
         $name = trim($activitydata->name ?? '');
         $intro = trim($activitydata->intro ?? '');
-        
+
         if ($name === '') {
             return null;
         }
@@ -73,14 +72,14 @@ class quiz implements activity_type {
             $moduleinfo->visible = 1;
             $moduleinfo->name = $name;
             $moduleinfo->cmidnumber = ''; // Course module ID number (optional identifier)
-            
+
             // Quiz intro
             $moduleinfo->introeditor = [
                 'text' => $intro,
                 'format' => 1,
-                'itemid' => 0
+                'itemid' => 0,
             ];
-            
+
             // Minimal quiz-specific fields
             $moduleinfo->introformat = 1;
             $moduleinfo->showdescription = 1;  // Display description on course page
@@ -92,18 +91,17 @@ class quiz implements activity_type {
             $moduleinfo->timeclose = 0;  // No time restriction
             $moduleinfo->questiondecimalpoints = -1;  // Default decimal points
             $moduleinfo->decimalpoints = 2;  // Decimal points for grades (0-10, or -1 for default)
-            
+
             // Required fields that quiz_process_options expects
             $moduleinfo->quizpassword = ''; // Gets converted to password by quiz_process_options
             $moduleinfo->feedbackboundarycount = -1; // Disable feedback processing
 
             $cm = create_module($moduleinfo);
-            
+
             return [
                 'coursemodule' => $cm->coursemodule,
-                'instance' => $cm->instance
+                'instance' => $cm->instance,
             ];
-            
         } catch (\Exception $e) {
             return null;
         }

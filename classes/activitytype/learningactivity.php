@@ -36,13 +36,12 @@ defined('MOODLE_INTERNAL') || die();
  * Creates Learning Activity modules for capturing learning design metadata.
  */
 class learningactivity implements activity_type {
-    
     /**
      * Flag to exclude this activity from AI generation.
      * Set to true in the future to allow AI to suggest learning activities.
      */
     public const AI_CREATABLE = false;
-    
+
     /** @inheritDoc */
     public static function get_type(): string {
         return 'learningactivity';
@@ -76,7 +75,7 @@ class learningactivity implements activity_type {
         if (strlen($name) > 255) {
             $name = substr($name, 0, 255);
         }
-        
+
         // If no name, try to infer from section type
         if ($name === '') {
             $sectiontype = $activitydata->sectiontype ?? 'section';
@@ -96,7 +95,7 @@ class learningactivity implements activity_type {
         $moduleinfo->section = $sectionnumber;
         $moduleinfo->visible = 1;
         $moduleinfo->name = $name;
-        
+
         // Learning design fields
         $moduleinfo->sectiontype = $activitydata->sectiontype ?? 'section';
         $moduleinfo->activityicon = $activitydata->activityicon ?? '';
@@ -105,7 +104,7 @@ class learningactivity implements activity_type {
         $moduleinfo->groupactivity = $activitydata->groupactivity ?? 0;
         $moduleinfo->designnotes = $activitydata->designnotes ?? '';
         $moduleinfo->learningoutcomes_weekly = $activitydata->learningoutcomes_weekly ?? '';
-        
+
         // Instructions (must be in editor format for learningactivity module)
         if (isset($activitydata->instructions)) {
             $instructionstext = '';
@@ -118,15 +117,15 @@ class learningactivity implements activity_type {
             $moduleinfo->instructions_editor = [
                 'text' => $instructionstext,
                 'format' => FORMAT_HTML,
-                'itemid' => 0
+                'itemid' => 0,
             ];
         }
-        
+
         // Weekly learning outcomes (for weeks only)
         if (isset($activitydata->learningoutcomes_weekly)) {
             $moduleinfo->learningoutcomes_weekly = $activitydata->learningoutcomes_weekly;
         }
-        
+
         // Learning types (array of tags, will be imploded to CSV)
         if (isset($activitydata->learningtypes)) {
             if (is_array($activitydata->learningtypes)) {
@@ -136,7 +135,7 @@ class learningactivity implements activity_type {
                 $moduleinfo->learningtypes = explode(',', $activitydata->learningtypes);
             }
         }
-        
+
         // Learning outcomes (array, will be JSON encoded)
         if (isset($activitydata->learningoutcomes)) {
             if (is_string($activitydata->learningoutcomes)) {
@@ -173,8 +172,8 @@ class learningactivity implements activity_type {
                 'instance' => $coursemodule->instance,
                 'message' => get_string('learningactivity_created', 'aiplacement_modgen', [
                     'name' => $name ?: get_string('learningactivity_section', 'aiplacement_modgen'),
-                    'type' => $moduleinfo->sectiontype
-                ])
+                    'type' => $moduleinfo->sectiontype,
+                ]),
             ];
         } catch (\dml_exception $e) {
             debugging('Database error creating learningactivity: ' . $e->getMessage(), DEBUG_DEVELOPER);

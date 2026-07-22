@@ -45,14 +45,12 @@ defined('MOODLE_INTERNAL') || die();
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @covers     \aiplacement_modgen\privacy\provider
  */
-class privacy_test extends provider_testcase
+final class privacy_test extends provider_testcase
 {
-
     /**
      * Test getting metadata.
      */
-    public function test_get_metadata()
-    {
+    public function test_get_metadata(): void {
         $collection = new collection('aiplacement_modgen');
         $metadata = provider::get_metadata($collection);
 
@@ -63,8 +61,7 @@ class privacy_test extends provider_testcase
     /**
      * Test that contexts are retrieved for a user.
      */
-    public function test_get_contexts_for_userid()
-    {
+    public function test_get_contexts_for_userid(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -107,8 +104,7 @@ class privacy_test extends provider_testcase
     /**
      * Test exporting user data.
      */
-    public function test_export_user_data()
-    {
+    public function test_export_user_data(): void {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
@@ -146,8 +142,7 @@ class privacy_test extends provider_testcase
     /**
      * Test deleting data for a user in a specific context.
      */
-    public function test_delete_data_for_user()
-    {
+    public function test_delete_data_for_user(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -179,8 +174,7 @@ class privacy_test extends provider_testcase
     /**
      * Test deleting all data in a context.
      */
-    public function test_delete_data_for_all_users_in_context()
-    {
+    public function test_delete_data_for_all_users_in_context(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -215,8 +209,7 @@ class privacy_test extends provider_testcase
     /**
      * Test getting users in a context.
      */
-    public function test_get_users_in_context()
-    {
+    public function test_get_users_in_context(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -248,8 +241,7 @@ class privacy_test extends provider_testcase
     /**
      * Test deleting data for specific users in a context.
      */
-    public function test_delete_data_for_users()
-    {
+    public function test_delete_data_for_users(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -286,8 +278,7 @@ class privacy_test extends provider_testcase
      * @param array $overrides Optional field overrides
      * @return int Job ID
      */
-    private function create_test_job(int $userid, int $courseid, string $action, array $overrides = []): int
-    {
+    private function create_test_job(int $userid, int $courseid, string $action, array $overrides = []): int {
         global $DB;
 
         $job = (object) array_merge([

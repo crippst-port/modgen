@@ -139,7 +139,7 @@ try {
         $DB->update_record('course_sections', [
             'id' => $section->id,
             'name' => $newname,
-            'timemodified' => time()
+            'timemodified' => time(),
         ]);
 
         $updatedcount++;
@@ -147,7 +147,7 @@ try {
             'id' => $section->id,
             'section' => $section->section,
             'name' => $newname,
-            'formatted_date' => $formatteddate
+            'formatted_date' => $formatteddate,
         ];
 
         // Move to next week (skip holidays)
@@ -170,7 +170,6 @@ try {
         'sections' => $updatedsections,
         'message' => get_string('datesappliedsuccess', 'aiplacement_modgen', $updatedcount),
     ]);
-
 } catch (Exception $e) {
     // Release lock before error response.
     if ($lock) {

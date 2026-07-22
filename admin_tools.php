@@ -5,6 +5,14 @@
 // it under the terms of the GNU General Public License as published by
 // the Free Software Foundation, either version 3 of the License, or
 // (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
  * Admin-only diagnostic and testing tools for modgen plugin.
@@ -65,7 +73,7 @@ echo $OUTPUT->header();
 if ($action) {
     // Validate sesskey for ALL actions (CSRF protection).
     require_sesskey();
-    
+
     switch ($action) {
         case 'checkintegrity':
             if ($courseid > 0) {
@@ -82,7 +90,7 @@ if ($action) {
                             'action' => 'fixintegrity',
                             'courseid' => $courseid,
                             'sesskey' => sesskey(),
-                            'sesskey' => sesskey()
+                            'sesskey' => sesskey(),
                         ]),
                         get_string('fixintegrity', 'aiplacement_modgen'),
                         ['class' => 'btn btn-warning mr-2']
@@ -92,7 +100,7 @@ if ($action) {
                         new moodle_url('/ai/placement/modgen/admin_tools.php', [
                             'action' => 'cleanup',
                             'courseid' => $courseid,
-                            'sesskey' => sesskey()
+                            'sesskey' => sesskey(),
                         ]),
                         get_string('cleanup', 'aiplacement_modgen'),
                         ['class' => 'btn btn-danger mr-2']
@@ -102,7 +110,7 @@ if ($action) {
                         new moodle_url('/ai/placement/modgen/admin_tools.php', [
                             'action' => 'checkintegrity',
                             'courseid' => $courseid,
-                            'sesskey' => sesskey()
+                            'sesskey' => sesskey(),
                         ]),
                         get_string('recheck', 'aiplacement_modgen'),
                         ['class' => 'btn btn-info']
@@ -126,7 +134,7 @@ if ($action) {
                     new moodle_url('/ai/placement/modgen/admin_tools.php', [
                         'action' => 'checkintegrity',
                         'courseid' => $courseid,
-                        'sesskey' => sesskey()
+                        'sesskey' => sesskey(),
                     ]),
                     get_string('recheck', 'aiplacement_modgen'),
                     ['class' => 'btn btn-info mr-2']
@@ -136,7 +144,7 @@ if ($action) {
                     new moodle_url('/ai/placement/modgen/admin_tools.php', [
                         'action' => 'cleanup',
                         'courseid' => $courseid,
-                        'sesskey' => sesskey()
+                        'sesskey' => sesskey(),
                     ]),
                     get_string('cleanup', 'aiplacement_modgen'),
                     ['class' => 'btn btn-danger']
@@ -150,7 +158,7 @@ if ($action) {
                         'action' => 'fixintegrity',
                         'courseid' => $courseid,
                         'confirm' => 1,
-                        'sesskey' => sesskey()
+                        'sesskey' => sesskey(),
                     ]),
                     new moodle_url('/ai/placement/modgen/admin_tools.php')
                 );
@@ -170,7 +178,7 @@ if ($action) {
                     new moodle_url('/ai/placement/modgen/admin_tools.php', [
                         'action' => 'checkintegrity',
                         'courseid' => $courseid,
-                        'sesskey' => sesskey()
+                        'sesskey' => sesskey(),
                     ]),
                     get_string('recheck', 'aiplacement_modgen'),
                     ['class' => 'btn btn-info']
@@ -184,7 +192,7 @@ if ($action) {
                         'action' => 'cleanup',
                         'courseid' => $courseid,
                         'confirm' => 1,
-                        'sesskey' => sesskey()
+                        'sesskey' => sesskey(),
                     ]),
                     new moodle_url('/ai/placement/modgen/admin_tools.php')
                 );
@@ -219,7 +227,7 @@ if ($action) {
                     new moodle_url('/ai/placement/modgen/admin_tools.php', [
                         'action' => 'analyzehierarchy',
                         'courseid' => $courseid,
-                        'sesskey' => sesskey()
+                        'sesskey' => sesskey(),
                     ]),
                     get_string('reanalyzehierarchy', 'aiplacement_modgen'),
                     ['class' => 'btn btn-info']
@@ -233,7 +241,7 @@ if ($action) {
                         'action' => 'fixcircular',
                         'courseid' => $courseid,
                         'confirm' => 1,
-                        'sesskey' => sesskey()
+                        'sesskey' => sesskey(),
                     ]),
                     new moodle_url('/ai/placement/modgen/admin_tools.php')
                 );
@@ -253,7 +261,7 @@ if ($action) {
                     new moodle_url('/ai/placement/modgen/admin_tools.php', [
                         'action' => 'analyzehierarchy',
                         'courseid' => $courseid,
-                        'sesskey' => sesskey()
+                        'sesskey' => sesskey(),
                     ]),
                     get_string('reanalyzehierarchy', 'aiplacement_modgen'),
                     ['class' => 'btn btn-info']
@@ -267,7 +275,7 @@ if ($action) {
                         'action' => 'flattenhierarchy',
                         'courseid' => $courseid,
                         'confirm' => 1,
-                        'sesskey' => sesskey()
+                        'sesskey' => sesskey(),
                     ]),
                     new moodle_url('/ai/placement/modgen/admin_tools.php')
                 );
@@ -277,7 +285,8 @@ if ($action) {
             break;
     }
 
-    echo html_writer::tag('div',
+    echo html_writer::tag(
+        'div',
         html_writer::link(
             new moodle_url('/ai/placement/modgen/admin_tools.php'),
             get_string('backtomainpage', 'aiplacement_modgen'),
@@ -315,7 +324,7 @@ function display_dashboard($courseid = 0) {
     echo html_writer::start_tag('form', [
         'method' => 'get',
         'action' => new moodle_url('/ai/placement/modgen/admin_tools.php'),
-        'class' => 'form-inline'
+        'class' => 'form-inline',
     ]);
     echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
 
@@ -329,13 +338,14 @@ function display_dashboard($courseid = 0) {
         'placeholder' => get_string('entercourseid', 'aiplacement_modgen'),
         'min' => '1',
         'style' => 'width: 150px;',
-        'value' => $courseid > 0 ? $courseid : ''
+        'value' => $courseid > 0 ? $courseid : '',
     ]);
     echo html_writer::end_div();
 
     // Add a helper link to find course IDs.
     echo html_writer::start_div('form-group mr-2');
-    echo html_writer::tag('small',
+    echo html_writer::tag(
+        'small',
         html_writer::link(
             new moodle_url('/course/management.php'),
             get_string('findcourseid', 'aiplacement_modgen'),
@@ -349,25 +359,25 @@ function display_dashboard($courseid = 0) {
         'type' => 'submit',
         'name' => 'action',
         'value' => 'checkintegrity',
-        'class' => 'btn btn-info mr-2'
+        'class' => 'btn btn-info mr-2',
     ]);
     echo html_writer::tag('button', get_string('fixintegrity', 'aiplacement_modgen'), [
         'type' => 'submit',
         'name' => 'action',
         'value' => 'fixintegrity',
-        'class' => 'btn btn-warning mr-2'
+        'class' => 'btn btn-warning mr-2',
     ]);
     echo html_writer::tag('button', get_string('cleanup', 'aiplacement_modgen'), [
         'type' => 'submit',
         'name' => 'action',
         'value' => 'cleanup',
-        'class' => 'btn btn-danger mr-2'
+        'class' => 'btn btn-danger mr-2',
     ]);
     echo html_writer::tag('button', get_string('analyzehierarchy', 'aiplacement_modgen'), [
         'type' => 'submit',
         'name' => 'action',
         'value' => 'analyzehierarchy',
-        'class' => 'btn btn-primary'
+        'class' => 'btn btn-primary',
     ]);
 
     echo html_writer::end_tag('form');
@@ -385,7 +395,7 @@ function display_dashboard($courseid = 0) {
     echo html_writer::start_tag('form', [
         'method' => 'get',
         'action' => new moodle_url('/ai/placement/modgen/admin_tools.php'),
-        'class' => 'form-inline'
+        'class' => 'form-inline',
     ]);
     echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
     echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action', 'value' => 'exporthierarchy']);
@@ -400,7 +410,7 @@ function display_dashboard($courseid = 0) {
         'placeholder' => get_string('entercourseid', 'aiplacement_modgen'),
         'min' => '1',
         'style' => 'width: 150px;',
-        'value' => $courseid > 0 ? $courseid : ''
+        'value' => $courseid > 0 ? $courseid : '',
     ]);
     echo html_writer::end_div();
 
@@ -408,19 +418,19 @@ function display_dashboard($courseid = 0) {
         'type' => 'submit',
         'name' => 'format',
         'value' => 'json',
-        'class' => 'btn btn-success mr-2'
+        'class' => 'btn btn-success mr-2',
     ]);
     echo html_writer::tag('button', get_string('downloadhtml', 'aiplacement_modgen'), [
         'type' => 'submit',
         'name' => 'format',
         'value' => 'html',
-        'class' => 'btn btn-info mr-2'
+        'class' => 'btn btn-info mr-2',
     ]);
     echo html_writer::tag('button', get_string('downloadtext', 'aiplacement_modgen'), [
         'type' => 'submit',
         'name' => 'format',
         'value' => 'text',
-        'class' => 'btn btn-secondary'
+        'class' => 'btn btn-secondary',
     ]);
 
     echo html_writer::end_tag('form');
@@ -516,9 +526,11 @@ function render_integrity_results(array $diag): void {
     echo html_writer::start_div('table-responsive mb-3');
     echo html_writer::start_tag('table', ['class' => 'table table-sm table-bordered']);
     echo html_writer::start_tag('thead');
-    echo html_writer::tag('tr',
+    echo html_writer::tag(
+        'tr',
         html_writer::tag('th', get_string('checkstructure_col_check', 'aiplacement_modgen')) .
-        html_writer::tag('th', get_string('checkstructure_col_issuesfound', 'aiplacement_modgen')));
+        html_writer::tag('th', get_string('checkstructure_col_issuesfound', 'aiplacement_modgen'))
+    );
     echo html_writer::end_tag('thead');
     echo html_writer::start_tag('tbody');
     foreach ($checkkeys as $key) {
@@ -564,7 +576,8 @@ function display_hierarchy_analysis($courseid) {
 
     $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 
-    echo html_writer::tag('p',
+    echo html_writer::tag(
+        'p',
         get_string('analyzingcourse', 'aiplacement_modgen', format_string($course->fullname)),
         ['class' => 'alert alert-info']
     );
@@ -612,13 +625,13 @@ function display_hierarchy_analysis($courseid) {
     echo html_writer::start_div('card mb-3');
     echo html_writer::start_div('card-body');
     echo html_writer::start_tag('pre', ['style' => 'font-family: monospace; background: #f5f5f5; padding: 15px; border-radius: 5px;']);
-    
+
     // Display section 0 at the root (it's special and has no parent).
     if (isset($sectionsbynum[0])) {
         $section0 = $sectionsbynum[0];
         echo htmlspecialchars("Section 0: " . format_string($section0->name) . " (ID: {$section0->id}, Activities: {$section0->activitycount}) [GENERAL SECTION]\n");
     }
-    
+
     // Display top-level sections and their children.
     display_tree_recursive($tree, $sectionsbynum, '0', []);
     echo html_writer::end_tag('pre');
@@ -648,18 +661,18 @@ function display_hierarchy_analysis($courseid) {
         if ($section->section == 0 || $section->parent === '0') {
             continue;
         }
-        
+
         $visited = [];
         $current = $section;
         $loopcount = 0;
-        
+
         while ($current && $current->parent !== '0' && $loopcount < 20) {
             if (isset($visited[$current->section])) {
                 $circularSections[$section->section] = true;
                 break;
             }
             $visited[$current->section] = true;
-            
+
             $parentnum = $current->parent;
             if (!isset($sectionsbynum[$parentnum])) {
                 break;
@@ -673,7 +686,7 @@ function display_hierarchy_analysis($courseid) {
         $depth = $depthcache[$section->section];
         $rowclass = '';
         $issues = [];
-        
+
         // Check for section 0 with parent.
         if ($section->section == 0 && $section->parent !== null) {
             $rowclass = 'table-danger';
@@ -731,7 +744,7 @@ function display_hierarchy_analysis($courseid) {
         'hidden' => 0,
         'orphaned' => 0,
         'circular' => 0,
-        'section0withparent' => 0
+        'section0withparent' => 0,
     ];
 
     // Check if section 0 has a parent value.
@@ -739,7 +752,7 @@ function display_hierarchy_analysis($courseid) {
         $section0 = $sectionsbynum[0];
         $section0parent = $DB->get_record('course_format_options', [
             'sectionid' => $section0->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ]);
         if ($section0parent) {
             $stats['section0withparent'] = 1;
@@ -777,11 +790,11 @@ function display_hierarchy_analysis($courseid) {
         if ($section->section == 0 || $section->parent === '0') {
             continue;
         }
-        
+
         $visited = [];
         $current = $section;
         $loopcount = 0;
-        
+
         while ($current && $current->parent !== '0' && $loopcount < 20) {
             if (isset($visited[$current->section])) {
                 // Found a circular reference.
@@ -789,7 +802,7 @@ function display_hierarchy_analysis($courseid) {
                 break;
             }
             $visited[$current->section] = true;
-            
+
             $parentnum = $current->parent;
             if (!isset($sectionsbynum[$parentnum])) {
                 break;
@@ -829,7 +842,7 @@ function display_hierarchy_analysis($courseid) {
 
     // Action buttons.
     echo html_writer::start_div('mt-3');
-    
+
     // Export buttons.
     echo html_writer::tag('p', get_string('exportoptions', 'aiplacement_modgen'), ['class' => 'font-weight-bold']);
     echo html_writer::link(
@@ -837,7 +850,7 @@ function display_hierarchy_analysis($courseid) {
             'action' => 'exporthierarchy',
             'courseid' => $courseid,
             'format' => 'json',
-            'sesskey' => sesskey()
+            'sesskey' => sesskey(),
         ]),
         get_string('downloadjson', 'aiplacement_modgen'),
         ['class' => 'btn btn-success mr-2']
@@ -847,7 +860,7 @@ function display_hierarchy_analysis($courseid) {
             'action' => 'exporthierarchy',
             'courseid' => $courseid,
             'format' => 'html',
-            'sesskey' => sesskey()
+            'sesskey' => sesskey(),
         ]),
         get_string('downloadhtml', 'aiplacement_modgen'),
         ['class' => 'btn btn-info mr-2']
@@ -857,7 +870,7 @@ function display_hierarchy_analysis($courseid) {
             'action' => 'exporthierarchy',
             'courseid' => $courseid,
             'format' => 'text',
-            'sesskey' => sesskey()
+            'sesskey' => sesskey(),
         ]),
         get_string('downloadtext', 'aiplacement_modgen'),
         ['class' => 'btn btn-secondary mr-2']
@@ -865,7 +878,7 @@ function display_hierarchy_analysis($courseid) {
 
     echo html_writer::tag('br', '');
     echo html_writer::tag('br', '');
-    
+
     // Repair buttons (only if issues found).
     if ($stats['orphaned'] > 0 || $stats['circular'] > 0 || $stats['section0withparent'] > 0) {
         echo html_writer::tag('p', get_string('repairactions', 'aiplacement_modgen'), ['class' => 'font-weight-bold mt-3']);
@@ -873,7 +886,7 @@ function display_hierarchy_analysis($courseid) {
             new moodle_url('/ai/placement/modgen/admin_tools.php', [
                 'action' => 'fixcircular',
                 'courseid' => $courseid,
-                'sesskey' => sesskey()
+                'sesskey' => sesskey(),
             ]),
             get_string('fixcircular', 'aiplacement_modgen'),
             ['class' => 'btn btn-warning mr-2']
@@ -884,7 +897,7 @@ function display_hierarchy_analysis($courseid) {
         new moodle_url('/ai/placement/modgen/admin_tools.php', [
             'action' => 'flattenhierarchy',
             'courseid' => $courseid,
-            'sesskey' => sesskey()
+            'sesskey' => sesskey(),
         ]),
         get_string('flattenhierarchy', 'aiplacement_modgen'),
         ['class' => 'btn btn-danger mr-2']
@@ -963,7 +976,7 @@ function display_tree_recursive($tree, $sectionsbynum, $parent, $prefix, $visite
 
         $islast = ($index === $childcount - 1);
         $connector = $islast ? '└── ' : '├── ';
-        
+
         // O(1) lookup using indexed array.
         if (!isset($sectionsbynum[$sectionnum])) {
             echo htmlspecialchars(implode('', $prefix) . $connector . "⚠ ORPHANED: Section {$sectionnum} (does not exist)\n");
@@ -1135,12 +1148,12 @@ function export_hierarchy_data($courseid, $format) {
     // Get all format options for these sections.
     $formatoptions = [];
     if (!empty($sections)) {
-        list($insql, $params) = $DB->get_in_or_equal(array_keys($sections));
+        [$insql, $params] = $DB->get_in_or_equal(array_keys($sections));
         $optionssql = "SELECT * FROM {course_format_options}
                        WHERE sectionid $insql
                        ORDER BY sectionid, name";
         $options = $DB->get_records_sql($optionssql, $params);
-        
+
         foreach ($options as $option) {
             if (!isset($formatoptions[$option->sectionid])) {
                 $formatoptions[$option->sectionid] = [];
@@ -1170,7 +1183,7 @@ function export_hierarchy_data($courseid, $format) {
 
     // Run diagnostics.
     $issues = [];
-    
+
     // Check for orphaned parents.
     foreach ($sections as $section) {
         if ($section->parent !== '0' && !isset($sectionsbynum[$section->parent])) {
@@ -1179,7 +1192,7 @@ function export_hierarchy_data($courseid, $format) {
                 'section' => $section->section,
                 'name' => $section->name,
                 'parent' => $section->parent,
-                'message' => "Section {$section->section} has parent {$section->parent} which does not exist"
+                'message' => "Section {$section->section} has parent {$section->parent} which does not exist",
             ];
         }
     }
@@ -1189,23 +1202,23 @@ function export_hierarchy_data($courseid, $format) {
         if ($section->parent === '0') {
             continue;
         }
-        
+
         $visited = [];
         $current = $section;
         $depth = 0;
-        
+
         while ($current && $current->parent !== '0' && $depth < 20) {
             if (isset($visited[$current->section])) {
                 $issues[] = [
                     'type' => 'circular_reference',
                     'section' => $section->section,
                     'name' => $section->name,
-                    'message' => "Section {$section->section} has a circular parent reference"
+                    'message' => "Section {$section->section} has a circular parent reference",
                 ];
                 break;
             }
             $visited[$current->section] = true;
-            
+
             $parentnum = $current->parent;
             if (!isset($sectionsbynum[$parentnum])) {
                 break;
@@ -1222,17 +1235,17 @@ function export_hierarchy_data($courseid, $format) {
             'fullname' => $course->fullname,
             'shortname' => $course->shortname,
             'format' => $course->format,
-            'numsections' => $course->numsections ?? null
+            'numsections' => $course->numsections ?? null,
         ],
         'exported' => date('Y-m-d H:i:s'),
         'sections' => [],
-        'issues' => $issues
+        'issues' => $issues,
     ];
 
     // Add sections with their complete data.
     foreach ($sections as $section) {
         $depth = $depthcache[$section->section];
-        
+
         $export['sections'][] = [
             'id' => $section->id,
             'section' => $section->section,
@@ -1243,7 +1256,7 @@ function export_hierarchy_data($courseid, $format) {
             'parent' => $section->parent,
             'depth' => $depth,
             'formatoptions' => $section->formatoptions,
-            'sequence' => $section->sequence
+            'sequence' => $section->sequence,
         ];
     }
 
@@ -1412,20 +1425,30 @@ function generate_text_export($export, $sectionsbynum) {
     $text .= "\n-------------------------------------------------------------------\n";
     $text .= "SECTION DETAILS\n";
     $text .= "-------------------------------------------------------------------\n\n";
-    $text .= sprintf("%-8s %-40s %-8s %-6s %-8s %-10s %-8s\n", 
-                     "Section", "Name", "Parent", "Depth", "Visible", "Activities", "DB ID");
+    $text .= sprintf(
+        "%-8s %-40s %-8s %-6s %-8s %-10s %-8s\n",
+        "Section",
+        "Name",
+        "Parent",
+        "Depth",
+        "Visible",
+        "Activities",
+        "DB ID"
+    );
     $text .= str_repeat("-", 100) . "\n";
-    
+
     foreach ($export['sections'] as $section) {
         $name = substr($section['name'], 0, 38);
-        $text .= sprintf("%-8s %-40s %-8s %-6s %-8s %-10s %-8s\n",
-                        $section['section'],
-                        $name,
-                        $section['parent'],
-                        $section['depth'],
-                        $section['visible'] ? 'Yes' : 'No',
-                        $section['activitycount'],
-                        $section['id']);
+        $text .= sprintf(
+            "%-8s %-40s %-8s %-6s %-8s %-10s %-8s\n",
+            $section['section'],
+            $name,
+            $section['parent'],
+            $section['depth'],
+            $section['visible'] ? 'Yes' : 'No',
+            $section['activitycount'],
+            $section['id']
+        );
     }
 
     $text .= "\n===================================================================\n";
@@ -1475,7 +1498,8 @@ function flatten_hierarchy_to_toplevel($courseid) {
 
     $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 
-    echo html_writer::tag('p',
+    echo html_writer::tag(
+        'p',
         get_string('flatteningcourse', 'aiplacement_modgen', format_string($course->fullname)),
         ['class' => 'alert alert-warning']
     );
@@ -1489,14 +1513,13 @@ function flatten_hierarchy_to_toplevel($courseid) {
                 WHERE courseid = ?
                   AND name = 'parent'
                   AND value != '0'";
-        
+
         $count = $DB->execute($sql, [$courseid]);
 
         $transaction->allow_commit();
 
         echo $OUTPUT->notification(get_string('hierarchyflattened', 'aiplacement_modgen'), 'success');
         rebuild_course_cache($courseid, false, true);
-
     } catch (Exception $e) {
         $transaction->rollback($e);
         echo $OUTPUT->notification(get_string('flattenerror', 'aiplacement_modgen', $e->getMessage()), 'error');

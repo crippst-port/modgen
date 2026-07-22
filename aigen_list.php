@@ -37,8 +37,12 @@ require_login($course);
 $cangenerate = has_capability('aiplacement/modgen:generatewithprompt', $context) ||
                has_capability('aiplacement/modgen:generatefromtemplate', $context);
 if (!$cangenerate) {
-    throw new required_capability_exception($context, 'aiplacement/modgen:generatewithprompt',
-        'nopermissions', 'error');
+    throw new required_capability_exception(
+        $context,
+        'aiplacement/modgen:generatewithprompt',
+        'nopermissions',
+        'error'
+    );
 }
 
 // Set up page.
@@ -74,23 +78,23 @@ $activities = $DB->get_records_sql($sql, ['courseid' => $courseid]);
 $activitydata = [];
 foreach ($activities as $activity) {
     $modinfo = get_fast_modinfo($course);
-    
+
     if (!isset($modinfo->cms[$activity->cmid])) {
         // Activity no longer exists, clean up the record.
         $DB->delete_records('aiplacement_modgen_aigen', ['id' => $activity->id]);
         continue;
     }
-    
+
     $cm = $modinfo->cms[$activity->cmid];
-    
+
     // Get section info including parent.
     $sectioninfo = $modinfo->get_section_info($activity->sectionnumber);
     $sectionname = $activity->sectionname ?: get_string('section') . ' ' . $activity->sectionnumber;
-    
+
     // Check for parent section.
     $parentsectionname = '';
     $parentsectionurl = '';
-    
+
     // Method 1: Check for flexsections format parent (stored as section format option).
     if (isset($sectioninfo->parent) && $sectioninfo->parent > 0) {
         $parentsection = $modinfo->get_section_info($sectioninfo->parent);
@@ -102,7 +106,7 @@ foreach ($activities as $activity) {
             ]))->out(false);
         }
     }
-    
+
     // Method 2: Check for delegated sections / subsections (Moodle 4.x).
     if (empty($parentsectionname)) {
         $delegate = $sectioninfo->get_component_instance();
@@ -117,24 +121,24 @@ foreach ($activities as $activity) {
             }
         }
     }
-    
+
     // Build section URL.
     $sectionurl = new moodle_url('/course/view.php', [
         'id' => $courseid,
         'section' => $activity->sectionnumber,
     ]);
-    
+
     // Build edit URL.
     $editurl = new moodle_url('/course/modedit.php', [
         'update' => $activity->cmid,
         'return' => 1,
     ]);
-    
+
     // Build view URL.
     $viewurl = new moodle_url('/mod/' . $activity->modname . '/view.php', [
         'id' => $activity->cmid,
     ]);
-    
+
     $activitydata[] = (object)[
         'id' => $activity->id,
         'cmid' => $activity->cmid,

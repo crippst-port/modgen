@@ -17,7 +17,7 @@
 /**
  * Helper class for creating session subsections in flexsections format.
  *
- * This class provides shared functionality for creating pre-session, session, 
+ * This class provides shared functionality for creating pre-session, session,
  * and post-session subsections used by both theme and weekly generation modes.
  *
  * @package    aiplacement_modgen
@@ -36,7 +36,6 @@ use context_module;
  * Session creator helper class.
  */
 class session_creator {
-    
     /**
      * Create pre-session, session, and post-session subsections under a parent section.
      *
@@ -50,7 +49,7 @@ class session_creator {
      */
     public static function create_session_subsections($courseformat, $parentsectionnum, $courseid, $sessiondata = null, $createsummaryactivities = true) {
         global $DB;
-        
+
         // Validate course format
         if (!$courseformat || get_class($courseformat) !== 'format_flexsections') {
             throw new \moodle_exception('errorformatnotflexsections', 'aiplacement_modgen');
@@ -59,24 +58,27 @@ class session_creator {
         if (!method_exists($courseformat, 'create_new_section')) {
             throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
         }
-        
+
         // Get the parent section ID from the section number
         // flexsections create_new_section() expects the parent SECTION ID, not the section number
         $parentsectionid = null;
         if ($parentsectionnum > 0) {
-            $parentsectionid = $DB->get_field('course_sections', 'id', 
-                ['course' => $courseid, 'section' => $parentsectionnum]);
+            $parentsectionid = $DB->get_field(
+                'course_sections',
+                'id',
+                ['course' => $courseid, 'section' => $parentsectionnum]
+            );
         }
-        
+
         // Define session types with language strings
         $sessiontypes = [
             'presession' => get_string('presession', 'aiplacement_modgen'),
             'session' => get_string('session', 'aiplacement_modgen'),
             'postsession' => get_string('postsession', 'aiplacement_modgen'),
         ];
-        
+
         $sessionsectionmap = [];
-        
+
         foreach ($sessiontypes as $sessionkey => $sessionlabel) {
             // Prepare session summary from description if provided
             $sessionsummary = '';
@@ -95,10 +97,10 @@ class session_creator {
                 $sessionlabel,
                 $sessionsummary,
                 FORMAT_PLAIN,
-                ['collapsed' => 0],  // Sessions don't appear as links
+                ['collapsed' => 0], // Sessions don't appear as links
                 false  // Defer cache rebuild until all 3 sessions created
             );
-            
+
             $sessionsectionnum = $sessionsection->section;
             $sessionsectionmap[$sessionkey] = $sessionsectionnum;
 
@@ -135,7 +137,7 @@ class session_creator {
                 );
             }
         }
-        
+
         return $sessionsectionmap;
     }
 
@@ -209,7 +211,7 @@ class session_creator {
 
         return null;
     }
-    
+
     /**
      * Get session section numbers for a given parent week section.
      *
@@ -222,7 +224,7 @@ class session_creator {
      */
     public static function get_session_sections($parentsectionnum, $courseid) {
         global $DB;
-        
+
         // Get all child sections of the parent
         $sql = "SELECT cs.section, cs.name
                 FROM {course_sections} cs
@@ -231,19 +233,19 @@ class session_creator {
                 AND cfo.name = 'parent'
                 AND cfo.value = :parentsection
                 ORDER BY cs.section ASC";
-        
+
         $childsections = $DB->get_records_sql($sql, [
             'courseid' => $courseid,
-            'parentsection' => $parentsectionnum
+            'parentsection' => $parentsectionnum,
         ]);
-        
+
         $sessionsectionmap = [];
         // IMPORTANT: Check longest strings first to avoid 'session' matching inside 'postsession'
         $sessiontypes = ['presession', 'postsession', 'session'];
-        
+
         foreach ($childsections as $section) {
             $name = strtolower(str_replace(['-', '_', ' '], '', trim($section->name)));
-            
+
             foreach ($sessiontypes as $type) {
                 $cleantype = str_replace(['-', '_', ' '], '', $type);
                 if (strpos($name, $cleantype) !== false) {
@@ -252,7 +254,7 @@ class session_creator {
                 }
             }
         }
-        
+
         return $sessionsectionmap;
     }
 
@@ -268,30 +270,30 @@ class session_creator {
      */
     public static function create_session_activities($sessiondata, $sessionsectionmap, $course, &$results, &$warnings) {
         $sessiontypes = ['presession', 'session', 'postsession'];
-        
+
         foreach ($sessiontypes as $sessionkey) {
             if (empty($sessiondata[$sessionkey]) || !is_array($sessiondata[$sessionkey])) {
                 continue;
             }
-            
+
             $data = $sessiondata[$sessionkey];
             $activities = $data['activities'] ?? [];
-            
+
             if (empty($activities) || !is_array($activities)) {
                 continue;
             }
-            
+
             $sectionnumber = $sessionsectionmap[$sessionkey] ?? null;
             if ($sectionnumber === null) {
                 continue;
             }
-            
+
             $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
                 $activities,
                 $course,
                 $sectionnumber
             );
-            
+
             if (!empty($activityoutcome['created'])) {
                 $results = array_merge($results, $activityoutcome['created']);
             }

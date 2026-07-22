@@ -25,6 +25,7 @@ defined('MOODLE_INTERNAL') || die();
 
 /**
  * Registry that locates and instantiates AI activity handlers.
+ * @package aiplacement_modgen
  */
 class registry {
     /** @var array<string, class-string<activity_type>>|null Cached map of type identifier => class FQCN. */
@@ -45,7 +46,7 @@ class registry {
                 // Skip handlers that are not AI-creatable
                 continue;
             }
-            
+
             $handlers[$type] = [
                 'stringid' => $class::get_display_string_id(),
                 'description' => $class::get_prompt_description(),
@@ -184,8 +185,6 @@ class registry {
 
         // Debug: log what files we're finding
 
-
-
         foreach ($files as $filepath) {
             $filename = basename($filepath, '.php');
             if ($filename === 'registry' || $filename === 'activity_type') {
@@ -194,29 +193,24 @@ class registry {
 
             $classname = __NAMESPACE__ . '\\' . $filename;
 
-            
             if (!class_exists($classname, false)) {
                 require_once($filepath);
             }
 
             if (!class_exists($classname)) {
-
                 continue;
             }
-            
-            if (!is_subclass_of($classname, activity_type::class)) {
 
+            if (!is_subclass_of($classname, activity_type::class)) {
                 continue;
             }
 
             $type = self::normalise_type($classname::get_type());
             if ($type === '') {
-
                 continue;
             }
 
             $map[$type] = $classname;
-
         }
 
         self::$map = $map;

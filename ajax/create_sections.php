@@ -121,7 +121,7 @@ try {
             'themecount' => $themecount,
             'weeksperTheme' => $weeksperTheme,
             'parentsection' => $parentsection,
-            'createsummaryactivities' => $createsummaryactivities
+            'createsummaryactivities' => $createsummaryactivities,
         ]);
         $job->timecreated = time();
         $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
@@ -135,7 +135,7 @@ try {
             'themecount' => $themecount,
             'weeksperTheme' => $weeksperTheme,
             'parentsection' => $parentsection,
-            'createsummaryactivities' => $createsummaryactivities
+            'createsummaryactivities' => $createsummaryactivities,
         ]);
         $task->set_userid($USER->id);
         \core\task\manager::queue_adhoc_task($task);
@@ -143,9 +143,8 @@ try {
         ajax_response::success([
             'queued' => true,
             'jobid' => $jobid,
-            'message' => get_string('jobqueued', 'aiplacement_modgen', $totalsections)
+            'message' => get_string('jobqueued', 'aiplacement_modgen', $totalsections),
         ]);
-
     } else if ($action === 'create_weeks') {
         // Get week parameters.
         $weekcount = required_param('weekcount', PARAM_INT);
@@ -170,7 +169,7 @@ try {
         $job->parameters = json_encode([
             'weekcount' => $weekcount,
             'parentsection' => $parentsection,
-            'createsummaryactivities' => $createsummaryactivities
+            'createsummaryactivities' => $createsummaryactivities,
         ]);
         $job->timecreated = time();
         $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
@@ -183,7 +182,7 @@ try {
             'action' => 'create_weeks',
             'weekcount' => $weekcount,
             'parentsection' => $parentsection,
-            'createsummaryactivities' => $createsummaryactivities
+            'createsummaryactivities' => $createsummaryactivities,
         ]);
         $task->set_userid($USER->id);
         \core\task\manager::queue_adhoc_task($task);
@@ -191,13 +190,11 @@ try {
         ajax_response::success([
             'queued' => true,
             'jobid' => $jobid,
-            'message' => get_string('jobqueued', 'aiplacement_modgen', $totalsections)
+            'message' => get_string('jobqueued', 'aiplacement_modgen', $totalsections),
         ]);
-
     } else {
         ajax_response::error('Invalid action', 'invalidaction');
     }
-
 } catch (Exception $e) {
     ajax_response::error($e->getMessage(), 'exception');
 }

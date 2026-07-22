@@ -29,15 +29,14 @@ defined('MOODLE_INTERNAL') || die();
 
 /**
  * CSV parser for creating module structures from uploaded CSV files.
- * 
+ *
  * This class parses CSV files to create module structures without using AI.
  * The CSV format should match your institution's course structure requirements.
  */
 class csv_parser {
-
     /**
      * Detect whether a CSV file contains themed or weekly structure.
-     * 
+     *
      * Detects by scanning for "Theme:" labels. If found, treats as themed structure.
      * If no "Theme:" labels are found, treats as weekly structure.
      *
@@ -55,11 +54,11 @@ class csv_parser {
 
         // Parse CSV content
         $lines = explode("\n", $content);
-        
+
         // Scan for "Theme:" labels (case-insensitive)
         foreach ($lines as $line) {
             $line = trim($line);
-            
+
             // Skip empty lines
             if (empty($line) || $line === ',') {
                 continue;
@@ -67,10 +66,10 @@ class csv_parser {
 
             // Parse the line
             $parts = str_getcsv($line);
-            
+
             if (count($parts) >= 1) {
                 $label = trim($parts[0]);
-                
+
                 // Check if this line contains a theme label
                 if (stripos($label, 'Theme') === 0) {
                     return 'connected_theme';
@@ -87,13 +86,13 @@ class csv_parser {
      *
      * Expected CSV format:
      * Title:,Course Title
-     * 
+     *
      * Theme:,Theme Name
      * Description:,Optional theme description
      * Week:,Week Name/Description
      * Description:,Optional week description
      * Week:,Week Name/Description
-     * 
+     *
      * Theme:,Next Theme Name
      * Description:,Optional theme description
      * Week:,Week Name/Description
@@ -112,14 +111,14 @@ class csv_parser {
 
         // Parse CSV content
         $lines = explode("\n", $content);
-        
+
         if (empty($lines)) {
             throw new \Exception('No data found in CSV file');
         }
 
         // Normalize module type
         $normalized_type = self::normalize_module_type($moduletype);
-        
+
         if ($normalized_type === 'theme') {
             $structure = self::parse_simple_theme_structure($lines);
         } else {
@@ -128,14 +127,14 @@ class csv_parser {
 
         // Validate section count against max limit
         $maxsections = (int)get_config('aiplacement_modgen', 'maxcsvsections') ?: 50;
-        
+
         if ($maxsections > 0) {
             $sectioncount = self::count_sections($structure);
-            
+
             if ($sectioncount > $maxsections) {
                 throw new \Exception(get_string('csvlimitexceeded', 'aiplacement_modgen', [
                     'count' => $sectioncount,
-                    'max' => $maxsections
+                    'max' => $maxsections,
                 ]));
             }
         }
@@ -190,7 +189,7 @@ class csv_parser {
     private static function normalize_module_type(string $moduletype): string {
         if ($moduletype === 'connected_weekly') {
             return 'weekly';
-        } elseif ($moduletype === 'connected_theme') {
+        } else if ($moduletype === 'connected_theme') {
             return 'theme';
         }
         return $moduletype;
@@ -221,7 +220,7 @@ class csv_parser {
 
         foreach ($lines as $line) {
             $line = trim($line);
-            
+
             // Skip empty lines
             if (empty($line) || $line === ',') {
                 continue;
@@ -229,7 +228,7 @@ class csv_parser {
 
             // Parse the line
             $parts = str_getcsv($line);
-            
+
             if (count($parts) < 2) {
                 continue;
             }
@@ -245,17 +244,17 @@ class csv_parser {
             if (stripos($label, 'Title') === 0) {
                 $module_title = $value;
                 $last_item_type = 'title';
-            } elseif (stripos($label, 'Description') === 0) {
+            } else if (stripos($label, 'Description') === 0) {
                 // Add description to the most recently added item
                 if ($last_item_type === 'week' && $current_theme !== null) {
                     $week_count = count($current_theme['weeks']);
                     if ($week_count > 0) {
                         $current_theme['weeks'][$week_count - 1]['summary'] = $value;
                     }
-                } elseif ($last_item_type === 'theme' && $current_theme !== null) {
+                } else if ($last_item_type === 'theme' && $current_theme !== null) {
                     $current_theme['summary'] = $value;
                 }
-            } elseif (stripos($label, 'Theme') === 0) {
+            } else if (stripos($label, 'Theme') === 0) {
                 // Start a new theme - save the previous one first
                 if ($current_theme !== null) {
                     $themes[] = $current_theme;
@@ -263,11 +262,11 @@ class csv_parser {
                 $current_theme = [
                     'title' => $value,
                     'summary' => '',
-                    'weeks' => []
+                    'weeks' => [],
                 ];
                 $current_week = null;
                 $last_item_type = 'theme';
-            } elseif (stripos($label, 'Week') === 0 && $current_theme !== null) {
+            } else if (stripos($label, 'Week') === 0 && $current_theme !== null) {
                 // Add week to current theme
                 $week = [
                     'title' => $value,
@@ -275,7 +274,7 @@ class csv_parser {
                     'learningactivity_metadata' => [
                         'name' => '',
                         'activityicon' => '',
-                        'instructions' => ''
+                        'instructions' => '',
                     ],
                     'sessions' => [
                         'presession' => [
@@ -287,9 +286,9 @@ class csv_parser {
                                 'duration' => null,
                                 'learningmode' => null,
                                 'groupactivity' => null,
-                                'learningtypes' => null
+                                'learningtypes' => null,
                             ],
-                            'activities' => []
+                            'activities' => [],
                         ],
                         'session' => [
                             'description' => '',
@@ -300,9 +299,9 @@ class csv_parser {
                                 'duration' => null,
                                 'learningmode' => null,
                                 'groupactivity' => null,
-                                'learningtypes' => null
+                                'learningtypes' => null,
                             ],
-                            'activities' => []
+                            'activities' => [],
                         ],
                         'postsession' => [
                             'description' => '',
@@ -313,11 +312,11 @@ class csv_parser {
                                 'duration' => null,
                                 'learningmode' => null,
                                 'groupactivity' => null,
-                                'learningtypes' => null
+                                'learningtypes' => null,
                             ],
-                            'activities' => []
-                        ]
-                    ]
+                            'activities' => [],
+                        ],
+                    ],
                 ];
                 $current_theme['weeks'][] = $week;
                 // Mark that we just added a week (for description tracking)
@@ -351,7 +350,7 @@ class csv_parser {
 
         foreach ($lines as $line) {
             $line = trim($line);
-            
+
             // Skip empty lines
             if (empty($line) || $line === ',') {
                 continue;
@@ -359,7 +358,7 @@ class csv_parser {
 
             // Parse the line
             $parts = str_getcsv($line);
-            
+
             if (count($parts) < 2) {
                 continue;
             }
@@ -375,12 +374,12 @@ class csv_parser {
             if (stripos($label, 'Title') === 0) {
                 $module_title = $value;
                 $last_item_type = 'title';
-            } elseif (stripos($label, 'Description') === 0) {
+            } else if (stripos($label, 'Description') === 0) {
                 // Add description to the most recently added section/week
                 if ($last_item_type === 'week' && $current_section !== null) {
                     $current_section['summary'] = $value;
                 }
-            } elseif (stripos($label, 'Week') === 0 || stripos($label, 'Section') === 0) {
+            } else if (stripos($label, 'Week') === 0 || stripos($label, 'Section') === 0) {
                 // Add week/section
                 $section = [
                     'title' => $value,
@@ -388,7 +387,7 @@ class csv_parser {
                     'learningactivity_metadata' => [
                         'name' => '',
                         'activityicon' => '',
-                        'instructions' => ''
+                        'instructions' => '',
                     ],
                     'sessions' => [
                         'presession' => [
@@ -401,9 +400,9 @@ class csv_parser {
                                 'learningmode' => null,
                                 'groupactivity' => null,
                                 'learningtypes' => null,
-                                'learningoutcomes_weekly' => ''
+                                'learningoutcomes_weekly' => '',
                             ],
-                            'activities' => []
+                            'activities' => [],
                         ],
                         'session' => [
                             'description' => '',
@@ -415,9 +414,9 @@ class csv_parser {
                                 'learningmode' => null,
                                 'groupactivity' => null,
                                 'learningtypes' => null,
-                                'learningoutcomes_weekly' => ''
+                                'learningoutcomes_weekly' => '',
                             ],
-                            'activities' => []
+                            'activities' => [],
                         ],
                         'postsession' => [
                             'description' => '',
@@ -429,11 +428,11 @@ class csv_parser {
                                 'learningmode' => null,
                                 'groupactivity' => null,
                                 'learningtypes' => null,
-                                'learningoutcomes_weekly' => ''
+                                'learningoutcomes_weekly' => '',
                             ],
-                            'activities' => []
-                        ]
-                    ]
+                            'activities' => [],
+                        ],
+                    ],
                 ];
                 $sections[] = $section;
                 // Store reference to last section for description updates

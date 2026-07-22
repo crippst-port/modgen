@@ -1,4 +1,19 @@
 <?php
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
 /**
  * Test the exact flow of core_courseformat_get_state web service.
  *
@@ -7,6 +22,7 @@
  * Admin-only direct diagnostic endpoint.
  *
  * Access: http://localhost/moodle45/ai/placement/modgen/debug_webservice.php?courseid=214
+ * @package aiplacement_modgen
  */
 
 define('CLI_SCRIPT', false);
@@ -203,7 +219,6 @@ try {
         echo "<p class='error'>✗ Failed to export $cmerrors course modules</p>";
     }
     echo "</div>";
-
 } catch (Exception $e) {
     echo "<div class='step'>";
     echo "<h2>FATAL ERROR</h2>";

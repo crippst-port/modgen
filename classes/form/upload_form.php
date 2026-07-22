@@ -28,7 +28,7 @@ require_once($CFG->libdir . '/formslib.php');
 
 /**
  * Form for uploading content files and creating activities.
- * 
+ *
  * This form allows users to upload documents (.doc, .docx, .odt)
  * to be converted into course activities.
  */
@@ -41,35 +41,45 @@ class aiplacement_modgen_upload_form extends moodleform {
             $mform->addElement('hidden', 'embedded', 1);
             $mform->setType('embedded', PARAM_BOOL);
         }
-        
+
         // Use Moodle's filepicker
-        $mform->addElement('filepicker', 'contentfile', 
+        $mform->addElement(
+            'filepicker',
+            'contentfile',
             get_string('contentfile', 'aiplacement_modgen'),
             null,
             ['accepted_types' => ['.docx', '.doc', '.odt']]
         );
         $mform->addRule('contentfile', null, 'required', null, 'client');
-        
+
         $activities = [
-            'book' => get_string('activitytype_book', 'aiplacement_modgen') . ' - ' . 
+            'book' => get_string('activitytype_book', 'aiplacement_modgen') . ' - ' .
                       get_string('bookdescription', 'aiplacement_modgen'),
         ];
-        $mform->addElement('select', 'activitytype', 
-            get_string('selectactivitytype', 'aiplacement_modgen'), $activities);
+        $mform->addElement(
+            'select',
+            'activitytype',
+            get_string('selectactivitytype', 'aiplacement_modgen'),
+            $activities
+        );
         $mform->setType('activitytype', PARAM_ALPHA);
         $mform->setDefault('activitytype', 'book');
-        
+
         $mform->addElement('text', 'activityname', get_string('name', 'moodle'));
         $mform->setType('activityname', PARAM_TEXT);
         $mform->addRule('activityname', null, 'required', null, 'client');
-        
+
         $mform->addElement('hidden', 'sectionnumber', 0);
         $mform->setType('sectionnumber', PARAM_INT);
-        
-        $mform->addElement('textarea', 'activityintro', 
-            get_string('activityintro', 'aiplacement_modgen'), 'rows="3" cols="60"');
+
+        $mform->addElement(
+            'textarea',
+            'activityintro',
+            get_string('activityintro', 'aiplacement_modgen'),
+            'rows="3" cols="60"'
+        );
         $mform->setType('activityintro', PARAM_RAW);
-        
+
         $this->add_action_buttons(false, get_string('uploadandcreate', 'aiplacement_modgen'));
     }
 }

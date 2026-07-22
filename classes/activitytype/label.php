@@ -34,7 +34,6 @@ defined('MOODLE_INTERNAL') || die();
  * Label activity type for creating label activities.
  */
 class label implements activity_type {
-
     /** @inheritDoc */
     public static function get_type(): string {
         return 'label';
@@ -59,7 +58,7 @@ class label implements activity_type {
         // Extract name and intro, ensuring proper handling
         $name = trim($activitydata->name ?? '');
         $intro = trim($activitydata->intro ?? '');
-        
+
         if ($name === '') {
             return null;
         }
@@ -73,31 +72,25 @@ class label implements activity_type {
             $moduleinfo->visible = 1;
             $moduleinfo->name = $name;
             $moduleinfo->cmidnumber = '';  // Course module ID number (optional identifier)
-            
+
             // Label intro - labels use intro as the main content
             $moduleinfo->introeditor = [
                 'text' => $intro,
                 'format' => 1,
-                'itemid' => 0
+                'itemid' => 0,
             ];
-            
+
             // Label-specific fields
             $moduleinfo->introformat = 1;
             $moduleinfo->showdescription = 1;  // Display description on course page
 
-
-
             $cm = create_module($moduleinfo);
 
-            
             return [
                 'coursemodule' => $cm->coursemodule,
-                'instance' => $cm->instance
+                'instance' => $cm->instance,
             ];
-            
         } catch (\Exception $e) {
-
-
             return null;
         }
     }

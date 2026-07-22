@@ -44,8 +44,12 @@ $context = context_course::instance($courseid);
 $hasprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
 $hastemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
 if (!$hasprompt && !$hastemplate) {
-    throw new required_capability_exception($context, 'aiplacement/modgen:generatefromtemplate', 
-        'nopermissions', 'error');
+    throw new required_capability_exception(
+        $context,
+        'aiplacement/modgen:generatefromtemplate',
+        'nopermissions',
+        'error'
+    );
 }
 
 // Set page URL early to avoid "page did not call set_url()" errors
@@ -101,12 +105,12 @@ function aiplacement_modgen_send_ajax_response(string $body, string $footer = ''
 
 /**
  * Build button definitions for modal footer.
- * 
+ *
  * @param array $buttons Array of button definitions with keys: action, label, class, formaction (optional)
  * @return array Button definitions for JSON response
  */
 function aiplacement_modgen_build_footer_buttons(array $buttons): array {
-    return array_map(function($btn) {
+    return array_map(function ($btn) {
         return [
             'action' => $btn['action'] ?? 'submit',
             'label' => $btn['label'] ?? 'Submit',
@@ -155,17 +159,17 @@ function aiplacement_modgen_render_modal_footer(array $actions, bool $includeclo
  */
 function aiplacement_modgen_output_response(string $bodyhtml, array $footeractions, bool $ajax, string $title, bool $refresh = false): void {
     global $OUTPUT, $PAGE;
-    
+
     if ($ajax) {
         $footerhtml = aiplacement_modgen_render_modal_footer($footeractions);
         aiplacement_modgen_send_ajax_response($bodyhtml, $footerhtml, $refresh, ['title' => $title]);
     }
-    
+
     // Set up navigation breadcrumb for non-AJAX page requests
     if (!$ajax && !defined('AJAX_SCRIPT')) {
         $PAGE->navbar->add($title);
     }
-    
+
     echo $OUTPUT->header();
     echo $bodyhtml;
     echo $OUTPUT->footer();
@@ -340,7 +344,7 @@ if (!$manager->get_user_policy_status($USER->id)) {
                 'action' => 'aiplacement-modgen-submit',
                 'disabled' => true,
                 'id' => 'accept-policy-btn',
-            ]
+            ],
         ]);
 
         // Load AMD module for policy acceptance (SECURITY FIX: replaced inline JavaScript)
@@ -430,232 +434,232 @@ if ($approvedjsonparam !== null) {
     ]);
 }
 
-    if ($approveform && ($adata = $approveform->get_data())) {
-        // Create sections from approved JSON using the section creation service
-        if (strlen($adata->approvedjson) > \aiplacement_modgen\local\constants::MAX_FILE_CONTENT_LENGTH * 2) {
-            throw new \moodle_exception('jsontoolarge', 'aiplacement_modgen');
-        }
-        
-        $json = json_decode($adata->approvedjson, true);
-        if ($json === null && json_last_error() !== JSON_ERROR_NONE) {
-            throw new \moodle_exception('invalidjson', 'aiplacement_modgen', '', json_last_error_msg());
-        }
-        
-        // Sanitize all text fields in the JSON structure to prevent XSS
-        if (!empty($json['themes'])) {
-            foreach ($json['themes'] as &$theme) {
-                if (isset($theme['title'])) {
-                    $theme['title'] = clean_param($theme['title'], PARAM_TEXT);
-                }
-                if (isset($theme['summary'])) {
-                    $theme['summary'] = clean_param($theme['summary'], PARAM_CLEANHTML);
-                }
-                if (isset($theme['metadata']['icon'])) {
-                    $theme['metadata']['icon'] = clean_param($theme['metadata']['icon'], PARAM_TEXT);
-                }
-                if (!empty($theme['weeks'])) {
-                    foreach ($theme['weeks'] as &$week) {
-                        if (isset($week['name'])) {
-                            $week['name'] = clean_param($week['name'], PARAM_TEXT);
-                        }
-                        if (isset($week['summary'])) {
-                            $week['summary'] = clean_param($week['summary'], PARAM_CLEANHTML);
-                        }
-                        if (!empty($week['activities'])) {
-                            foreach ($week['activities'] as &$activity) {
-                                if (isset($activity['name'])) {
-                                    $activity['name'] = clean_param($activity['name'], PARAM_TEXT);
-                                }
-                                if (isset($activity['description'])) {
-                                    $activity['description'] = clean_param($activity['description'], PARAM_CLEANHTML);
-                                }
-                                if (isset($activity['type'])) {
-                                    $activity['type'] = clean_param($activity['type'], PARAM_ALPHANUMEXT);
-                                }
-                            }
-                            unset($activity);
-                        }
-                    }
-                    unset($week);
-                }
-                if (!empty($theme['activities'])) {
-                    foreach ($theme['activities'] as &$activity) {
-                        if (isset($activity['name'])) {
-                            $activity['name'] = clean_param($activity['name'], PARAM_TEXT);
-                        }
-                        if (isset($activity['description'])) {
-                            $activity['description'] = clean_param($activity['description'], PARAM_CLEANHTML);
-                        }
-                        if (isset($activity['type'])) {
-                            $activity['type'] = clean_param($activity['type'], PARAM_ALPHANUMEXT);
-                        }
-                    }
-                    unset($activity);
-                }
-            }
-            unset($theme);
-        } else if (!empty($json['weeks'])) {
-            foreach ($json['weeks'] as &$week) {
-                if (isset($week['name'])) {
-                    $week['name'] = clean_param($week['name'], PARAM_TEXT);
-                }
-                if (isset($week['summary'])) {
-                    $week['summary'] = clean_param($week['summary'], PARAM_CLEANHTML);
-                }
-                if (!empty($week['activities'])) {
-                    foreach ($week['activities'] as &$activity) {
-                        if (isset($activity['name'])) {
-                            $activity['name'] = clean_param($activity['name'], PARAM_TEXT);
-                        }
-                        if (isset($activity['description'])) {
-                            $activity['description'] = clean_param($activity['description'], PARAM_CLEANHTML);
-                        }
-                        if (isset($activity['type'])) {
-                            $activity['type'] = clean_param($activity['type'], PARAM_ALPHANUMEXT);
-                        }
-                    }
-                    unset($activity);
-                }
-            }
-            unset($week);
-        }
-        if (isset($json['title'])) {
-            $json['title'] = clean_param($json['title'], PARAM_TEXT);
-        }
-        if (isset($json['summary'])) {
-            $json['summary'] = clean_param($json['summary'], PARAM_CLEANHTML);
-        }
-        
-        $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'connected_weekly';
-        $generatethemeintroductions = !empty($adata->generatethemeintroductions);
-        $createsuggestedactivities = !empty($adata->createsuggestedactivities);
-        $hideexistingsections = !empty($adata->hideexistingsections);
-        $createsummaryactivities = !empty($adata->createsummaryactivities);
-
-        // Count sections for display purposes
-        $sectioncount = 0;
-        if (!empty($json['themes'])) {
-            $sectioncount += count($json['themes']);
-            foreach ($json['themes'] as $theme) {
-                if (!empty($theme['weeks'])) {
-                    $sectioncount += count($theme['weeks']);
-                }
-            }
-        } else if (!empty($json['weeks'])) {
-            $sectioncount = count($json['weeks']);
-        }
-        
-        // Always use background task for all creation jobs
-        // Create job record
-        $job = new \stdClass();
-        $job->courseid = $courseid;
-        $job->userid = $USER->id;
-        $job->action = 'create_from_json';
-        $job->status = 'queued';
-        $job->parameters = json_encode([
-            'json' => $json,
-            'moduletype' => $moduletype,
-            'generatethemeintroductions' => $generatethemeintroductions,
-            'createsuggestedactivities' => $createsuggestedactivities,
-            'hideexistingsections' => $hideexistingsections,
-            'createsummaryactivities' => $createsummaryactivities
-        ]);
-        $job->timecreated = time();
-        $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
-
-        // Queue ad-hoc task - must pass all required parameters in custom_data
-        $task = new \aiplacement_modgen\task\create_sections_task();
-        $task->set_custom_data((object)[
-            'jobid' => $jobid,
-            'courseid' => $courseid,
-            'action' => 'create_from_json',
-            'json' => $json,
-            'moduletype' => $moduletype,
-            'generatethemeintroductions' => $generatethemeintroductions,
-            'createsuggestedactivities' => $createsuggestedactivities,
-            'hideexistingsections' => $hideexistingsections,
-            'createsummaryactivities' => $createsummaryactivities
-        ]);
-        $task->set_userid($USER->id);
-        \core\task\manager::queue_adhoc_task($task);
-        
-        // Return queued response for AJAX
-        if ($ajax) {
-            \aiplacement_modgen\local\ajax_response::success([
-                'queued' => true,
-                'jobid' => $jobid,
-                'message' => get_string('jobqueued', 'aiplacement_modgen', $sectioncount)
-            ]);
-        }
-        
-        // For non-AJAX, redirect to job status page
-        $statusurl = new moodle_url('/ai/placement/modgen/job_status.php', ['jobid' => $jobid]);
-        redirect($statusurl);
+if ($approveform && ($adata = $approveform->get_data())) {
+    // Create sections from approved JSON using the section creation service
+    if (strlen($adata->approvedjson) > \aiplacement_modgen\local\constants::MAX_FILE_CONTENT_LENGTH * 2) {
+        throw new \moodle_exception('jsontoolarge', 'aiplacement_modgen');
     }
-    
+
+    $json = json_decode($adata->approvedjson, true);
+    if ($json === null && json_last_error() !== JSON_ERROR_NONE) {
+        throw new \moodle_exception('invalidjson', 'aiplacement_modgen', '', json_last_error_msg());
+    }
+
+    // Sanitize all text fields in the JSON structure to prevent XSS
+    if (!empty($json['themes'])) {
+        foreach ($json['themes'] as &$theme) {
+            if (isset($theme['title'])) {
+                $theme['title'] = clean_param($theme['title'], PARAM_TEXT);
+            }
+            if (isset($theme['summary'])) {
+                $theme['summary'] = clean_param($theme['summary'], PARAM_CLEANHTML);
+            }
+            if (isset($theme['metadata']['icon'])) {
+                $theme['metadata']['icon'] = clean_param($theme['metadata']['icon'], PARAM_TEXT);
+            }
+            if (!empty($theme['weeks'])) {
+                foreach ($theme['weeks'] as &$week) {
+                    if (isset($week['name'])) {
+                        $week['name'] = clean_param($week['name'], PARAM_TEXT);
+                    }
+                    if (isset($week['summary'])) {
+                        $week['summary'] = clean_param($week['summary'], PARAM_CLEANHTML);
+                    }
+                    if (!empty($week['activities'])) {
+                        foreach ($week['activities'] as &$activity) {
+                            if (isset($activity['name'])) {
+                                $activity['name'] = clean_param($activity['name'], PARAM_TEXT);
+                            }
+                            if (isset($activity['description'])) {
+                                $activity['description'] = clean_param($activity['description'], PARAM_CLEANHTML);
+                            }
+                            if (isset($activity['type'])) {
+                                $activity['type'] = clean_param($activity['type'], PARAM_ALPHANUMEXT);
+                            }
+                        }
+                        unset($activity);
+                    }
+                }
+                unset($week);
+            }
+            if (!empty($theme['activities'])) {
+                foreach ($theme['activities'] as &$activity) {
+                    if (isset($activity['name'])) {
+                        $activity['name'] = clean_param($activity['name'], PARAM_TEXT);
+                    }
+                    if (isset($activity['description'])) {
+                        $activity['description'] = clean_param($activity['description'], PARAM_CLEANHTML);
+                    }
+                    if (isset($activity['type'])) {
+                        $activity['type'] = clean_param($activity['type'], PARAM_ALPHANUMEXT);
+                    }
+                }
+                unset($activity);
+            }
+        }
+        unset($theme);
+    } else if (!empty($json['weeks'])) {
+        foreach ($json['weeks'] as &$week) {
+            if (isset($week['name'])) {
+                $week['name'] = clean_param($week['name'], PARAM_TEXT);
+            }
+            if (isset($week['summary'])) {
+                $week['summary'] = clean_param($week['summary'], PARAM_CLEANHTML);
+            }
+            if (!empty($week['activities'])) {
+                foreach ($week['activities'] as &$activity) {
+                    if (isset($activity['name'])) {
+                        $activity['name'] = clean_param($activity['name'], PARAM_TEXT);
+                    }
+                    if (isset($activity['description'])) {
+                        $activity['description'] = clean_param($activity['description'], PARAM_CLEANHTML);
+                    }
+                    if (isset($activity['type'])) {
+                        $activity['type'] = clean_param($activity['type'], PARAM_ALPHANUMEXT);
+                    }
+                }
+                unset($activity);
+            }
+        }
+        unset($week);
+    }
+    if (isset($json['title'])) {
+        $json['title'] = clean_param($json['title'], PARAM_TEXT);
+    }
+    if (isset($json['summary'])) {
+        $json['summary'] = clean_param($json['summary'], PARAM_CLEANHTML);
+    }
+
+    $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'connected_weekly';
+    $generatethemeintroductions = !empty($adata->generatethemeintroductions);
+    $createsuggestedactivities = !empty($adata->createsuggestedactivities);
+    $hideexistingsections = !empty($adata->hideexistingsections);
+    $createsummaryactivities = !empty($adata->createsummaryactivities);
+
+    // Count sections for display purposes
+    $sectioncount = 0;
+    if (!empty($json['themes'])) {
+        $sectioncount += count($json['themes']);
+        foreach ($json['themes'] as $theme) {
+            if (!empty($theme['weeks'])) {
+                $sectioncount += count($theme['weeks']);
+            }
+        }
+    } else if (!empty($json['weeks'])) {
+        $sectioncount = count($json['weeks']);
+    }
+
+    // Always use background task for all creation jobs
+    // Create job record
+    $job = new \stdClass();
+    $job->courseid = $courseid;
+    $job->userid = $USER->id;
+    $job->action = 'create_from_json';
+    $job->status = 'queued';
+    $job->parameters = json_encode([
+        'json' => $json,
+        'moduletype' => $moduletype,
+        'generatethemeintroductions' => $generatethemeintroductions,
+        'createsuggestedactivities' => $createsuggestedactivities,
+        'hideexistingsections' => $hideexistingsections,
+        'createsummaryactivities' => $createsummaryactivities,
+    ]);
+    $job->timecreated = time();
+    $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
+
+    // Queue ad-hoc task - must pass all required parameters in custom_data
+    $task = new \aiplacement_modgen\task\create_sections_task();
+    $task->set_custom_data((object)[
+        'jobid' => $jobid,
+        'courseid' => $courseid,
+        'action' => 'create_from_json',
+        'json' => $json,
+        'moduletype' => $moduletype,
+        'generatethemeintroductions' => $generatethemeintroductions,
+        'createsuggestedactivities' => $createsuggestedactivities,
+        'hideexistingsections' => $hideexistingsections,
+        'createsummaryactivities' => $createsummaryactivities,
+    ]);
+    $task->set_userid($USER->id);
+    \core\task\manager::queue_adhoc_task($task);
+
+    // Return queued response for AJAX
+    if ($ajax) {
+        \aiplacement_modgen\local\ajax_response::success([
+            'queued' => true,
+            'jobid' => $jobid,
+            'message' => get_string('jobqueued', 'aiplacement_modgen', $sectioncount),
+        ]);
+    }
+
+    // For non-AJAX, redirect to job status page
+    $statusurl = new moodle_url('/ai/placement/modgen/job_status.php', ['jobid' => $jobid]);
+    redirect($statusurl);
+}
+
     // Handle deprecated standalone form submission still using direct creation (if any legacy code exists)
-    if (false && $approveform && ($adata = $approveform->get_data())) {
-        // This block is intentionally disabled - all submissions now use background tasks above.
-        // Kept for reference during migration period only.
-        $results = [];
-        $activitywarnings = [];
-        
+if (false && $approveform && ($adata = $approveform->get_data())) {
+    // This block is intentionally disabled - all submissions now use background tasks above.
+    // Kept for reference during migration period only.
+    $results = [];
+    $activitywarnings = [];
 
-        // Prepare data for success template
-        $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
-        $successdata = [
-            'message' => get_string('sectionscreatedsuccess', 'aiplacement_modgen', count($results)),
-            'hasdetails' => !empty($results),
-            'details' => $results,
-            'showcoursereturn' => !$ajax, // Show button in body for standalone pages, use footer for AJAX/modal
-            'courseurl' => $courseurl->out(false),
-        ];
 
-        $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/success_message', $successdata);
-        
-        // Add any warnings below the success message
-        if (!empty($activitywarnings)) {
-            $warningshtml = '';
-            foreach ($activitywarnings as $warning) {
-                $warningshtml .= html_writer::div($warning, 'alert alert-warning', ['role' => 'alert']);
-            }
-            $bodyhtml .= $warningshtml;
+    // Prepare data for success template
+    $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
+    $successdata = [
+        'message' => get_string('sectionscreatedsuccess', 'aiplacement_modgen', count($results)),
+        'hasdetails' => !empty($results),
+        'details' => $results,
+        'showcoursereturn' => !$ajax, // Show button in body for standalone pages, use footer for AJAX/modal
+        'courseurl' => $courseurl->out(false),
+    ];
+
+    $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/success_message', $successdata);
+
+    // Add any warnings below the success message
+    if (!empty($activitywarnings)) {
+        $warningshtml = '';
+        foreach ($activitywarnings as $warning) {
+            $warningshtml .= html_writer::div($warning, 'alert alert-warning', ['role' => 'alert']);
         }
-        
-        $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
+        $bodyhtml .= $warningshtml;
+    }
 
-        if ($ajax) {
-            $footeractions = [];
-            if ($embedded) {
-                $footeractions[] = [
-                    'label' => get_string('closemodgenmodal', 'aiplacement_modgen'),
-                    'classes' => 'btn btn-secondary',
-                    'isbutton' => true,
-                    'action' => 'aiplacement-modgen-close',
-                ];
-                $footerhtml = aiplacement_modgen_render_modal_footer($footeractions, false);
-            } else {
-                $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
-                $footeractions[] = [
-                    'label' => get_string('returntocourse', 'aiplacement_modgen'),
-                    'classes' => 'btn btn-primary',
-                    'islink' => true,
-                    'url' => $courseurl->out(false),
-                ];
-                $footerhtml = aiplacement_modgen_render_modal_footer($footeractions);
-            }
+    $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
 
-            aiplacement_modgen_send_ajax_response($bodyhtml, $footerhtml, true, [
-                'close' => false,
-                'title' => get_string('pluginname', 'aiplacement_modgen'),
-            ]);
+    if ($ajax) {
+        $footeractions = [];
+        if ($embedded) {
+            $footeractions[] = [
+                'label' => get_string('closemodgenmodal', 'aiplacement_modgen'),
+                'classes' => 'btn btn-secondary',
+                'isbutton' => true,
+                'action' => 'aiplacement-modgen-close',
+            ];
+            $footerhtml = aiplacement_modgen_render_modal_footer($footeractions, false);
+        } else {
+            $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
+            $footeractions[] = [
+                'label' => get_string('returntocourse', 'aiplacement_modgen'),
+                'classes' => 'btn btn-primary',
+                'islink' => true,
+                'url' => $courseurl->out(false),
+            ];
+            $footerhtml = aiplacement_modgen_render_modal_footer($footeractions);
         }
 
-        echo $OUTPUT->header();
-        echo $bodyhtml;
-        echo $OUTPUT->footer();
-        exit;
-    } // Close the if ($approveform && ($adata = $approveform->get_data())) block
+        aiplacement_modgen_send_ajax_response($bodyhtml, $footerhtml, true, [
+            'close' => false,
+            'title' => get_string('pluginname', 'aiplacement_modgen'),
+        ]);
+    }
+
+    echo $OUTPUT->header();
+    echo $bodyhtml;
+    echo $OUTPUT->footer();
+    exit;
+} // Close the if ($approveform && ($adata = $approveform->get_data())) block
 
 // Generator form: Create and display for standalone page access
 // Check which form is being submitted
@@ -679,7 +683,7 @@ if (!$promptform->is_submitted()) {
     $PAGE->set_heading(get_string('modgenmodalheading', 'aiplacement_modgen'));
 
     echo $OUTPUT->header();
-    
+
     // Render header template
     $headerdata = [
         'heading' => get_string('launchgenerator', 'aiplacement_modgen'),
@@ -687,7 +691,7 @@ if (!$promptform->is_submitted()) {
         'warning' => get_string('longquery', 'aiplacement_modgen'),
     ];
     echo $OUTPUT->render_from_template('aiplacement_modgen/generator_header', $headerdata);
-    
+
     $promptform->display();
     echo $OUTPUT->footer();
     exit;
@@ -702,7 +706,7 @@ if ($pdata = $promptform->get_data()) {
     if (!empty($pdata->debugbutton)) {
         $prompt = !empty($pdata->prompt) ? trim($pdata->prompt) : '';
         $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
-        
+
         // Collect selected modules from multiselect
         $existing_modules = [];
         if (!empty($pdata->existing_modules)) {
@@ -714,16 +718,16 @@ if ($pdata = $promptform->get_data()) {
         }
         $existing_modules = array_unique(array_filter($existing_modules));
         $existing_module = !empty($existing_modules) ? array_shift($existing_modules) : 0; // Primary module
-        
+
         // Try to extract template data
         $template_data = null;
         $template_data_debug = [];
-        
+
         if (!empty($existing_module) || !empty($existing_modules)) {
             try {
                 $template_reader = new \aiplacement_modgen\local\template_reader();
                 $all_templates = [];
-                
+
                 // Collect modules to extract
                 $modules_to_extract = [];
                 if (!empty($existing_module)) {
@@ -733,35 +737,35 @@ if ($pdata = $promptform->get_data()) {
                     $modules_to_extract = array_merge($modules_to_extract, $existing_modules);
                 }
                 $modules_to_extract = array_unique(array_filter($modules_to_extract));
-                
+
                 if (!empty($modules_to_extract)) {
                     $template_data_debug[] = 'Extracting from ' . count($modules_to_extract) . ' module(s)...';
-                    
+
                     global $DB;
-                    
+
                     foreach ($modules_to_extract as $idx => $mod_id) {
                         $template_data_debug[] = '';
                         $template_data_debug[] = '=== Module ' . ($idx + 1) . ' (ID: ' . $mod_id . ') ===';
-                        
+
                         // Check if course exists
                         $course_check = $DB->get_record('course', ['id' => (int)$mod_id]);
                         if (!$course_check) {
                             $template_data_debug[] = 'ERROR: Course ID ' . $mod_id . ' not found';
                             continue;
                         }
-                        
+
                         $template_data_debug[] = 'Course: ' . $course_check->fullname;
-                        
+
                         // Check access
                         $course_context = \context_course::instance((int)$mod_id);
                         $has_access = has_capability('moodle/course:view', $course_context);
                         $template_data_debug[] = 'Access: ' . ($has_access ? 'YES' : 'NO');
-                        
+
                         if (!$has_access) {
                             $template_data_debug[] = 'Skipped - no access';
                             continue;
                         }
-                        
+
                         try {
                             $extracted = $template_reader->extract_curriculum_template((string)$mod_id);
                             $template_data_debug[] = 'Extraction: SUCCESS';
@@ -770,18 +774,18 @@ if ($pdata = $promptform->get_data()) {
                             $all_templates[] = $extracted;
                         } catch (Throwable $extract_error) {
                             $template_data_debug[] = 'Extraction FAILED: ' . $extract_error->getMessage();
-                            
+
                             // Try fallback
                             try {
                                 $fallback = [
                                     'course_info' => [
                                         'name' => $course_check->fullname,
                                         'format' => $course_check->format,
-                                        'summary' => strip_tags($course_check->summary ?? '')
+                                        'summary' => strip_tags($course_check->summary ?? ''),
                                     ],
                                     'structure' => [],
                                     'activities' => [],
-                                    'template_html' => ''
+                                    'template_html' => '',
                                 ];
                                 $template_data_debug[] = 'Fallback: SUCCESS (course info only)';
                                 $all_templates[] = $fallback;
@@ -790,16 +794,16 @@ if ($pdata = $promptform->get_data()) {
                             }
                         }
                     }
-                    
+
                     // Merge all templates
                     if (!empty($all_templates)) {
                         $template_data_debug[] = '';
                         $template_data_debug[] = 'Merging ' . count($all_templates) . ' template(s)...';
                         $template_data = $all_templates[0];
-                        
+
                         // Track how many modules are being merged for AI prompt
                         $template_data['module_count'] = count($all_templates);
-                        
+
                         if (count($all_templates) > 1) {
                             for ($i = 1; $i < count($all_templates); $i++) {
                                 $other = $all_templates[$i];
@@ -816,9 +820,7 @@ if ($pdata = $promptform->get_data()) {
                         }
                         $template_data_debug[] = 'Final: ' . count($template_data['structure'] ?? []) . ' sections, ' . count($template_data['activities'] ?? []) . ' activities';
                     }
-                    
                 }
-                
             } catch (Exception $e) {
                 $template_data_debug[] = 'ERROR: ' . $e->getMessage();
                 $template_data = null;
@@ -826,141 +828,144 @@ if ($pdata = $promptform->get_data()) {
         } else {
             $template_data_debug[] = 'No template source selected';
         }
-        
+
         // Display the debug output
         $html = html_writer::tag('h3', 'DEBUG: Template Data Extraction', ['class' => 'mt-3']);
         $html .= html_writer::tag('pre', implode("\n", $template_data_debug), [
-            'style' => 'background: #f5f5f5; padding: 15px; border-radius: 3px; font-size: 0.85em; overflow-x: auto; border: 1px solid #ddd;'
+            'style' => 'background: #f5f5f5; padding: 15px; border-radius: 3px; font-size: 0.85em; overflow-x: auto; border: 1px solid #ddd;',
         ]);
-        
+
         if ($template_data) {
             $html .= html_writer::tag('h4', 'Full Template Data (JSON)', ['class' => 'mt-3']);
             $html .= html_writer::tag('pre', json_encode($template_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), [
-                'style' => 'background: #f5f5f5; padding: 15px; border-radius: 3px; font-size: 0.75em; overflow-x: auto; border: 1px solid #ddd; max-height: 600px; overflow-y: auto;'
+                'style' => 'background: #f5f5f5; padding: 15px; border-radius: 3px; font-size: 0.75em; overflow-x: auto; border: 1px solid #ddd; max-height: 600px; overflow-y: auto;',
             ]);
-            
+
             // Show the compact structure that gets sent to the AI
             $html .= html_writer::tag('h4', 'Compact Structure for AI (What the AI Actually Receives)', ['class' => 'mt-3']);
             $html .= html_writer::tag('p', 'This is the optimized structure that gets included in the AI prompt:', ['class' => 'text-muted']);
-            
+
             // Create the compact structure inline to avoid namespace issues
             $compact_structure = [
-                'source' => !empty($template_data['module_count']) && $template_data['module_count'] > 1 
-                    ? 'multiple_modules' 
+                'source' => !empty($template_data['module_count']) && $template_data['module_count'] > 1
+                    ? 'multiple_modules'
                     : 'single_module',
                 'organizational_pattern' => [
                     'label_sequence' => [],
                     'activity_types_used' => [],
-                    'typical_activities_per_section' => 0
+                    'typical_activities_per_section' => 0,
                 ],
-                'sections' => []
+                'sections' => [],
             ];
-            
+
             // Extract organizational pattern
             if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
                 $label_sequence = [];
                 $activity_types = [];
                 $section_counts = [];
-                
+
                 foreach ($template_data['activities'] as $activity) {
                     $type = $activity['type'] ?? 'unknown';
                     $section = $activity['section'] ?? 'unknown';
-                    
+
                     if (!isset($section_counts[$section])) {
                         $section_counts[$section] = 0;
                     }
                     $section_counts[$section]++;
-                    
+
                     if ($type === 'label' && !empty($activity['intro'])) {
                         if (!in_array($activity['intro'], $label_sequence)) {
                             $label_sequence[] = $activity['intro'];
                         }
                     }
-                    
+
                     if (!in_array($type, $activity_types)) {
                         $activity_types[] = $type;
                     }
                 }
-                
+
                 $compact_structure['organizational_pattern']['label_sequence'] = $label_sequence;
                 $compact_structure['organizational_pattern']['activity_types_used'] = $activity_types;
-                
+
                 if (!empty($section_counts)) {
-                    $compact_structure['organizational_pattern']['typical_activities_per_section'] = 
+                    $compact_structure['organizational_pattern']['typical_activities_per_section'] =
                         (int) round(array_sum($section_counts) / count($section_counts));
                 }
             }
-            
+
             // Process sections
             if (!empty($template_data['structure']) && is_array($template_data['structure'])) {
                 foreach ($template_data['structure'] as $section) {
                     $section_data = [
                         'number' => $section['id'] ?? 0,
                         'title' => $section['name'] ?? 'Untitled',
-                        'content' => []
+                        'content' => [],
                     ];
-                    
+
                     if (!empty($section['summary'])) {
                         $section_data['summary'] = substr($section['summary'], 0, 200);
                     }
-                    
+
                     // Add activities for this section
                     if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
                         foreach ($template_data['activities'] as $activity) {
                             if (isset($activity['section']) && $activity['section'] === $section_data['title']) {
                                 $activity_item = ['type' => $activity['type'] ?? 'unknown'];
-                                
+
                                 if ($activity['type'] === 'label' && !empty($activity['intro'])) {
                                     $activity_item['text'] = $activity['intro'];
                                 } else {
                                     $activity_item['name'] = $activity['name'] ?? 'Untitled';
                                 }
-                                
+
                                 $section_data['content'][] = $activity_item;
                             }
                         }
                     }
-                    
+
                     $compact_structure['sections'][] = $section_data;
                 }
             }
-            
+
             $html .= html_writer::tag('pre', json_encode($compact_structure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), [
-                'style' => 'background: #e8f5e9; padding: 15px; border-radius: 3px; font-size: 0.75em; overflow-x: auto; border: 2px solid #4caf50; max-height: 600px; overflow-y: auto;'
+                'style' => 'background: #e8f5e9; padding: 15px; border-radius: 3px; font-size: 0.75em; overflow-x: auto; border: 2px solid #4caf50; max-height: 600px; overflow-y: auto;',
             ]);
-            
+
             // Token estimate
             $compact_json = json_encode($compact_structure);
             $estimated_tokens = (int)(strlen($compact_json) / 4);
-            $html .= html_writer::tag('p', "Estimated tokens: ~{$estimated_tokens} (compact) vs ~" . (int)(strlen(json_encode($template_data))/4) . " (full)", 
-                ['class' => 'text-muted mt-2']);
+            $html .= html_writer::tag(
+                'p',
+                "Estimated tokens: ~{$estimated_tokens} (compact) vs ~" . (int)(strlen(json_encode($template_data)) / 4) . " (full)",
+                ['class' => 'text-muted mt-2']
+            );
         }
-        
+
         $bodyhtml = html_writer::div($html, 'aiplacement-modgen__content p-3');
-        
+
         $footeractions = [[
             'label' => 'Back to form',
             'classes' => 'btn btn-secondary',
             'isbutton' => true,
             'action' => 'aiplacement-modgen-reenter',
         ]];
-        
+
         aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, 'DEBUG: Template Data');
         exit;
     }
-    
+
     $prompt = !empty($pdata->prompt) ? trim($pdata->prompt) : '';
     $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'connected_weekly';
-    
+
     // Check for any AI-based content options
     $expandonthemes = !empty($pdata->expandonthemes);
-    
+
     // New simplified checkbox - if checked, generate all example content
     $generateexamplecontent = !empty($pdata->generateexamplecontent);
     $generatethemeintroductions = $generateexamplecontent;
     $createsuggestedactivities = $generateexamplecontent;
     $generatesessioninstructions = $generateexamplecontent;
-    
+
     // Check if user wants to hide existing sections and place new content at top
     $hideexistingsections = !empty($pdata->hideexistingsections);
     // Check if user wants the learningactivity "section summary" placeholders.
@@ -969,7 +974,7 @@ if ($pdata = $promptform->get_data()) {
     // For connected layouts, ALWAYS generate the sessions structure, but respect activity creation preference
     $includesessions = $generatesessioninstructions || ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme');
     $includeactivities = $createsuggestedactivities;
-    
+
     // Collect all selected existing modules from multiselect
     $existing_modules = [];
     if (!empty($pdata->existing_modules)) {
@@ -981,9 +986,9 @@ if ($pdata = $promptform->get_data()) {
     }
     $existing_modules = array_unique(array_filter($existing_modules));
     $existing_module = !empty($existing_modules) ? array_shift($existing_modules) : 0; // Primary module
-    
+
     $typeinstruction = get_string('moduletypeinstruction_' . $moduletype, 'aiplacement_modgen');
-    
+
     // Build composite prompt - combine user prompt with type instruction
     // If existing module(s) are selected, tell the AI to use them as a guide
     if (!empty($prompt)) {
@@ -999,7 +1004,7 @@ if ($pdata = $promptform->get_data()) {
                 $multipleinstruction = "You will receive content from an existing course as a reference. " .
                     "Use it as a template, adapting based on the prompt above.";
             }
-            
+
             $compositeprompt = trim($prompt . "\n\n" . $multipleinstruction . "\n\n" . $typeinstruction);
         } else {
             // User provided a prompt but no module selection
@@ -1018,28 +1023,28 @@ if ($pdata = $promptform->get_data()) {
                 // Single module: translate/adapt
                 $multipleinstruction = "Translate the existing module";
             }
-            
+
             $compositeprompt = trim($multipleinstruction . " following this format:\n\n" . $typeinstruction);
         } else {
             // No prompt and no existing module - just use type instruction
             $compositeprompt = trim($typeinstruction);
         }
     }
-    
+
     // Add theme introductions instruction if enabled and using connected_theme
     if ($generatethemeintroductions && $moduletype === 'connected_theme') {
         $compositeprompt .= "\n\nIMPORTANT: For each theme in the themes array, generate a 2-3 sentence introductory paragraph for students. This paragraph should be placed in the 'summary' field of each theme object. The summary should introduce the theme content to students, explaining what they will learn or explore in that themed section.";
-    } elseif ($moduletype === 'connected_theme') {
+    } else if ($moduletype === 'connected_theme') {
         // If connected_theme format but NOT generating introductions, tell AI to leave theme summaries empty
         $compositeprompt .= "\n\nIMPORTANT: Do NOT generate summaries for themes. Leave the 'summary' field EMPTY for each theme object (empty string, not null). Only provide theme titles and the weeks array. This keeps the theme sections as containers without descriptive text.";
     }
-    
+
     // Add activity guidance instruction if activities are being created
     if ($createsuggestedactivities) {
         $activityguidance = get_string('activityguidanceinstructions', 'aiplacement_modgen');
         $compositeprompt .= "\n\n" . $activityguidance;
     }
-    
+
     // Add session instructions directive if enabled
     if ($generatesessioninstructions) {
         $compositeprompt .= "\n\nSESSION INSTRUCTIONS - DETAILED STUDENT GUIDANCE:\n" .
@@ -1074,12 +1079,12 @@ if ($pdata = $promptform->get_data()) {
         // Get file manager data
         $usercontext = context_user::instance($USER->id);
         $files = $filedata->supportingfiles_filemanager ?? $filedata->supportingfiles ?? 0;
-        
+
         if (!empty($files)) {
             $fs = get_file_storage();
             $contextid = !empty($filedata->contextid) ? $filedata->contextid : $usercontext->id;
             $storedfiles = $fs->get_area_files($contextid, 'aiplacement_modgen', 'supportingfiles', $files, 'sortorder', false);
-            
+
             if (!empty($storedfiles)) {
                 $filecontent = "UPLOADED FILE STRUCTURE:\n\n";
                 foreach ($storedfiles as $file) {
@@ -1103,21 +1108,21 @@ if ($pdata = $promptform->get_data()) {
     // Gather supporting files using the file processor service
     $supportingfiles = [];
     $fileprocessor = new \aiplacement_modgen\local\file_processor_service();
-    
+
     if (!empty($pdata->supportingfiles)) {
         $draftitemid = $pdata->supportingfiles;
         $usercontext = context_user::instance($USER->id);
         $supportingfiles = $fileprocessor->process_draft_files($draftitemid, $usercontext->id);
     }
-    
+
     // If files were actually uploaded but no user prompt, add auto-instruction to use the file
     if (!empty($supportingfiles) && empty($prompt)) {
         $compositeprompt .= "\n\nUser has uploaded file(s) without providing a text prompt. Please use the uploaded file content to create the module structure and content.";
     }
-    
+
     // Generate module using template processing service
     $template_processor = new \aiplacement_modgen\local\template_processing_service();
-    
+
     try {
         $json = $template_processor->process_and_generate(
             $pdata,
@@ -1127,22 +1132,21 @@ if ($pdata = $promptform->get_data()) {
             $includeactivities,
             $includesessions
         );
-        
+
         // Check if the service returned a detected module type (from CSV auto-detection)
         if (!empty($json['_detected_moduletype'])) {
             $moduletype = $json['_detected_moduletype'];
             unset($json['_detected_moduletype']); // Remove internal flag
         }
-        
+
         // Debug: Check what was returned
         if (empty($json)) {
             throw new Exception('Template processor returned empty result');
         }
-        
+
         if (!is_array($json)) {
             throw new Exception('Template processor did not return an array');
         }
-        
     } catch (Exception $e) {
         $errorhtml = html_writer::div(
             html_writer::tag('h4', get_string('generationfailed', 'aiplacement_modgen'), ['class' => 'text-danger']) .
@@ -1162,7 +1166,7 @@ if ($pdata = $promptform->get_data()) {
         aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
         exit;
     }
-    
+
     // Check if the AI response contains validation errors
     if (empty($json)) {
         $debuginfo = '';
@@ -1173,7 +1177,7 @@ if ($pdata = $promptform->get_data()) {
                 'alert alert-info mt-3'
             );
         }
-        
+
         $errorhtml = html_writer::div(
             html_writer::tag('h4', 'AI Error', ['class' => 'text-danger']) .
             html_writer::div('The AI service returned no response. The API may be unavailable or returned an error. Please check the system logs and try again.', 'alert alert-danger') .
@@ -1194,7 +1198,7 @@ if ($pdata = $promptform->get_data()) {
         aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
         exit;
     }
-    
+
     if (!empty($json['template']) && strpos($json['template'], 'AI error') === 0) {
         $debuginfo = '';
         if (!empty($debuglog)) {
@@ -1204,7 +1208,7 @@ if ($pdata = $promptform->get_data()) {
                 'alert alert-info mt-3'
             );
         }
-        
+
         $errorhtml = html_writer::div(
             html_writer::tag('h4', 'AI Error', ['class' => 'text-danger']) .
             html_writer::div($json['template'], 'alert alert-danger') .
@@ -1224,7 +1228,7 @@ if ($pdata = $promptform->get_data()) {
         aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
         exit;
     }
-    
+
     if (!empty($json['validation_error'])) {
         // AI returned malformed structure - show error and don't allow approval
         $errorhtml = html_writer::div(
@@ -1251,7 +1255,6 @@ if ($pdata = $promptform->get_data()) {
     $debugprompt = isset($json['debugprompt']) ? $json['debugprompt'] : $prompt;
     $jsonstr = json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     if ($jsonstr === false) {
-
     }
     // For fresh generation (start from scratch), skip re-encoding module data for summary
     // Just use a simple generated fallback summary instead
@@ -1283,7 +1286,7 @@ if ($pdata = $promptform->get_data()) {
     ob_start();
     $approveform->display();
     $formhtml = ob_get_clean();
-    
+
     // Add regenerate button functionality if AI is enabled
     if (get_config('aiplacement_modgen', 'enable_ai')) {
         $formhtml .= html_writer::script("
@@ -1342,7 +1345,7 @@ if ($pdata = $promptform->get_data()) {
             'label' => get_string('approveandcreate', 'aiplacement_modgen'),
             'class' => 'btn-primary',
         ];
-        
+
         aiplacement_modgen_send_ajax_response($bodyhtml, '', false, [
             'title' => get_string('pluginname', 'aiplacement_modgen'),
             'buttons' => aiplacement_modgen_build_footer_buttons($buttons),
@@ -1350,7 +1353,7 @@ if ($pdata = $promptform->get_data()) {
         ]);
         exit;
     }
-    
+
     // For non-AJAX, use the normal response with form buttons
     $footeractions = [];
     aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
@@ -1364,7 +1367,7 @@ if ($promptform->is_submitted()) {
     $PAGE->set_heading(get_string('modgenmodalheading', 'aiplacement_modgen'));
 
     echo $OUTPUT->header();
-    
+
     // Render header template
     $headerdata = [
         'heading' => get_string('launchgenerator', 'aiplacement_modgen'),
@@ -1372,7 +1375,7 @@ if ($promptform->is_submitted()) {
         'warning' => get_string('longquery', 'aiplacement_modgen'),
     ];
     echo $OUTPUT->render_from_template('aiplacement_modgen/generator_header', $headerdata);
-    
+
     $promptform->display();
     echo $OUTPUT->footer();
     exit;

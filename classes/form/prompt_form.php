@@ -31,15 +31,14 @@ require_once($CFG->libdir . '/formslib.php');
  * Form for generating module structure from a text prompt.
  */
 class aiplacement_modgen_prompt_form extends moodleform {
-
     public function definition() {
         $mform = $this->_form;
         $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
         $mform->setType('courseid', PARAM_INT);
-        
+
         // Add module type selection
         $moduletypeoptions = [];
-        
+
         // Add Connected Curriculum format options if flexsections is installed
         $pluginmanager = core_plugin_manager::instance();
         $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
@@ -47,7 +46,7 @@ class aiplacement_modgen_prompt_form extends moodleform {
             $moduletypeoptions['connected_weekly'] = get_string('moduletype_connected_weekly', 'aiplacement_modgen');
             $moduletypeoptions['connected_theme'] = get_string('moduletype_connected_theme', 'aiplacement_modgen');
         }
-        
+
         // Module type selection
         $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
         $mform->setType('moduletype', PARAM_ALPHANUMEXT);
@@ -62,7 +61,7 @@ class aiplacement_modgen_prompt_form extends moodleform {
 
         // === SUGGESTED CONTENT SECTION ===
         $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
-        
+
         // Generate example content option
         $mform->addElement('advcheckbox', 'generateexamplecontent', get_string('generateexamplecontent', 'aiplacement_modgen'));
         $mform->addHelpButton('generateexamplecontent', 'generateexamplecontent', 'aiplacement_modgen');

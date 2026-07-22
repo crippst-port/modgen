@@ -30,7 +30,6 @@ defined('MOODLE_INTERNAL') || die();
  * Helper class for accessing plugin settings with caching.
  */
 class settings_helper {
-
     /** @var array Cache for settings values */
     private static $cache = [];
 

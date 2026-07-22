@@ -61,7 +61,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @coversDefaultClass \aiplacement_modgen\event\observer
  */
 final class deletion_integrity_test extends advanced_testcase {
-
     /** @var \stdClass Test course. */
     private $course;
 
@@ -142,14 +141,18 @@ final class deletion_integrity_test extends advanced_testcase {
         // Create a real module and mark it as AI-generated.
         $label = $this->getDataGenerator()->create_module('label', ['course' => $this->course->id]);
         aigen_tracker::mark_as_aigenerated($label->cmid, $this->course->id);
-        $this->assertTrue(aigen_tracker::is_aigenerated($label->cmid),
-            'Pre-condition: module is tracked as AI-generated.');
+        $this->assertTrue(
+            aigen_tracker::is_aigenerated($label->cmid),
+            'Pre-condition: module is tracked as AI-generated.'
+        );
 
         // Delete it the way Moodle does — this fires course_module_deleted.
         course_delete_module($label->cmid);
 
-        $this->assertFalse(aigen_tracker::is_aigenerated($label->cmid),
-            'Tracker row must be removed by the course_module_deleted observer.');
+        $this->assertFalse(
+            aigen_tracker::is_aigenerated($label->cmid),
+            'Tracker row must be removed by the course_module_deleted observer.'
+        );
     }
 
     /**
@@ -166,8 +169,10 @@ final class deletion_integrity_test extends advanced_testcase {
         $cm = get_coursemodule_from_id('label', $label->cmid, 0, false, MUST_EXIST);
         \core\event\course_module_updated::create_from_cm($cm)->trigger();
 
-        $this->assertFalse(aigen_tracker::is_aigenerated($label->cmid),
-            'Editing a module must clear its AI-generated marker.');
+        $this->assertFalse(
+            aigen_tracker::is_aigenerated($label->cmid),
+            'Editing a module must clear its AI-generated marker.'
+        );
     }
 
     /**
@@ -181,14 +186,20 @@ final class deletion_integrity_test extends advanced_testcase {
 
         (new section_creation_service())->create_sections_from_json(
             $this->payload_with_activities(),
-            $this->course->id, 'connected_theme', true, true, false
+            $this->course->id,
+            'connected_theme',
+            true,
+            true,
+            false
         );
         $this->resetDebugging();
 
         $trackedcmids = aigen_tracker::get_aigenerated_cmids($this->course->id);
-        $this->assertNotEmpty($trackedcmids,
+        $this->assertNotEmpty(
+            $trackedcmids,
             'Pre-condition: generation with activities should produce tracked cmids '
-            . '(otherwise this test is vacuous).');
+            . '(otherwise this test is vacuous).'
+        );
 
         // Delete every tracked module and confirm the observer cleans up each row.
         foreach ($trackedcmids as $cmid) {
@@ -199,8 +210,10 @@ final class deletion_integrity_test extends advanced_testcase {
 
         $remaining = aigen_tracker::get_aigenerated_cmids($this->course->id);
         foreach ($remaining as $cmid) {
-            $this->assertTrue($DB->record_exists('course_modules', ['id' => $cmid]),
-                "Tracker row for cmid {$cmid} survives but its module was deleted (stale reference).");
+            $this->assertTrue(
+                $DB->record_exists('course_modules', ['id' => $cmid]),
+                "Tracker row for cmid {$cmid} survives but its module was deleted (stale reference)."
+            );
         }
     }
 
@@ -225,22 +238,33 @@ final class deletion_integrity_test extends advanced_testcase {
                     ['title' => 'Child week', 'summary' => 'w', 'sessions' => []],
                 ]],
             ]],
-            $this->course->id, 'connected_theme', false, false, false
+            $this->course->id,
+            'connected_theme',
+            false,
+            false,
+            false
         );
         $this->resetDebugging();
 
         // Find the theme (top-level) section and its child week.
-        $theme = $DB->get_record('course_sections',
-            ['course' => $this->course->id, 'name' => 'Theme to delete'], '*', MUST_EXIST);
+        $theme = $DB->get_record(
+            'course_sections',
+            ['course' => $this->course->id, 'name' => 'Theme to delete'],
+            '*',
+            MUST_EXIST
+        );
 
         // Delete the parent theme section via the core API (cascades children).
         course_delete_section($this->course->id, $theme->section, true);
         rebuild_course_cache($this->course->id, true, true);
 
         $orphans = $this->find_orphaned_parent_options();
-        $this->assertSame([], $orphans,
+        $this->assertSame(
+            [],
+            $orphans,
             'Deleting a parent section must not leave orphaned parent references: '
-            . implode(', ', $orphans));
+            . implode(', ', $orphans)
+        );
 
         // The editor state must still render after the deletion.
         $modinfo = get_fast_modinfo($this->course->id);
@@ -266,14 +290,20 @@ final class deletion_integrity_test extends advanced_testcase {
                         ['title' => "Cycle {$cycle} Week", 'summary' => 'w', 'sessions' => []],
                     ]],
                 ]],
-                $this->course->id, 'connected_theme', false, false, false
+                $this->course->id,
+                'connected_theme',
+                false,
+                false,
+                false
             );
             $this->resetDebugging();
 
             // Delete every generated top-level theme section.
-            $themes = $DB->get_records_select('course_sections',
+            $themes = $DB->get_records_select(
+                'course_sections',
                 "course = :c AND section > 0 AND " . $DB->sql_like('name', ':pat'),
-                ['c' => $this->course->id, 'pat' => 'Cycle%']);
+                ['c' => $this->course->id, 'pat' => 'Cycle%']
+            );
             foreach ($themes as $theme) {
                 // Re-read: section numbers shift as siblings are removed.
                 if ($DB->record_exists('course_sections', ['id' => $theme->id])) {
@@ -283,8 +313,11 @@ final class deletion_integrity_test extends advanced_testcase {
             }
             rebuild_course_cache($this->course->id, true, true);
 
-            $this->assertSame([], $this->find_orphaned_parent_options(),
-                "Cycle {$cycle}: no orphaned parent references after delete.");
+            $this->assertSame(
+                [],
+                $this->find_orphaned_parent_options(),
+                "Cycle {$cycle}: no orphaned parent references after delete."
+            );
         }
 
         // Final render check.

@@ -32,7 +32,6 @@ use plugin_renderer_base;
  * Plugin renderer class.
  */
 class renderer extends plugin_renderer_base {
-    
     /**
      * Render the course toolbar.
      *

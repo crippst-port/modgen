@@ -37,7 +37,6 @@ require_once($CFG->dirroot . '/mod/subsection/classes/manager.php');
  * Service for creating course sections from approved JSON structure.
  */
 class section_creation_service {
-
     /**
      * Create sections from approved JSON structure.
      *
@@ -82,7 +81,7 @@ class section_creation_service {
             $lockkey,
             constants::GENERATION_LOCK_TIMEOUT
         );
-        
+
         try {
             // Track existing sections if hiding is enabled
             $existing_section_ids = [];
@@ -155,9 +154,9 @@ class section_creation_service {
                         WHERE cm.course = :courseid AND ctx.id IS NULL";
                 $orphaned = $DB->get_records_sql($sql, [
                     'courseid' => $courseid,
-                    'contextlevel' => CONTEXT_MODULE
+                    'contextlevel' => CONTEXT_MODULE,
                 ]);
-                
+
                 if (!empty($orphaned)) {
                     foreach ($orphaned as $cm) {
                         \context_module::instance($cm->id);
@@ -166,14 +165,17 @@ class section_creation_service {
 
                 // Commit all changes - all sections and activities created successfully.
                 $transaction->allow_commit();
-
             } catch (\Exception $e) {
                 // Transaction automatically rolls back on exception.
                 // No partial data will remain in database.
-                throw new \moodle_exception('jsonsectionscreationfailed', 'aiplacement_modgen', '', null,
-                    'Failed to create sections from JSON: ' . $e->getMessage());
+                throw new \moodle_exception(
+                    'jsonsectionscreationfailed',
+                    'aiplacement_modgen',
+                    '',
+                    null,
+                    'Failed to create sections from JSON: ' . $e->getMessage()
+                );
             }
-
         } catch (\Exception $e) {
             // Outer catch - rethrow after cleanup in finally block
             throw $e;
@@ -190,7 +192,7 @@ class section_creation_service {
                 $lock->release();
             }
         }
-        
+
         return [
             'results' => $results,
             'warnings' => $activitywarnings,
@@ -206,23 +208,23 @@ class section_creation_service {
     private function ensure_flexsections_format(int $courseid): void {
         $pluginmanager = \core_plugin_manager::instance();
         $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
-        
+
         if (empty($flexsectionsplugin)) {
             throw new \Exception(
                 'The flexsections course format plugin is required but not installed. ' .
                 'Please install the flexsections plugin before using this feature.'
             );
         }
-        
+
         $course = get_course($courseid, true);
-        
+
         if ($course->format !== 'flexsections') {
             $update = new \stdClass();
             $update->id = $courseid;
             $update->format = 'flexsections';
-            
+
             update_course($update);
-            
+
             // Fallback: Direct DB update if update_course() failed
             $course = get_course($courseid, true);
             if ($course->format !== 'flexsections') {
@@ -230,11 +232,11 @@ class section_creation_service {
                 $DB->set_field('course', 'format', 'flexsections', ['id' => $courseid]);
                 $course = get_course($courseid, true);
             }
-            
+
             // Single rebuild after all format changes complete
             rebuild_course_cache($courseid, true, true);
             $course = get_course($courseid, true);
-            
+
             if ($course->format !== 'flexsections') {
                 throw new \Exception(
                     'Failed to set course format to flexsections. Current format: ' . $course->format
@@ -271,16 +273,16 @@ class section_creation_service {
     ): array {
         global $DB;
         $results = [];
-        
+
         foreach ($themes as $themeindex => $theme) {
             if (!is_array($theme)) {
                 continue;
             }
-            
+
             $title = $theme['title'] ?? get_string('themefallback', 'aiplacement_modgen');
             $summary = $theme['summary'] ?? '';
             $weeks = !empty($theme['weeks']) && is_array($theme['weeks']) ? $theme['weeks'] : [];
-            
+
             // Format theme title and summary
             $themetitle = format_string($title, true, ['context' => $context]);
             $sectionhtml = '';
@@ -288,7 +290,7 @@ class section_creation_service {
             if ((!$ai_enabled || $generatethemeintroductions) && trim($summary) !== '') {
                 $sectionhtml = format_text($summary, FORMAT_PLAIN, ['context' => $context]);
             }
-            
+
             try {
                 // Create theme section using centralized helper
                 $themesection = \aiplacement_modgen\local\theme_builder::create_section_with_parent(
@@ -301,9 +303,9 @@ class section_creation_service {
                     ['collapsed' => 1],
                     false  // Defer cache rebuild until after all themes created
                 );
-                
+
                 $themesectionnum = $themesection->section;
-                
+
                 if ($hideexistingsections) {
                     $new_toplevel_section_ids[] = $themesection->id;
                 }
@@ -311,23 +313,23 @@ class section_creation_service {
                 $activitywarnings[] = "Failed to create theme section: " . $e->getMessage();
                 continue;
             }
-            
+
             $results[] = get_string('sectioncreated', 'aiplacement_modgen', $themetitle);
-            
+
             // Create nested week subsections
             if (!empty($weeks)) {
                 foreach ($weeks as $weekindex => $week) {
                     if (!is_array($week)) {
                         continue;
                     }
-                    
+
                     $weektitle = $week['title'] ?? "Week " . ($weekindex + 1);
                     $weeksummary = $week['summary'] ?? '';
-                    $weekmetadata = !empty($week['learningactivity_metadata']) && is_array($week['learningactivity_metadata']) 
-                        ? $week['learningactivity_metadata'] 
+                    $weekmetadata = !empty($week['learningactivity_metadata']) && is_array($week['learningactivity_metadata'])
+                        ? $week['learningactivity_metadata']
                         : [];
                     $sessions = !empty($week['sessions']) && is_array($week['sessions']) ? $week['sessions'] : [];
-                    
+
                     try {
                         $weeksectionnum = \aiplacement_modgen\local\theme_builder::create_week_section(
                             $course->id,
@@ -343,11 +345,11 @@ class section_creation_service {
                                 'createsummaryactivities' => $createsummaryactivities,
                             ]
                         );
-                        
+
                         // Create activities in sessions if requested
                         if ($createsuggestedactivities && !empty($sessions)) {
                             $sessionsectionmap = \aiplacement_modgen\local\session_creator::get_session_sections($weeksectionnum, $course->id);
-                            
+
                             \aiplacement_modgen\local\session_creator::create_session_activities(
                                 $sessions,
                                 $sessionsectionmap,
@@ -356,7 +358,7 @@ class section_creation_service {
                                 $activitywarnings
                             );
                         }
-                        
+
                         $results[] = get_string('subsectioncreated', 'aiplacement_modgen', $weektitle);
                     } catch (\Exception $e) {
                         $activitywarnings[] = "Failed to create week '{$weektitle}': " . $e->getMessage();
@@ -364,7 +366,7 @@ class section_creation_service {
                 }
             }
         }
-        
+
         return $results;
     }
 
@@ -399,11 +401,11 @@ class section_creation_service {
             if (!is_array($sectiondata)) {
                 continue;
             }
-            
+
             $title = $sectiondata['title'] ?? get_string('aigensummary', 'aiplacement_modgen');
             $summary = $sectiondata['summary'] ?? '';
             $outline = !empty($sectiondata['outline']) && is_array($sectiondata['outline']) ? $sectiondata['outline'] : [];
-            
+
             $summaryhtml = trim(format_text($summary, FORMAT_HTML, ['context' => $context]));
             if (!empty($outline)) {
                 $items = '';
@@ -418,9 +420,9 @@ class section_creation_service {
                     $summaryhtml .= '<ul class="course-outline">' . $items . '</ul>';
                 }
             }
-            
+
             $hassessions = !empty($sectiondata['sessions']) && is_array($sectiondata['sessions']);
-            
+
             if ($moduletype === 'connected_weekly') {
                 $hassessions = true;
                 if (empty($sectiondata['sessions']) || !is_array($sectiondata['sessions'])) {
@@ -431,13 +433,13 @@ class section_creation_service {
                     ];
                 }
             }
-            
+
             try {
                 $weekSessionData = $hassessions ? $sectiondata['sessions'] : null;
-                $weekmetadata = !empty($sectiondata['learningactivity_metadata']) && is_array($sectiondata['learningactivity_metadata']) 
-                    ? $sectiondata['learningactivity_metadata'] 
+                $weekmetadata = !empty($sectiondata['learningactivity_metadata']) && is_array($sectiondata['learningactivity_metadata'])
+                    ? $sectiondata['learningactivity_metadata']
                     : [];
-                    
+
                 $weeksectionnum = \aiplacement_modgen\local\theme_builder::create_week_section(
                     $course->id,
                     $courseformat,
@@ -452,7 +454,7 @@ class section_creation_service {
                         'createsummaryactivities' => $createsummaryactivities,
                     ]
                 );
-                
+
                 // Create activities if requested
                 if ($createsuggestedactivities) {
                     if ($hassessions && !empty($weekSessionData)) {
@@ -472,7 +474,7 @@ class section_creation_service {
                             $course,
                             $weeksectionnum
                         );
-                        
+
                         if (!empty($activityoutcome['created'])) {
                             $results = array_merge($results, $activityoutcome['created']);
                         }
@@ -481,24 +483,24 @@ class section_creation_service {
                         }
                     }
                 }
-                
+
                 if ($hideexistingsections) {
                     global $DB;
                     $weeksectionid = $DB->get_field('course_sections', 'id', [
                         'course' => $course->id,
-                        'section' => $weeksectionnum
+                        'section' => $weeksectionnum,
                     ]);
                     if ($weeksectionid) {
                         $new_toplevel_section_ids[] = $weeksectionid;
                     }
                 }
-                
+
                 $results[] = get_string('sectioncreated', 'aiplacement_modgen', $title);
             } catch (\Exception $e) {
                 $activitywarnings[] = "Failed to create week section '{$title}': " . $e->getMessage();
             }
         }
-        
+
         return $results;
     }
 
@@ -515,18 +517,18 @@ class section_creation_service {
      */
     private function hide_and_reorder_sections(int $courseid, \stdClass $course, array $new_toplevel_section_ids): void {
         global $DB;
-        
+
         // Single rebuild at start to get fresh section data
         rebuild_course_cache($courseid, true, true);
         $course = get_course($courseid, true);
         $modinfo = get_fast_modinfo($course);
-        
+
         // Get Assessments section (should never be hidden)
         $assessmentssection = $DB->get_record('course_sections', [
             'course' => $courseid,
-            'name' => 'Assessments'
+            'name' => 'Assessments',
         ]);
-        
+
         // Hide only top-level existing sections. Never hide:
         // - Section 0
         // - Newly created top-level sections
@@ -537,31 +539,31 @@ class section_creation_service {
             if ($sectioninfo->section == 0) {
                 continue;
             }
-            
+
             // Skip if this is a new top-level section
             if (in_array($sectioninfo->id, $new_toplevel_section_ids, true)) {
                 continue;
             }
-            
+
             // Skip if this is the Assessments section
             if ($assessmentssection && $sectioninfo->id == $assessmentssection->id) {
                 continue;
             }
-            
+
             // Skip all nested sections (only hide top-level sections)
             if (!empty($sectioninfo->parent) && $sectioninfo->parent > 0) {
                 continue;
             }
-            
+
             // Hide this top-level existing section (batch DB update - no rebuild needed)
             $DB->set_field('course_sections', 'visible', 0, ['id' => $sectioninfo->id]);
         }
-        
+
         // Move new sections to top (after section 0, before Assessments if it exists)
         if (!empty($new_toplevel_section_ids)) {
             $course = get_course($courseid, true);
             $courseformat = course_get_format($course);
-            
+
             // Find the Assessments section (usually at position 1)
             $assessmentssection = null;
             $modinfo = get_fast_modinfo($course);
@@ -571,16 +573,16 @@ class section_creation_service {
                     break;
                 }
             }
-            
+
             // Target: move before Assessments, or to position 1 if no Assessments
             $targetposition = $assessmentssection ? $assessmentssection->section : 1;
-            
+
             // Move each new section to the top (reverse order for correct final sequence)
             // No cache rebuild in loop - move_section() handles internal updates
             foreach (array_reverse($new_toplevel_section_ids) as $new_section_id) {
                 // Use existing modinfo (refreshed after each move by move_section())
                 $modinfo = get_fast_modinfo($course);
-                
+
                 // Find the section to move
                 $sectioninfo = null;
                 foreach ($modinfo->get_section_info_all() as $s) {
@@ -589,7 +591,7 @@ class section_creation_service {
                         break;
                     }
                 }
-                
+
                 if ($sectioninfo && $sectioninfo->section != $targetposition && method_exists($courseformat, 'move_section')) {
                     try {
                         // move_section() may trigger internal cache update
@@ -603,7 +605,7 @@ class section_creation_service {
                 }
             }
         }
-        
+
         // Single rebuild at end (covers all visibility + move operations)
         rebuild_course_cache($courseid, true, true);
     }

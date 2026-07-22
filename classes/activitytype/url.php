@@ -32,7 +32,6 @@ defined('MOODLE_INTERNAL') || die();
  * Creates URL activities that link to external resources.
  */
 class url implements activity_type {
-    
     /** @inheritDoc */
     public static function get_type(): string {
         return 'url';
@@ -58,7 +57,7 @@ class url implements activity_type {
         require_once($CFG->libdir . '/resourcelib.php');  // For RESOURCELIB constants
 
         $name = trim($activitydata->name ?? '');
-        
+
         if ($name === '') {
             return null;
         }
@@ -93,19 +92,19 @@ class url implements activity_type {
         $moduleinfo->visible = 1;
         $moduleinfo->name = $name;
         $moduleinfo->cmidnumber = '';
-        
+
         // URL intro - use introeditor format like other modules
         $moduleinfo->introeditor = [
             'text' => $intro,
             'format' => FORMAT_HTML,
-            'itemid' => 0
+            'itemid' => 0,
         ];
-        
+
         // URL-specific required fields
         $moduleinfo->showdescription = 1;  // Display description on course page
         $moduleinfo->externalurl = $externalurl;
         $moduleinfo->display = RESOURCELIB_DISPLAY_AUTO;
-        
+
         // Display options as expected by url_add_instance
         $moduleinfo->printintro = 1;
         $moduleinfo->popupwidth = 620;
@@ -120,7 +119,7 @@ class url implements activity_type {
 
             $result = [
                 'coursemodule' => $cm->coursemodule,
-                'instance' => $cm->instance
+                'instance' => $cm->instance,
             ];
 
             // Add a custom message if using placeholder URL to inform the user
@@ -144,17 +143,17 @@ class url implements activity_type {
      */
     private function ensure_url_protocol(string $url): string {
         $url = trim($url);
-        
+
         // Check if URL already has a protocol
         if (preg_match('~^https?://~i', $url)) {
             return $url;
         }
-        
+
         // If URL looks like a domain, add https://
         if (preg_match('~^[a-z0-9]~i', $url) && !preg_match('~^/~', $url)) {
             return 'https://' . $url;
         }
-        
+
         // Default to https:// for any other case
         return 'https://' . $url;
     }
@@ -167,17 +166,17 @@ class url implements activity_type {
      */
     private function is_valid_url(string $url): bool {
         $url = trim($url);
-        
+
         // Check for common URL patterns
         if (preg_match('~^(https?://|www\.|[a-z0-9]+\.[a-z]{2,})~i', $url)) {
             return true;
         }
-        
+
         // Check for paths starting with /
         if (preg_match('~^/~', $url)) {
             return true;
         }
-        
+
         // Looks like plain text, not a URL
         return false;
     }

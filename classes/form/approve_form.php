@@ -28,7 +28,7 @@ require_once($CFG->libdir . '/formslib.php');
 
 /**
  * Form for approving and creating generated modules.
- * 
+ *
  * This form allows users to review AI-generated module structure
  * before creating it in the course.
  */

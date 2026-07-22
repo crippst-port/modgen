@@ -63,7 +63,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @coversDefaultClass \aiplacement_modgen\local\section_creation_service
  */
 final class concurrent_process_integrity_test extends advanced_testcase {
-
     /**
      * Audit the shared course for structural corruption using the parent's own
      * (post-reset-safe) DB connection.
@@ -153,8 +152,12 @@ final class concurrent_process_integrity_test extends advanced_testcase {
             // inherited one which we must never use or close).
             $db = \moodle_database::get_driver_instance($dbconfig['dbtype'], $dbconfig['dblibrary']);
             $db->connect(
-                $dbconfig['dbhost'], $dbconfig['dbuser'], $dbconfig['dbpass'],
-                $dbconfig['dbname'], $dbconfig['prefix'], $dbconfig['dboptions']
+                $dbconfig['dbhost'],
+                $dbconfig['dbuser'],
+                $dbconfig['dbpass'],
+                $dbconfig['dbname'],
+                $dbconfig['prefix'],
+                $dbconfig['dboptions']
             );
             $DB = $db;
 
@@ -168,7 +171,11 @@ final class concurrent_process_integrity_test extends advanced_testcase {
                         ['title' => $title . ' Week', 'summary' => 'w', 'sessions' => []],
                     ]],
                 ]],
-                $courseid, 'connected_theme', false, false, false
+                $courseid,
+                'connected_theme',
+                false,
+                false,
+                false
             );
         } catch (\Throwable $e) {
             // A lock-loss or contention error is an ACCEPTABLE outcome (the worker
@@ -234,8 +241,12 @@ final class concurrent_process_integrity_test extends advanced_testcase {
                     $this->fail('pcntl_fork() failed.');
                 } else if ($pid === 0) {
                     // Child.
-                    $this->run_child($dbconfig, $course->id, $adminid,
-                        "R{$round}W{$w}-" . substr(md5(uniqid('', true)), 0, 6));
+                    $this->run_child(
+                        $dbconfig,
+                        $course->id,
+                        $adminid,
+                        "R{$round}W{$w}-" . substr(md5(uniqid('', true)), 0, 6)
+                    );
                     // run_child never returns.
                 }
                 $pids[] = $pid;
@@ -271,14 +282,23 @@ final class concurrent_process_integrity_test extends advanced_testcase {
             }
         }
 
-        $this->assertSame(0, $childcrashes,
-            'No worker process should crash unexpectedly (clean lock-loss exits are allowed).');
-        $this->assertSame(0, $totalcorrupt,
+        $this->assertSame(
+            0,
+            $childcrashes,
+            'No worker process should crash unexpectedly (clean lock-loss exits are allowed).'
+        );
+        $this->assertSame(
+            0,
+            $totalcorrupt,
             "Concurrent generation corrupted the course in {$totalcorrupt} of {$rounds} rounds. "
-            . 'See STDERR for the specific structural faults.');
+            . 'See STDERR for the specific structural faults.'
+        );
 
         // Final explicit soundness assertion on the accumulated structure.
-        $this->assertSame([], $this->audit($course->id),
-            'Final shared-course structure must be sound after all concurrent rounds.');
+        $this->assertSame(
+            [],
+            $this->audit($course->id),
+            'Final shared-course structure must be sound after all concurrent rounds.'
+        );
     }
 }

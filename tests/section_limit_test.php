@@ -53,7 +53,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @coversDefaultClass \aiplacement_modgen\local\theme_builder
  */
 final class section_limit_test extends advanced_testcase {
-
     /** @var \stdClass Test course. */
     private $course;
 
@@ -122,7 +121,13 @@ final class section_limit_test extends advanced_testcase {
         // Fill the course close to a small limit with real sections.
         for ($i = 0; $i < 8; $i++) {
             theme_builder::create_section_with_parent(
-                $this->course->id, $courseformat, 0, "Existing {$i}", '', FORMAT_PLAIN, ['collapsed' => 1]
+                $this->course->id,
+                $courseformat,
+                0,
+                "Existing {$i}",
+                '',
+                FORMAT_PLAIN,
+                ['collapsed' => 1]
             );
         }
         $existing = $this->total_sections();
@@ -169,8 +174,10 @@ final class section_limit_test extends advanced_testcase {
         ]];
 
         // 2 themes + 2 weeks + 3 sessions = 7.
-        $this->assertSame(7,
-            theme_builder::count_projected_sections_from_json($json, 'connected_theme'));
+        $this->assertSame(
+            7,
+            theme_builder::count_projected_sections_from_json($json, 'connected_theme')
+        );
     }
 
     /**
@@ -185,8 +192,10 @@ final class section_limit_test extends advanced_testcase {
         ]];
 
         // 2 sections, each materialising 3 session subsections = 2 + 6 = 8.
-        $this->assertSame(8,
-            theme_builder::count_projected_sections_from_json($json, 'connected_weekly'));
+        $this->assertSame(
+            8,
+            theme_builder::count_projected_sections_from_json($json, 'connected_weekly')
+        );
     }
 
     // ------------------------------------------------------------------
@@ -210,8 +219,11 @@ final class section_limit_test extends advanced_testcase {
             $this->assertNotEmpty($e->getMessage());
         }
 
-        $this->assertSame($before, $this->total_sections(),
-            'A refused generation must not create any partial sections.');
+        $this->assertSame(
+            $before,
+            $this->total_sections(),
+            'A refused generation must not create any partial sections.'
+        );
     }
 
     /**
@@ -232,7 +244,12 @@ final class section_limit_test extends advanced_testcase {
 
         try {
             (new section_creation_service())->create_sections_from_json(
-                ['themes' => $themes], $this->course->id, 'connected_theme', false, false, false
+                ['themes' => $themes],
+                $this->course->id,
+                'connected_theme',
+                false,
+                false,
+                false
             );
             $this->fail('Over-limit JSON generation should throw.');
         } catch (\moodle_exception $e) {
@@ -240,8 +257,11 @@ final class section_limit_test extends advanced_testcase {
         }
         $this->resetDebugging();
 
-        $this->assertSame($before, $this->total_sections(),
-            'A refused JSON generation must not create any partial sections.');
+        $this->assertSame(
+            $before,
+            $this->total_sections(),
+            'A refused JSON generation must not create any partial sections.'
+        );
     }
 
     /**
@@ -257,11 +277,18 @@ final class section_limit_test extends advanced_testcase {
             ['themes' => [['title' => 'OK Theme', 'summary' => 's', 'weeks' => [
                 ['title' => 'OK Week', 'summary' => 'w', 'sessions' => []],
             ]]]],
-            $this->course->id, 'connected_theme', false, false, false
+            $this->course->id,
+            'connected_theme',
+            false,
+            false,
+            false
         );
         $this->resetDebugging();
 
-        $this->assertGreaterThan($before, $this->total_sections(),
-            'A within-limit generation should create its sections.');
+        $this->assertGreaterThan(
+            $before,
+            $this->total_sections(),
+            'A within-limit generation should create its sections.'
+        );
     }
 }

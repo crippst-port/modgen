@@ -100,7 +100,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class concurrent_structural_ops_integrity_test extends advanced_testcase {
-
     /** @var string The lock factory type format_flexsections uses for delete. */
     private const LOCK_TYPE = 'format_flexsections_delete_section';
 
@@ -132,8 +131,12 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
         global $DB, $USER;
         $db = \moodle_database::get_driver_instance($dbconfig['dbtype'], $dbconfig['dblibrary']);
         $db->connect(
-            $dbconfig['dbhost'], $dbconfig['dbuser'], $dbconfig['dbpass'],
-            $dbconfig['dbname'], $dbconfig['prefix'], $dbconfig['dboptions']
+            $dbconfig['dbhost'],
+            $dbconfig['dbuser'],
+            $dbconfig['dbpass'],
+            $dbconfig['dbname'],
+            $dbconfig['prefix'],
+            $dbconfig['dboptions']
         );
         $DB = $db;
         $USER = $db->get_record('user', ['id' => $adminid]);
@@ -198,8 +201,14 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
      * @param int $iterations Number of moves to attempt.
      * @return never
      */
-    private function run_move_child(array $dbconfig, int $courseid, int $adminid,
-            int $moveid, int $anchorid, int $iterations): void {
+    private function run_move_child(
+        array $dbconfig,
+        int $courseid,
+        int $adminid,
+        int $moveid,
+        int $anchorid,
+        int $iterations
+    ): void {
         try {
             $this->reconnect($dbconfig, $adminid);
             $format = course_get_format($courseid);
@@ -367,8 +376,11 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
         $after = (int) $DB->get_field('course_sections', 'section', ['id' => $bynum[15]]);
 
         $this->assertSame(0, $outcome, 'Move worker should complete despite the held delete lock.');
-        $this->assertNotEquals($before, $after,
-            'move_section() mutated the course while the delete lock was HELD — the lock does not cover moves.');
+        $this->assertNotEquals(
+            $before,
+            $after,
+            'move_section() mutated the course while the delete lock was HELD — the lock does not cover moves.'
+        );
         $this->assertSame([], $this->audit($courseid), 'The single move should leave a sound structure.');
     }
 
@@ -398,10 +410,15 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
         );
         $lock->release();
 
-        $this->assertSame(3, $outcome,
-            'Delete worker should DECLINE (locktimeout) while the delete lock is held.');
-        $this->assertTrue($DB->record_exists('course_sections', ['id' => $bynum[5]]),
-            'Target section must survive: the delete honoured the lock instead of proceeding.');
+        $this->assertSame(
+            3,
+            $outcome,
+            'Delete worker should DECLINE (locktimeout) while the delete lock is held.'
+        );
+        $this->assertTrue(
+            $DB->record_exists('course_sections', ['id' => $bynum[5]]),
+            'Target section must survive: the delete honoured the lock instead of proceeding.'
+        );
     }
 
     /**
@@ -433,10 +450,12 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
             [$courseid, $bynum] = $this->build_course();
 
             $pids = [];
-            foreach ([
+            foreach (
+                [
                 fn() => $this->run_delete_child($dbconfig, $courseid, $adminid, $bynum[5]),
                 fn() => $this->run_move_child($dbconfig, $courseid, $adminid, $bynum[15], $bynum[3], 40),
-            ] as $worker) {
+                ] as $worker
+            ) {
                 $pid = pcntl_fork();
                 if ($pid === -1) {
                     $this->fail('pcntl_fork() failed.');
@@ -471,9 +490,12 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
         // The DB backstop means corruption is rare; a caught corruption is a real
         // finding worth surfacing, but the stable assertion is that workers never
         // crash — they either complete or deadlock-decline cleanly.
-        $this->assertSame(0, $crashes,
+        $this->assertSame(
+            0,
+            $crashes,
             'Structural workers should complete or decline cleanly, never crash (see STDERR). '
-            . 'On macOS, run with OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES.');
+            . 'On macOS, run with OBJC_DISABLE_INITIALIZE_FORK_SAFETY=YES.'
+        );
         if ($corruptrounds > 0) {
             fwrite(STDERR, "[delete+move] reproduced hierarchy corruption in "
                 . "{$corruptrounds}/{$rounds} rounds — the lock gap is not merely theoretical.\n");
@@ -514,8 +536,13 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
      * @param int $parentnum Destination parent section number.
      * @return never
      */
-    private function run_stale_move_child(array $dbconfig, int $adminid, int $courseid,
-            int $movenum, int $parentnum): void {
+    private function run_stale_move_child(
+        array $dbconfig,
+        int $adminid,
+        int $courseid,
+        int $movenum,
+        int $parentnum
+    ): void {
         global $DB;
         try {
             $this->reconnect($dbconfig, $adminid);
@@ -644,20 +671,28 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
         @unlink($marker);
 
         $this->assertNotSame(-1, $outcome, 'Stale-move child must not crash.');
-        $this->assertSame(0, $outcome,
+        $this->assertSame(
+            0,
+            $outcome,
             'Stale-move child must COMMIT (no deadlock / no unique violation) — that is the whole point: '
-            . 'the DB does not reject the stale write.');
+            . 'the DB does not reject the stale write.'
+        );
 
         course_modinfo::clear_instance_cache($course->id);
         $problems = $this->audit($course->id);
         fwrite(STDERR, "[stale-snapshot] audit: " . ($problems ? implode('; ', $problems) : 'SOUND') . "\n");
 
-        $this->assertNotSame([], $problems,
+        $this->assertNotSame(
+            [],
+            $problems,
             'The stale-snapshot write should have produced a structurally-invalid hierarchy '
-            . '(orphaned parent) that the DB accepted — proving the backstop is incomplete.');
+            . '(orphaned parent) that the DB accepted — proving the backstop is incomplete.'
+        );
         $orphaned = array_filter($problems, fn($p) => str_contains($p, 'orphaned parent'));
-        $this->assertNotEmpty($orphaned,
-            'Expected an orphaned parent pointer specifically (the production corruption signature).');
+        $this->assertNotEmpty(
+            $orphaned,
+            'Expected an orphaned parent pointer specifically (the production corruption signature).'
+        );
     }
 
     /**
@@ -720,17 +755,24 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
         $outcome = is_file($marker) ? (int) trim((string) file_get_contents($marker)) : -1;
         @unlink($marker);
 
-        $this->assertSame(0, $outcome,
-            'Stale-move child must COMMIT (no deadlock / no unique violation) — the DB accepts the stale write.');
+        $this->assertSame(
+            0,
+            $outcome,
+            'Stale-move child must COMMIT (no deadlock / no unique violation) — the DB accepts the stale write.'
+        );
 
         course_modinfo::clear_instance_cache($course->id);
         $problems = $this->audit($course->id);
         fwrite(STDERR, "[recursive-parent] audit: " . ($problems ? implode('; ', $problems) : 'SOUND') . "\n");
 
-        $recursive = array_filter($problems,
-            fn($p) => str_contains($p, 'is its own parent') || str_contains($p, 'Circular parent chain'));
-        $this->assertNotEmpty($recursive,
-            'Expected a self-referential / circular parent — the recursive-parent corruption seen in production.');
+        $recursive = array_filter(
+            $problems,
+            fn($p) => str_contains($p, 'is its own parent') || str_contains($p, 'Circular parent chain')
+        );
+        $this->assertNotEmpty(
+            $recursive,
+            'Expected a self-referential / circular parent — the recursive-parent corruption seen in production.'
+        );
     }
 
     /**
@@ -794,13 +836,16 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
         // logic is reimplemented, parent::duplicate_section_properties() still runs.
         $courseid = $course->id;
         $hookfired = false;
-        $barrierformat = new class($courseid) extends \format_flexsections {
+        $barrierformat = new class ($courseid) extends \format_flexsections {
             public $onhook;
             public function __construct($courseid) {
                 parent::__construct('flexsections', $courseid);
             }
             protected function duplicate_section_properties(
-                \section_info $originalsection, int $newparent, bool $istop = false): \stdClass {
+                \section_info $originalsection,
+                int $newparent,
+                bool $istop = false
+            ): \stdClass {
                 if ($this->onhook) {
                     $hook = $this->onhook;
                     $this->onhook = null;
@@ -832,8 +877,10 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
             . ($problems ? implode('; ', $problems) : 'SOUND') . "\n");
 
         $orphaned = array_filter($problems, fn($p) => str_contains($p, 'orphaned parent'));
-        $this->assertNotEmpty($orphaned,
+        $this->assertNotEmpty(
+            $orphaned,
             'Expected the newly duplicated section to commit with an orphaned parent — '
-            . 'duplicate_section()\'s own captured snapshot went stale mid-operation.');
+            . 'duplicate_section()\'s own captured snapshot went stale mid-operation.'
+        );
     }
 }

@@ -58,7 +58,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @coversDefaultClass \aiplacement_modgen\local\section_creation_service
  */
 final class structure_integrity_test extends advanced_testcase {
-
     /** @var \stdClass Test course. */
     private $course;
 
@@ -219,9 +218,12 @@ final class structure_integrity_test extends advanced_testcase {
      */
     private function assert_structure_sound(int $courseid, string $context = ''): void {
         $problems = $this->audit_structure($courseid);
-        $this->assertSame([], $problems,
+        $this->assertSame(
+            [],
+            $problems,
             ($context !== '' ? "[$context] " : '') . "Corrupted course structure:\n  - "
-            . implode("\n  - ", $problems));
+            . implode("\n  - ", $problems)
+        );
     }
 
     /**
@@ -238,8 +240,10 @@ final class structure_integrity_test extends advanced_testcase {
 
         // get_fast_modinfo() walks the full section tree; corrupt parents blow up here.
         $modinfo = get_fast_modinfo($courseid);
-        $this->assertNotEmpty($modinfo->get_section_info_all(),
-            'Course should expose at least section 0 via modinfo.');
+        $this->assertNotEmpty(
+            $modinfo->get_section_info_all(),
+            'Course should expose at least section 0 via modinfo.'
+        );
 
         if (!class_exists('core_courseformat\\stateupdates')) {
             // Older Moodle without the reactive state API — modinfo check above is sufficient.
@@ -257,8 +261,10 @@ final class structure_integrity_test extends advanced_testcase {
         }
 
         $updates = $stateupdates->jsonSerialize();
-        $this->assertNotEmpty($updates,
-            'core_courseformat state must serialise without error for a sound structure.');
+        $this->assertNotEmpty(
+            $updates,
+            'core_courseformat state must serialise without error for a sound structure.'
+        );
     }
 
     // ------------------------------------------------------------------
@@ -296,7 +302,12 @@ final class structure_integrity_test extends advanced_testcase {
         ];
 
         (new section_creation_service())->create_sections_from_json(
-            $json, $this->course->id, 'connected_theme', false, false, false
+            $json,
+            $this->course->id,
+            'connected_theme',
+            false,
+            false,
+            false
         );
 
         $this->assert_structure_sound($this->course->id, 'theme structure');
@@ -318,7 +329,12 @@ final class structure_integrity_test extends advanced_testcase {
         ];
 
         (new section_creation_service())->create_sections_from_json(
-            $json, $this->course->id, 'connected_weekly', false, false, false
+            $json,
+            $this->course->id,
+            'connected_weekly',
+            false,
+            false,
+            false
         );
 
         $this->assert_structure_sound($this->course->id, 'weekly structure');
@@ -348,7 +364,12 @@ final class structure_integrity_test extends advanced_testcase {
         ];
 
         (new section_creation_service())->create_sections_from_json(
-            $json, $this->course->id, 'connected_theme', false, false, true // hideexistingsections.
+            $json,
+            $this->course->id,
+            'connected_theme',
+            false,
+            false,
+            true // hideexistingsections.
         );
 
         $this->assert_structure_sound($this->course->id, 'after hide & reorder');
@@ -372,7 +393,12 @@ final class structure_integrity_test extends advanced_testcase {
                 ],
             ];
             $service->create_sections_from_json(
-                $json, $this->course->id, 'connected_theme', false, false, false
+                $json,
+                $this->course->id,
+                'connected_theme',
+                false,
+                false,
+                false
             );
             $this->assert_structure_sound($this->course->id, "after cycle {$cycle}");
         }
@@ -396,7 +422,12 @@ final class structure_integrity_test extends advanced_testcase {
         }
 
         (new section_creation_service())->create_sections_from_json(
-            ['themes' => $themes], $this->course->id, 'connected_theme', false, false, false
+            ['themes' => $themes],
+            $this->course->id,
+            'connected_theme',
+            false,
+            false,
+            false
         );
 
         $this->assert_structure_sound($this->course->id, 'large structure');
@@ -423,7 +454,12 @@ final class structure_integrity_test extends advanced_testcase {
     public function test_malformed_json_never_corrupts(array $json, string $moduletype): void {
         try {
             (new section_creation_service())->create_sections_from_json(
-                $json, $this->course->id, $moduletype, false, false, false
+                $json,
+                $this->course->id,
+                $moduletype,
+                false,
+                false,
+                false
             );
         } catch (\Throwable $e) {
             // A clean rejection is an acceptable outcome — the contract is "no corruption",
@@ -510,8 +546,12 @@ final class structure_integrity_test extends advanced_testcase {
 
         $format = course_get_format($this->course->id);
         $num = $format->create_new_section(0, null);
-        $section = $DB->get_record('course_sections',
-            ['course' => $this->course->id, 'section' => $num], '*', MUST_EXIST);
+        $section = $DB->get_record(
+            'course_sections',
+            ['course' => $this->course->id, 'section' => $num],
+            '*',
+            MUST_EXIST
+        );
 
         // Point parent at a section number that does not exist.
         $DB->insert_record('course_format_options', (object) [
@@ -535,8 +575,12 @@ final class structure_integrity_test extends advanced_testcase {
 
         $format = course_get_format($this->course->id);
         $num = $format->create_new_section(0, null);
-        $section = $DB->get_record('course_sections',
-            ['course' => $this->course->id, 'section' => $num], '*', MUST_EXIST);
+        $section = $DB->get_record(
+            'course_sections',
+            ['course' => $this->course->id, 'section' => $num],
+            '*',
+            MUST_EXIST
+        );
 
         $DB->insert_record('course_format_options', (object) [
             'courseid'  => $this->course->id,
@@ -560,10 +604,18 @@ final class structure_integrity_test extends advanced_testcase {
         $a = $format->create_new_section(0, null);
         $b = $format->create_new_section(0, null);
 
-        $seca = $DB->get_record('course_sections',
-            ['course' => $this->course->id, 'section' => $a], '*', MUST_EXIST);
-        $secb = $DB->get_record('course_sections',
-            ['course' => $this->course->id, 'section' => $b], '*', MUST_EXIST);
+        $seca = $DB->get_record(
+            'course_sections',
+            ['course' => $this->course->id, 'section' => $a],
+            '*',
+            MUST_EXIST
+        );
+        $secb = $DB->get_record(
+            'course_sections',
+            ['course' => $this->course->id, 'section' => $b],
+            '*',
+            MUST_EXIST
+        );
 
         // A's parent = B, B's parent = A.
         $DB->insert_record('course_format_options', (object) [
@@ -609,8 +661,12 @@ final class structure_integrity_test extends advanced_testcase {
 
         $format = course_get_format($this->course->id);
         $num = $format->create_new_section(0, null);
-        $section = $DB->get_record('course_sections',
-            ['course' => $this->course->id, 'section' => $num], '*', MUST_EXIST);
+        $section = $DB->get_record(
+            'course_sections',
+            ['course' => $this->course->id, 'section' => $num],
+            '*',
+            MUST_EXIST
+        );
 
         // First parent row may or may not already exist from create_new_section;
         // ensure exactly one is present, then prove a second cannot be inserted.

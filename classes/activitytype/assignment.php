@@ -32,7 +32,6 @@ defined('MOODLE_INTERNAL') || die();
  * Creates assignment activities for student work submission.
  */
 class assignment implements activity_type {
-
     /** @inheritDoc */
     public static function get_type(): string {
         return 'assignment';
@@ -76,7 +75,7 @@ class assignment implements activity_type {
         $moduleinfo->introeditor = [
             'text' => $intro,
             'format' => 1,
-            'itemid' => 0
+            'itemid' => 0,
         ];
 
         // Assignment-specific fields with sensible defaults
@@ -91,15 +90,15 @@ class assignment implements activity_type {
         $moduleinfo->gradingduedate = 0;  // No grading due date
         $moduleinfo->allowsubmissionsfromdate = 0;  // Allow submissions immediately
         $moduleinfo->grade = 100;  // Default grade to 100
-        
+
         // Submission statement and notifications
         $moduleinfo->requiresubmissionstatement = 0;  // Don't require submission statement
         $moduleinfo->sendlatenotifications = 0;  // Don't send late submission notifications
-        
+
         // Team submission settings
         $moduleinfo->teamsubmission = 0;  // Individual submissions (not team)
         $moduleinfo->requireallteammemberssubmit = 0;  // N/A for individual submissions
-        
+
         // Marking settings
         $moduleinfo->blindmarking = 0;  // Don't use blind marking
         $moduleinfo->markingworkflow = 0;  // Don't use marking workflow
@@ -117,7 +116,7 @@ class assignment implements activity_type {
                 return null;
             }            return [
                 'coursemodule' => $cm->coursemodule,
-                'instance' => $cm->instance
+                'instance' => $cm->instance,
             ];
         } catch (\Exception $e) {
             return null;

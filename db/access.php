@@ -33,7 +33,7 @@ $capabilities = [
         'contextlevel' => CONTEXT_COURSE,
         'archetypes' => [],
     ],
-    
+
     // Manage dates to sections
     'aiplacement/modgen:managedates' => [
         'riskbitmask' => RISK_DATALOSS,
@@ -41,7 +41,7 @@ $capabilities = [
         'contextlevel' => CONTEXT_COURSE,
         'archetypes' => [],
     ],
-    
+
     // Generate content with AI prompt
     'aiplacement/modgen:generatewithprompt' => [
         'riskbitmask' => RISK_DATALOSS,
@@ -49,7 +49,7 @@ $capabilities = [
         'contextlevel' => CONTEXT_COURSE,
         'archetypes' => [],
     ],
-    
+
     // Generate content from templates (CSV/file upload)
     'aiplacement/modgen:generatefromtemplate' => [
         'riskbitmask' => RISK_DATALOSS,
@@ -57,7 +57,7 @@ $capabilities = [
         'contextlevel' => CONTEXT_COURSE,
         'archetypes' => [],
     ],
-    
+
     // Use AI activity suggestions
     'aiplacement/modgen:usesuggest' => [
         'riskbitmask' => RISK_DATALOSS,
@@ -65,7 +65,7 @@ $capabilities = [
         'contextlevel' => CONTEXT_COURSE,
         'archetypes' => [],
     ],
-    
+
     // Manage site-wide templates (admin)
     'aiplacement/modgen:managetemplates' => [
         'riskbitmask' => RISK_CONFIG,

@@ -16,7 +16,7 @@
 
 /**
  * Template Structure Parser - Extracts HTML structure from templates.
- * 
+ *
  * This class analyzes template HTML to identify its structure (Bootstrap layout)
  * and creates a template with placeholders for content. This allows the AI to
  * generate content while preserving the exact structure.
@@ -34,7 +34,6 @@ defined('MOODLE_INTERNAL') || die();
  * Parser for extracting template structure and creating content placeholders
  */
 class template_structure_parser {
-    
     /**
      * Ensure that all id attributes in the provided HTML are unique by appending a suffix.
      * Also updates references to those ids in href (anchors) and aria-controls attributes.

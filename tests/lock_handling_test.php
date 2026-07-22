@@ -46,14 +46,13 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @copyright  2026 Tom Cripps
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class lock_handling_test extends advanced_testcase {
-
+final class lock_handling_test extends advanced_testcase {
     /**
      * Test that lock is acquired before section creation.
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_lock_acquired_before_creation() {
+    public function test_lock_acquired_before_creation(): void {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
@@ -65,13 +64,13 @@ class lock_handling_test extends advanced_testcase {
                 [
                     'title' => 'Test Theme',
                     'summary' => 'Summary',
-                    'weeks' => []
-                ]
-            ]
+                    'weeks' => [],
+                ],
+            ],
         ];
 
         $service = new section_creation_service();
-        
+
         // This should acquire lock internally.
         $results = $service->create_sections_from_json(
             $structure,
@@ -92,7 +91,7 @@ class lock_handling_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_lock_released_after_completion() {
+    public function test_lock_released_after_completion(): void {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
@@ -101,12 +100,12 @@ class lock_handling_test extends advanced_testcase {
 
         $structure = [
             'themes' => [
-                ['title' => 'Theme 1', 'summary' => 'S1', 'weeks' => []]
-            ]
+                ['title' => 'Theme 1', 'summary' => 'S1', 'weeks' => []],
+            ],
         ];
 
         $service = new section_creation_service();
-        
+
         // First request.
         $results1 = $service->create_sections_from_json(
             $structure,
@@ -120,8 +119,8 @@ class lock_handling_test extends advanced_testcase {
         // Second request should succeed (lock released from first).
         $structure2 = [
             'themes' => [
-                ['title' => 'Theme 2', 'summary' => 'S2', 'weeks' => []]
-            ]
+                ['title' => 'Theme 2', 'summary' => 'S2', 'weeks' => []],
+            ],
         ];
 
         $results2 = $service->create_sections_from_json(
@@ -142,7 +141,7 @@ class lock_handling_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_lock_released_on_exception() {
+    public function test_lock_released_on_exception(): void {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
@@ -151,12 +150,12 @@ class lock_handling_test extends advanced_testcase {
 
         $structure = [
             'themes' => [
-                ['title' => 'Theme', 'summary' => 'Summary', 'weeks' => []]
-            ]
+                ['title' => 'Theme', 'summary' => 'Summary', 'weeks' => []],
+            ],
         ];
 
         $service = new section_creation_service();
-        
+
         // First successful request
         $results1 = $service->create_sections_from_json(
             $structure,
@@ -179,8 +178,10 @@ class lock_handling_test extends advanced_testcase {
             false
         );
 
-        $this->assertIsArray($results2, 
-            'Second request should succeed (lock properly released)');
+        $this->assertIsArray(
+            $results2,
+            'Second request should succeed (lock properly released)'
+        );
     }
 
     /**
@@ -188,20 +189,20 @@ class lock_handling_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_lock_is_course_specific() {
+    public function test_lock_is_course_specific(): void {
         $this->resetAfterTest(true);
 
         // Create two courses.
         $course1 = $this->getDataGenerator()->create_course(['format' => 'topics']);
         $course2 = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        
+
         theme_builder::ensure_flexsections_format($course1->id);
         theme_builder::ensure_flexsections_format($course2->id);
 
         $structure = [
             'themes' => [
-                ['title' => 'Theme', 'summary' => 'Summary', 'weeks' => []]
-            ]
+                ['title' => 'Theme', 'summary' => 'Summary', 'weeks' => []],
+            ],
         ];
 
         $service = new section_creation_service();
@@ -234,7 +235,7 @@ class lock_handling_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_cache_rebuilt_in_finally_block() {
+    public function test_cache_rebuilt_in_finally_block(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -244,8 +245,8 @@ class lock_handling_test extends advanced_testcase {
 
         $structure = [
             'themes' => [
-                ['title' => 'Theme', 'summary' => 'Summary', 'weeks' => []]
-            ]
+                ['title' => 'Theme', 'summary' => 'Summary', 'weeks' => []],
+            ],
         ];
 
         $service = new section_creation_service();
@@ -264,9 +265,12 @@ class lock_handling_test extends advanced_testcase {
 
         // Cache should be rebuilt (timestamp changed).
         $cacheafter = $DB->get_field('course', 'cacherev', ['id' => $course->id]);
-        
-        $this->assertNotEquals($cachebefore, $cacheafter,
-            'Cache should be rebuilt in finally block');
+
+        $this->assertNotEquals(
+            $cachebefore,
+            $cacheafter,
+            'Cache should be rebuilt in finally block'
+        );
     }
 
     /**
@@ -274,14 +278,17 @@ class lock_handling_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_lock_factory_exists() {
+    public function test_lock_factory_exists(): void {
         $this->resetAfterTest(true);
 
         $lockfactory = \core\lock\lock_config::get_lock_factory('aiplacement_modgen');
-        
+
         $this->assertNotNull($lockfactory, 'Lock factory should exist for plugin');
-        $this->assertInstanceOf(\core\lock\lock_factory::class, $lockfactory,
-            'Should be valid lock factory instance');
+        $this->assertInstanceOf(
+            \core\lock\lock_factory::class,
+            $lockfactory,
+            'Should be valid lock factory instance'
+        );
     }
 
     /**
@@ -289,17 +296,23 @@ class lock_handling_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\constants::GENERATION_LOCK_TIMEOUT
      */
-    public function test_lock_timeout_is_reasonable() {
+    public function test_lock_timeout_is_reasonable(): void {
         $this->resetAfterTest(true);
 
         $timeout = constants::GENERATION_LOCK_TIMEOUT;
 
         $this->assertIsInt($timeout, 'Timeout should be integer');
         $this->assertGreaterThan(0, $timeout, 'Timeout should be positive');
-        $this->assertLessThanOrEqual(600, $timeout, 
-            'Timeout should not exceed 10 minutes (reasonable limit)');
-        $this->assertEquals(600, $timeout,
-            'Timeout should be 600 seconds (10 minutes) as configured');
+        $this->assertLessThanOrEqual(
+            600,
+            $timeout,
+            'Timeout should not exceed 10 minutes (reasonable limit)'
+        );
+        $this->assertEquals(
+            600,
+            $timeout,
+            'Timeout should be 600 seconds (10 minutes) as configured'
+        );
     }
 
     /**
@@ -308,7 +321,7 @@ class lock_handling_test extends advanced_testcase {
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */
-    public function test_concurrent_requests_serialize() {
+    public function test_concurrent_requests_serialize(): void {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
@@ -317,8 +330,8 @@ class lock_handling_test extends advanced_testcase {
 
         $structure = [
             'themes' => [
-                ['title' => 'Theme', 'summary' => 'Summary', 'weeks' => []]
-            ]
+                ['title' => 'Theme', 'summary' => 'Summary', 'weeks' => []],
+            ],
         ];
 
         $service = new section_creation_service();

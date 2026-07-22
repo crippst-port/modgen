@@ -35,7 +35,6 @@ defined('MOODLE_INTERNAL') || die();
  * All methods are pure data operations (no HTML output).
  */
 class integrity_checker {
-
     /**
      * Run all integrity checks for a course.
      *
@@ -214,8 +213,10 @@ class integrity_checker {
             // involved, consistent with how row-level highlighting already deduplicates.
             $bysection = [];
             foreach ($rows as $row) {
-                if (!isset($bysection[$row->root_section])
-                        || strlen($row->path) < strlen($bysection[$row->root_section]->path)) {
+                if (
+                    !isset($bysection[$row->root_section])
+                        || strlen($row->path) < strlen($bysection[$row->root_section]->path)
+                ) {
                     $bysection[$row->root_section] = $row;
                 }
             }

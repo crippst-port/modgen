@@ -61,7 +61,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @coversDefaultClass \aiplacement_modgen\local\section_creation_service
  */
 final class concurrency_integrity_test extends advanced_testcase {
-
     /** @var \stdClass Test course. */
     private $course;
 
@@ -161,8 +160,11 @@ final class concurrency_integrity_test extends advanced_testcase {
             }
         }
 
-        $this->assertSame([], $problems,
-            "[$context] Corrupted structure:\n  - " . implode("\n  - ", $problems));
+        $this->assertSame(
+            [],
+            $problems,
+            "[$context] Corrupted structure:\n  - " . implode("\n  - ", $problems)
+        );
     }
 
     /**
@@ -202,8 +204,10 @@ final class concurrency_integrity_test extends advanced_testcase {
             // with a short timeout — proving generation is genuinely serialised
             // and cannot run concurrently against the same course.
             $contender = $factory->get_lock($lockkey, 1);
-            $this->assertFalse($contender,
-                'A second worker must not acquire the generation lock while it is held.');
+            $this->assertFalse(
+                $contender,
+                'A second worker must not acquire the generation lock while it is held.'
+            );
         } finally {
             $heldlock->release();
         }
@@ -211,11 +215,18 @@ final class concurrency_integrity_test extends advanced_testcase {
         // After the lock is released, generation proceeds and leaves a sound structure.
         (new section_creation_service())->create_sections_from_json(
             $this->theme_payload('After release'),
-            $this->course->id, 'connected_theme', false, false, false
+            $this->course->id,
+            'connected_theme',
+            false,
+            false,
+            false
         );
 
-        $this->assertSame(1, $this->count_generated_toplevel_sections(),
-            'Exactly one generation should have produced exactly one theme.');
+        $this->assertSame(
+            1,
+            $this->count_generated_toplevel_sections(),
+            'Exactly one generation should have produced exactly one theme.'
+        );
         $this->assert_structure_sound('after contended lock');
     }
 
@@ -238,16 +249,22 @@ final class concurrency_integrity_test extends advanced_testcase {
             // Generation on course B must still succeed despite course A being locked.
             (new section_creation_service())->create_sections_from_json(
                 $this->theme_payload('Course B theme'),
-                $other->id, 'connected_theme', false, false, false
+                $other->id,
+                'connected_theme',
+                false,
+                false,
+                false
             );
         } finally {
             $heldlock->release();
         }
 
         global $DB;
-        $bthemes = $DB->count_records_select('course_sections',
+        $bthemes = $DB->count_records_select(
+            'course_sections',
             "course = :c AND section > 0 AND name = :n",
-            ['c' => $other->id, 'n' => 'Course B theme']);
+            ['c' => $other->id, 'n' => 'Course B theme']
+        );
         $this->assertSame(1, $bthemes, 'Course B generation should complete while course A is locked.');
     }
 
@@ -276,8 +293,13 @@ final class concurrency_integrity_test extends advanced_testcase {
         // Parent 999 does not exist: validation throws inside the create transaction.
         try {
             theme_builder::create_section_with_parent(
-                $this->course->id, $courseformat, 999,
-                'Orphan attempt', 'summary', FORMAT_PLAIN, []
+                $this->course->id,
+                $courseformat,
+                999,
+                'Orphan attempt',
+                'summary',
+                FORMAT_PLAIN,
+                []
             );
             $this->fail('Expected a moodle_exception for the non-existent parent.');
         } catch (\moodle_exception $e) {
@@ -286,12 +308,16 @@ final class concurrency_integrity_test extends advanced_testcase {
         $this->resetDebugging();
 
         // The failed create must be fully rolled back: counts unchanged...
-        $this->assertSame($sectionsbefore,
+        $this->assertSame(
+            $sectionsbefore,
             $DB->count_records('course_sections', ['course' => $this->course->id]),
-            'A rolled-back create must not leave a section row.');
-        $this->assertSame($optionsbefore,
+            'A rolled-back create must not leave a section row.'
+        );
+        $this->assertSame(
+            $optionsbefore,
             $DB->count_records('course_format_options', ['courseid' => $this->course->id]),
-            'A rolled-back create must not leave a parent option row.');
+            'A rolled-back create must not leave a parent option row.'
+        );
 
         // ...and the structure stays sound and renderable.
         $this->assert_structure_sound('after rolled-back create');
@@ -311,13 +337,20 @@ final class concurrency_integrity_test extends advanced_testcase {
         for ($i = 1; $i <= 5; $i++) {
             $service->create_sections_from_json(
                 $this->theme_payload("Theme {$i}"),
-                $this->course->id, 'connected_theme', false, false, false
+                $this->course->id,
+                'connected_theme',
+                false,
+                false,
+                false
             );
             $this->assert_structure_sound("after generation {$i}");
         }
 
-        $this->assertSame(5, $this->count_generated_toplevel_sections(),
-            'Five serial generations should yield five distinct top-level themes.');
+        $this->assertSame(
+            5,
+            $this->count_generated_toplevel_sections(),
+            'Five serial generations should yield five distinct top-level themes.'
+        );
     }
 
     /**
@@ -327,7 +360,10 @@ final class concurrency_integrity_test extends advanced_testcase {
      * @covers \aiplacement_modgen\local\constants::GENERATION_LOCK_TIMEOUT
      */
     public function test_lock_timeout_allows_waiting(): void {
-        $this->assertGreaterThanOrEqual(60, constants::GENERATION_LOCK_TIMEOUT,
-            'Generation lock timeout should let a queued worker wait, not fail immediately.');
+        $this->assertGreaterThanOrEqual(
+            60,
+            constants::GENERATION_LOCK_TIMEOUT,
+            'Generation lock timeout should let a queued worker wait, not fail immediately.'
+        );
     }
 }

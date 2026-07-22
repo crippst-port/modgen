@@ -65,7 +65,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @coversDefaultClass \aiplacement_modgen\local\session_creator
  */
 final class session_routing_integrity_test extends advanced_testcase {
-
     /** @var \stdClass Test course. */
     private $course;
 
@@ -96,8 +95,13 @@ final class session_routing_integrity_test extends advanced_testcase {
      */
     private function make_week(string $name): int {
         $week = theme_builder::create_section_with_parent(
-            $this->course->id, $this->courseformat, 0,
-            $name, '', FORMAT_PLAIN, ['collapsed' => 1]
+            $this->course->id,
+            $this->courseformat,
+            0,
+            $name,
+            '',
+            FORMAT_PLAIN,
+            ['collapsed' => 1]
         );
         return $week->section;
     }
@@ -142,7 +146,10 @@ final class session_routing_integrity_test extends advanced_testcase {
         $week = $this->make_week('Round trip week');
 
         $created = session_creator::create_session_subsections(
-            $this->courseformat, $week, $this->course->id, null
+            $this->courseformat,
+            $week,
+            $this->course->id,
+            null
         );
         rebuild_course_cache($this->course->id, true, true);
 
@@ -153,17 +160,29 @@ final class session_routing_integrity_test extends advanced_testcase {
         $this->assertArrayHasKey('postsession', $found);
 
         // Each phase must resolve to exactly the section it was created as.
-        $this->assertSame($created['presession'], $found['presession'],
-            'presession must round-trip to its own subsection.');
-        $this->assertSame($created['session'], $found['session'],
-            'session must round-trip to its own subsection.');
-        $this->assertSame($created['postsession'], $found['postsession'],
-            'postsession must round-trip to its own subsection.');
+        $this->assertSame(
+            $created['presession'],
+            $found['presession'],
+            'presession must round-trip to its own subsection.'
+        );
+        $this->assertSame(
+            $created['session'],
+            $found['session'],
+            'session must round-trip to its own subsection.'
+        );
+        $this->assertSame(
+            $created['postsession'],
+            $found['postsession'],
+            'postsession must round-trip to its own subsection.'
+        );
 
         // The three phases must be three DISTINCT sections — no two phases may
         // collapse onto the same subsection.
-        $this->assertCount(3, array_unique($found),
-            'The three session phases must map to three distinct subsections.');
+        $this->assertCount(
+            3,
+            array_unique($found),
+            'The three session phases must map to three distinct subsections.'
+        );
     }
 
     /**
@@ -177,7 +196,10 @@ final class session_routing_integrity_test extends advanced_testcase {
     public function test_session_not_swallowed_by_pre_or_post(): void {
         $week = $this->make_week('Ordering week');
         $created = session_creator::create_session_subsections(
-            $this->courseformat, $week, $this->course->id, null
+            $this->courseformat,
+            $week,
+            $this->course->id,
+            null
         );
         rebuild_course_cache($this->course->id, true, true);
 
@@ -185,10 +207,16 @@ final class session_routing_integrity_test extends advanced_testcase {
 
         // The plain 'session' phase must map to the bare Session subsection,
         // which is NEITHER the pre- nor post- subsection.
-        $this->assertNotSame($created['presession'], $found['session'],
-            "'session' must not resolve to the pre-session subsection.");
-        $this->assertNotSame($created['postsession'], $found['session'],
-            "'session' must not resolve to the post-session subsection.");
+        $this->assertNotSame(
+            $created['presession'],
+            $found['session'],
+            "'session' must not resolve to the pre-session subsection."
+        );
+        $this->assertNotSame(
+            $created['postsession'],
+            $found['session'],
+            "'session' must not resolve to the post-session subsection."
+        );
         $this->assertSame($created['session'], $found['session']);
     }
 
@@ -223,23 +251,41 @@ final class session_routing_integrity_test extends advanced_testcase {
         ]];
 
         (new section_creation_service())->create_sections_from_json(
-            $json, $this->course->id, 'connected_theme', false, true, false
+            $json,
+            $this->course->id,
+            'connected_theme',
+            false,
+            true,
+            false
         );
         $this->resetDebugging();
         rebuild_course_cache($this->course->id, true, true);
 
         // Locate the week, then its three session subsections by phase.
         global $DB;
-        $week = $DB->get_record('course_sections',
-            ['course' => $this->course->id, 'name' => 'Routing week'], '*', MUST_EXIST);
+        $week = $DB->get_record(
+            'course_sections',
+            ['course' => $this->course->id, 'name' => 'Routing week'],
+            '*',
+            MUST_EXIST
+        );
         $map = session_creator::get_session_sections($week->section, $this->course->id);
 
-        $this->assertContains('PRE-ACTIVITY', $this->content_module_names($map['presession']),
-            'Pre-session activity must be in the pre-session subsection.');
-        $this->assertContains('MAIN-ACTIVITY', $this->content_module_names($map['session']),
-            'Session activity must be in the session subsection.');
-        $this->assertContains('POST-ACTIVITY', $this->content_module_names($map['postsession']),
-            'Post-session activity must be in the post-session subsection.');
+        $this->assertContains(
+            'PRE-ACTIVITY',
+            $this->content_module_names($map['presession']),
+            'Pre-session activity must be in the pre-session subsection.'
+        );
+        $this->assertContains(
+            'MAIN-ACTIVITY',
+            $this->content_module_names($map['session']),
+            'Session activity must be in the session subsection.'
+        );
+        $this->assertContains(
+            'POST-ACTIVITY',
+            $this->content_module_names($map['postsession']),
+            'Post-session activity must be in the post-session subsection.'
+        );
 
         // And crucially, no cross-contamination: the main activity must NOT appear
         // in the pre- or post- subsections.
@@ -268,14 +314,22 @@ final class session_routing_integrity_test extends advanced_testcase {
     public function test_keyword_bearing_sibling_can_hijack_mapping(): void {
         $week = $this->make_week('Collision week');
         $created = session_creator::create_session_subsections(
-            $this->courseformat, $week, $this->course->id, null
+            $this->courseformat,
+            $week,
+            $this->course->id,
+            null
         );
 
         // A teacher adds an extra subsection under the week whose name contains
         // 'session' — e.g. a recap. It is a legitimate sibling, not a phase.
         $stray = theme_builder::create_section_with_parent(
-            $this->course->id, $this->courseformat, $week,
-            'Session recap', '', FORMAT_PLAIN, ['collapsed' => 0]
+            $this->course->id,
+            $this->courseformat,
+            $week,
+            'Session recap',
+            '',
+            FORMAT_PLAIN,
+            ['collapsed' => 0]
         );
         rebuild_course_cache($this->course->id, true, true);
 
@@ -287,8 +341,11 @@ final class session_routing_integrity_test extends advanced_testcase {
         // real (the stray is a candidate), which is the corruption risk worth
         // surfacing, without over-fitting to ordering.
         $candidates = [$created['session'], $stray->section];
-        $this->assertContains($found['session'], $candidates,
-            "'session' resolves to one of the keyword-bearing subsections.");
+        $this->assertContains(
+            $found['session'],
+            $candidates,
+            "'session' resolves to one of the keyword-bearing subsections."
+        );
 
         // The deterministic, safe phases are unaffected: pre/post still resolve
         // to their own dedicated subsections.
@@ -318,10 +375,16 @@ final class session_routing_integrity_test extends advanced_testcase {
         $course = get_course($this->course->id);
         session_creator::create_session_activities(
             ['session' => ['activities' => [['type' => 'label', 'name' => 'Orphan', 'intro' => 'x']]]],
-            $map, $course, $results, $warnings
+            $map,
+            $course,
+            $results,
+            $warnings
         );
 
-        $this->assertSame([], $results,
-            'With no matching subsection, no activity should be placed.');
+        $this->assertSame(
+            [],
+            $results,
+            'With no matching subsection, no activity should be placed.'
+        );
     }
 }

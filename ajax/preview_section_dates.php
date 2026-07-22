@@ -109,7 +109,7 @@ try {
             'section' => $section->section,
             'name' => $cleanname,
             'formatted_date' => $formatteddate,
-            'week_number' => $weekcounter
+            'week_number' => $weekcounter,
         ];
 
         // Move to next week
@@ -139,15 +139,14 @@ try {
                 'formatted_date' => $sectiondata['formatted_date'],
                 'proposed_name' => $proposedname,
                 'is_parent' => $sectiondata['is_parent'],
-                'week_number' => $sectiondata['week_number']
+                'week_number' => $sectiondata['week_number'],
             ];
         }
     }
 
     ajax_response::success([
-        'sections' => $filteredsections
+        'sections' => $filteredsections,
     ]);
-
 } catch (Exception $e) {
     ajax_response::error($e->getMessage(), 'exception');
 }

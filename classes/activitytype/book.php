@@ -32,7 +32,6 @@ defined('MOODLE_INTERNAL') || die();
  * Creates Book activities with chapters populated from extracted content.
  */
 class book implements activity_type {
-    
     /** @inheritDoc */
     public static function get_type(): string {
         return 'book';
@@ -55,14 +54,14 @@ class book implements activity_type {
         require_once($CFG->dirroot . '/course/modlib.php');
 
         $name = trim($activitydata->name ?? '');
-        
+
         if ($name === '') {
             return null;
         }
 
         $intro = trim($activitydata->intro ?? '');
         $chapters = $activitydata->chapters ?? [];
-        
+
         // Ensure chapters is an array (might be string from JSON)
         if (!is_array($chapters)) {
             $chapters = [];
@@ -76,14 +75,14 @@ class book implements activity_type {
         $moduleinfo->visible = 1;
         $moduleinfo->name = $name;
         $moduleinfo->cmidnumber = '';  // Course module ID number (optional identifier)
-        
+
         // Book intro - use same editor format as quiz/label
         $moduleinfo->introeditor = [
             'text' => $intro,
             'format' => 1,
-            'itemid' => 0
+            'itemid' => 0,
         ];
-        
+
         // Book-specific fields
         $moduleinfo->introformat = 1;
         $moduleinfo->showdescription = 1;  // Display description on course page
@@ -92,7 +91,7 @@ class book implements activity_type {
 
         try {
             $cm = \create_module($moduleinfo);
-            
+
             $bookid = $cm->instance;
             $cmid = $cm->coursemodule;
 
@@ -103,7 +102,7 @@ class book implements activity_type {
 
             return [
                 'coursemodule' => $cmid,
-                'instance' => $bookid
+                'instance' => $bookid,
             ];
         } catch (\Exception $e) {
             return null;
@@ -126,7 +125,7 @@ class book implements activity_type {
             }
 
             $chapterdata = is_object($chapter) ? (array) $chapter : $chapter;
-            
+
             $title = trim($chapterdata['title'] ?? 'Chapter ' . $chapternum);
             $content = trim($chapterdata['content'] ?? '');
 

@@ -49,8 +49,12 @@ $coursecontext = context_course::instance($courseid);
 $hasprompt = has_capability('aiplacement/modgen:generatewithprompt', $coursecontext);
 $hastemplate = has_capability('aiplacement/modgen:generatefromtemplate', $coursecontext);
 if (!$hasprompt && !$hastemplate) {
-    throw new required_capability_exception($coursecontext, 'aiplacement/modgen:generatefromtemplate', 
-        'nopermissions', 'error');
+    throw new required_capability_exception(
+        $coursecontext,
+        'aiplacement/modgen:generatefromtemplate',
+        'nopermissions',
+        'error'
+    );
 }
 
 // Set page context

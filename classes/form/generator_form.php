@@ -30,15 +30,13 @@ defined('MOODLE_INTERNAL') || die();
 
 /**
  * Form for generating module structure and content.
- * 
+ *
  * This form captures user input for AI-powered module generation,
  * including template selection, module type, and generation options.
  */
 class aiplacement_modgen_generator_form extends moodleform
 {
-
-    public function definition()
-    {
+    public function definition() {
         $mform = $this->_form;
         $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
         $mform->setType('courseid', PARAM_INT);
@@ -103,7 +101,7 @@ class aiplacement_modgen_generator_form extends moodleform
             'supportingfiles',
             get_string('supportingfiles', 'aiplacement_modgen'),
             null,
-            array('subdirs' => 0, 'maxbytes' => 10485760, 'maxfiles' => 1, 'accepted_types' => array('.csv'))
+            ['subdirs' => 0, 'maxbytes' => 10485760, 'maxfiles' => 1, 'accepted_types' => ['.csv']]
         );
         $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
 
@@ -151,30 +149,27 @@ class aiplacement_modgen_generator_form extends moodleform
         $buttonarray = [];
         $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('submit', 'aiplacement_modgen'));
         if (get_config('aiplacement_modgen', 'enable_ai') && get_config('aiplacement_modgen', 'enable_existing_modules')) {
-
         }
         $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);
 
         // Always load template selector JavaScript for button state management
         global $PAGE;
         $PAGE->requires->js_call_amd('aiplacement_modgen/template_selector', 'init', [
-            ['downloadUrl' => (new moodle_url('/ai/placement/modgen/download_template.php'))->out(false), 'courseid' => $this->_customdata['courseid']]
+            ['downloadUrl' => (new moodle_url('/ai/placement/modgen/download_template.php'))->out(false), 'courseid' => $this->_customdata['courseid']],
         ]);
     }
 
-    public function definition_after_data()
-    {
+    public function definition_after_data() {
         global $USER;
         parent::definition_after_data();
         // Prepare draft area for supporting files if context provided.
         $draftitemid = file_get_submitted_draft_itemid('supportingfiles');
         $contextid = !empty($this->_customdata['contextid']) ? $this->_customdata['contextid'] : context_user::instance($USER->id)->id;
-        file_prepare_draft_area($draftitemid, $contextid, 'aiplacement_modgen', 'supportingfiles', 0, array('subdirs' => 0, 'maxbytes' => 10485760, 'maxfiles' => 5));
+        file_prepare_draft_area($draftitemid, $contextid, 'aiplacement_modgen', 'supportingfiles', 0, ['subdirs' => 0, 'maxbytes' => 10485760, 'maxfiles' => 5]);
         $this->_form->setDefault('supportingfiles', $draftitemid);
     }
 
-    public function validation($data, $files)
-    {
+    public function validation($data, $files) {
         global $USER;
         $errors = parent::validation($data, $files);
 
@@ -203,8 +198,7 @@ class aiplacement_modgen_generator_form extends moodleform
      *
      * @return array Array with key 0 => "Create from scratch", then courseid => fullname for editable courses
      */
-    private function get_editable_courses()
-    {
+    private function get_editable_courses() {
         $options = [0 => get_string('createfromscratch', 'aiplacement_modgen')];
 
         // SECURITY & PERFORMANCE FIX: Use Moodle's API instead of custom SQL
@@ -225,8 +219,7 @@ class aiplacement_modgen_generator_form extends moodleform
      *
      * @return array Array with key 0 => "None selected", then templateid => name (description)
      */
-    private function get_available_templates()
-    {
+    private function get_available_templates() {
         global $DB;
 
         $options = [0 => get_string('notemplateselected', 'aiplacement_modgen')];

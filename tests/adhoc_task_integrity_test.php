@@ -64,7 +64,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @coversDefaultClass \aiplacement_modgen\task\create_sections_task
  */
 final class adhoc_task_integrity_test extends advanced_testcase {
-
     /** @var \stdClass Test course. */
     private $course;
 
@@ -167,8 +166,11 @@ final class adhoc_task_integrity_test extends advanced_testcase {
             }
         }
 
-        $this->assertSame([], $problems,
-            "[$context] Corrupted structure:\n  - " . implode("\n  - ", $problems));
+        $this->assertSame(
+            [],
+            $problems,
+            "[$context] Corrupted structure:\n  - " . implode("\n  - ", $problems)
+        );
     }
 
     /**
@@ -241,10 +243,16 @@ final class adhoc_task_integrity_test extends advanced_testcase {
         $this->run_task($task);
         $this->resetDebugging();
 
-        $this->assertSame('completed', $this->job($jobid)->status,
-            'A successful task must mark the job completed.');
-        $this->assertSame(2, $this->count_generated_toplevel(),
-            'create_themes(2) should produce exactly two top-level themes.');
+        $this->assertSame(
+            'completed',
+            $this->job($jobid)->status,
+            'A successful task must mark the job completed.'
+        );
+        $this->assertSame(
+            2,
+            $this->count_generated_toplevel(),
+            'create_themes(2) should produce exactly two top-level themes.'
+        );
         $this->assert_structure_sound('after successful task');
     }
 
@@ -277,10 +285,16 @@ final class adhoc_task_integrity_test extends advanced_testcase {
         $this->resetDebugging();
 
         $this->assert_structure_sound('after idempotent retry');
-        $this->assertSame($countafterfirst, $this->count_generated_toplevel(),
-            'A retry of an already-completed job must not create additional sections.');
-        $this->assertSame('completed', $this->job($jobid)->status,
-            'The job remains completed after a skipped retry.');
+        $this->assertSame(
+            $countafterfirst,
+            $this->count_generated_toplevel(),
+            'A retry of an already-completed job must not create additional sections.'
+        );
+        $this->assertSame(
+            'completed',
+            $this->job($jobid)->status,
+            'The job remains completed after a skipped retry.'
+        );
     }
 
     /**
@@ -299,15 +313,19 @@ final class adhoc_task_integrity_test extends advanced_testcase {
      */
     public function test_completion_recorded_before_housekeeping(): void {
         $jobid = $this->make_job('create_weeks', ['weekcount' => 1, 'parentsection' => 0]);
-        $this->run_task($this->make_task($jobid,
-            ['action' => 'create_weeks', 'weekcount' => 1, 'parentsection' => 0]));
+        $this->run_task($this->make_task(
+            $jobid,
+            ['action' => 'create_weeks', 'weekcount' => 1, 'parentsection' => 0]
+        ));
         $this->resetDebugging();
 
         // Sections committed AND job completed: the success was recorded.
         $this->assertSame(1, $this->count_generated_toplevel());
         $this->assertSame('completed', $this->job($jobid)->status);
-        $this->assertNotNull($this->job($jobid)->timecompleted,
-            'A completed job records its completion time.');
+        $this->assertNotNull(
+            $this->job($jobid)->timecompleted,
+            'A completed job records its completion time.'
+        );
     }
 
     /**
@@ -340,8 +358,11 @@ final class adhoc_task_integrity_test extends advanced_testcase {
         $this->run_task($this->make_task($jobid, $custom));
         $this->resetDebugging();
 
-        $this->assertSame($committed, $this->count_generated_toplevel(),
-            'Committed sections must never be duplicated by subsequent retries.');
+        $this->assertSame(
+            $committed,
+            $this->count_generated_toplevel(),
+            'Committed sections must never be duplicated by subsequent retries.'
+        );
         $this->assert_structure_sound('after repeated retries');
     }
 
@@ -378,15 +399,20 @@ final class adhoc_task_integrity_test extends advanced_testcase {
         $this->resetDebugging();
 
         // No duplication.
-        $this->assertSame($committed, $this->count_generated_toplevel(),
-            'An interrupted (running) job must not be re-run into duplicate sections.');
+        $this->assertSame(
+            $committed,
+            $this->count_generated_toplevel(),
+            'An interrupted (running) job must not be re-run into duplicate sections.'
+        );
 
         // Terminally failed, not retried.
         $job = $this->job($jobid);
         $this->assertSame('failed', $job->status, 'Interrupted job must be marked failed.');
         $result = json_decode($job->result, true);
-        $this->assertFalse($result['will_retry'] ?? true,
-            'Interrupted job must not be flagged for further retries.');
+        $this->assertFalse(
+            $result['will_retry'] ?? true,
+            'Interrupted job must not be flagged for further retries.'
+        );
         $this->assert_structure_sound('after interrupted-job guard');
     }
 
@@ -411,15 +437,22 @@ final class adhoc_task_integrity_test extends advanced_testcase {
 
         $job = $this->job($jobid);
         $this->assertSame('failed', $job->status);
-        $this->assertNotNull($job->timecompleted,
-            'A terminal failure records its completion time.');
+        $this->assertNotNull(
+            $job->timecompleted,
+            'A terminal failure records its completion time.'
+        );
         $result = json_decode($job->result, true);
-        $this->assertFalse($result['will_retry'] ?? true,
-            'A section-limit failure must not be flagged for retry.');
+        $this->assertFalse(
+            $result['will_retry'] ?? true,
+            'A section-limit failure must not be flagged for retry.'
+        );
 
         // Nothing was created (the guard fails before any work).
-        $this->assertSame(0, $this->count_generated_toplevel(),
-            'A rejected over-limit job must not create partial content.');
+        $this->assertSame(
+            0,
+            $this->count_generated_toplevel(),
+            'A rejected over-limit job must not create partial content.'
+        );
     }
 
     /**
@@ -434,8 +467,12 @@ final class adhoc_task_integrity_test extends advanced_testcase {
         // Simulate a prior failed attempt by pre-setting the job to 'failed'.
         $jobid = $this->make_job('create_themes', ['themecount' => 1, 'weeksperTheme' => 1, 'parentsection' => 0]);
         $DB->set_field('aiplacement_modgen_jobs', 'status', 'failed', ['id' => $jobid]);
-        $DB->set_field('aiplacement_modgen_jobs', 'result',
-            json_encode(['success' => false, 'will_retry' => true]), ['id' => $jobid]);
+        $DB->set_field(
+            'aiplacement_modgen_jobs',
+            'result',
+            json_encode(['success' => false, 'will_retry' => true]),
+            ['id' => $jobid]
+        );
 
         // Now a successful retry.
         $this->run_task($this->make_task($jobid, [
@@ -444,11 +481,16 @@ final class adhoc_task_integrity_test extends advanced_testcase {
         $this->resetDebugging();
 
         $job = $this->job($jobid);
-        $this->assertSame('completed', $job->status,
-            'A successful retry must move the job from failed to completed.');
+        $this->assertSame(
+            'completed',
+            $job->status,
+            'A successful retry must move the job from failed to completed.'
+        );
         $result = json_decode($job->result, true);
-        $this->assertTrue($result['success'] ?? false,
-            'Completed job result must report success.');
+        $this->assertTrue(
+            $result['success'] ?? false,
+            'Completed job result must report success.'
+        );
         $this->assert_structure_sound('after successful retry');
     }
 
@@ -484,8 +526,11 @@ final class adhoc_task_integrity_test extends advanced_testcase {
         $this->assertNull($job->timecompleted, 'A retryable failure must not set timecompleted.');
 
         // No partial sections were created.
-        $this->assertSame($sectionsbefore, $this->count_generated_toplevel(),
-            'A failed task must not leave partial sections.');
+        $this->assertSame(
+            $sectionsbefore,
+            $this->count_generated_toplevel(),
+            'A failed task must not leave partial sections.'
+        );
         $this->assert_structure_sound('after failed task');
     }
 
@@ -509,8 +554,11 @@ final class adhoc_task_integrity_test extends advanced_testcase {
             $this->run_task($task);
         } finally {
             // No sections should have been created for the phantom job.
-            $this->assertSame($sectionsbefore, $this->count_generated_toplevel(),
-                'A task with no job record must not mutate the course.');
+            $this->assertSame(
+                $sectionsbefore,
+                $this->count_generated_toplevel(),
+                'A task with no job record must not mutate the course.'
+            );
         }
     }
 
@@ -545,8 +593,11 @@ final class adhoc_task_integrity_test extends advanced_testcase {
         $this->resetDebugging();
 
         $this->assertSame('completed', $this->job($jobid)->status);
-        $this->assertSame(1, $this->count_generated_toplevel(),
-            'create_from_json should create the single supplied theme.');
+        $this->assertSame(
+            1,
+            $this->count_generated_toplevel(),
+            'create_from_json should create the single supplied theme.'
+        );
         $this->assert_structure_sound('after create_from_json task');
     }
 }

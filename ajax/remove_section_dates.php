@@ -93,14 +93,14 @@ try {
             $DB->update_record('course_sections', [
                 'id' => $sectionid,
                 'name' => $newname,
-                'timemodified' => time()
+                'timemodified' => time(),
             ]);
 
             $updatedcount++;
             $updatedsections[] = [
                 'id' => $sectionid,
                 'section' => $section->section,
-                'name' => $newname
+                'name' => $newname,
             ];
         }
     }
@@ -119,9 +119,8 @@ try {
     ajax_response::success([
         'updated' => $updatedcount,
         'sections' => $updatedsections,
-        'message' => get_string('datesremovedsuccess', 'aiplacement_modgen', $updatedcount)
+        'message' => get_string('datesremovedsuccess', 'aiplacement_modgen', $updatedcount),
     ]);
-
 } catch (Exception $e) {
     // Release lock before error response.
     if ($lock) {

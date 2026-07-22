@@ -35,7 +35,6 @@ defined('MOODLE_INTERNAL') || die();
 
 class ai_service
 {
-
     /**
      * Validate module structure to catch malformed AI responses.
      *
@@ -49,13 +48,12 @@ class ai_service
     /**
      * Extract requested theme count from user prompt if specified.
      * Looks for patterns like "X themes", "X themed sections", "divide into X themes", etc.
-     * 
+     *
      * @param string $prompt User's input prompt
      * @param string $structure The structure type (theme or weekly)
      * @return int|null The requested theme count, or null if not specified
      */
-    private static function extract_requested_theme_count($prompt, $structure)
-    {
+    private static function extract_requested_theme_count($prompt, $structure) {
         // Only applicable for theme-based structures
         if ($structure !== 'theme') {
             return null;
@@ -75,8 +73,7 @@ class ai_service
         return null;
     }
 
-    private static function validate_module_structure($data, $structure)
-    {
+    private static function validate_module_structure($data, $structure) {
         $structure = ($structure === 'theme') ? 'theme' : 'weekly';
 
         // Check if we have the expected top-level key
@@ -129,9 +126,9 @@ class ai_service
     /**
      * Recursively normalise AI responses where some fields may be JSON encoded as strings.
      * This walks arrays/objects and attempts to json_decode string values that look like JSON.
-     * 
-     * SPECIAL CASES: 
-     * 1. If the structure is wrapped (first item in themes/sections array contains 
+     *
+     * SPECIAL CASES:
+     * 1. If the structure is wrapped (first item in themes/sections array contains
      *    the actual structure in its summary field), this function unwraps it automatically.
      * 2. Handles JSON strings with escaped newlines and quotes within field values.
      * 3. When the entire module structure is nested in a field as a JSON string, extracts it.
@@ -140,8 +137,7 @@ class ai_service
      * @param bool $isTopLevel Whether this is the top-level call (used for structure extraction)
      * @return mixed
      */
-    private static function normalize_ai_response($value, $isTopLevel = false)
-    {
+    private static function normalize_ai_response($value, $isTopLevel = false) {
         // If it's an array, walk each element.
         if (is_array($value)) {
             $out = [];
@@ -258,8 +254,7 @@ class ai_service
      * @param array $data The parsed response data
      * @return array The corrected data
      */
-    private static function extract_misplaced_content_from_summaries($data)
-    {
+    private static function extract_misplaced_content_from_summaries($data) {
         if (!is_array($data)) {
             return $data;
         }
@@ -298,7 +293,6 @@ class ai_service
                     (strpos($summary, '{"themes"') === 0 || strpos($summary, '{"sections"') === 0) &&
                     (substr($summary, -1) === '}' || substr($summary, -1) === ']')
                 ) {
-
                     // Try to parse it
                     $parsed = json_decode($summary, true);
                     if (is_array($parsed) && (isset($parsed['themes']) || isset($parsed['sections']))) {
@@ -324,17 +318,16 @@ class ai_service
      * @param string $str The string to unescape
      * @return string The unescaped string
      */
-    private static function unescape_json_string($str)
-    {
+    private static function unescape_json_string($str) {
         // Handle common escape patterns that might be in the string
         // but not properly interpreted
         $replacements = [
-            '\\\\n' => "\n",      // Literal \n -> newline
-            '\\\\t' => "\t",      // Literal \t -> tab
-            '\\\\r' => "\r",      // Literal \r -> carriage return
-            '\\\"' => '"',        // Escaped quote -> quote
-            "\\\\" => "\\",       // Escaped backslash -> backslash
-            '\\/' => '/',         // Escaped forward slash -> slash
+            '\\\\n' => "\n", // Literal \n -> newline
+            '\\\\t' => "\t", // Literal \t -> tab
+            '\\\\r' => "\r", // Literal \r -> carriage return
+            '\\\"' => '"', // Escaped quote -> quote
+            "\\\\" => "\\", // Escaped backslash -> backslash
+            '\\/' => '/', // Escaped forward slash -> slash
         ];
 
         $result = $str;
@@ -359,8 +352,7 @@ class ai_service
      * @param int $depth Current recursion depth (to prevent infinite loops)
      * @return array The structure with deeply decoded JSON fields
      */
-    private static function deep_unescape_stringified_json($data, $depth = 0)
-    {
+    private static function deep_unescape_stringified_json($data, $depth = 0) {
         // Prevent infinite recursion
         if ($depth > 10) {
             return $data;
@@ -378,7 +370,6 @@ class ai_service
                     (strpos($trimmed, '{') === 0 && strrpos($trimmed, '}') === strlen($trimmed) - 1) ||
                     (strpos($trimmed, '[') === 0 && strrpos($trimmed, ']') === strlen($trimmed) - 1)
                 ) {
-
                     // Try to decode as-is first
                     $decoded = json_decode($trimmed, true);
                     if (is_array($decoded)) {
@@ -395,7 +386,7 @@ class ai_service
                         }
                     }
                 }
-            } elseif (is_array($value)) {
+            } else if (is_array($value)) {
                 // Recursively process nested arrays
                 $value = self::deep_unescape_stringified_json($value, $depth + 1);
             }
@@ -406,15 +397,14 @@ class ai_service
 
     /**
      * Convert a weekly structure (sections) into a themed structure (themes).
-     * 
+     *
      * Groups sections into themes by analyzing section titles for pedagogical coherence.
      * Creates wrapper themes and nests the sections as weeks within each theme.
      *
      * @param array $data The response data with 'sections' array
      * @return array The converted data with 'themes' array, or original if no sections found
      */
-    private static function convert_sections_to_themes($data)
-    {
+    private static function convert_sections_to_themes($data) {
         // If already has themes or no sections, return as-is
         if (!isset($data['sections']) || !is_array($data['sections'])) {
             return $data;
@@ -471,7 +461,7 @@ class ai_service
                         'activities' => $section['activities'] ?? [],
                     ],
                 ];
-            } elseif (isset($section['activities']) && is_array($section['activities'])) {
+            } else if (isset($section['activities']) && is_array($section['activities'])) {
                 $week['sessions'] = [
                     'session' => [
                         'title' => 'Main Session',
@@ -493,13 +483,12 @@ class ai_service
     /**
      * Generate formatted week dates based on course start date.
      * Each week is 7 days from the course start date.
-     * 
+     *
      * @param int $weeknumber The week number (1-based)
      * @param int $courseid Optional course ID to get start date from. Uses COURSE global if not provided.
      * @return string Formatted date range for the week (e.g., "Jan 6 - Jan 12, 2025")
      */
-    private static function get_week_date_range($weeknumber, $courseid = null)
-    {
+    private static function get_week_date_range($weeknumber, $courseid = null) {
         global $COURSE;
 
         // Get course object if courseid provided
@@ -526,7 +515,7 @@ class ai_service
 
     /**
      * Generate module structure and content using AI.
-     * 
+     *
      * @param string $prompt User's input requirements
      * @param array $documents Supporting documents/files
      * @param string $structure Module structure type (weekly/theme)
@@ -536,8 +525,7 @@ class ai_service
      * @param bool $includesessions Whether to request session instructions (default: true)
      * @return array Module structure JSON
      */
-    public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null, $courseid = null, $includeactivities = true, $includesessions = true)
-    {
+    public static function generate_module($prompt, $documents = [], $structure = 'weekly', $template_data = null, $courseid = null, $includeactivities = true, $includesessions = true) {
         global $USER, $COURSE;
 
         // SECURITY FIX: Check rate limit before making AI request
@@ -561,7 +549,7 @@ class ai_service
                         'activities' => [],
                         'template' => 'Rate limit exceeded. You have made too many AI requests in the past hour. Please try again later.',
                         'raw' => '',
-                        'debugprompt' => trim($prompt)
+                        'debugprompt' => trim($prompt),
                     ];
                 }
                 $requests++;
@@ -586,7 +574,7 @@ class ai_service
                     'activities' => [],
                     'template' => 'AI error: User has not accepted the AI User Policy.',
                     'raw' => '',
-                    'debugprompt' => trim($prompt)
+                    'debugprompt' => trim($prompt),
                 ];
             }
 
@@ -595,7 +583,7 @@ class ai_service
             $normalizedStructure = $structure;
             if ($structure === 'connected_weekly') {
                 $normalizedStructure = 'weekly';
-            } elseif ($structure === 'connected_theme') {
+            } else if ($structure === 'connected_theme') {
                 $normalizedStructure = 'theme';
             }
             $structure = ($normalizedStructure === 'theme') ? 'theme' : 'weekly';
@@ -841,7 +829,7 @@ class ai_service
                 $formatinstruction .= "- URL activities MUST ALSO have: url (the external web address)\n";
                 $formatinstruction .= "  Example URL activity: {\"type\": \"url\", \"name\": \"Course Reading\", \"intro\": \"Read this article\", \"url\": \"https://example.com/article\"}\n";
                 $formatinstruction .= "- BOOK activities can have: chapters (array of chapter objects with title and content)\n";
-            } elseif ($includeactivities === false) {
+            } else if ($includeactivities === false) {
                 $formatinstruction .= "Do NOT include activities - only sections with titles, summaries, and outlines.\n";
             }
 
@@ -877,7 +865,7 @@ class ai_service
             if (empty($roleinstruction) || empty($formatinstruction)) {
                 return [
                     'activities' => [],
-                    'template' => 'AI error: Prompt construction failed'
+                    'template' => 'AI error: Prompt construction failed',
                 ];
             }
 
@@ -888,7 +876,7 @@ class ai_service
                 $documents_text,
                 "User request: " . trim($prompt) . "\n\n",
                 $formatinstruction,
-                $template_guidance
+                $template_guidance,
             ];
 
             // Add completeness enforcement at END (has most weight)
@@ -934,7 +922,7 @@ class ai_service
             if (empty($data)) {
                 return [
                     'activities' => [],
-                    'template' => 'AI error: The AI service returned an empty response. The service may be unavailable or not configured.'
+                    'template' => 'AI error: The AI service returned an empty response. The service may be unavailable or not configured.',
                 ];
             }
 
@@ -946,7 +934,7 @@ class ai_service
             if (empty($text) || !is_string($text)) {
                 return [
                     'activities' => [],
-                    'template' => 'AI error: The AI service did not return any generated text. Response keys: ' . implode(', ', array_keys($data ?? []))
+                    'template' => 'AI error: The AI service did not return any generated text. Response keys: ' . implode(', ', array_keys($data ?? [])),
                 ];
             }
 
@@ -991,7 +979,7 @@ class ai_service
                     // Try to find JSON wrapped in code blocks or quoted strings
                     if (preg_match('/```(?:json)?\s*(\{.*\}|\[.*\])\s*```/s', $text, $m)) {
                         $jsondecoded = json_decode($m[1], true);
-                    } elseif (preg_match('/(\{.*\}|\[.*\])/s', $text, $m)) {
+                    } else if (preg_match('/(\{.*\}|\[.*\])/s', $text, $m)) {
                         $jsondecoded = json_decode($m[1], true);
                     }
                 }
@@ -1047,7 +1035,7 @@ class ai_service
                         'template' => 'AI error: ' . $validation['error'],
                         'raw' => $text,
                         'debugprompt' => $finalprompt,
-                        'debugresponse' => $data
+                        'debugresponse' => $data,
                     ];
                 }
 
@@ -1085,13 +1073,13 @@ class ai_service
                 'template' => $revised ?: 'Generated via AI subsystem (non-JSON response)',
                 'raw' => $text,
                 'debugprompt' => $finalprompt,
-                'debugresponse' => $data
+                'debugresponse' => $data,
             ];
         } catch (\Throwable $e) {
             // Fallback: return error info in template
             return [
                 'activities' => [],
-                'template' => 'AI error: ' . $e->getMessage()
+                'template' => 'AI error: ' . $e->getMessage(),
             ];
         }
     }
@@ -1107,8 +1095,7 @@ class ai_service
      * @param bool $includesessions Whether to request session instructions (default: true)
      * @return array Response from AI service
      */
-    public static function generate_module_with_template($prompt, $template_data, $documents = [], $structure = 'weekly', $courseid = null, $includeactivities = true, $includesessions = true)
-    {
+    public static function generate_module_with_template($prompt, $template_data, $documents = [], $structure = 'weekly', $courseid = null, $includeactivities = true, $includesessions = true) {
         return self::generate_module($prompt, $documents, $structure, $template_data, $courseid, $includeactivities, $includesessions);
     }
 
@@ -1125,8 +1112,7 @@ class ai_service
      * @param string $structure 'theme' or 'weekly'
      * @return string Guidance text for AI prompt
      */
-    private static function build_template_prompt_guidance($template_data, $structure = 'weekly')
-    {
+    private static function build_template_prompt_guidance($template_data, $structure = 'weekly') {
         $guidance = "";
 
         // Detect multiple modules
@@ -1258,14 +1244,13 @@ class ai_service
      * @param array $template_data Raw extracted template data
      * @return array Compact structure with organizational patterns
      */
-    public static function create_compact_template_structure($template_data)
-    {
+    public static function create_compact_template_structure($template_data) {
         $compact = [
             'source' => !empty($template_data['module_count']) && $template_data['module_count'] > 1
                 ? 'multiple_modules'
                 : 'single_module',
             'organizational_pattern' => self::extract_organizational_pattern($template_data),
-            'sections' => []
+            'sections' => [],
         ];
 
         // Process each section from the structure
@@ -1274,7 +1259,7 @@ class ai_service
                 $section_data = [
                     'number' => $section['id'] ?? 0,
                     'title' => $section['name'] ?? 'Untitled',
-                    'content' => []
+                    'content' => [],
                 ];
 
                 // Add section summary as initial context if present
@@ -1288,7 +1273,7 @@ class ai_service
                         // Match activities to this section by section name
                         if (isset($activity['section']) && $activity['section'] === $section_data['title']) {
                             $activity_item = [
-                                'type' => $activity['type'] ?? 'unknown'
+                                'type' => $activity['type'] ?? 'unknown',
                             ];
 
                             // For labels, include the intro (these are headings)
@@ -1317,12 +1302,11 @@ class ai_service
      * @param array $template_data Template data
      * @return array Patterns (label sequence, typical activity count, etc.)
      */
-    private static function extract_organizational_pattern($template_data)
-    {
+    private static function extract_organizational_pattern($template_data) {
         $pattern = [
             'label_sequence' => [],
             'activity_types_used' => [],
-            'typical_activities_per_section' => 0
+            'typical_activities_per_section' => 0,
         ];
 
         if (empty($template_data['activities']) || !is_array($template_data['activities'])) {
@@ -1374,8 +1358,7 @@ class ai_service
      * @param string $prompt The analysis prompt
      * @return string Analysis text
      */
-    public static function analyze_module(string $prompt): string
-    {
+    public static function analyze_module(string $prompt): string {
         global $USER, $COURSE;
 
         try {
@@ -1422,8 +1405,7 @@ class ai_service
      * @param int|null $courseid
      * @return array
      */
-    public static function generate_suggestions_from_map(array $sectionmap, $courseid = null): array
-    {
+    public static function generate_suggestions_from_map(array $sectionmap, $courseid = null): array {
         global $USER;
 
         try {
@@ -1521,7 +1503,6 @@ class ai_service
             $prompt .= "\nPEDAGOGICAL GUIDANCE:\n" . $pedagogicalguidance . "\n\n" .
                 "OUTPUT: JSON array only, starting with [ and ending with ]";
 
-
             $action = new \core_ai\aiactions\generate_text($contextid, $USER->id, $prompt);
             $response = $aimanager->process_action($action);
             $data = $response->get_response_data();
@@ -1537,7 +1518,7 @@ class ai_service
                 // Try to extract JSON block from code fences or inline
                 if (preg_match('/```(?:json)?\s*(\[.*\])\s*```/s', $text, $m)) {
                     $decoded = json_decode($m[1], true);
-                } elseif (preg_match('/(\[\s*\{.*\}\s*\])/s', $text, $m2)) {
+                } else if (preg_match('/(\[\s*\{.*\}\s*\])/s', $text, $m2)) {
                     $decoded = json_decode($m2[1], true);
                 } else {
                     // Try to find JSON array anywhere in the text, even with text before/after
@@ -1605,7 +1586,7 @@ class ai_service
                     'id' => $id,
                     'activity' => (object) [
                         'type' => $type_to_use,
-                        'name' => $activity['name'] ?? ($activity['title'] ?? 'Suggested Activity')
+                        'name' => $activity['name'] ?? ($activity['title'] ?? 'Suggested Activity'),
                     ],
                     'rationale' => $rationale,
                     'laurillard_type' => $laurillard_type,
@@ -1621,4 +1602,3 @@ class ai_service
         }
     }
 }
-

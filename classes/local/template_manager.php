@@ -30,7 +30,6 @@ defined('MOODLE_INTERNAL') || die();
  * Manages CSV template CRUD operations and file storage.
  */
 class template_manager {
-    
     /**
      * Create a new template with uploaded file.
      *
@@ -42,29 +41,29 @@ class template_manager {
      */
     public static function create($name, $description, $file) {
         global $DB;
-        
+
         $context = \context_system::instance();
         $fs = get_file_storage();
-        
+
         // Prepare file record for permanent storage
         $filerecord = [
             'contextid' => $context->id,
             'component' => 'aiplacement_modgen',
             'filearea' => 'csvtemplates',
-            'itemid' => 0,  // Will be updated after template creation
+            'itemid' => 0, // Will be updated after template creation
             'filepath' => '/',
             'filename' => clean_filename($file->get_filename()),
             'timecreated' => time(),
             'timemodified' => time(),
         ];
-        
+
         // Copy file to permanent storage
         $storedfile = $fs->create_file_from_storedfile($filerecord, $file);
-        
+
         // Get next sort order
         $maxsortorder = $DB->get_field('aiplacement_modgen_templates', 'MAX(sortorder)', []);
         $sortorder = $maxsortorder !== false ? $maxsortorder + 1 : 0;
-        
+
         // Create template record
         $template = new \stdClass();
         $template->name = $name;
@@ -73,12 +72,12 @@ class template_manager {
         $template->sortorder = $sortorder;
         $template->timecreated = time();
         $template->timemodified = time();
-        
+
         $templateid = $DB->insert_record('aiplacement_modgen_templates', $template);
-        
+
         return $templateid;
     }
-    
+
     /**
      * Update an existing template.
      *
@@ -91,20 +90,20 @@ class template_manager {
      */
     public static function update($id, $name, $description, $file = null) {
         global $DB;
-        
+
         $template = $DB->get_record('aiplacement_modgen_templates', ['id' => $id], '*', MUST_EXIST);
-        
+
         // Update file if provided
         if ($file) {
             $context = \context_system::instance();
             $fs = get_file_storage();
-            
+
             // Delete old file
             $oldfile = $fs->get_file_by_id($template->fileid);
             if ($oldfile) {
                 $oldfile->delete();
             }
-            
+
             // Store new file
             $filerecord = [
                 'contextid' => $context->id,
@@ -116,19 +115,19 @@ class template_manager {
                 'timecreated' => time(),
                 'timemodified' => time(),
             ];
-            
+
             $storedfile = $fs->create_file_from_storedfile($filerecord, $file);
             $template->fileid = $storedfile->get_id();
         }
-        
+
         // Update template record
         $template->name = $name;
         $template->description = $description;
         $template->timemodified = time();
-        
+
         return $DB->update_record('aiplacement_modgen_templates', $template);
     }
-    
+
     /**
      * Delete a template and its file.
      *
@@ -138,20 +137,20 @@ class template_manager {
      */
     public static function delete($id) {
         global $DB;
-        
+
         $template = $DB->get_record('aiplacement_modgen_templates', ['id' => $id], '*', MUST_EXIST);
-        
+
         // Delete file
         $fs = get_file_storage();
         $file = $fs->get_file_by_id($template->fileid);
         if ($file) {
             $file->delete();
         }
-        
+
         // Delete template record
         return $DB->delete_records('aiplacement_modgen_templates', ['id' => $id]);
     }
-    
+
     /**
      * Reorder template up or down.
      *
@@ -161,9 +160,9 @@ class template_manager {
      */
     public static function reorder($id, $direction) {
         global $DB;
-        
+
         $template = $DB->get_record('aiplacement_modgen_templates', ['id' => $id], '*', MUST_EXIST);
-        
+
         if ($direction === 'up') {
             // Find template above this one
             $records = $DB->get_records_select(
@@ -189,22 +188,22 @@ class template_manager {
             );
             $swap = !empty($records) ? reset($records) : false;
         }
-        
+
         if (!$swap) {
             return false; // Already at top/bottom
         }
-        
+
         // Swap sort orders
         $tempsortorder = $template->sortorder;
         $template->sortorder = $swap->sortorder;
         $swap->sortorder = $tempsortorder;
-        
+
         $DB->update_record('aiplacement_modgen_templates', $template);
         $DB->update_record('aiplacement_modgen_templates', $swap);
-        
+
         return true;
     }
-    
+
     /**
      * Get all templates ordered by sortorder.
      *
@@ -214,7 +213,7 @@ class template_manager {
         global $DB;
         return $DB->get_records('aiplacement_modgen_templates', null, 'sortorder ASC');
     }
-    
+
     /**
      * Get a single template by ID.
      *

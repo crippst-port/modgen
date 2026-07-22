@@ -49,7 +49,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @coversDefaultClass \aiplacement_modgen\local\theme_builder
  */
 final class summary_activity_toggle_test extends advanced_testcase {
-
     /** @var \stdClass Test course. */
     private $course;
 
@@ -89,9 +88,11 @@ final class summary_activity_toggle_test extends advanced_testcase {
     private function week_section_count(): int {
         global $DB;
         $assessments = get_string('assessmentssectionname', 'aiplacement_modgen');
-        return $DB->count_records_select('course_sections',
+        return $DB->count_records_select(
+            'course_sections',
             'course = :c AND section > 0 AND name <> :a',
-            ['c' => $this->course->id, 'a' => $assessments]);
+            ['c' => $this->course->id, 'a' => $assessments]
+        );
     }
 
     /**
@@ -104,8 +105,11 @@ final class summary_activity_toggle_test extends advanced_testcase {
 
         // 1 theme + 1 week + 3 sessions: a learningactivity on the week and on each
         // of the 3 sessions = 4 modules.
-        $this->assertSame(4, $this->learningactivity_count(),
-            'With summaries on, each week and session gets a learningactivity module.');
+        $this->assertSame(
+            4,
+            $this->learningactivity_count(),
+            'With summaries on, each week and session gets a learningactivity module.'
+        );
     }
 
     /**
@@ -118,11 +122,17 @@ final class summary_activity_toggle_test extends advanced_testcase {
 
         theme_builder::create_themes($this->course->id, 1, 1, 0, false);
 
-        $this->assertSame(0, $this->learningactivity_count(),
-            'With summaries off, no learningactivity modules are created.');
+        $this->assertSame(
+            0,
+            $this->learningactivity_count(),
+            'With summaries off, no learningactivity modules are created.'
+        );
         // Sections are still created (theme + week + 3 sessions = 5 new sections).
-        $this->assertGreaterThan($sectionsbefore, $this->week_section_count(),
-            'The section structure is still created when summaries are off.');
+        $this->assertGreaterThan(
+            $sectionsbefore,
+            $this->week_section_count(),
+            'The section structure is still created when summaries are off.'
+        );
     }
 
     /**
@@ -133,8 +143,11 @@ final class summary_activity_toggle_test extends advanced_testcase {
     public function test_default_preserves_summary_creation(): void {
         theme_builder::create_themes($this->course->id, 1, 1);
 
-        $this->assertSame(4, $this->learningactivity_count(),
-            'Omitting the flag must preserve the original behaviour (summaries created).');
+        $this->assertSame(
+            4,
+            $this->learningactivity_count(),
+            'Omitting the flag must preserve the original behaviour (summaries created).'
+        );
     }
 
     /**
@@ -144,8 +157,11 @@ final class summary_activity_toggle_test extends advanced_testcase {
      */
     public function test_weeks_toggle(): void {
         theme_builder::create_weeks($this->course->id, 2, 0, false);
-        $this->assertSame(0, $this->learningactivity_count(),
-            'create_weeks with summaries off creates no learningactivity modules.');
+        $this->assertSame(
+            0,
+            $this->learningactivity_count(),
+            'create_weeks with summaries off creates no learningactivity modules.'
+        );
 
         // A fresh course with summaries on: 2 weeks x (week + 3 sessions) = 8 modules.
         $other = $this->getDataGenerator()->create_course(['format' => 'topics']);
@@ -158,8 +174,11 @@ final class summary_activity_toggle_test extends advanced_testcase {
                 $count++;
             }
         }
-        $this->assertSame(8, $count,
-            'create_weeks with summaries on creates a learningactivity per week and session.');
+        $this->assertSame(
+            8,
+            $count,
+            'create_weeks with summaries on creates a learningactivity per week and session.'
+        );
     }
 
     /**
@@ -176,15 +195,26 @@ final class summary_activity_toggle_test extends advanced_testcase {
         ]];
 
         (new section_creation_service())->create_sections_from_json(
-            $json, $this->course->id, 'connected_theme', false, false, false,
+            $json,
+            $this->course->id,
+            'connected_theme',
+            false,
+            false,
+            false,
             false // createsummaryactivities off.
         );
         $this->resetDebugging();
 
-        $this->assertSame(0, $this->learningactivity_count(),
-            'create_sections_from_json with summaries off creates no learningactivity modules.');
-        $this->assertGreaterThan(0, $this->week_section_count(),
-            'The section structure is still created.');
+        $this->assertSame(
+            0,
+            $this->learningactivity_count(),
+            'create_sections_from_json with summaries off creates no learningactivity modules.'
+        );
+        $this->assertGreaterThan(
+            0,
+            $this->week_section_count(),
+            'The section structure is still created.'
+        );
     }
 
     /**
@@ -202,11 +232,19 @@ final class summary_activity_toggle_test extends advanced_testcase {
 
         // Omit the new flag entirely.
         (new section_creation_service())->create_sections_from_json(
-            $json, $this->course->id, 'connected_theme', false, false, false
+            $json,
+            $this->course->id,
+            'connected_theme',
+            false,
+            false,
+            false
         );
         $this->resetDebugging();
 
-        $this->assertGreaterThan(0, $this->learningactivity_count(),
-            'Omitting the flag preserves summary-module creation on the JSON path.');
+        $this->assertGreaterThan(
+            0,
+            $this->learningactivity_count(),
+            'Omitting the flag preserves summary-module creation on the JSON path.'
+        );
     }
 }

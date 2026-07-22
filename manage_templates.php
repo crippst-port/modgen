@@ -65,16 +65,16 @@ if ($mform->is_cancelled()) {
     redirect($PAGE->url);
 } else if ($data = $mform->get_data()) {
     global $USER;
-    
+
     // Get uploaded file
     $draftitemid = $data->templatefile;
     $fs = get_file_storage();
     $context = context_user::instance($USER->id);
     $draftfiles = $fs->get_area_files($context->id, 'user', 'draft', $draftitemid, 'id', false);
-    
+
     if (!empty($draftfiles)) {
         $file = reset($draftfiles);
-        
+
         if ($data->id) {
             // Update existing template
             template_manager::update($data->id, $data->name, $data->description, $file);
@@ -84,7 +84,7 @@ if ($mform->is_cancelled()) {
             template_manager::create($data->name, $data->description, $file);
             $message = get_string('templatecreated', 'aiplacement_modgen');
         }
-        
+
         redirect($PAGE->url, $message, null, \core\output\notification::NOTIFY_SUCCESS);
     }
 }
@@ -101,18 +101,18 @@ if (!empty($templates)) {
         get_string('templatename', 'aiplacement_modgen'),
         get_string('templatedescription', 'aiplacement_modgen'),
         get_string('timecreated', 'aiplacement_modgen'),
-        get_string('actions')
+        get_string('actions'),
     ];
     $table->attributes['class'] = 'admintable generaltable';
-    
+
     $templatecount = count($templates);
     $index = 0;
-    
+
     foreach ($templates as $template) {
         $index++;
-        
+
         $actions = [];
-        
+
         // Move up/down
         if ($index > 1) {
             $moveup = new moodle_url($PAGE->url, ['action' => 'moveup', 'id' => $template->id, 'sesskey' => sesskey()]);
@@ -122,20 +122,23 @@ if (!empty($templates)) {
             $movedown = new moodle_url($PAGE->url, ['action' => 'movedown', 'id' => $template->id, 'sesskey' => sesskey()]);
             $actions[] = html_writer::link($movedown, $OUTPUT->pix_icon('t/down', get_string('movedown')));
         }
-        
+
         // Delete
         $deleteurl = new moodle_url($PAGE->url, ['action' => 'delete', 'id' => $template->id, 'sesskey' => sesskey()]);
-        $actions[] = html_writer::link($deleteurl, $OUTPUT->pix_icon('t/delete', get_string('delete')),
-            ['onclick' => 'return confirm("' . get_string('confirmdeletetemplate', 'aiplacement_modgen') . '");']);
-        
+        $actions[] = html_writer::link(
+            $deleteurl,
+            $OUTPUT->pix_icon('t/delete', get_string('delete')),
+            ['onclick' => 'return confirm("' . get_string('confirmdeletetemplate', 'aiplacement_modgen') . '");']
+        );
+
         $table->data[] = [
             format_string($template->name),
             format_text($template->description, FORMAT_PLAIN),
             userdate($template->timecreated),
-            implode(' ', $actions)
+            implode(' ', $actions),
         ];
     }
-    
+
     echo html_writer::table($table);
 } else {
     echo $OUTPUT->notification(get_string('notemplates', 'aiplacement_modgen'), 'info');

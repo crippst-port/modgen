@@ -41,7 +41,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * Theme builder service class.
  */
 class theme_builder {
-
     /**
      * Create a learningactivity module at the start of a section.
      *
@@ -222,9 +221,9 @@ class theme_builder {
                     WHERE cm.course = :courseid AND ctx.id IS NULL";
             $orphaned = $DB->get_records_sql($sql, [
                 'courseid' => $courseid,
-                'contextlevel' => CONTEXT_MODULE
+                'contextlevel' => CONTEXT_MODULE,
             ]);
-            
+
             if (!empty($orphaned)) {
                 foreach ($orphaned as $cm) {
                     \context_module::instance($cm->id);
@@ -259,7 +258,7 @@ class theme_builder {
                     for ($w = 1; $w <= $weeksperTheme; $w++) {
                         $weektitle = get_string('defaultweekname', 'aiplacement_modgen', [
                             'theme' => $i,
-                            'week' => $w
+                            'week' => $w,
                         ]);
                         $weeksummary = get_string('defaultweeksummary', 'aiplacement_modgen');
 
@@ -284,7 +283,7 @@ class theme_builder {
                         $sessiontypes = [
                             get_string('presession', 'aiplacement_modgen'),
                             get_string('session', 'aiplacement_modgen'),
-                            get_string('postsession', 'aiplacement_modgen')
+                            get_string('postsession', 'aiplacement_modgen'),
                         ];
                         foreach ($sessiontypes as $sessionlabel) {
                             $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $sessionlabel);
@@ -301,9 +300,9 @@ class theme_builder {
                             WHERE cm.course = :courseid AND ctx.id IS NULL";
                     $orphaned = $DB->get_records_sql($sql, [
                         'courseid' => $courseid,
-                        'contextlevel' => CONTEXT_MODULE
+                        'contextlevel' => CONTEXT_MODULE,
                     ]);
-                    
+
                     if (!empty($orphaned)) {
                         foreach ($orphaned as $cm) {
                             \context_module::instance($cm->id);
@@ -321,9 +320,9 @@ class theme_builder {
                             WHERE cm.course = :courseid AND ctx.id IS NULL";
                     $orphaned = $DB->get_records_sql($sql, [
                         'courseid' => $courseid,
-                        'contextlevel' => CONTEXT_MODULE
+                        'contextlevel' => CONTEXT_MODULE,
                     ]);
-                    
+
                     if (!empty($orphaned)) {
                         foreach ($orphaned as $cm) {
                             \context_module::instance($cm->id);
@@ -336,7 +335,6 @@ class theme_builder {
 
                 // Commit all changes - all themes and weeks created successfully.
                 $transaction->allow_commit();
-
             } catch (\Exception $e) {
                 // Transaction automatically rolls back on exception.
                 // Log technical details for administrators only.
@@ -396,9 +394,9 @@ class theme_builder {
                     WHERE cm.course = :courseid AND ctx.id IS NULL";
             $orphaned = $DB->get_records_sql($sql, [
                 'courseid' => $courseid,
-                'contextlevel' => CONTEXT_MODULE
+                'contextlevel' => CONTEXT_MODULE,
             ]);
-            
+
             if (!empty($orphaned)) {
                 foreach ($orphaned as $cm) {
                     \context_module::instance($cm->id);
@@ -437,7 +435,7 @@ class theme_builder {
                     $sessiontypes = [
                         get_string('presession', 'aiplacement_modgen'),
                         get_string('session', 'aiplacement_modgen'),
-                        get_string('postsession', 'aiplacement_modgen')
+                        get_string('postsession', 'aiplacement_modgen'),
                     ];
                     foreach ($sessiontypes as $sessionlabel) {
                         $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $sessionlabel);
@@ -453,9 +451,9 @@ class theme_builder {
                             WHERE cm.course = :courseid AND ctx.id IS NULL";
                     $orphaned = $DB->get_records_sql($sql, [
                         'courseid' => $courseid,
-                        'contextlevel' => CONTEXT_MODULE
+                        'contextlevel' => CONTEXT_MODULE,
                     ]);
-                    
+
                     if (!empty($orphaned)) {
                         foreach ($orphaned as $cm) {
                             \context_module::instance($cm->id);
@@ -468,7 +466,6 @@ class theme_builder {
 
                 // Commit all changes - all weeks created successfully.
                 $transaction->allow_commit();
-
             } catch (\Exception $e) {
                 // Transaction automatically rolls back on exception.
                 // Log technical details for administrators only.
@@ -653,7 +650,7 @@ class theme_builder {
             $assessmentsname = get_string('assessmentssectionname', 'aiplacement_modgen');
             $existing = $DB->get_record('course_sections', [
                 'course' => $courseid,
-                'name' => $assessmentsname
+                'name' => $assessmentsname,
             ]);
             if ($existing) {
                 // Both already exist, nothing to do.
@@ -664,7 +661,7 @@ class theme_builder {
             $DB->update_record('course_sections', [
                 'id' => $section0->id,
                 'name' => $standardname,
-                'timemodified' => time()
+                'timemodified' => time(),
             ]);
         }
 
@@ -672,7 +669,7 @@ class theme_builder {
         $assessmentsname = get_string('assessmentssectionname', 'aiplacement_modgen');
         $existing = $DB->get_record('course_sections', [
             'course' => $courseid,
-            'name' => $assessmentsname
+            'name' => $assessmentsname,
         ]);
 
         if (!$existing) {
@@ -706,7 +703,7 @@ class theme_builder {
                 $DB->update_record('course_sections', [
                     'id' => $assessmentssection->id,
                     'name' => $assessmentsname,
-                    'timemodified' => time()
+                    'timemodified' => time(),
                 ]);
             }
         }
@@ -730,7 +727,7 @@ class theme_builder {
             // Attempt to convert to flexsections.
             $DB->update_record('course', [
                 'id' => $courseid,
-                'format' => 'flexsections'
+                'format' => 'flexsections',
             ]);
 
             // Clear course cache.
@@ -779,15 +776,19 @@ class theme_builder {
         // PROTECTION 1: Prevent section from being its own parent
         if ($childsectionnum !== null && $parentsectionnum === $childsectionnum) {
             debugging("Prevented circular reference: Section {$childsectionnum} cannot be its own parent", DEBUG_DEVELOPER);
-            throw new \moodle_exception('circularsectionparent', 'aiplacement_modgen', '', 
-                ['child' => $childsectionnum, 'parent' => $parentsectionnum]);
+            throw new \moodle_exception(
+                'circularsectionparent',
+                'aiplacement_modgen',
+                '',
+                ['child' => $childsectionnum, 'parent' => $parentsectionnum]
+            );
         }
 
         // Validate parent section exists if not top-level
         if ($parentsectionnum > 0) {
             $parentsection = $DB->get_record('course_sections', [
                 'course' => $courseid,
-                'section' => $parentsectionnum
+                'section' => $parentsectionnum,
             ]);
 
             if (!$parentsection) {
@@ -797,17 +798,22 @@ class theme_builder {
             // PROTECTION 2: Check for circular references in parent chain
             if ($childsectionnum !== null && self::would_create_circular_reference($courseid, $parentsectionnum, $childsectionnum)) {
                 debugging("Prevented circular reference: Section {$childsectionnum} with parent {$parentsectionnum} would create a loop", DEBUG_DEVELOPER);
-                throw new \moodle_exception('circularsectionchain', 'aiplacement_modgen', '', 
-                    ['child' => $childsectionnum, 'parent' => $parentsectionnum]);
+                throw new \moodle_exception(
+                    'circularsectionchain',
+                    'aiplacement_modgen',
+                    '',
+                    ['child' => $childsectionnum, 'parent' => $parentsectionnum]
+                );
             }
 
             // PERFORMANCE OPTIMIZATION: Skip depth check during bulk operations.
             // get_fast_modinfo() triggers expensive cache rebuilds (200-500 queries each).
             // During bulk operations with deferred cache rebuilds, depth violations will be
             // caught by the final rebuild anyway, making this check redundant and expensive.
-            if (!$skipdepthcheck && method_exists($courseformat, 'get_section_depth') &&
-                method_exists($courseformat, 'get_max_section_depth')) {
-
+            if (
+                !$skipdepthcheck && method_exists($courseformat, 'get_section_depth') &&
+                method_exists($courseformat, 'get_max_section_depth')
+            ) {
                 $parentsectioninfo = get_fast_modinfo($courseid)->get_section_info($parentsectionnum);
                 $parentdepth = $courseformat->get_section_depth($parentsectioninfo);
                 $maxdepth = $courseformat->get_max_section_depth();
@@ -863,7 +869,7 @@ class theme_builder {
             // Step 2: Get full section record.
             $section = $DB->get_record('course_sections', [
                 'course' => $courseid,
-                'section' => $sectionnum
+                'section' => $sectionnum,
             ], '*', MUST_EXIST);
 
             // PROTECTION: Now that we have the child section number, validate no circular reference.
@@ -893,15 +899,18 @@ class theme_builder {
             // $rebuildcache parameter kept for interface consistency but not used.
 
             return $section;
-
         } catch (\Exception $e) {
             // Transaction automatically rolls back on exception.
             // Log technical details for administrators only.
             debugging('Section creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), DEBUG_DEVELOPER);
 
             // User-facing message without technical details.
-            throw new \moodle_exception('sectorcreationfailed', 'aiplacement_modgen', '',
-                clean_param($name, PARAM_TEXT)); // Sanitized name in user message
+            throw new \moodle_exception(
+                'sectorcreationfailed',
+                'aiplacement_modgen',
+                '',
+                clean_param($name, PARAM_TEXT)
+            ); // Sanitized name in user message
         }
     }
 
@@ -986,7 +995,7 @@ class theme_builder {
         // Get section record.
         $section = $DB->get_record('course_sections', [
             'course' => $courseid,
-            'section' => $sectionnumber
+            'section' => $sectionnumber,
         ]);
 
         if (!$section) {
@@ -997,7 +1006,7 @@ class theme_builder {
         $parentoption = $DB->get_record('course_format_options', [
             'courseid' => $courseid,
             'sectionid' => $section->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ]);
 
         // If no parent option and expected is 0, that's valid (defaults to top level).

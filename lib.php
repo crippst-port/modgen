@@ -52,8 +52,10 @@ function aiplacement_modgen_extend_navigation_course(
     $cancheckstructure = has_capability('aiplacement/modgen:checkstructure', $context);
 
     // Hide toolbar if user has no modgen capabilities
-    if (!$canmanagestructure && !$canmanagedates && !$cangenerateprompt
-            && !$cangeneratetemplate && !$canusesuggest && !$cancheckstructure) {
+    if (
+        !$canmanagestructure && !$canmanagedates && !$cangenerateprompt
+            && !$cangeneratetemplate && !$canusesuggest && !$cancheckstructure
+    ) {
         return;
     }
 
@@ -63,7 +65,7 @@ function aiplacement_modgen_extend_navigation_course(
         $aienabled = \aiplacement_modgen\local\settings_helper::is_ai_enabled();
         $showgenerator = $cangenerateprompt && $aienabled;
         $showsuggest = $canusesuggest && \aiplacement_modgen\local\settings_helper::is_suggest_enabled();
-        
+
         // Load CSS
         $PAGE->requires->css('/ai/placement/modgen/styles.css');
 
@@ -136,7 +138,7 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     } else {
         $context = context_course::instance($courseid);
     }
-    
+
     // Verify permissions - user must have at least one toolbar capability
     $hasanycapability = has_capability('aiplacement/modgen:managestructure', $context) ||
                         has_capability('aiplacement/modgen:managedates', $context) ||
@@ -146,14 +148,18 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
                         has_capability('aiplacement/modgen:checkstructure', $context);
 
     if (!$hasanycapability) {
-        throw new required_capability_exception($context, 'aiplacement/modgen:managestructure',
-            'nopermissions', '');
+        throw new required_capability_exception(
+            $context,
+            'aiplacement/modgen:managestructure',
+            'nopermissions',
+            ''
+        );
     }
-    
+
     // Create the toolbar renderable with all capability flags
     $toolbar = new \aiplacement_modgen\output\course_toolbar(
-        $courseid, 
-        $showgenerator, 
+        $courseid,
+        $showgenerator,
         $showsuggest,
         $showmanagestructure,
         $showmanagedates,
@@ -161,7 +167,7 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
         $showtemplatefromptompt,
         $showcheckstructure
     );
-    
+
     // Get the plugin renderer and render the toolbar
     $renderer = $PAGE->get_renderer('aiplacement_modgen');
     return $renderer->render($toolbar);
@@ -177,26 +183,30 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
  */
 function aiplacement_modgen_output_fragment_generator_form(array $args): string {
     global $PAGE, $USER, $CFG;
-    
+
     // Ensure required libraries are loaded
     require_once($CFG->libdir . '/formslib.php');
     require_once($CFG->libdir . '/filelib.php');
-    
+
     // Validate parameters
     $courseid = clean_param($args['courseid'], PARAM_INT);
     $context = context_course::instance($courseid);
-    
+
     // Verify permission - need either generation method
     $hasprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
     $hastemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
     if (!$hasprompt && !$hastemplate) {
-        throw new required_capability_exception($context, 'aiplacement/modgen:generatefromtemplate', 
-            'nopermissions', 'error');
+        throw new required_capability_exception(
+            $context,
+            'aiplacement/modgen:generatefromtemplate',
+            'nopermissions',
+            'error'
+        );
     }
-    
+
     // Set page context for proper JS/CSS loading
     $PAGE->set_context($context);
-    
+
     // Check AI policy acceptance
     $manager = \core\di::get(\core_ai\manager::class);
     if (!$manager->get_user_policy_status($USER->id)) {
@@ -208,13 +218,13 @@ function aiplacement_modgen_output_fragment_generator_form(array $args): string 
             ]
         );
     }
-    
+
     // Create form with embedded flag
     require_once(__DIR__ . '/classes/form/generator_form.php');
-    
+
     // Create a draft file area for supporting files
     $draftitemid = file_get_unused_draft_itemid();
-    
+
     $formdata = [
         'courseid' => $courseid,
         'embedded' => 1,
@@ -222,12 +232,12 @@ function aiplacement_modgen_output_fragment_generator_form(array $args): string 
         'supportingfiles' => $draftitemid,
     ];
     $form = new \aiplacement_modgen_generator_form(null, $formdata);
-    
+
     // Set the draft area data.
     $formdefaults = new stdClass();
     $formdefaults->supportingfiles = $draftitemid;
     $form->set_data($formdefaults);
-    
+
     // Return rendered form.
     // Fragment API automatically handles JavaScript initialization.
     return $form->render();
@@ -461,7 +471,7 @@ function aiplacement_modgen_output_fragment_form_dates_for_sections(array $args)
     $sessionnames = [
         get_string('presession', 'aiplacement_modgen'),
         get_string('session', 'aiplacement_modgen'),
-        get_string('postsession', 'aiplacement_modgen')
+        get_string('postsession', 'aiplacement_modgen'),
     ];
 
     // Build section number to ID mapping for parent_id conversion.
@@ -562,7 +572,7 @@ function aiplacement_modgen_pluginfile($course, $cm, $context, $filearea, $args,
     // Extract file info from args
     $itemid = array_shift($args);
     $filename = array_pop($args);
-    
+
     if (empty($args)) {
         $filepath = '/';
     } else {

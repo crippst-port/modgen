@@ -38,15 +38,14 @@ defined('MOODLE_INTERNAL') || die();
  * @copyright  2025 Tom Cripps
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class transaction_handling_test extends \advanced_testcase {
-
+final class transaction_handling_test extends \advanced_testcase {
     /**
      * Test that section creation rolls back on error.
      *
      * When section creation fails, no partial data should remain in the database.
      * This prevents orphaned sections and format options.
      */
-    public function test_section_creation_rollback_on_error() {
+    public function test_section_creation_rollback_on_error(): void {
         global $DB;
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -113,7 +112,7 @@ class transaction_handling_test extends \advanced_testcase {
      * Attempting to create a section with non-existent parent should fail
      * with clear error message before any database changes.
      */
-    public function test_parent_validation_prevents_invalid_parent() {
+    public function test_parent_validation_prevents_invalid_parent(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
 
@@ -140,7 +139,7 @@ class transaction_handling_test extends \advanced_testcase {
      *
      * Section names are required and should be validated before database operations.
      */
-    public function test_empty_section_name_rejected() {
+    public function test_empty_section_name_rejected(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
 
@@ -167,7 +166,7 @@ class transaction_handling_test extends \advanced_testcase {
      *
      * Verify that section is created correctly with proper parent relationship.
      */
-    public function test_successful_section_creation_with_parent() {
+    public function test_successful_section_creation_with_parent(): void {
         global $DB;
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -219,7 +218,7 @@ class transaction_handling_test extends \advanced_testcase {
      * If any error occurs during bulk theme creation, verify that either
      * all sections are created or none are created (no partial state).
      */
-    public function test_bulk_theme_creation_atomicity() {
+    public function test_bulk_theme_creation_atomicity(): void {
         global $DB;
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -264,8 +263,11 @@ class transaction_handling_test extends \advanced_testcase {
             ['courseid' => $course->id, 'courseid2' => $course->id]
         );
 
-        $this->assertEquals($orphanedbefore, $orphaned,
-            'No new orphaned format options from bulk creation');
+        $this->assertEquals(
+            $orphanedbefore,
+            $orphaned,
+            'No new orphaned format options from bulk creation'
+        );
     }
 
     /**
@@ -273,7 +275,7 @@ class transaction_handling_test extends \advanced_testcase {
      *
      * Verify bulk week creation is atomic - all or nothing.
      */
-    public function test_bulk_week_creation_atomicity() {
+    public function test_bulk_week_creation_atomicity(): void {
         global $DB;
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -317,8 +319,11 @@ class transaction_handling_test extends \advanced_testcase {
             ['courseid' => $course->id, 'courseid2' => $course->id]
         );
 
-        $this->assertEquals($orphanedbefore, $orphaned,
-            'No new orphaned format options from bulk week creation');
+        $this->assertEquals(
+            $orphanedbefore,
+            $orphaned,
+            'No new orphaned format options from bulk week creation'
+        );
     }
 
     /**
@@ -326,7 +331,7 @@ class transaction_handling_test extends \advanced_testcase {
      *
      * Creating sections should fail gracefully if course is not using flexsections.
      */
-    public function test_requires_flexsections_format() {
+    public function test_requires_flexsections_format(): void {
         $this->resetAfterTest();
         $this->setAdminUser();
 
@@ -349,7 +354,7 @@ class transaction_handling_test extends \advanced_testcase {
      *
      * @dataProvider invalid_validation_params_provider
      */
-    public function test_validation_with_invalid_params($courseid, $parentsection, $expectedexception) {
+    public function test_validation_with_invalid_params($courseid, $parentsection, $expectedexception): void {
         $this->resetAfterTest();
         $this->setAdminUser();
 
@@ -393,7 +398,7 @@ class transaction_handling_test extends \advanced_testcase {
      * Verify cache is rebuilt once at the end, not after every section.
      * This test measures the performance improvement from cache optimization.
      */
-    public function test_bulk_operations_defer_cache_rebuild() {
+    public function test_bulk_operations_defer_cache_rebuild(): void {
         global $DB;
         $this->resetAfterTest();
         $this->setAdminUser();
@@ -411,8 +416,11 @@ class transaction_handling_test extends \advanced_testcase {
 
         // With optimization, should complete in reasonable time
         // Without optimization (65 cache rebuilds), takes 2x longer
-        $this->assertLessThan(15, $duration,
-            'Bulk creation should complete in under 15 seconds with cache optimization');
+        $this->assertLessThan(
+            15,
+            $duration,
+            'Bulk creation should complete in under 15 seconds with cache optimization'
+        );
 
         // Verify all sections were created
         $sectioncount = $DB->count_records('course_sections', ['course' => $course->id]);

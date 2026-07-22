@@ -34,7 +34,6 @@ defined('MOODLE_INTERNAL') || die();
  * Generate structured preview data from AI module JSON.
  */
 class preview_generator {
-
     /**
      * Build a structured preview from AI-generated module data.
      *
@@ -258,7 +257,7 @@ class preview_generator {
         if (isset($sessiondata['activities']) && is_array($sessiondata['activities'])) {
             $activityList = $sessiondata['activities'];
         }
-        
+
         // If no activities key found, try to treat the sessiondata itself as an array of activities
         // (but skip this if the data has description or other metadata keys)
         if (empty($activityList) && !isset($sessiondata['activities']) && !isset($sessiondata['description'])) {

@@ -62,7 +62,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @coversDefaultClass \aiplacement_modgen\local\section_creation_service
  */
 final class content_integrity_test extends advanced_testcase {
-
     /** @var \stdClass Test course. */
     private $course;
 
@@ -123,8 +122,12 @@ final class content_integrity_test extends advanced_testcase {
      */
     private function section_number(string $name): int {
         global $DB;
-        $section = $DB->get_record('course_sections',
-            ['course' => $this->course->id, 'name' => $name], '*', MUST_EXIST);
+        $section = $DB->get_record(
+            'course_sections',
+            ['course' => $this->course->id, 'name' => $name],
+            '*',
+            MUST_EXIST
+        );
         return (int)$section->section;
     }
 
@@ -155,7 +158,12 @@ final class content_integrity_test extends advanced_testcase {
         ]];
 
         (new section_creation_service())->create_sections_from_json(
-            $json, $this->course->id, 'connected_theme', false, true, false
+            $json,
+            $this->course->id,
+            'connected_theme',
+            false,
+            true,
+            false
         );
         $this->resetDebugging();
         rebuild_course_cache($this->course->id, true, true);
@@ -192,19 +200,30 @@ final class content_integrity_test extends advanced_testcase {
         ]];
 
         (new section_creation_service())->create_sections_from_json(
-            $json, $this->course->id, 'connected_theme', false, true, false
+            $json,
+            $this->course->id,
+            'connected_theme',
+            false,
+            true,
+            false
         );
         $this->resetDebugging();
         rebuild_course_cache($this->course->id, true, true);
 
         // Section 0 (Introduction) must hold no generated content modules.
-        $this->assertSame([], $this->content_names(0),
-            'No generated activity may be placed in the Introduction section (0).');
+        $this->assertSame(
+            [],
+            $this->content_names(0),
+            'No generated activity may be placed in the Introduction section (0).'
+        );
 
         // Assessments section likewise.
         $assessments = $this->section_number(get_string('assessmentssectionname', 'aiplacement_modgen'));
-        $this->assertSame([], $this->content_names($assessments),
-            'No generated activity may be placed in the Assessments section.');
+        $this->assertSame(
+            [],
+            $this->content_names($assessments),
+            'No generated activity may be placed in the Assessments section.'
+        );
     }
 
     // ------------------------------------------------------------------
@@ -236,13 +255,21 @@ final class content_integrity_test extends advanced_testcase {
         ]];
 
         (new section_creation_service())->create_sections_from_json(
-            $json, $this->course->id, 'connected_theme', false, true, false
+            $json,
+            $this->course->id,
+            'connected_theme',
+            false,
+            true,
+            false
         );
         $this->resetDebugging();
         rebuild_course_cache($this->course->id, true, true);
 
-        $this->assertSame(6, $this->total_modules('label'),
-            'Exactly the six specified label activities must exist — no duplication or loss.');
+        $this->assertSame(
+            6,
+            $this->total_modules('label'),
+            'Exactly the six specified label activities must exist — no duplication or loss.'
+        );
     }
 
     /**
@@ -264,7 +291,12 @@ final class content_integrity_test extends advanced_testcase {
         ]];
 
         (new section_creation_service())->create_sections_from_json(
-            $json, $this->course->id, 'connected_theme', false, true, false
+            $json,
+            $this->course->id,
+            'connected_theme',
+            false,
+            true,
+            false
         );
         $this->resetDebugging();
 
@@ -296,21 +328,40 @@ final class content_integrity_test extends advanced_testcase {
 
         // Legitimate content with ampersand, apostrophe, accents — must be preserved.
         $legit = theme_builder::create_section_with_parent(
-            $this->course->id, $courseformat, 0,
-            "Café & Co — Tom's Naïve Résumé", '', FORMAT_PLAIN, ['collapsed' => 1]
+            $this->course->id,
+            $courseformat,
+            0,
+            "Café & Co — Tom's Naïve Résumé",
+            '',
+            FORMAT_PLAIN,
+            ['collapsed' => 1]
         );
-        $legitname = $DB->get_field('course_sections', 'name',
-            ['course' => $this->course->id, 'section' => $legit->section]);
-        $this->assertSame("Café & Co — Tom's Naïve Résumé", $legitname,
-            'Ampersands, apostrophes and unicode must round-trip unchanged.');
+        $legitname = $DB->get_field(
+            'course_sections',
+            'name',
+            ['course' => $this->course->id, 'section' => $legit->section]
+        );
+        $this->assertSame(
+            "Café & Co — Tom's Naïve Résumé",
+            $legitname,
+            'Ampersands, apostrophes and unicode must round-trip unchanged.'
+        );
 
         // HTML/script in the title must be neutralised to its text, not dropped whole.
         $xss = theme_builder::create_section_with_parent(
-            $this->course->id, $courseformat, 0,
-            'Week <b>3</b> <script>alert(1)</script>Intro', '', FORMAT_PLAIN, ['collapsed' => 1]
+            $this->course->id,
+            $courseformat,
+            0,
+            'Week <b>3</b> <script>alert(1)</script>Intro',
+            '',
+            FORMAT_PLAIN,
+            ['collapsed' => 1]
         );
-        $xssname = $DB->get_field('course_sections', 'name',
-            ['course' => $this->course->id, 'section' => $xss->section]);
+        $xssname = $DB->get_field(
+            'course_sections',
+            'name',
+            ['course' => $this->course->id, 'section' => $xss->section]
+        );
 
         $this->assertStringNotContainsString('<script>', $xssname, 'Script tags must be stripped.');
         $this->assertStringNotContainsString('<b>', $xssname, 'HTML tags must be stripped.');
@@ -335,14 +386,26 @@ final class content_integrity_test extends advanced_testcase {
             'learningtypes' => 'Acquisition,Discussion',
         ]);
 
-        $this->assertSame('Designing & Building', $valid['name'],
-            'Valid name with ampersand must be preserved.');
-        $this->assertSame('Read chapter 1 then discuss.', $valid['instructions'],
-            'Valid instructions must be preserved.');
-        $this->assertSame('90', $valid['duration'],
-            'Numeric duration must be preserved as an integer string.');
-        $this->assertSame('Acquisition,Discussion', $valid['learningtypes'],
-            'Valid learning types must be preserved in order.');
+        $this->assertSame(
+            'Designing & Building',
+            $valid['name'],
+            'Valid name with ampersand must be preserved.'
+        );
+        $this->assertSame(
+            'Read chapter 1 then discuss.',
+            $valid['instructions'],
+            'Valid instructions must be preserved.'
+        );
+        $this->assertSame(
+            '90',
+            $valid['duration'],
+            'Numeric duration must be preserved as an integer string.'
+        );
+        $this->assertSame(
+            'Acquisition,Discussion',
+            $valid['learningtypes'],
+            'Valid learning types must be preserved in order.'
+        );
     }
 
     /**
@@ -356,17 +419,24 @@ final class content_integrity_test extends advanced_testcase {
     public function test_metadata_validator_drops_invalid_deterministically(): void {
         $result = learningactivity_validator::validate_metadata([
             'name'          => 'Mix',
-            'duration'      => '90 minutes',                 // non-numeric -> dropped.
+            'duration'      => '90 minutes', // non-numeric -> dropped.
             'learningtypes' => 'Acquisition,Lecture,Discussion', // 'Lecture' not in set -> dropped.
-            'learningmode'  => 'Hybrid',                      // not in set -> dropped.
+            'learningmode'  => 'Hybrid', // not in set -> dropped.
         ]);
 
-        $this->assertNull($result['duration'],
-            'A non-numeric duration must be dropped (null), not stored verbatim.');
-        $this->assertSame('Acquisition,Discussion', $result['learningtypes'],
-            'Only recognised learning types survive; invalid ones are dropped, valid order kept.');
-        $this->assertNull($result['learningmode'],
-            'An unrecognised learning mode must be dropped (null).');
+        $this->assertNull(
+            $result['duration'],
+            'A non-numeric duration must be dropped (null), not stored verbatim.'
+        );
+        $this->assertSame(
+            'Acquisition,Discussion',
+            $result['learningtypes'],
+            'Only recognised learning types survive; invalid ones are dropped, valid order kept.'
+        );
+        $this->assertNull(
+            $result['learningmode'],
+            'An unrecognised learning mode must be dropped (null).'
+        );
 
         // Sanity: a value that *is* valid in the same call is still kept (drop is
         // selective, not all-or-nothing).
@@ -383,9 +453,15 @@ final class content_integrity_test extends advanced_testcase {
         $longname = str_repeat('A', 500);
         $result = learningactivity_validator::validate_metadata(['name' => $longname]);
 
-        $this->assertSame(255, strlen($result['name']),
-            'Over-length name must be truncated to 255 chars, not dropped or stored unbounded.');
-        $this->assertStringStartsWith('AAAA', $result['name'],
-            'Truncation keeps the leading content.');
+        $this->assertSame(
+            255,
+            strlen($result['name']),
+            'Over-length name must be truncated to 255 chars, not dropped or stored unbounded.'
+        );
+        $this->assertStringStartsWith(
+            'AAAA',
+            $result['name'],
+            'Truncation keeps the leading content.'
+        );
     }
 }

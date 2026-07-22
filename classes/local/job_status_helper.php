@@ -30,7 +30,6 @@ defined('MOODLE_INTERNAL') || die();
  * Small, testable helpers for the job status AJAX endpoint.
  */
 class job_status_helper {
-
     /**
      * Check whether a user owns a job.
      *

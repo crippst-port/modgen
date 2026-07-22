@@ -28,12 +28,11 @@ defined('MOODLE_INTERNAL') || die();
 
 /**
  * Service class for determining CSV processing mode.
- * 
+ *
  * Consolidates the complex boolean logic repeated 4 times in prompt.php
  * to decide whether to use pure CSV parsing or AI enhancement.
  */
 class csv_processing_service {
-    
     /**
      * Determine if pure CSV parsing should be used (without AI enhancement).
      *
@@ -59,11 +58,11 @@ class csv_processing_service {
         if (!$aienabled) {
             return true;
         }
-        
+
         // AI is enabled - use pure CSV only if: has CSV + no prompt + no expand + no examples
         return $hascsvfile && !$hasuserprompt && !$expandonthemes && !$generateexamples;
     }
-    
+
     /**
      * Get CSV file from template or uploaded files.
      *
@@ -77,35 +76,35 @@ class csv_processing_service {
         if ($templatecsvfile !== null) {
             return $templatecsvfile;
         }
-        
+
         // Otherwise, try to find CSV in uploaded files
         if (empty($draftitemid)) {
             return null;
         }
-        
+
         $fs = get_file_storage();
         $files = $fs->get_area_files($contextid, 'user', 'draft', $draftitemid, 'filename', false);
-        
+
         if (empty($files)) {
             return null;
         }
-        
+
         // Find first CSV file
         foreach ($files as $file) {
             if ($file->is_directory()) {
                 continue;
             }
-            
+
             $ext = strtolower(pathinfo($file->get_filename(), PATHINFO_EXTENSION));
             if ($ext === 'csv') {
                 return $file;
             }
         }
-        
+
         // If no CSV found, return first file (might be processable as CSV)
         return array_shift($files);
     }
-    
+
     /**
      * Build AI enhancement instructions for CSV-based generation.
      *
@@ -122,7 +121,7 @@ class csv_processing_service {
         // Count themes/weeks for explicit instruction
         $themecount = 0;
         $weekcount = 0;
-        
+
         if (!empty($csvstructure['themes']) && is_array($csvstructure['themes'])) {
             $themecount = count($csvstructure['themes']);
             foreach ($csvstructure['themes'] as $theme) {
@@ -133,31 +132,31 @@ class csv_processing_service {
         } else if (!empty($csvstructure['sections']) && is_array($csvstructure['sections'])) {
             $weekcount = count($csvstructure['sections']);
         }
-        
+
         $instructions = "\n\n*** BASE STRUCTURE FROM CSV ***\n";
         $instructions .= json_encode($csvstructure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
         $instructions .= "\n\n*** CRITICAL STRUCTURAL REQUIREMENTS ***\n";
         $instructions .= "You MUST preserve the exact structure from the CSV:\n";
-        
+
         if ($themecount > 0) {
             $instructions .= "- Create EXACTLY {$themecount} themes with {$weekcount} weeks total\n";
         } else {
             $instructions .= "- Create EXACTLY {$weekcount} sections\n";
         }
-        
+
         $instructions .= "- Do NOT add extra themes, weeks, or sessions\n";
         $instructions .= "- Do NOT remove any themes, weeks, or sessions\n";
         $instructions .= "- Do NOT merge or split sections\n";
         $instructions .= "- Maintain the EXACT organizational hierarchy\n";
         $instructions .= "- Keep the SAME session structure within each theme/week\n";
-        
+
         if ($themecount > 0) {
             $instructions .= "- Your output MUST have EXACTLY {$themecount} themes (this is non-negotiable)\n";
         }
-        
+
         $instructions .= "- Return ONLY the exact structure shown above - no modifications to theme/week count\n";
         $instructions .= "- The number of sections in your output MUST match the CSV exactly\n\n";
-        
+
         if ($expandonthemes) {
             $instructions .= "*** TITLE ENHANCEMENT REQUESTED ***\n";
             $instructions .= "The user has requested 'expand on themes'. You MAY enhance titles for clarity:\n";
@@ -171,7 +170,7 @@ class csv_processing_service {
             $instructions .= "- Do NOT modify, expand, or enhance any titles\n";
             $instructions .= "- Only generate descriptions/summaries if explicitly requested\n\n";
         }
-        
+
         return $instructions;
     }
 }

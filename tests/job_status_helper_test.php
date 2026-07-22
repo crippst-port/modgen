@@ -41,7 +41,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @coversDefaultClass \aiplacement_modgen\local\job_status_helper
  */
 final class job_status_helper_test extends advanced_testcase {
-
     /** @var \stdClass Test course. */
     private $course;
 
@@ -215,7 +214,10 @@ final class job_status_helper_test extends advanced_testcase {
         $this->assertSame('failed', $job->status);
         $result = json_decode($job->result, true);
         $this->assertFalse($result['will_retry'] ?? true);
-        $this->assertSame(0, $this->count_generated_toplevel(),
-            'Recovery must not create sections for an interrupted job.');
+        $this->assertSame(
+            0,
+            $this->count_generated_toplevel(),
+            'Recovery must not create sections for an interrupted job.'
+        );
     }
 }

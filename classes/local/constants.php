@@ -28,13 +28,12 @@ namespace aiplacement_modgen\local;
  * Constants class for module generator configuration values.
  */
 class constants {
-    
     /** @var int Maximum file content length in characters (100KB) */
     public const MAX_FILE_CONTENT_LENGTH = 100000;
-    
+
     /** @var int File content preview length for base64 encoding */
     public const FILE_PREVIEW_LENGTH = 1024;
-    
+
     /** @var int Generation lock timeout in seconds (10 minutes) */
     public const GENERATION_LOCK_TIMEOUT = 600;
 
@@ -53,19 +52,19 @@ class constants {
 
     /** @var int Maximum file upload size in bytes (10MB) */
     public const MAX_UPLOAD_SIZE = 10485760;
-    
+
     /** @var int Default timeout for AI processing in seconds */
     public const DEFAULT_AI_TIMEOUT = 300;
-    
+
     /** @var int Cache TTL for template extraction in seconds (1 hour) */
     public const TEMPLATE_CACHE_TTL = 3600;
-    
+
     /** @var array Supported text-based file extensions */
     public const TEXT_EXTENSIONS = ['txt', 'md', 'html', 'htm'];
-    
+
     /** @var array Supported document file extensions (no PDF) */
     public const DOCUMENT_EXTENSIONS = ['docx', 'odt', 'rtf'];
-    
+
     /** @var array All supported file extensions */
     public const SUPPORTED_EXTENSIONS = ['txt', 'md', 'html', 'htm', 'docx', 'odt', 'rtf'];
 }

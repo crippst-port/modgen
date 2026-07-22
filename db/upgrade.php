@@ -30,8 +30,7 @@ defined('MOODLE_INTERNAL') || die();
  * @param int $oldversion Old plugin version
  * @return bool True on success
  */
-function xmldb_aiplacement_modgen_upgrade($oldversion)
-{
+function xmldb_aiplacement_modgen_upgrade($oldversion) {
     global $DB;
 
     $dbman = $DB->get_manager();
@@ -48,8 +47,8 @@ function xmldb_aiplacement_modgen_upgrade($oldversion)
         $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
 
         // Adding keys to table aiplacement_modgen_cache
-        $table->add_key('primary', XMLDB_KEY_PRIMARY, array('id'));
-        $table->add_key('courseid_fk', XMLDB_KEY_FOREIGN, array('courseid'), 'course', array('id'));
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('courseid_fk', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
 
         // Note: Foreign keys automatically create indexes, so we don't need a separate index
 
@@ -74,9 +73,9 @@ function xmldb_aiplacement_modgen_upgrade($oldversion)
         $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
 
         // Adding keys to table.
-        $table->add_key('primary', XMLDB_KEY_PRIMARY, array('id'));
-        $table->add_key('cmid_uk', XMLDB_KEY_UNIQUE, array('cmid'));
-        $table->add_key('courseid_fk', XMLDB_KEY_FOREIGN, array('courseid'), 'course', array('id'));
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('cmid_uk', XMLDB_KEY_UNIQUE, ['cmid']);
+        $table->add_key('courseid_fk', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
 
         // Create table if it doesn't exist.
         if (!$dbman->table_exists($table)) {
@@ -114,10 +113,10 @@ function xmldb_aiplacement_modgen_upgrade($oldversion)
         $table->add_field('timemodified', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
 
         // Adding keys to table.
-        $table->add_key('primary', XMLDB_KEY_PRIMARY, array('id'));
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
 
         // Adding indexes to table.
-        $table->add_index('sortorder', XMLDB_INDEX_NOTUNIQUE, array('sortorder'));
+        $table->add_index('sortorder', XMLDB_INDEX_NOTUNIQUE, ['sortorder']);
 
         // Create table if it doesn't exist.
         if (!$dbman->table_exists($table)) {
@@ -132,7 +131,7 @@ function xmldb_aiplacement_modgen_upgrade($oldversion)
     if ($oldversion < 2026011700) {
         // Add index on courseid in aiplacement_modgen_aigen table for better query performance.
         $table = new xmldb_table('aiplacement_modgen_aigen');
-        $index = new xmldb_index('courseid', XMLDB_INDEX_NOTUNIQUE, array('courseid'));
+        $index = new xmldb_index('courseid', XMLDB_INDEX_NOTUNIQUE, ['courseid']);
 
         if (!$dbman->index_exists($table, $index)) {
             $dbman->add_index($table, $index);
@@ -160,12 +159,12 @@ function xmldb_aiplacement_modgen_upgrade($oldversion)
         $table->add_field('timecompleted', XMLDB_TYPE_INTEGER, '10', null, null);
 
         // Adding keys to table.
-        $table->add_key('primary', XMLDB_KEY_PRIMARY, array('id'));
-        $table->add_key('courseid_fk', XMLDB_KEY_FOREIGN, array('courseid'), 'course', array('id'));
-        $table->add_key('userid_fk', XMLDB_KEY_FOREIGN, array('userid'), 'user', array('id'));
+        $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
+        $table->add_key('courseid_fk', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
+        $table->add_key('userid_fk', XMLDB_KEY_FOREIGN, ['userid'], 'user', ['id']);
 
         // Adding indexes to table.
-        $table->add_index('status', XMLDB_INDEX_NOTUNIQUE, array('status'));
+        $table->add_index('status', XMLDB_INDEX_NOTUNIQUE, ['status']);
 
         // Create table if it doesn't exist.
         if (!$dbman->table_exists($table)) {

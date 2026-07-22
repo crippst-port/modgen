@@ -76,7 +76,7 @@ try {
             'timecreated' => $job->timecreated,
             'timestarted' => $job->timestarted,
             'timecompleted' => $job->timecompleted,
-            'stuck' => $stuck
+            'stuck' => $stuck,
         ];
 
         // Include result if job completed or failed.
@@ -86,7 +86,6 @@ try {
         }
 
         ajax_response::success($response);
-
     } else if ($courseid && $active) {
         // Check for active jobs (queued or running) in this course.
         $context = context_course::instance($courseid);
@@ -99,7 +98,7 @@ try {
                 'courseid' => $courseid,
                 'userid' => $USER->id,
                 'queued' => 'queued',
-                'running' => 'running'
+                'running' => 'running',
             ],
             'timecreated ASC'
         );
@@ -111,12 +110,11 @@ try {
                 'status' => $job->status,
                 'action' => $job->action,
                 'timecreated' => $job->timecreated,
-                'timestarted' => $job->timestarted
+                'timestarted' => $job->timestarted,
             ];
         }
 
         ajax_response::success(['jobs' => $jobsarray]);
-
     } else if ($courseid && $recent) {
         // Check for recently completed jobs in this course (last 5 minutes).
         $context = context_course::instance($courseid);
@@ -133,7 +131,7 @@ try {
             [
                 'courseid' => $courseid,
                 'userid' => $USER->id,
-                'timecompleted' => $fiveminutesago
+                'timecompleted' => $fiveminutesago,
             ]
         );
 
@@ -142,7 +140,7 @@ try {
             $jobdata = [
                 'id' => $job->id,
                 'status' => $job->status,
-                'timecompleted' => $job->timecompleted
+                'timecompleted' => $job->timecompleted,
             ];
             if ($job->result) {
                 $jobdata['result'] = json_decode($job->result, true);
@@ -151,11 +149,9 @@ try {
         }
 
         ajax_response::success(['jobs' => $jobsarray]);
-
     } else {
         throw new moodle_exception('invalidparameters', 'aiplacement_modgen');
     }
-
 } catch (Exception $e) {
     ajax_response::error($e->getMessage(), 'exception');
 }

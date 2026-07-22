@@ -271,8 +271,7 @@ if ($diag !== null) {
         echo html_writer::tag('td', $s->id);
         echo html_writer::tag('td', $s->has_row_issues
             ? html_writer::tag('span', s(implode('; ', $s->row_issues)), ['class' => 'text-danger small'])
-            : get_string('checkstructure_ok', 'aiplacement_modgen')
-        );
+            : get_string('checkstructure_ok', 'aiplacement_modgen'));
         echo html_writer::end_tag('tr');
     }
 
@@ -282,7 +281,8 @@ if ($diag !== null) {
 }
 
 // Back to course link.
-echo html_writer::tag('div',
+echo html_writer::tag(
+    'div',
     html_writer::link(
         new moodle_url('/course/view.php', ['id' => $courseid]),
         get_string('checkstructure_backtocourse', 'aiplacement_modgen'),

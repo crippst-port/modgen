@@ -56,7 +56,7 @@ switch ($job->action) {
         $weeksperTheme = $params->weeksperTheme ?? 1;
         $actiondisplay = get_string('jobaction_create_themes', 'aiplacement_modgen', [
             'themes' => $themecount,
-            'weeks' => $weeksperTheme
+            'weeks' => $weeksperTheme,
         ]);
         break;
     case 'create_weeks':
@@ -123,8 +123,8 @@ $PAGE->requires->js_call_amd('aiplacement_modgen/job_status_page', 'init', [
         'jobid' => $jobid,
         'courseid' => $course->id,
         'courseurl' => $courseurl->out(false),
-        'initialstatus' => $job->status
-    ]
+        'initialstatus' => $job->status,
+    ],
 ]);
 
 echo $OUTPUT->header();

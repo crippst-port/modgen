@@ -45,12 +45,11 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @copyright  2026 Tom Cripps
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
-class parent_field_test extends advanced_testcase {
-
+final class parent_field_test extends advanced_testcase {
     /**
      * Test that theme sections are created with parent=0 (top level).
      */
-    public function test_theme_section_has_zero_parent() {
+    public function test_theme_section_has_zero_parent(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -58,7 +57,7 @@ class parent_field_test extends advanced_testcase {
         // Create course and convert to flexsections format.
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         $courseformat = \course_get_format($course->id);
-        
+
         // Convert to flexsections if needed.
         theme_builder::ensure_flexsections_format($course->id);
         $courseformat = \course_get_format($course->id);
@@ -77,20 +76,23 @@ class parent_field_test extends advanced_testcase {
         // Get section record.
         $section = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'section' => $themesectionnum
+            'section' => $themesectionnum,
         ], '*', MUST_EXIST);
 
         // Check parent field in course_format_options.
         $parentoption = $DB->get_record('course_format_options', [
             'courseid' => $course->id,
             'sectionid' => $section->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ]);
 
         if ($parentoption) {
             // Parent should be 0 (top level) for themes.
-            $this->assertEquals('0', $parentoption->value, 
-                'Theme section parent should be 0 (top level)');
+            $this->assertEquals(
+                '0',
+                $parentoption->value,
+                'Theme section parent should be 0 (top level)'
+            );
         } else {
             // If no parent record exists, that's also acceptable (defaults to 0).
             $this->assertTrue(true, 'No parent record means default top level');
@@ -100,7 +102,7 @@ class parent_field_test extends advanced_testcase {
     /**
      * Test that week sections are created with correct parent section NUMBER.
      */
-    public function test_week_section_has_correct_parent_number() {
+    public function test_week_section_has_correct_parent_number(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -133,34 +135,40 @@ class parent_field_test extends advanced_testcase {
         // Get week section record.
         $weeksection = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'section' => $weeksectionnum
+            'section' => $weeksectionnum,
         ], '*', MUST_EXIST);
 
         // Check parent field in course_format_options.
         $parentoption = $DB->get_record('course_format_options', [
             'courseid' => $course->id,
             'sectionid' => $weeksection->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ], '*', MUST_EXIST);
 
         // Parent should be the SECTION NUMBER of the theme (not section ID).
-        $this->assertEquals((string)$themesectionnum, $parentoption->value, 
-            'Week section parent should be theme section NUMBER, not ID');
-        
+        $this->assertEquals(
+            (string)$themesectionnum,
+            $parentoption->value,
+            'Week section parent should be theme section NUMBER, not ID'
+        );
+
         // Additional check: parent value should NOT be the theme section ID.
         $themesection = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'section' => $themesectionnum
+            'section' => $themesectionnum,
         ], '*', MUST_EXIST);
-        
-        $this->assertNotEquals((string)$themesection->id, $parentoption->value,
-            'Parent should be section NUMBER, not section ID');
+
+        $this->assertNotEquals(
+            (string)$themesection->id,
+            $parentoption->value,
+            'Parent should be section NUMBER, not section ID'
+        );
     }
 
     /**
      * Test session sections have correct parent section NUMBER.
      */
-    public function test_session_section_has_correct_parent_number() {
+    public function test_session_section_has_correct_parent_number(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -195,9 +203,9 @@ class parent_field_test extends advanced_testcase {
                     'name' => 'Session 1',
                     'instructions' => 'Session instructions',
                     'learning_type' => 'lecture',
-                    'duration' => 60
-                ]
-            ]
+                    'duration' => 60,
+                ],
+            ],
         ];
 
         $sessionmap = session_creator::create_session_subsections(
@@ -209,31 +217,34 @@ class parent_field_test extends advanced_testcase {
 
         $this->assertNotEmpty($sessionmap, 'Session map should not be empty');
         $this->assertArrayHasKey('session', $sessionmap, 'Session should be in map');
-        
+
         $sessionsectionnum = $sessionmap['session'];
 
         // Get session section record.
         $sessionsection = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'section' => $sessionsectionnum
+            'section' => $sessionsectionnum,
         ], '*', MUST_EXIST);
 
         // Check parent field in course_format_options.
         $parentoption = $DB->get_record('course_format_options', [
             'courseid' => $course->id,
             'sectionid' => $sessionsection->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ], '*', MUST_EXIST);
 
         // Parent should be the SECTION NUMBER of the week (not section ID).
-        $this->assertEquals((string)$weeksectionnum, $parentoption->value, 
-            'Session section parent should be week section NUMBER, not ID');
+        $this->assertEquals(
+            (string)$weeksectionnum,
+            $parentoption->value,
+            'Session section parent should be week section NUMBER, not ID'
+        );
     }
 
     /**
      * Test complete hierarchy: Theme -> Week -> Session.
      */
-    public function test_complete_hierarchy_parent_chain() {
+    public function test_complete_hierarchy_parent_chain(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -265,9 +276,9 @@ class parent_field_test extends advanced_testcase {
             'session' => [
                 'learningactivity_metadata' => [
                     'name' => 'Session 1',
-                    'learning_type' => 'workshop'
-                ]
-            ]
+                    'learning_type' => 'workshop',
+                ],
+            ],
         ];
 
         $sessionmap = session_creator::create_session_subsections(
@@ -283,13 +294,13 @@ class parent_field_test extends advanced_testcase {
         // Theme -> parent should be 0 or not exist.
         $themesection = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'section' => $themesectionnum
+            'section' => $themesectionnum,
         ], '*', MUST_EXIST);
 
         $themeparent = $DB->get_record('course_format_options', [
             'courseid' => $course->id,
             'sectionid' => $themesection->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ]);
 
         if ($themeparent) {
@@ -299,38 +310,44 @@ class parent_field_test extends advanced_testcase {
         // Week -> parent should be theme section NUMBER.
         $weeksection = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'section' => $weeksectionnum
+            'section' => $weeksectionnum,
         ], '*', MUST_EXIST);
 
         $weekparent = $DB->get_record('course_format_options', [
             'courseid' => $course->id,
             'sectionid' => $weeksection->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ], '*', MUST_EXIST);
 
-        $this->assertEquals((string)$themesectionnum, $weekparent->value, 
-            'Week parent should be theme section NUMBER');
+        $this->assertEquals(
+            (string)$themesectionnum,
+            $weekparent->value,
+            'Week parent should be theme section NUMBER'
+        );
 
         // Session -> parent should be week section NUMBER.
         $sessionsection = $DB->get_record('course_sections', [
             'course' => $course->id,
-            'section' => $sessionsectionnum
+            'section' => $sessionsectionnum,
         ], '*', MUST_EXIST);
 
         $sessionparent = $DB->get_record('course_format_options', [
             'courseid' => $course->id,
             'sectionid' => $sessionsection->id,
-            'name' => 'parent'
+            'name' => 'parent',
         ], '*', MUST_EXIST);
 
-        $this->assertEquals((string)$weeksectionnum, $sessionparent->value, 
-            'Session parent should be week section NUMBER');
+        $this->assertEquals(
+            (string)$weeksectionnum,
+            $sessionparent->value,
+            'Session parent should be week section NUMBER'
+        );
     }
 
     /**
      * Test that section_info object exposes parent as section number.
      */
-    public function test_section_info_parent_property() {
+    public function test_section_info_parent_property(): void {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
@@ -360,17 +377,22 @@ class parent_field_test extends advanced_testcase {
         $weeksectioninfo = $modinfo->get_section_info($weeksectionnum);
 
         // Verify parent property.
-        $this->assertTrue(isset($weeksectioninfo->parent), 
-            'section_info should have parent property');
-        
-        $this->assertEquals($themesectionnum, $weeksectioninfo->parent, 
-            'section_info->parent should contain parent section NUMBER');
+        $this->assertTrue(
+            isset($weeksectioninfo->parent),
+            'section_info should have parent property'
+        );
+
+        $this->assertEquals(
+            $themesectionnum,
+            $weeksectioninfo->parent,
+            'section_info->parent should contain parent section NUMBER'
+        );
     }
 
     /**
      * Test parent field validation helper method.
      */
-    public function test_validate_section_parent_helper() {
+    public function test_validate_section_parent_helper(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -420,7 +442,7 @@ class parent_field_test extends advanced_testcase {
     /**
      * Test multiple themes and weeks maintain correct parent relationships.
      */
-    public function test_multiple_themes_and_weeks() {
+    public function test_multiple_themes_and_weeks(): void {
         global $DB;
         $this->resetAfterTest(true);
         $this->setAdminUser();
@@ -432,7 +454,7 @@ class parent_field_test extends advanced_testcase {
 
         // Create 2 themes with 2 weeks each.
         $structure = [];
-        
+
         for ($t = 1; $t <= 2; $t++) {
             $themesectionnum = theme_builder::create_theme_section(
                 $course->id,
@@ -440,10 +462,10 @@ class parent_field_test extends advanced_testcase {
                 "Theme $t",
                 "Theme $t description"
             );
-            
+
             $structure["theme_$t"] = [
                 'sectionnum' => $themesectionnum,
-                'weeks' => []
+                'weeks' => [],
             ];
 
             for ($w = 1; $w <= 2; $w++) {
@@ -454,7 +476,7 @@ class parent_field_test extends advanced_testcase {
                     "Week $w",
                     "Week $w description"
                 );
-                
+
                 $structure["theme_$t"]['weeks']["week_$w"] = $weeksectionnum;
             }
         }
@@ -462,39 +484,45 @@ class parent_field_test extends advanced_testcase {
         // Verify all parent relationships.
         foreach ($structure as $themekey => $themedata) {
             $themesectionnum = $themedata['sectionnum'];
-            
+
             // Verify theme parent is 0.
             $themesection = $DB->get_record('course_sections', [
                 'course' => $course->id,
-                'section' => $themesectionnum
+                'section' => $themesectionnum,
             ], '*', MUST_EXIST);
 
             $themeparent = $DB->get_record('course_format_options', [
                 'courseid' => $course->id,
                 'sectionid' => $themesection->id,
-                'name' => 'parent'
+                'name' => 'parent',
             ]);
 
             if ($themeparent) {
-                $this->assertEquals('0', $themeparent->value, 
-                    "$themekey parent should be 0");
+                $this->assertEquals(
+                    '0',
+                    $themeparent->value,
+                    "$themekey parent should be 0"
+                );
             }
 
             // Verify each week's parent is the theme.
             foreach ($themedata['weeks'] as $weekkey => $weeksectionnum) {
                 $weeksection = $DB->get_record('course_sections', [
                     'course' => $course->id,
-                    'section' => $weeksectionnum
+                    'section' => $weeksectionnum,
                 ], '*', MUST_EXIST);
 
                 $weekparent = $DB->get_record('course_format_options', [
                     'courseid' => $course->id,
                     'sectionid' => $weeksection->id,
-                    'name' => 'parent'
+                    'name' => 'parent',
                 ], '*', MUST_EXIST);
 
-                $this->assertEquals((string)$themesectionnum, $weekparent->value, 
-                    "$weekkey parent should be $themekey section number");
+                $this->assertEquals(
+                    (string)$themesectionnum,
+                    $weekparent->value,
+                    "$weekkey parent should be $themekey section number"
+                );
             }
         }
     }

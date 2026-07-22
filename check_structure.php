@@ -60,9 +60,12 @@ if ($action && $confirm) {
     switch ($action) {
         case 'fixintegrity':
             $result = integrity_checker::fix_integrity($courseid);
+            $msg = $result['fixed'] > 0
+                ? get_string('fixintegrity_done', 'aiplacement_modgen', $result['fixed'])
+                : get_string('fixintegrity_none', 'aiplacement_modgen');
             redirect(
                 new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $courseid, 'check' => 1]),
-                get_string('fixintegrity_done', 'aiplacement_modgen', $result['fixed']),
+                $msg,
                 null,
                 \core\output\notification::NOTIFY_SUCCESS
             );
@@ -161,8 +164,8 @@ if ($diag !== null) {
     echo html_writer::start_tag('table', ['class' => 'table table-sm table-bordered']);
     echo html_writer::start_tag('thead');
     echo html_writer::start_tag('tr');
-    echo html_writer::tag('th', 'Check');
-    echo html_writer::tag('th', 'Issues found');
+    echo html_writer::tag('th', get_string('checkstructure_col_check', 'aiplacement_modgen'));
+    echo html_writer::tag('th', get_string('checkstructure_col_issuesfound', 'aiplacement_modgen'));
     echo html_writer::end_tag('tr');
     echo html_writer::end_tag('thead');
     echo html_writer::start_tag('tbody');
@@ -182,7 +185,7 @@ if ($diag !== null) {
         $rowclass = $count > 0 ? 'table-warning' : '';
         echo html_writer::start_tag('tr', ['class' => $rowclass]);
         echo html_writer::tag('td', get_string('diag_' . $key, 'aiplacement_modgen'));
-        echo html_writer::tag('td', $count > 0 ? (string)$count : '✓');
+        echo html_writer::tag('td', $count > 0 ? (string)$count : get_string('checkstructure_ok', 'aiplacement_modgen'));
         echo html_writer::end_tag('tr');
     }
     echo html_writer::end_tag('tbody');
@@ -244,14 +247,14 @@ if ($diag !== null) {
     echo html_writer::start_tag('table', ['class' => 'table table-striped table-bordered table-sm']);
     echo html_writer::start_tag('thead');
     echo html_writer::start_tag('tr');
-    echo html_writer::tag('th', 'Sec #');
-    echo html_writer::tag('th', 'Name');
-    echo html_writer::tag('th', 'Parent');
-    echo html_writer::tag('th', 'Depth');
-    echo html_writer::tag('th', 'Visible');
-    echo html_writer::tag('th', 'Activities');
-    echo html_writer::tag('th', 'DB ID');
-    echo html_writer::tag('th', 'Issues');
+    echo html_writer::tag('th', get_string('checkstructure_col_secnum', 'aiplacement_modgen'));
+    echo html_writer::tag('th', get_string('name'));
+    echo html_writer::tag('th', get_string('parentsection', 'aiplacement_modgen'));
+    echo html_writer::tag('th', get_string('checkstructure_col_depth', 'aiplacement_modgen'));
+    echo html_writer::tag('th', get_string('visible'));
+    echo html_writer::tag('th', get_string('activities', 'aiplacement_modgen'));
+    echo html_writer::tag('th', get_string('checkstructure_col_dbid', 'aiplacement_modgen'));
+    echo html_writer::tag('th', get_string('checkstructure_col_issues', 'aiplacement_modgen'));
     echo html_writer::end_tag('tr');
     echo html_writer::end_tag('thead');
     echo html_writer::start_tag('tbody');
@@ -260,15 +263,15 @@ if ($diag !== null) {
         $rowclass = $s->has_row_issues ? 'table-warning' : '';
         echo html_writer::start_tag('tr', ['class' => $rowclass]);
         echo html_writer::tag('td', $s->section);
-        echo html_writer::tag('td', format_string($s->name ?? '(unnamed)'));
-        echo html_writer::tag('td', $s->section == 0 ? '—' : ($s->parent ?? 'missing'));
+        echo html_writer::tag('td', format_string($s->name ?? get_string('checkstructure_unnamed', 'aiplacement_modgen')));
+        echo html_writer::tag('td', $s->section == 0 ? '—' : ($s->parent ?? get_string('checkstructure_missing', 'aiplacement_modgen')));
         echo html_writer::tag('td', $s->depth);
-        echo html_writer::tag('td', $s->visible ? 'Yes' : 'No');
+        echo html_writer::tag('td', $s->visible ? get_string('yes') : get_string('no'));
         echo html_writer::tag('td', $s->activitycount);
         echo html_writer::tag('td', $s->id);
         echo html_writer::tag('td', $s->has_row_issues
-            ? html_writer::tag('span', implode('; ', $s->row_issues), ['class' => 'text-danger small'])
-            : '✓'
+            ? html_writer::tag('span', s(implode('; ', $s->row_issues)), ['class' => 'text-danger small'])
+            : get_string('checkstructure_ok', 'aiplacement_modgen')
         );
         echo html_writer::end_tag('tr');
     }

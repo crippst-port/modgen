@@ -616,6 +616,7 @@ $string['fixintegrity_label'] = 'Repair Structure Data';
 $string['fixintegrity_desc'] = 'Resets invalid parent references to top-level and removes orphaned format options. Affects: orphaned options, invalid parents, null/empty parents, missing parent records, section 0 with parent.';
 $string['fixintegrity_confirm'] = 'Repair structure data for this course? This resets invalid parent references to top-level (parent=0) and deletes orphaned format options. This cannot be undone.';
 $string['fixintegrity_done'] = 'Structure data repaired. {$a} item(s) fixed.';
+$string['fixintegrity_none'] = 'No structural data issues found to repair.';
 
 $string['fixcleanup_label'] = 'Remove Orphaned Sections';
 $string['fixcleanup_desc'] = 'Permanently deletes hidden course sections that contain no activities and are no longer reachable.';
@@ -638,6 +639,17 @@ $string['diag_missing_parents'] = 'Missing parent records';
 $string['diag_duplicate_sections'] = 'Duplicate section numbers';
 $string['diag_circular_refs'] = 'Circular references';
 $string['diag_orphaned_sections'] = 'Orphaned empty sections';
+
+// Check Structure page table column headers and markers.
+$string['checkstructure_col_check'] = 'Check';
+$string['checkstructure_col_issuesfound'] = 'Issues found';
+$string['checkstructure_col_secnum'] = 'Sec #';
+$string['checkstructure_col_depth'] = 'Depth';
+$string['checkstructure_col_dbid'] = 'DB ID';
+$string['checkstructure_col_issues'] = 'Issues';
+$string['checkstructure_ok'] = '✓';
+$string['checkstructure_unnamed'] = '(unnamed)';
+$string['checkstructure_missing'] = 'missing';
 
 // Settings page external link.
 $string['admintools_link'] = 'Admin Diagnostic Tools';

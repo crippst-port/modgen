@@ -205,6 +205,22 @@ class integrity_checker {
                 $rows[] = $row;
             }
             $recordset->close();
+
+            // The CTE keeps walking past the first time it detects a loop (up to the depth
+            // cap), so a single cycle produces one row per extra lap around it — e.g. a
+            // 1-section self-loop yields 9 rows (depths 2-10), not 1. Deduplicate to one
+            // row per affected root_section (keeping the shortest path as the clearest
+            // example) so the reported count matches the number of sections actually
+            // involved, consistent with how row-level highlighting already deduplicates.
+            $bysection = [];
+            foreach ($rows as $row) {
+                if (!isset($bysection[$row->root_section])
+                        || strlen($row->path) < strlen($bysection[$row->root_section]->path)) {
+                    $bysection[$row->root_section] = $row;
+                }
+            }
+            $rows = array_values($bysection);
+
             if (!empty($rows)) {
                 $result['issues']['circular_refs'] = $rows;
                 $result['counts']['circular_refs'] = count($rows);

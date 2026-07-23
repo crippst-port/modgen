@@ -22,6 +22,7 @@
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+// phpcs:ignore moodle.Files.MoodleInternal.MoodleInternalGlobalState -- AJAX_SCRIPT must be defined before config.php is loaded so it can adjust output/session handling accordingly.
 if (!defined('AJAX_SCRIPT') && !empty($_REQUEST['ajax'])) {
     define('AJAX_SCRIPT', true);
 }
@@ -30,7 +31,7 @@ require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir . '/formslib.php');
 require_login();
 
-// Get course ID early for authentication
+// Get course ID early for authentication.
 $courseid = optional_param('id', 0, PARAM_INT);
 if (!$courseid) {
     $courseid = optional_param('courseid', 0, PARAM_INT);
@@ -39,7 +40,7 @@ if (!$courseid) {
     throw new moodle_exception('missingcourseid', 'aiplacement_modgen');
 }
 
-// Verify user has access to this course and can generate content
+// Verify user has access to this course and can generate content.
 $context = context_course::instance($courseid);
 $hasprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
 $hastemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
@@ -52,21 +53,21 @@ if (!$hasprompt && !$hastemplate) {
     );
 }
 
-// Set page URL early to avoid "page did not call set_url()" errors
+// Set page URL early to avoid "page did not call set_url()" errors.
 $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid]));
 $PAGE->set_context($context);
 $PAGE->set_course(get_course($courseid));
 
-// Include form classes
+// Include form classes.
 require_once(__DIR__ . '/classes/form/generator_form.php');
 require_once(__DIR__ . '/classes/form/approve_form.php');
 
-// Cache configuration values for efficiency
+// Cache configuration values for efficiency.
 $pluginconfig = (object)[
     'timeout' => get_config('aiplacement_modgen', 'timeout') ?: 300,
 ];
 
-// Increase PHP execution time for AI processing
+// Increase PHP execution time for AI processing.
 set_time_limit($pluginconfig->timeout);
 ini_set('max_execution_time', $pluginconfig->timeout);
 
@@ -157,7 +158,13 @@ function aiplacement_modgen_render_modal_footer(array $actions, bool $includeclo
  * @param string $title Modal title for AJAX mode.
  * @param bool $refresh Whether to refresh on close (AJAX only).
  */
-function aiplacement_modgen_output_response(string $bodyhtml, array $footeractions, bool $ajax, string $title, bool $refresh = false): void {
+function aiplacement_modgen_output_response(
+    string $bodyhtml,
+    array $footeractions,
+    bool $ajax,
+    string $title,
+    bool $refresh = false
+): void {
     global $OUTPUT, $PAGE;
 
     if ($ajax) {
@@ -165,7 +172,7 @@ function aiplacement_modgen_output_response(string $bodyhtml, array $footeractio
         aiplacement_modgen_send_ajax_response($bodyhtml, $footerhtml, $refresh, ['title' => $title]);
     }
 
-    // Set up navigation breadcrumb for non-AJAX page requests
+    // Set up navigation breadcrumb for non-AJAX page requests.
     if (!$ajax && !defined('AJAX_SCRIPT')) {
         $PAGE->navbar->add($title);
     }
@@ -185,7 +192,13 @@ function aiplacement_modgen_output_response(string $bodyhtml, array $footeractio
  * @param bool $needscacherefresh Reference flag toggled when the course cache needs rebuilding.
  * @return array|null Array with 'cmid' and 'delegatedsectionid' keys, or null on failure.
  */
-function local_aiplacement_modgen_create_subsection(stdClass $course, int $sectionnum, string $name, string $summaryhtml, bool &$needscacherefresh): ?array {
+function local_aiplacement_modgen_create_subsection(
+    stdClass $course,
+    int $sectionnum,
+    string $name,
+    string $summaryhtml,
+    bool &$needscacherefresh
+): ?array {
     global $DB;
 
     $moduleinfo = new stdClass();
@@ -305,10 +318,9 @@ $acceptpolicy = optional_param('acceptpolicy', 0, PARAM_BOOL);
 if ($acceptpolicy && confirm_sesskey()) {
     $manager = \core\di::get(\core_ai\manager::class);
     $manager->user_policy_accepted($USER->id, $context->id);
-    if ($ajax) {
-        // For AJAX requests, continue to show the main form instead of stopping here.
-        // The policy check below will now pass and show the normal content.
-    } else {
+    // For AJAX requests, continue to show the main form instead of stopping here.
+    // The policy check below will now pass and show the normal content.
+    if (!$ajax) {
         redirect($PAGE->url);
     }
 }
@@ -318,7 +330,7 @@ if ($acceptpolicy && confirm_sesskey()) {
 $manager = \core\di::get(\core_ai\manager::class);
 if (!$manager->get_user_policy_status($USER->id)) {
     // User hasn't accepted AI policy yet.
-    // Build the policy acceptance form using Mustache template (SECURITY FIX: replaced inline HTML)
+    // Build the policy acceptance form using Mustache template (SECURITY FIX: replaced inline HTML).
     $policydata = [
         'aipolicyacceptance' => get_string('aipolicyacceptance', 'aiplacement_modgen'),
         'aipolicyinfo' => get_string('aipolicyinfo', 'aiplacement_modgen'),
@@ -333,7 +345,7 @@ if (!$manager->get_user_policy_status($USER->id)) {
 
     if ($ajax) {
         // For AJAX requests, return policy acceptance form with modal footer.
-        // Render template (safe for AJAX context)
+        // Render template (safe for AJAX context).
         $policyformhtml = $OUTPUT->render_from_template('aiplacement_modgen/ai_policy_acceptance', $policydata);
 
         $footer = aiplacement_modgen_render_modal_footer([
@@ -347,13 +359,13 @@ if (!$manager->get_user_policy_status($USER->id)) {
             ],
         ]);
 
-        // Load AMD module for policy acceptance (SECURITY FIX: replaced inline JavaScript)
+        // Load AMD module for policy acceptance (SECURITY FIX: replaced inline JavaScript).
         $PAGE->requires->js_call_amd('aiplacement_modgen/policy_acceptance', 'init');
 
         aiplacement_modgen_send_ajax_response($policyformhtml, $footer);
     } else {
         // For regular page requests, show the policy acceptance form as a full page
-        // Set up page context FIRST (before any output rendering)
+        // Set up page context FIRST (before any output rendering).
         $pageparams = ['id' => $courseid];
         if ($embedded) {
             $pageparams['embedded'] = 1;
@@ -367,10 +379,10 @@ if (!$manager->get_user_policy_status($USER->id)) {
             $PAGE->set_pagelayout('embedded');
         }
 
-        // Load AMD module for policy acceptance
+        // Load AMD module for policy acceptance.
         $PAGE->requires->js_call_amd('aiplacement_modgen/policy_acceptance', 'init');
 
-        // NOW render the template (after page setup is complete)
+        // NOW render the template (after page setup is complete).
         $policyformhtml = $OUTPUT->render_from_template('aiplacement_modgen/ai_policy_acceptance', $policydata);
 
         echo $OUTPUT->header();
@@ -405,7 +417,7 @@ require_once(__DIR__ . '/classes/local/csv_processing_service.php');
 require_once(__DIR__ . '/classes/local/template_processing_service.php');
 require_once(__DIR__ . '/classes/local/section_creation_service.php');
 
-// Load course libraries once (used by approval form processing)
+// Load course libraries once (used by approval form processing).
 require_once($CFG->dirroot . '/course/lib.php');
 require_once($CFG->dirroot . '/course/format/lib.php');
 require_once($CFG->dirroot . '/course/modlib.php');
@@ -435,7 +447,7 @@ if ($approvedjsonparam !== null) {
 }
 
 if ($approveform && ($adata = $approveform->get_data())) {
-    // Create sections from approved JSON using the section creation service
+    // Create sections from approved JSON using the section creation service.
     if (strlen($adata->approvedjson) > \aiplacement_modgen\local\constants::MAX_FILE_CONTENT_LENGTH * 2) {
         throw new \moodle_exception('jsontoolarge', 'aiplacement_modgen');
     }
@@ -445,7 +457,7 @@ if ($approveform && ($adata = $approveform->get_data())) {
         throw new \moodle_exception('invalidjson', 'aiplacement_modgen', '', json_last_error_msg());
     }
 
-    // Sanitize all text fields in the JSON structure to prevent XSS
+    // Sanitize all text fields in the JSON structure to prevent XSS.
     if (!empty($json['themes'])) {
         foreach ($json['themes'] as &$theme) {
             if (isset($theme['title'])) {
@@ -536,7 +548,7 @@ if ($approveform && ($adata = $approveform->get_data())) {
     $hideexistingsections = !empty($adata->hideexistingsections);
     $createsummaryactivities = !empty($adata->createsummaryactivities);
 
-    // Count sections for display purposes
+    // Count sections for display purposes.
     $sectioncount = 0;
     if (!empty($json['themes'])) {
         $sectioncount += count($json['themes']);
@@ -550,7 +562,7 @@ if ($approveform && ($adata = $approveform->get_data())) {
     }
 
     // Always use background task for all creation jobs
-    // Create job record
+    // Create job record.
     $job = new \stdClass();
     $job->courseid = $courseid;
     $job->userid = $USER->id;
@@ -567,7 +579,7 @@ if ($approveform && ($adata = $approveform->get_data())) {
     $job->timecreated = time();
     $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
 
-    // Queue ad-hoc task - must pass all required parameters in custom_data
+    // Queue ad-hoc task - must pass all required parameters in custom_data.
     $task = new \aiplacement_modgen\task\create_sections_task();
     $task->set_custom_data((object)[
         'jobid' => $jobid,
@@ -583,7 +595,7 @@ if ($approveform && ($adata = $approveform->get_data())) {
     $task->set_userid($USER->id);
     \core\task\manager::queue_adhoc_task($task);
 
-    // Return queued response for AJAX
+    // Return queued response for AJAX.
     if ($ajax) {
         \aiplacement_modgen\local\ajax_response::success([
             'queued' => true,
@@ -592,12 +604,12 @@ if ($approveform && ($adata = $approveform->get_data())) {
         ]);
     }
 
-    // For non-AJAX, redirect to job status page
+    // For non-AJAX, redirect to job status page.
     $statusurl = new moodle_url('/ai/placement/modgen/job_status.php', ['jobid' => $jobid]);
     redirect($statusurl);
 }
 
-    // Handle deprecated standalone form submission still using direct creation (if any legacy code exists)
+    // Handle deprecated standalone form submission still using direct creation (if any legacy code exists).
 if (false && $approveform && ($adata = $approveform->get_data())) {
     // This block is intentionally disabled - all submissions now use background tasks above.
     // Kept for reference during migration period only.
@@ -605,19 +617,19 @@ if (false && $approveform && ($adata = $approveform->get_data())) {
     $activitywarnings = [];
 
 
-    // Prepare data for success template
+    // Prepare data for success template.
     $courseurl = new moodle_url('/course/view.php', ['id' => $courseid]);
     $successdata = [
         'message' => get_string('sectionscreatedsuccess', 'aiplacement_modgen', count($results)),
         'hasdetails' => !empty($results),
         'details' => $results,
-        'showcoursereturn' => !$ajax, // Show button in body for standalone pages, use footer for AJAX/modal
+        'showcoursereturn' => !$ajax, // Show button in body for standalone pages, use footer for AJAX/modal.
         'courseurl' => $courseurl->out(false),
     ];
 
     $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/success_message', $successdata);
 
-    // Add any warnings below the success message
+    // Add any warnings below the success message.
     if (!empty($activitywarnings)) {
         $warningshtml = '';
         foreach ($activitywarnings as $warning) {
@@ -659,13 +671,13 @@ if (false && $approveform && ($adata = $approveform->get_data())) {
     echo $bodyhtml;
     echo $OUTPUT->footer();
     exit;
-} // Close the if ($approveform && ($adata = $approveform->get_data())) block
+} // End of the approve-form submission handling block.
 
 // Generator form: Create and display for standalone page access
-// Check which form is being submitted
-$is_prompt_form = optional_param('_qf__aiplacement_modgen_prompt_form', 0, PARAM_BOOL);
+// Check which form is being submitted.
+$ispromptform = optional_param('_qf__aiplacement_modgen_prompt_form', 0, PARAM_BOOL);
 
-if ($is_prompt_form) {
+if ($ispromptform) {
     require_once($CFG->dirroot . '/ai/placement/modgen/classes/form/prompt_form.php');
     $promptform = new \aiplacement_modgen_prompt_form(null, ['courseid' => $courseid]);
 } else {
@@ -684,7 +696,7 @@ if (!$promptform->is_submitted()) {
 
     echo $OUTPUT->header();
 
-    // Render header template
+    // Render header template.
     $headerdata = [
         'heading' => get_string('launchgenerator', 'aiplacement_modgen'),
         'introduction' => get_string('generatorintroduction', 'aiplacement_modgen'),
@@ -702,152 +714,163 @@ if ($promptform->is_cancelled()) {
 }
 
 if ($pdata = $promptform->get_data()) {
-    // Check if debug button was clicked
+    // Check if debug button was clicked.
     if (!empty($pdata->debugbutton)) {
         $prompt = !empty($pdata->prompt) ? trim($pdata->prompt) : '';
         $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'weekly';
 
-        // Collect selected modules from multiselect
-        $existing_modules = [];
+        // Collect selected modules from multiselect.
+        $existingmodules = [];
         if (!empty($pdata->existing_modules)) {
             if (is_array($pdata->existing_modules)) {
-                $existing_modules = array_map('intval', array_filter($pdata->existing_modules));
+                $existingmodules = array_map('intval', array_filter($pdata->existing_modules));
             } else {
-                $existing_modules = [(int)$pdata->existing_modules];
+                $existingmodules = [(int)$pdata->existing_modules];
             }
         }
-        $existing_modules = array_unique(array_filter($existing_modules));
-        $existing_module = !empty($existing_modules) ? array_shift($existing_modules) : 0; // Primary module
+        $existingmodules = array_unique(array_filter($existingmodules));
+        $existingmodule = !empty($existingmodules) ? array_shift($existingmodules) : 0; // Primary module.
 
-        // Try to extract template data
-        $template_data = null;
-        $template_data_debug = [];
+        // Try to extract template data.
+        $templatedata = null;
+        $templatedatadebug = [];
 
-        if (!empty($existing_module) || !empty($existing_modules)) {
+        if (!empty($existingmodule) || !empty($existingmodules)) {
             try {
-                $template_reader = new \aiplacement_modgen\local\template_reader();
-                $all_templates = [];
+                $templatereader = new \aiplacement_modgen\local\template_reader();
+                $alltemplates = [];
 
-                // Collect modules to extract
-                $modules_to_extract = [];
-                if (!empty($existing_module)) {
-                    $modules_to_extract[] = $existing_module;
+                // Collect modules to extract.
+                $modulestoextract = [];
+                if (!empty($existingmodule)) {
+                    $modulestoextract[] = $existingmodule;
                 }
-                if (!empty($existing_modules)) {
-                    $modules_to_extract = array_merge($modules_to_extract, $existing_modules);
+                if (!empty($existingmodules)) {
+                    $modulestoextract = array_merge($modulestoextract, $existingmodules);
                 }
-                $modules_to_extract = array_unique(array_filter($modules_to_extract));
+                $modulestoextract = array_unique(array_filter($modulestoextract));
 
-                if (!empty($modules_to_extract)) {
-                    $template_data_debug[] = 'Extracting from ' . count($modules_to_extract) . ' module(s)...';
+                if (!empty($modulestoextract)) {
+                    $templatedatadebug[] = 'Extracting from ' . count($modulestoextract) . ' module(s)...';
 
                     global $DB;
 
-                    foreach ($modules_to_extract as $idx => $mod_id) {
-                        $template_data_debug[] = '';
-                        $template_data_debug[] = '=== Module ' . ($idx + 1) . ' (ID: ' . $mod_id . ') ===';
+                    foreach ($modulestoextract as $idx => $modid) {
+                        $templatedatadebug[] = '';
+                        $templatedatadebug[] = '=== Module ' . ($idx + 1) . ' (ID: ' . $modid . ') ===';
 
-                        // Check if course exists
-                        $course_check = $DB->get_record('course', ['id' => (int)$mod_id]);
-                        if (!$course_check) {
-                            $template_data_debug[] = 'ERROR: Course ID ' . $mod_id . ' not found';
+                        // Check if course exists.
+                        $coursecheck = $DB->get_record('course', ['id' => (int)$modid]);
+                        if (!$coursecheck) {
+                            $templatedatadebug[] = 'ERROR: Course ID ' . $modid . ' not found';
                             continue;
                         }
 
-                        $template_data_debug[] = 'Course: ' . $course_check->fullname;
+                        $templatedatadebug[] = 'Course: ' . $coursecheck->fullname;
 
-                        // Check access
-                        $course_context = \context_course::instance((int)$mod_id);
-                        $has_access = has_capability('moodle/course:view', $course_context);
-                        $template_data_debug[] = 'Access: ' . ($has_access ? 'YES' : 'NO');
+                        // Check access.
+                        $coursecontext = \context_course::instance((int)$modid);
+                        $hasaccess = has_capability('moodle/course:view', $coursecontext);
+                        $templatedatadebug[] = 'Access: ' . ($hasaccess ? 'YES' : 'NO');
 
-                        if (!$has_access) {
-                            $template_data_debug[] = 'Skipped - no access';
+                        if (!$hasaccess) {
+                            $templatedatadebug[] = 'Skipped - no access';
                             continue;
                         }
 
                         try {
-                            $extracted = $template_reader->extract_curriculum_template((string)$mod_id);
-                            $template_data_debug[] = 'Extraction: SUCCESS';
-                            $template_data_debug[] = 'Sections: ' . count($extracted['structure'] ?? []);
-                            $template_data_debug[] = 'Activities: ' . count($extracted['activities'] ?? []);
-                            $all_templates[] = $extracted;
-                        } catch (Throwable $extract_error) {
-                            $template_data_debug[] = 'Extraction FAILED: ' . $extract_error->getMessage();
+                            $extracted = $templatereader->extract_curriculum_template((string)$modid);
+                            $templatedatadebug[] = 'Extraction: SUCCESS';
+                            $templatedatadebug[] = 'Sections: ' . count($extracted['structure'] ?? []);
+                            $templatedatadebug[] = 'Activities: ' . count($extracted['activities'] ?? []);
+                            $alltemplates[] = $extracted;
+                        } catch (Throwable $extracterror) {
+                            $templatedatadebug[] = 'Extraction FAILED: ' . $extracterror->getMessage();
 
-                            // Try fallback
+                            // Try fallback.
                             try {
                                 $fallback = [
                                     'course_info' => [
-                                        'name' => $course_check->fullname,
-                                        'format' => $course_check->format,
-                                        'summary' => strip_tags($course_check->summary ?? ''),
+                                        'name' => $coursecheck->fullname,
+                                        'format' => $coursecheck->format,
+                                        'summary' => strip_tags($coursecheck->summary ?? ''),
                                     ],
                                     'structure' => [],
                                     'activities' => [],
                                     'template_html' => '',
                                 ];
-                                $template_data_debug[] = 'Fallback: SUCCESS (course info only)';
-                                $all_templates[] = $fallback;
-                            } catch (Throwable $fallback_error) {
-                                $template_data_debug[] = 'Fallback FAILED: ' . $fallback_error->getMessage();
+                                $templatedatadebug[] = 'Fallback: SUCCESS (course info only)';
+                                $alltemplates[] = $fallback;
+                            } catch (Throwable $fallbackerror) {
+                                $templatedatadebug[] = 'Fallback FAILED: ' . $fallbackerror->getMessage();
                             }
                         }
                     }
 
-                    // Merge all templates
-                    if (!empty($all_templates)) {
-                        $template_data_debug[] = '';
-                        $template_data_debug[] = 'Merging ' . count($all_templates) . ' template(s)...';
-                        $template_data = $all_templates[0];
+                    // Merge all templates.
+                    if (!empty($alltemplates)) {
+                        $templatedatadebug[] = '';
+                        $templatedatadebug[] = 'Merging ' . count($alltemplates) . ' template(s)...';
+                        $templatedata = $alltemplates[0];
 
-                        // Track how many modules are being merged for AI prompt
-                        $template_data['module_count'] = count($all_templates);
+                        // Track how many modules are being merged for AI prompt.
+                        $templatedata['module_count'] = count($alltemplates);
 
-                        if (count($all_templates) > 1) {
-                            for ($i = 1; $i < count($all_templates); $i++) {
-                                $other = $all_templates[$i];
+                        if (count($alltemplates) > 1) {
+                            for ($i = 1; $i < count($alltemplates); $i++) {
+                                $other = $alltemplates[$i];
                                 if (!empty($other['structure'])) {
-                                    $template_data['structure'] = array_merge($template_data['structure'] ?? [], $other['structure']);
+                                    $templatedata['structure'] = array_merge($templatedata['structure'] ?? [], $other['structure']);
                                 }
                                 if (!empty($other['activities'])) {
-                                    $template_data['activities'] = array_merge($template_data['activities'] ?? [], $other['activities']);
+                                    $templatedata['activities'] = array_merge(
+                                        $templatedata['activities'] ?? [],
+                                        $other['activities']
+                                    );
                                 }
                                 if (!empty($other['template_html'])) {
-                                    $template_data['template_html'] .= "\n\n--- Module " . ($i + 1) . " ---\n\n" . $other['template_html'];
+                                    $templatedata['template_html'] .= "\n\n--- Module " . ($i + 1) . " ---\n\n" .
+                                        $other['template_html'];
                                 }
                             }
                         }
-                        $template_data_debug[] = 'Final: ' . count($template_data['structure'] ?? []) . ' sections, ' . count($template_data['activities'] ?? []) . ' activities';
+                        $templatedatadebug[] = 'Final: ' . count($templatedata['structure'] ?? []) . ' sections, ' .
+                            count($templatedata['activities'] ?? []) . ' activities';
                     }
                 }
             } catch (Exception $e) {
-                $template_data_debug[] = 'ERROR: ' . $e->getMessage();
-                $template_data = null;
+                $templatedatadebug[] = 'ERROR: ' . $e->getMessage();
+                $templatedata = null;
             }
         } else {
-            $template_data_debug[] = 'No template source selected';
+            $templatedatadebug[] = 'No template source selected';
         }
 
-        // Display the debug output
+        // Display the debug output.
         $html = html_writer::tag('h3', 'DEBUG: Template Data Extraction', ['class' => 'mt-3']);
-        $html .= html_writer::tag('pre', implode("\n", $template_data_debug), [
-            'style' => 'background: #f5f5f5; padding: 15px; border-radius: 3px; font-size: 0.85em; overflow-x: auto; border: 1px solid #ddd;',
+        $html .= html_writer::tag('pre', implode("\n", $templatedatadebug), [
+            'style' => 'background: #f5f5f5; padding: 15px; border-radius: 3px; font-size: 0.85em; ' .
+                'overflow-x: auto; border: 1px solid #ddd;',
         ]);
 
-        if ($template_data) {
+        if ($templatedata) {
             $html .= html_writer::tag('h4', 'Full Template Data (JSON)', ['class' => 'mt-3']);
-            $html .= html_writer::tag('pre', json_encode($template_data, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), [
-                'style' => 'background: #f5f5f5; padding: 15px; border-radius: 3px; font-size: 0.75em; overflow-x: auto; border: 1px solid #ddd; max-height: 600px; overflow-y: auto;',
+            $html .= html_writer::tag('pre', json_encode($templatedata, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), [
+                'style' => 'background: #f5f5f5; padding: 15px; border-radius: 3px; font-size: 0.75em; ' .
+                    'overflow-x: auto; border: 1px solid #ddd; max-height: 600px; overflow-y: auto;',
             ]);
 
-            // Show the compact structure that gets sent to the AI
+            // Show the compact structure that gets sent to the AI.
             $html .= html_writer::tag('h4', 'Compact Structure for AI (What the AI Actually Receives)', ['class' => 'mt-3']);
-            $html .= html_writer::tag('p', 'This is the optimized structure that gets included in the AI prompt:', ['class' => 'text-muted']);
+            $html .= html_writer::tag(
+                'p',
+                'This is the optimized structure that gets included in the AI prompt:',
+                ['class' => 'text-muted']
+            );
 
-            // Create the compact structure inline to avoid namespace issues
-            $compact_structure = [
-                'source' => !empty($template_data['module_count']) && $template_data['module_count'] > 1
+            // Create the compact structure inline to avoid namespace issues.
+            $compactstructure = [
+                'source' => !empty($templatedata['module_count']) && $templatedata['module_count'] > 1
                     ? 'multiple_modules'
                     : 'single_module',
                 'organizational_pattern' => [
@@ -858,85 +881,86 @@ if ($pdata = $promptform->get_data()) {
                 'sections' => [],
             ];
 
-            // Extract organizational pattern
-            if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
-                $label_sequence = [];
-                $activity_types = [];
-                $section_counts = [];
+            // Extract organizational pattern.
+            if (!empty($templatedata['activities']) && is_array($templatedata['activities'])) {
+                $labelsequence = [];
+                $activitytypes = [];
+                $sectioncounts = [];
 
-                foreach ($template_data['activities'] as $activity) {
+                foreach ($templatedata['activities'] as $activity) {
                     $type = $activity['type'] ?? 'unknown';
                     $section = $activity['section'] ?? 'unknown';
 
-                    if (!isset($section_counts[$section])) {
-                        $section_counts[$section] = 0;
+                    if (!isset($sectioncounts[$section])) {
+                        $sectioncounts[$section] = 0;
                     }
-                    $section_counts[$section]++;
+                    $sectioncounts[$section]++;
 
                     if ($type === 'label' && !empty($activity['intro'])) {
-                        if (!in_array($activity['intro'], $label_sequence)) {
-                            $label_sequence[] = $activity['intro'];
+                        if (!in_array($activity['intro'], $labelsequence)) {
+                            $labelsequence[] = $activity['intro'];
                         }
                     }
 
-                    if (!in_array($type, $activity_types)) {
-                        $activity_types[] = $type;
+                    if (!in_array($type, $activitytypes)) {
+                        $activitytypes[] = $type;
                     }
                 }
 
-                $compact_structure['organizational_pattern']['label_sequence'] = $label_sequence;
-                $compact_structure['organizational_pattern']['activity_types_used'] = $activity_types;
+                $compactstructure['organizational_pattern']['label_sequence'] = $labelsequence;
+                $compactstructure['organizational_pattern']['activity_types_used'] = $activitytypes;
 
-                if (!empty($section_counts)) {
-                    $compact_structure['organizational_pattern']['typical_activities_per_section'] =
-                        (int) round(array_sum($section_counts) / count($section_counts));
+                if (!empty($sectioncounts)) {
+                    $compactstructure['organizational_pattern']['typical_activities_per_section'] =
+                        (int) round(array_sum($sectioncounts) / count($sectioncounts));
                 }
             }
 
-            // Process sections
-            if (!empty($template_data['structure']) && is_array($template_data['structure'])) {
-                foreach ($template_data['structure'] as $section) {
-                    $section_data = [
+            // Process sections.
+            if (!empty($templatedata['structure']) && is_array($templatedata['structure'])) {
+                foreach ($templatedata['structure'] as $section) {
+                    $sectiondata = [
                         'number' => $section['id'] ?? 0,
                         'title' => $section['name'] ?? 'Untitled',
                         'content' => [],
                     ];
 
                     if (!empty($section['summary'])) {
-                        $section_data['summary'] = substr($section['summary'], 0, 200);
+                        $sectiondata['summary'] = substr($section['summary'], 0, 200);
                     }
 
-                    // Add activities for this section
-                    if (!empty($template_data['activities']) && is_array($template_data['activities'])) {
-                        foreach ($template_data['activities'] as $activity) {
-                            if (isset($activity['section']) && $activity['section'] === $section_data['title']) {
-                                $activity_item = ['type' => $activity['type'] ?? 'unknown'];
+                    // Add activities for this section.
+                    if (!empty($templatedata['activities']) && is_array($templatedata['activities'])) {
+                        foreach ($templatedata['activities'] as $activity) {
+                            if (isset($activity['section']) && $activity['section'] === $sectiondata['title']) {
+                                $activityitem = ['type' => $activity['type'] ?? 'unknown'];
 
                                 if ($activity['type'] === 'label' && !empty($activity['intro'])) {
-                                    $activity_item['text'] = $activity['intro'];
+                                    $activityitem['text'] = $activity['intro'];
                                 } else {
-                                    $activity_item['name'] = $activity['name'] ?? 'Untitled';
+                                    $activityitem['name'] = $activity['name'] ?? 'Untitled';
                                 }
 
-                                $section_data['content'][] = $activity_item;
+                                $sectiondata['content'][] = $activityitem;
                             }
                         }
                     }
 
-                    $compact_structure['sections'][] = $section_data;
+                    $compactstructure['sections'][] = $sectiondata;
                 }
             }
 
-            $html .= html_writer::tag('pre', json_encode($compact_structure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), [
-                'style' => 'background: #e8f5e9; padding: 15px; border-radius: 3px; font-size: 0.75em; overflow-x: auto; border: 2px solid #4caf50; max-height: 600px; overflow-y: auto;',
+            $html .= html_writer::tag('pre', json_encode($compactstructure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES), [
+                'style' => 'background: #e8f5e9; padding: 15px; border-radius: 3px; font-size: 0.75em; ' .
+                    'overflow-x: auto; border: 2px solid #4caf50; max-height: 600px; overflow-y: auto;',
             ]);
 
-            // Token estimate
-            $compact_json = json_encode($compact_structure);
-            $estimated_tokens = (int)(strlen($compact_json) / 4);
+            // Token estimate.
+            $compactjson = json_encode($compactstructure);
+            $estimatedtokens = (int)(strlen($compactjson) / 4);
             $html .= html_writer::tag(
                 'p',
-                "Estimated tokens: ~{$estimated_tokens} (compact) vs ~" . (int)(strlen(json_encode($template_data)) / 4) . " (full)",
+                "Estimated tokens: ~{$estimatedtokens} (compact) vs ~" . (int)(strlen(json_encode($templatedata)) / 4) . " (full)",
                 ['class' => 'text-muted mt-2']
             );
         }
@@ -957,98 +981,104 @@ if ($pdata = $promptform->get_data()) {
     $prompt = !empty($pdata->prompt) ? trim($pdata->prompt) : '';
     $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'connected_weekly';
 
-    // Check for any AI-based content options
+    // Check for any AI-based content options.
     $expandonthemes = !empty($pdata->expandonthemes);
 
-    // New simplified checkbox - if checked, generate all example content
+    // New simplified checkbox - if checked, generate all example content.
     $generateexamplecontent = !empty($pdata->generateexamplecontent);
     $generatethemeintroductions = $generateexamplecontent;
     $createsuggestedactivities = $generateexamplecontent;
     $generatesessioninstructions = $generateexamplecontent;
 
-    // Check if user wants to hide existing sections and place new content at top
+    // Check if user wants to hide existing sections and place new content at top.
     $hideexistingsections = !empty($pdata->hideexistingsections);
     // Check if user wants the learningactivity "section summary" placeholders.
     $createsummaryactivities = !empty($pdata->createsummaryactivities);
 
-    // For connected layouts, ALWAYS generate the sessions structure, but respect activity creation preference
+    // For connected layouts, ALWAYS generate the sessions structure, but respect activity creation preference.
     $includesessions = $generatesessioninstructions || ($moduletype === 'connected_weekly' || $moduletype === 'connected_theme');
     $includeactivities = $createsuggestedactivities;
 
-    // Collect all selected existing modules from multiselect
-    $existing_modules = [];
+    // Collect all selected existing modules from multiselect.
+    $existingmodules = [];
     if (!empty($pdata->existing_modules)) {
         if (is_array($pdata->existing_modules)) {
-            $existing_modules = array_map('intval', array_filter($pdata->existing_modules));
+            $existingmodules = array_map('intval', array_filter($pdata->existing_modules));
         } else {
-            $existing_modules = [(int)$pdata->existing_modules];
+            $existingmodules = [(int)$pdata->existing_modules];
         }
     }
-    $existing_modules = array_unique(array_filter($existing_modules));
-    $existing_module = !empty($existing_modules) ? array_shift($existing_modules) : 0; // Primary module
+    $existingmodules = array_unique(array_filter($existingmodules));
+    $existingmodule = !empty($existingmodules) ? array_shift($existingmodules) : 0; // Primary module.
 
     $typeinstruction = get_string('moduletypeinstruction_' . $moduletype, 'aiplacement_modgen');
 
     // Build composite prompt - combine user prompt with type instruction
-    // If existing module(s) are selected, tell the AI to use them as a guide
+    // If existing module(s) are selected, tell the AI to use them as a guide.
     if (!empty($prompt)) {
-        if (!empty($existing_module)) {
-            // User provided both a prompt AND selected module(s) - use both
-            $modulecount = count($existing_modules) + 1; // +1 for the primary module
+        if (!empty($existingmodule)) {
+            // User provided both a prompt AND selected module(s) - use both.
+            $modulecount = count($existingmodules) + 1; // Extra 1 accounts for the primary module.
             if ($modulecount > 1) {
-                // Multiple modules: ALL content must be included
+                // Multiple modules: ALL content must be included.
                 $multipleinstruction = "You will receive content from $modulecount existing courses. " .
                     "Include ALL subject matter from every course - adapt and combine to fit the prompt, but use all content.";
             } else {
-                // Single module: use as template and adapt
+                // Single module: use as template and adapt.
                 $multipleinstruction = "You will receive content from an existing course as a reference. " .
                     "Use it as a template, adapting based on the prompt above.";
             }
 
             $compositeprompt = trim($prompt . "\n\n" . $multipleinstruction . "\n\n" . $typeinstruction);
         } else {
-            // User provided a prompt but no module selection
+            // User provided a prompt but no module selection.
             $compositeprompt = trim($prompt . "\n\n" . $typeinstruction);
         }
     } else {
-        // No user prompt provided
-        if (!empty($existing_module)) {
-            // If existing module(s) selected but no prompt, ask AI to translate/adapt them
-            $modulecount = count($existing_modules) + 1;
+        // No user prompt provided.
+        if (!empty($existingmodule)) {
+            // If existing module(s) selected but no prompt, ask AI to translate/adapt them.
+            $modulecount = count($existingmodules) + 1;
             if ($modulecount > 1) {
-                // Multiple modules: merge all into single cohesive structure
+                // Multiple modules: merge all into single cohesive structure.
                 $multipleinstruction = "Merge content from $modulecount existing courses into a single module. " .
                     "Include ALL subject matter from every course.";
             } else {
-                // Single module: translate/adapt
+                // Single module: translate/adapt.
                 $multipleinstruction = "Translate the existing module";
             }
 
             $compositeprompt = trim($multipleinstruction . " following this format:\n\n" . $typeinstruction);
         } else {
-            // No prompt and no existing module - just use type instruction
+            // No prompt and no existing module - just use type instruction.
             $compositeprompt = trim($typeinstruction);
         }
     }
 
-    // Add theme introductions instruction if enabled and using connected_theme
+    // Add theme introductions instruction if enabled and using connected_theme.
     if ($generatethemeintroductions && $moduletype === 'connected_theme') {
-        $compositeprompt .= "\n\nIMPORTANT: For each theme in the themes array, generate a 2-3 sentence introductory paragraph for students. This paragraph should be placed in the 'summary' field of each theme object. The summary should introduce the theme content to students, explaining what they will learn or explore in that themed section.";
+        $compositeprompt .= "\n\nIMPORTANT: For each theme in the themes array, generate a 2-3 sentence introductory " .
+            "paragraph for students. This paragraph should be placed in the 'summary' field of each theme object. " .
+            "The summary should introduce the theme content to students, explaining what they will learn or " .
+            "explore in that themed section.";
     } else if ($moduletype === 'connected_theme') {
-        // If connected_theme format but NOT generating introductions, tell AI to leave theme summaries empty
-        $compositeprompt .= "\n\nIMPORTANT: Do NOT generate summaries for themes. Leave the 'summary' field EMPTY for each theme object (empty string, not null). Only provide theme titles and the weeks array. This keeps the theme sections as containers without descriptive text.";
+        // If connected_theme format but NOT generating introductions, tell AI to leave theme summaries empty.
+        $compositeprompt .= "\n\nIMPORTANT: Do NOT generate summaries for themes. Leave the 'summary' field EMPTY " .
+            "for each theme object (empty string, not null). Only provide theme titles and the weeks array. " .
+            "This keeps the theme sections as containers without descriptive text.";
     }
 
-    // Add activity guidance instruction if activities are being created
+    // Add activity guidance instruction if activities are being created.
     if ($createsuggestedactivities) {
         $activityguidance = get_string('activityguidanceinstructions', 'aiplacement_modgen');
         $compositeprompt .= "\n\n" . $activityguidance;
     }
 
-    // Add session instructions directive if enabled
+    // Add session instructions directive if enabled.
     if ($generatesessioninstructions) {
         $compositeprompt .= "\n\nSESSION INSTRUCTIONS - DETAILED STUDENT GUIDANCE:\n" .
-            "For each session subsection (pre-session, session, post-session), create a 'description' field (5-8 sentences minimum, 150-250 words) with student-facing guidance.\n\n" .
+            "For each session subsection (pre-session, session, post-session), create a 'description' field " .
+            "(5-8 sentences minimum, 150-250 words) with student-facing guidance.\n\n" .
             "STRUCTURE:\n" .
             "A. LEARNING CONTEXT (1-2 sentences): What is the phase goal and learning level?\n" .
             "B. ACTIVITY GUIDANCE (3-4 sentences per activity):\n" .
@@ -1073,10 +1103,10 @@ if ($pdata = $promptform->get_data()) {
             "- POST-PHASE: Reflection, consolidation, application";
     }
 
-    // Extract and include file contents in the prompt if files are provided
+    // Extract and include file contents in the prompt if files are provided.
     $filecontent = '';
     if (!empty($uploadform) && ($filedata = $uploadform->get_data())) {
-        // Get file manager data
+        // Get file manager data.
         $usercontext = context_user::instance($USER->id);
         $files = $filedata->supportingfiles_filemanager ?? $filedata->supportingfiles ?? 0;
 
@@ -1089,7 +1119,7 @@ if ($pdata = $promptform->get_data()) {
                 $filecontent = "UPLOADED FILE STRUCTURE:\n\n";
                 foreach ($storedfiles as $file) {
                     if ($file->is_valid_image()) {
-                        continue; // Skip images
+                        continue; // Skip images.
                     }
                     $content = $file->get_content();
                     $filecontent .= "File: {$file->get_filename()}\n";
@@ -1105,7 +1135,7 @@ if ($pdata = $promptform->get_data()) {
         $compositeprompt .= "\n\n" . $filecontent;
     }
 
-    // Gather supporting files using the file processor service
+    // Gather supporting files using the file processor service.
     $supportingfiles = [];
     $fileprocessor = new \aiplacement_modgen\local\file_processor_service();
 
@@ -1115,16 +1145,17 @@ if ($pdata = $promptform->get_data()) {
         $supportingfiles = $fileprocessor->process_draft_files($draftitemid, $usercontext->id);
     }
 
-    // If files were actually uploaded but no user prompt, add auto-instruction to use the file
+    // If files were actually uploaded but no user prompt, add auto-instruction to use the file.
     if (!empty($supportingfiles) && empty($prompt)) {
-        $compositeprompt .= "\n\nUser has uploaded file(s) without providing a text prompt. Please use the uploaded file content to create the module structure and content.";
+        $compositeprompt .= "\n\nUser has uploaded file(s) without providing a text prompt. " .
+            "Please use the uploaded file content to create the module structure and content.";
     }
 
-    // Generate module using template processing service
-    $template_processor = new \aiplacement_modgen\local\template_processing_service();
+    // Generate module using template processing service.
+    $templateprocessor = new \aiplacement_modgen\local\template_processing_service();
 
     try {
-        $json = $template_processor->process_and_generate(
+        $json = $templateprocessor->process_and_generate(
             $pdata,
             $courseid,
             $compositeprompt,
@@ -1133,13 +1164,13 @@ if ($pdata = $promptform->get_data()) {
             $includesessions
         );
 
-        // Check if the service returned a detected module type (from CSV auto-detection)
+        // Check if the service returned a detected module type (from CSV auto-detection).
         if (!empty($json['_detected_moduletype'])) {
             $moduletype = $json['_detected_moduletype'];
-            unset($json['_detected_moduletype']); // Remove internal flag
+            unset($json['_detected_moduletype']); // Remove internal flag.
         }
 
-        // Debug: Check what was returned
+        // Debug: Check what was returned.
         if (empty($json)) {
             throw new Exception('Template processor returned empty result');
         }
@@ -1167,21 +1198,31 @@ if ($pdata = $promptform->get_data()) {
         exit;
     }
 
-    // Check if the AI response contains validation errors
+    // Check if the AI response contains validation errors.
     if (empty($json)) {
         $debuginfo = '';
         if (!empty($debuglog)) {
             $debuginfo = html_writer::div(
                 html_writer::tag('h5', 'Debug Information') .
-                html_writer::tag('pre', implode("\n", $debuglog), ['style' => 'background:#f5f5f5; padding: 10px; border-radius: 3px; font-size: 0.85em; overflow-x: auto;']),
+                html_writer::tag(
+                    'pre',
+                    implode("\n", $debuglog),
+                    ['style' => 'background:#f5f5f5; padding: 10px; border-radius: 3px; font-size: 0.85em; overflow-x: auto;']
+                ),
                 'alert alert-info mt-3'
             );
         }
 
         $errorhtml = html_writer::div(
             html_writer::tag('h4', 'AI Error', ['class' => 'text-danger']) .
-            html_writer::div('The AI service returned no response. The API may be unavailable or returned an error. Please check the system logs and try again.', 'alert alert-danger') .
-            (isset($json['template']) ? html_writer::div('Details: ' . $json['template'], 'alert alert-warning') : '') .
+            html_writer::div(
+                'The AI service returned no response. The API may be unavailable or returned an error. ' .
+                    'Please check the system logs and try again.',
+                'alert alert-danger'
+            ) .
+            (isset($json['template'])
+                ? html_writer::div('Details: ' . $json['template'], 'alert alert-warning')
+                : '') .
             $debuginfo,
             'aiplacement-modgen__validation-error'
         );
@@ -1204,7 +1245,11 @@ if ($pdata = $promptform->get_data()) {
         if (!empty($debuglog)) {
             $debuginfo = html_writer::div(
                 html_writer::tag('h5', 'Debug Information') .
-                html_writer::tag('pre', implode("\n", $debuglog), ['style' => 'background:#f5f5f5; padding: 10px; border-radius: 3px; font-size: 0.85em; overflow-x: auto;']),
+                html_writer::tag(
+                    'pre',
+                    implode("\n", $debuglog),
+                    ['style' => 'background:#f5f5f5; padding: 10px; border-radius: 3px; font-size: 0.85em; overflow-x: auto;']
+                ),
                 'alert alert-info mt-3'
             );
         }
@@ -1230,7 +1275,7 @@ if ($pdata = $promptform->get_data()) {
     }
 
     if (!empty($json['validation_error'])) {
-        // AI returned malformed structure - show error and don't allow approval
+        // AI returned malformed structure - show error and don't allow approval.
         $errorhtml = html_writer::div(
             html_writer::tag('h4', get_string('generationfailed', 'aiplacement_modgen'), ['class' => 'text-danger']) .
             html_writer::div($json['validation_error'], 'alert alert-danger') .
@@ -1254,10 +1299,8 @@ if ($pdata = $promptform->get_data()) {
     // Get the final prompt sent to AI for debugging (returned by ai_service).
     $debugprompt = isset($json['debugprompt']) ? $json['debugprompt'] : $prompt;
     $jsonstr = json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
-    if ($jsonstr === false) {
-    }
     // For fresh generation (start from scratch), skip re-encoding module data for summary
-    // Just use a simple generated fallback summary instead
+    // Just use a simple generated fallback summary instead.
     $summarytext = aiplacement_modgen_generate_fallback_summary($json, $moduletype);
     $summaryformatted = $summarytext !== '' ? nl2br(s($summarytext)) : '';
 
@@ -1287,7 +1330,7 @@ if ($pdata = $promptform->get_data()) {
     $approveform->display();
     $formhtml = ob_get_clean();
 
-    // Add regenerate button functionality if AI is enabled
+    // Add regenerate button functionality if AI is enabled.
     if (get_config('aiplacement_modgen', 'enable_ai')) {
         $formhtml .= html_writer::script("
             document.addEventListener('DOMContentLoaded', function() {
@@ -1302,9 +1345,9 @@ if ($pdata = $promptform->get_data()) {
         ");
     }
 
-    // Build module preview from the generated JSON
+    // Build module preview from the generated JSON.
     $modulepreview = aiplacement_modgen_build_module_preview($json, $moduletype);
-    // Ensure modulepreview is always included (will be truthy if it has themes or weeks)
+    // Ensure modulepreview is always included (will be truthy if it has themes or weeks).
     $modulepreview['showmodulepreview'] = !empty($modulepreview['hasthemes']) || !empty($modulepreview['hasweeks']);
 
     $previewdata = [
@@ -1330,7 +1373,7 @@ if ($pdata = $promptform->get_data()) {
     $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/prompt_preview', $previewdata);
     $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
 
-    // Define footer buttons for the preview step - server-driven approach
+    // Define footer buttons for the preview step - server-driven approach.
     if ($ajax) {
         $buttons = [];
         if (get_config('aiplacement_modgen', 'enable_ai')) {
@@ -1354,13 +1397,13 @@ if ($pdata = $promptform->get_data()) {
         exit;
     }
 
-    // For non-AJAX, use the normal response with form buttons
+    // For non-AJAX, use the normal response with form buttons.
     $footeractions = [];
     aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
     exit;
 }
 
-// If form validation failed, redisplay the form with errors
+// If form validation failed, redisplay the form with errors.
 if ($promptform->is_submitted()) {
     $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid]));
     $PAGE->set_title(get_string('modgenmodalheading', 'aiplacement_modgen'));
@@ -1368,7 +1411,7 @@ if ($promptform->is_submitted()) {
 
     echo $OUTPUT->header();
 
-    // Render header template
+    // Render header template.
     $headerdata = [
         'heading' => get_string('launchgenerator', 'aiplacement_modgen'),
         'introduction' => get_string('generatorintroduction', 'aiplacement_modgen'),
@@ -1382,5 +1425,5 @@ if ($promptform->is_submitted()) {
 }
 
 // If we reach here, something went wrong (form wasn't submitted and wasn't displaying)
-// This shouldn't happen in normal flow
+// This shouldn't happen in normal flow.
 throw new moodle_exception('errorunexpected', 'aiplacement_modgen');

@@ -21,14 +21,11 @@
  * suitable for template rendering. Handles both theme and weekly formats.
  *
  * @package     aiplacement_modgen
- * @category    local
  * @copyright   2025 Tom Cripps <tom.cripps@port.ac.uk>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 namespace aiplacement_modgen\local;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Generate structured preview data from AI module JSON.
@@ -50,7 +47,7 @@ class preview_generator {
             'weeks' => [],
         ];
 
-        // Determine if this is a theme-based format
+        // Determine if this is a theme-based format.
         $isthemeformat = strpos($structure, 'theme') !== false;
 
         if ($isthemeformat) {
@@ -153,11 +150,11 @@ class preview_generator {
             'hassessions' => false,
         ];
 
-        // Try to build sessions (for connected_theme/connected_weekly)
-        $hasSessions = self::build_sessions($weekdata, $weekitem);
+        // Try to build sessions (for connected_theme/connected_weekly).
+        $hassessions = self::build_sessions($weekdata, $weekitem);
 
-        // If no sessions, try to use outline format
-        if (!$hasSessions && !empty($weekdata['outline']) && is_array($weekdata['outline'])) {
+        // If no sessions, try to use outline format.
+        if (!$hassessions && !empty($weekdata['outline']) && is_array($weekdata['outline'])) {
             foreach ($weekdata['outline'] as $activity) {
                 if (is_string($activity) && trim($activity) !== '') {
                     $weekitem['activities'][] = [
@@ -169,7 +166,7 @@ class preview_generator {
             }
         }
 
-        // Mark if we have any activities or sessions
+        // Mark if we have any activities or sessions.
         if (!empty($weekitem['activities'])) {
             $weekitem['hasactivities'] = true;
         }
@@ -194,40 +191,40 @@ class preview_generator {
      * @return bool True if sessions were found and built, false otherwise.
      */
     private static function build_sessions(array $weekdata, array &$weekitem): bool {
-        // Check for sessions structure
-        $sessionsData = $weekdata['sessions'] ?? [
+        // Check for sessions structure.
+        $sessionsdata = $weekdata['sessions'] ?? [
             'presession' => $weekdata['presession'] ?? [],
             'session' => $weekdata['session'] ?? [],
             'postsession' => $weekdata['postsession'] ?? [],
         ];
 
         // Don't filter out empty sessions yet - we want to show them even if they have no activities
-        // Just check if we have the sessions object at all
-        if (empty($sessionsData) && !isset($weekdata['sessions'])) {
+        // Just check if we have the sessions object at all.
+        if (empty($sessionsdata) && !isset($weekdata['sessions'])) {
             return false;
         }
 
-        $sessionLabels = [
+        $sessionlabels = [
             'presession' => 'Pre-session',
             'session' => 'Session',
             'postsession' => 'Post-session',
         ];
-        $orderedSessionTypes = ['presession', 'session', 'postsession'];
+        $orderedsessiontypes = ['presession', 'session', 'postsession'];
 
-        foreach ($orderedSessionTypes as $sessiontype) {
-            if (!isset($sessionsData[$sessiontype])) {
+        foreach ($orderedsessiontypes as $sessiontype) {
+            if (!isset($sessionsdata[$sessiontype])) {
                 continue;
             }
 
-            $sessiondata = $sessionsData[$sessiontype];
+            $sessiondata = $sessionsdata[$sessiontype];
 
-            // Extract activities from this session
+            // Extract activities from this session.
             $activities = self::extract_activities_from_session($sessiondata);
 
-            // Add session even if it has no activities (it might have a description or be a placeholder)
+            // Add session even if it has no activities (it might have a description or be a placeholder).
             $weekitem['sessions'][] = [
                 'type' => $sessiontype,
-                'label' => $sessionLabels[$sessiontype] ?? $sessiontype,
+                'label' => $sessionlabels[$sessiontype] ?? $sessiontype,
                 'activities' => $activities,
             ];
         }
@@ -252,20 +249,20 @@ class preview_generator {
             return $activities;
         }
 
-        // Check if activities are nested in an 'activities' key
-        $activityList = [];
+        // Check if activities are nested in an 'activities' key.
+        $activitylist = [];
         if (isset($sessiondata['activities']) && is_array($sessiondata['activities'])) {
-            $activityList = $sessiondata['activities'];
+            $activitylist = $sessiondata['activities'];
         }
 
         // If no activities key found, try to treat the sessiondata itself as an array of activities
-        // (but skip this if the data has description or other metadata keys)
-        if (empty($activityList) && !isset($sessiondata['activities']) && !isset($sessiondata['description'])) {
-            $activityList = $sessiondata;
+        // (but skip this if the data has description or other metadata keys).
+        if (empty($activitylist) && !isset($sessiondata['activities']) && !isset($sessiondata['description'])) {
+            $activitylist = $sessiondata;
         }
 
-        // Process each activity
-        foreach ($activityList as $activity) {
+        // Process each activity.
+        foreach ($activitylist as $activity) {
             if (!is_array($activity)) {
                 continue;
             }

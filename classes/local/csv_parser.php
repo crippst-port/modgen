@@ -18,14 +18,11 @@
  * CSV parser for direct module structure creation without AI.
  *
  * @package     aiplacement_modgen
- * @category    local
  * @copyright   2025 Tom Cripps <tom.cripps@port.ac.uk>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 namespace aiplacement_modgen\local;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * CSV parser for creating module structures from uploaded CSV files.
@@ -48,36 +45,36 @@ class csv_parser {
         $content = self::get_content($file);
 
         if (empty($content)) {
-            // Default to weekly if file is empty
+            // Default to weekly if file is empty.
             return 'connected_weekly';
         }
 
-        // Parse CSV content
+        // Parse CSV content.
         $lines = explode("\n", $content);
 
-        // Scan for "Theme:" labels (case-insensitive)
+        // Scan for "Theme:" labels (case-insensitive).
         foreach ($lines as $line) {
             $line = trim($line);
 
-            // Skip empty lines
+            // Skip empty lines.
             if (empty($line) || $line === ',') {
                 continue;
             }
 
-            // Parse the line
+            // Parse the line.
             $parts = str_getcsv($line);
 
             if (count($parts) >= 1) {
                 $label = trim($parts[0]);
 
-                // Check if this line contains a theme label
+                // Check if this line contains a theme label.
                 if (stripos($label, 'Theme') === 0) {
                     return 'connected_theme';
                 }
             }
         }
 
-        // No themes found, default to weekly structure
+        // No themes found, default to weekly structure.
         return 'connected_weekly';
     }
 
@@ -109,23 +106,23 @@ class csv_parser {
             throw new \Exception('CSV file is empty');
         }
 
-        // Parse CSV content
+        // Parse CSV content.
         $lines = explode("\n", $content);
 
         if (empty($lines)) {
             throw new \Exception('No data found in CSV file');
         }
 
-        // Normalize module type
-        $normalized_type = self::normalize_module_type($moduletype);
+        // Normalize module type.
+        $normalizedtype = self::normalize_module_type($moduletype);
 
-        if ($normalized_type === 'theme') {
+        if ($normalizedtype === 'theme') {
             $structure = self::parse_simple_theme_structure($lines);
         } else {
             $structure = self::parse_simple_weekly_structure($lines);
         }
 
-        // Validate section count against max limit
+        // Validate section count against max limit.
         $maxsections = (int)get_config('aiplacement_modgen', 'maxcsvsections') ?: 50;
 
         if ($maxsections > 0) {
@@ -208,12 +205,12 @@ class csv_parser {
      */
     private static function parse_simple_theme_structure(array $lines): array {
         $themes = [];
-        $current_theme = null;
-        $current_week = null;
-        $module_title = '';
-        $last_item_type = ''; // Track what was just added (theme/week)
+        $currenttheme = null;
+        $currentweek = null;
+        $moduletitle = '';
+        $lastitemtype = ''; // Track what was just added (theme/week).
 
-        // Strip BOM from the first line if present
+        // Strip BOM from the first line if present.
         if (isset($lines[0])) {
             $lines[0] = preg_replace('/^\xEF\xBB\xBF/', '', $lines[0]);
         }
@@ -221,12 +218,12 @@ class csv_parser {
         foreach ($lines as $line) {
             $line = trim($line);
 
-            // Skip empty lines
+            // Skip empty lines.
             if (empty($line) || $line === ',') {
                 continue;
             }
 
-            // Parse the line
+            // Parse the line.
             $parts = str_getcsv($line);
 
             if (count($parts) < 2) {
@@ -240,34 +237,34 @@ class csv_parser {
                 continue;
             }
 
-            // Process based on label
+            // Process based on label.
             if (stripos($label, 'Title') === 0) {
-                $module_title = $value;
-                $last_item_type = 'title';
+                $moduletitle = $value;
+                $lastitemtype = 'title';
             } else if (stripos($label, 'Description') === 0) {
-                // Add description to the most recently added item
-                if ($last_item_type === 'week' && $current_theme !== null) {
-                    $week_count = count($current_theme['weeks']);
-                    if ($week_count > 0) {
-                        $current_theme['weeks'][$week_count - 1]['summary'] = $value;
+                // Add description to the most recently added item.
+                if ($lastitemtype === 'week' && $currenttheme !== null) {
+                    $weekcount = count($currenttheme['weeks']);
+                    if ($weekcount > 0) {
+                        $currenttheme['weeks'][$weekcount - 1]['summary'] = $value;
                     }
-                } else if ($last_item_type === 'theme' && $current_theme !== null) {
-                    $current_theme['summary'] = $value;
+                } else if ($lastitemtype === 'theme' && $currenttheme !== null) {
+                    $currenttheme['summary'] = $value;
                 }
             } else if (stripos($label, 'Theme') === 0) {
-                // Start a new theme - save the previous one first
-                if ($current_theme !== null) {
-                    $themes[] = $current_theme;
+                // Start a new theme - save the previous one first.
+                if ($currenttheme !== null) {
+                    $themes[] = $currenttheme;
                 }
-                $current_theme = [
+                $currenttheme = [
                     'title' => $value,
                     'summary' => '',
                     'weeks' => [],
                 ];
-                $current_week = null;
-                $last_item_type = 'theme';
-            } else if (stripos($label, 'Week') === 0 && $current_theme !== null) {
-                // Add week to current theme
+                $currentweek = null;
+                $lastitemtype = 'theme';
+            } else if (stripos($label, 'Week') === 0 && $currenttheme !== null) {
+                // Add week to current theme.
                 $week = [
                     'title' => $value,
                     'summary' => '',
@@ -318,16 +315,16 @@ class csv_parser {
                         ],
                     ],
                 ];
-                $current_theme['weeks'][] = $week;
-                // Mark that we just added a week (for description tracking)
-                $current_week = true; // Just a flag, not a reference
-                $last_item_type = 'week';
+                $currenttheme['weeks'][] = $week;
+                // Mark that we just added a week (for description tracking).
+                $currentweek = true; // Just a flag, not a reference.
+                $lastitemtype = 'week';
             }
         }
 
-        // Add the last theme
-        if ($current_theme !== null) {
-            $themes[] = $current_theme;
+        // Add the last theme.
+        if ($currenttheme !== null) {
+            $themes[] = $currenttheme;
         }
 
         return ['themes' => $themes];
@@ -344,19 +341,19 @@ class csv_parser {
      */
     private static function parse_simple_weekly_structure(array $lines): array {
         $sections = [];
-        $current_section = null;
-        $module_title = '';
-        $last_item_type = ''; // Track what was just added
+        $currentsection = null;
+        $moduletitle = '';
+        $lastitemtype = ''; // Track what was just added.
 
         foreach ($lines as $line) {
             $line = trim($line);
 
-            // Skip empty lines
+            // Skip empty lines.
             if (empty($line) || $line === ',') {
                 continue;
             }
 
-            // Parse the line
+            // Parse the line.
             $parts = str_getcsv($line);
 
             if (count($parts) < 2) {
@@ -370,17 +367,17 @@ class csv_parser {
                 continue;
             }
 
-            // Process based on label
+            // Process based on label.
             if (stripos($label, 'Title') === 0) {
-                $module_title = $value;
-                $last_item_type = 'title';
+                $moduletitle = $value;
+                $lastitemtype = 'title';
             } else if (stripos($label, 'Description') === 0) {
-                // Add description to the most recently added section/week
-                if ($last_item_type === 'week' && $current_section !== null) {
-                    $current_section['summary'] = $value;
+                // Add description to the most recently added section/week.
+                if ($lastitemtype === 'week' && $currentsection !== null) {
+                    $currentsection['summary'] = $value;
                 }
             } else if (stripos($label, 'Week') === 0 || stripos($label, 'Section') === 0) {
-                // Add week/section
+                // Add week/section.
                 $section = [
                     'title' => $value,
                     'summary' => '',
@@ -435,9 +432,9 @@ class csv_parser {
                     ],
                 ];
                 $sections[] = $section;
-                // Store reference to last section for description updates
-                $current_section = &$sections[count($sections) - 1];
-                $last_item_type = 'week';
+                // Store reference to last section for description updates.
+                $currentsection = &$sections[count($sections) - 1];
+                $lastitemtype = 'week';
             }
         }
 

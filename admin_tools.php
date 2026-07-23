@@ -80,7 +80,7 @@ if ($action) {
                 echo $OUTPUT->heading(get_string('integritycheck', 'aiplacement_modgen'), 3);
                 $result = check_course_integrity($courseid, false);
 
-                // Show action buttons if there are issues to fix
+                // Show action buttons if there are issues to fix.
                 if ($result['hasIssues']) {
                     echo html_writer::start_div('mt-3');
                     echo html_writer::tag('p', 'Course ID: ' . $courseid, ['class' => 'font-weight-bold']);
@@ -89,7 +89,6 @@ if ($action) {
                         new moodle_url('/ai/placement/modgen/admin_tools.php', [
                             'action' => 'fixintegrity',
                             'courseid' => $courseid,
-                            'sesskey' => sesskey(),
                             'sesskey' => sesskey(),
                         ]),
                         get_string('fixintegrity', 'aiplacement_modgen'),
@@ -128,7 +127,7 @@ if ($action) {
                 echo $OUTPUT->heading(get_string('fixingintegrity', 'aiplacement_modgen'), 3);
                 check_course_integrity($courseid, true);
 
-                // Show action buttons after fixing
+                // Show action buttons after fixing.
                 echo html_writer::start_div('mt-3');
                 echo html_writer::link(
                     new moodle_url('/ai/placement/modgen/admin_tools.php', [
@@ -172,7 +171,7 @@ if ($action) {
                 echo $OUTPUT->heading(get_string('cleaningup', 'aiplacement_modgen'), 3);
                 cleanup_orphaned_sections($courseid);
 
-                // Show action buttons after cleanup
+                // Show action buttons after cleanup.
                 echo html_writer::start_div('mt-3');
                 echo html_writer::link(
                     new moodle_url('/ai/placement/modgen/admin_tools.php', [
@@ -221,7 +220,7 @@ if ($action) {
                 echo $OUTPUT->heading(get_string('fixingcircular', 'aiplacement_modgen'), 3);
                 fix_circular_references($courseid);
 
-                // Show action buttons after fixing
+                // Show action buttons after fixing.
                 echo html_writer::start_div('mt-3');
                 echo html_writer::link(
                     new moodle_url('/ai/placement/modgen/admin_tools.php', [
@@ -255,7 +254,7 @@ if ($action) {
                 echo $OUTPUT->heading(get_string('flatteninghierarchy', 'aiplacement_modgen'), 3);
                 flatten_hierarchy_to_toplevel($courseid);
 
-                // Show action buttons after flattening
+                // Show action buttons after flattening.
                 echo html_writer::start_div('mt-3');
                 echo html_writer::link(
                     new moodle_url('/ai/placement/modgen/admin_tools.php', [
@@ -401,7 +400,11 @@ function display_dashboard($courseid = 0) {
     echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action', 'value' => 'exporthierarchy']);
 
     echo html_writer::start_div('form-group mr-2');
-    echo html_writer::tag('label', get_string('courseid', 'aiplacement_modgen') . ':', ['for' => 'exportcourseid', 'class' => 'mr-2']);
+    echo html_writer::tag(
+        'label',
+        get_string('courseid', 'aiplacement_modgen') . ':',
+        ['for' => 'exportcourseid', 'class' => 'mr-2']
+    );
     echo html_writer::empty_tag('input', [
         'type' => 'number',
         'name' => 'courseid',
@@ -624,12 +627,17 @@ function display_hierarchy_analysis($courseid) {
     echo $OUTPUT->heading(get_string('hierarchytree', 'aiplacement_modgen'), 4);
     echo html_writer::start_div('card mb-3');
     echo html_writer::start_div('card-body');
-    echo html_writer::start_tag('pre', ['style' => 'font-family: monospace; background: #f5f5f5; padding: 15px; border-radius: 5px;']);
+    echo html_writer::start_tag('pre', [
+        'style' => 'font-family: monospace; background: #f5f5f5; padding: 15px; border-radius: 5px;',
+    ]);
 
     // Display section 0 at the root (it's special and has no parent).
     if (isset($sectionsbynum[0])) {
         $section0 = $sectionsbynum[0];
-        echo htmlspecialchars("Section 0: " . format_string($section0->name) . " (ID: {$section0->id}, Activities: {$section0->activitycount}) [GENERAL SECTION]\n");
+        echo htmlspecialchars(
+            "Section 0: " . format_string($section0->name) .
+            " (ID: {$section0->id}, Activities: {$section0->activitycount}) [GENERAL SECTION]\n"
+        );
     }
 
     // Display top-level sections and their children.
@@ -656,7 +664,7 @@ function display_hierarchy_analysis($courseid) {
     echo html_writer::start_tag('tbody');
 
     // Pre-detect circular references for each section.
-    $circularSections = [];
+    $circularsections = [];
     foreach ($sections as $section) {
         if ($section->section == 0 || $section->parent === '0') {
             continue;
@@ -668,7 +676,7 @@ function display_hierarchy_analysis($courseid) {
 
         while ($current && $current->parent !== '0' && $loopcount < 20) {
             if (isset($visited[$current->section])) {
-                $circularSections[$section->section] = true;
+                $circularsections[$section->section] = true;
                 break;
             }
             $visited[$current->section] = true;
@@ -691,14 +699,12 @@ function display_hierarchy_analysis($courseid) {
         if ($section->section == 0 && $section->parent !== null) {
             $rowclass = 'table-danger';
             $issues[] = 'Section 0 should not have a parent';
-        }
-        // Check for circular reference.
-        else if (isset($circularSections[$section->section])) {
+        } else if (isset($circularsections[$section->section])) {
+            // Check for circular reference.
             $rowclass = 'table-danger';
             $issues[] = 'Circular parent reference';
-        }
-        // Check for orphaned parent (parent points to non-existent section).
-        else if ($section->section != 0 && $section->parent !== '0' && $section->parent !== null) {
+        } else if ($section->section != 0 && $section->parent !== '0' && $section->parent !== null) {
+            // Check for orphaned parent (parent points to non-existent section).
             if (is_numeric($section->parent)) {
                 $parentnum = (int)$section->parent;
                 if (!isset($sectionsbynum[$parentnum])) {
@@ -710,20 +716,19 @@ function display_hierarchy_analysis($courseid) {
                 $rowclass = 'table-danger';
                 $issues[] = 'Invalid parent value';
             }
-        }
-        // Check for hidden subsection with no activities.
-        else if ($section->visible == 0 && $section->activitycount == 0 && $section->parent !== '0') {
+        } else if ($section->visible == 0 && $section->activitycount == 0 && $section->parent !== '0') {
+            // Check for hidden subsection with no activities.
             $rowclass = 'table-warning';
             $issues[] = 'Hidden, no activities';
         }
 
         echo html_writer::start_tag('tr', $rowclass ? ['class' => $rowclass] : []);
         echo html_writer::tag('td', $section->section);
-        $nameCell = format_string($section->name);
+        $namecell = format_string($section->name);
         if (!empty($issues)) {
-            $nameCell .= ' <span class="badge badge-danger">' . implode(', ', $issues) . '</span>';
+            $namecell .= ' <span class="badge badge-danger">' . implode(', ', $issues) . '</span>';
         }
-        echo html_writer::tag('td', $nameCell);
+        echo html_writer::tag('td', $namecell);
         echo html_writer::tag('td', $section->parent === null ? '(none)' : $section->parent);
         echo html_writer::tag('td', $depth);
         echo html_writer::tag('td', $section->visible ? 'Yes' : 'No');
@@ -970,7 +975,9 @@ function display_tree_recursive($tree, $sectionsbynum, $parent, $prefix, $visite
         if (isset($visited[$sectionnum])) {
             $islast = ($index === $childcount - 1);
             $connector = $islast ? '└── ' : '├── ';
-            echo htmlspecialchars(implode('', $prefix) . $connector . "⚠ CIRCULAR REFERENCE: Section {$sectionnum} (already in path)\n");
+            echo htmlspecialchars(
+                implode('', $prefix) . $connector . "⚠ CIRCULAR REFERENCE: Section {$sectionnum} (already in path)\n"
+            );
             continue;
         }
 
@@ -1322,7 +1329,7 @@ function generate_html_export($export, $sectionsbynum) {
 <body>
 <div class="container">
     <h1>Course Hierarchy Export</h1>
-    
+
     <div class="metadata">
         <h3>Course Information</h3>
         <p><strong>Course ID:</strong> ' . $export['course']['id'] . '</p>
@@ -1363,7 +1370,8 @@ function generate_html_export($export, $sectionsbynum) {
     // Section table.
     $html .= '<h2>Section Details</h2>';
     $html .= '<table>';
-    $html .= '<thead><tr><th>Section #</th><th>Name</th><th>Parent</th><th>Depth</th><th>Visible</th><th>Activities</th><th>DB ID</th></tr></thead>';
+    $html .= '<thead><tr><th>Section #</th><th>Name</th><th>Parent</th><th>Depth</th><th>Visible</th>' .
+        '<th>Activities</th><th>DB ID</th></tr></thead>';
     $html .= '<tbody>';
     foreach ($export['sections'] as $section) {
         $html .= '<tr>';

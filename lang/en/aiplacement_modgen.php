@@ -25,9 +25,10 @@
 
 defined('MOODLE_INTERNAL') || die();
 
+// phpcs:disable moodle.Files.LangFilesOrdering -- strings are grouped by feature area, not alphabetically.
 $string['pluginname'] = 'Module Assistant';
 
-// Error strings
+// Error strings.
 $string['jsontoolarge'] = 'JSON data is too large to process';
 $string['invalidjson'] = 'Invalid JSON data: {$a}';
 $string['locktimeout'] = 'Another user is currently creating content in this course. Please try again in a few moments.';
@@ -49,7 +50,7 @@ $string['checkingstatus'] = 'Checking job status...';
 $string['invalidaction'] = 'Invalid action';
 $string['creatingstructure'] = 'Creating Course Structure';
 
-// Job status page strings
+// Job status page strings.
 $string['jobstatuspage_title'] = 'Job Status';
 $string['jobstatus_queued'] = 'Queued';
 $string['jobstatus_queued_desc'] = 'Your job is waiting to be processed...';
@@ -156,7 +157,7 @@ Structure each week object with:
 - activities organised within the appropriate session subsection
 
 Important: Each week MUST include at least one activity distributed across the three session types (pre, session, post) as appropriate for the learning design. Ensure activities are logically sequenced and pedagogically sound.';
-$string['moduletypeinstruction_connected_theme'] = 'Structure the module as themed sections (themes), each containing multiple weeks of teaching. Each week has THREE subsections: "Pre-session", "Session", and "Post-session". 
+$string['moduletypeinstruction_connected_theme'] = 'Structure the module as themed sections (themes), each containing multiple weeks of teaching. Each week has THREE subsections: "Pre-session", "Session", and "Post-session".
 
 For THEMES: Provide a title and (if enabled) a brief introduction explaining the theme content.
 
@@ -201,7 +202,7 @@ $string['modalinaccessible'] = 'To access the full Module Creator form, please u
 $string['missingcourseid'] = 'Course ID is required to use the Module Assistant.';
 
 
-// Tabbed interface
+// Tabbed interface.
 $string['generatetablabel'] = 'Generate from Structure';
 
 $string['supportingfiles'] = 'Upload structure file';
@@ -213,23 +214,23 @@ $string['connectedcurriculum120'] = '120 credit module';
 $string['connectedcurriculumcredits'] = 'Module type';
 $string['connectedcurriculuminstruction'] = 'Module credit volume: {$a} credit Connected Curriculum module.';
 
-// Book activity
+// Book activity.
 $string['activitytype_book'] = 'Book';
 $string['bookdescription'] = 'Chapter-based content from uploaded document';
 
-// Forum activity
+// Forum activity.
 $string['activitytype_forum'] = 'Forum';
 $string['forumdescription'] = 'Collaborative discussion space for peer interaction and group communication';
 
-// URL activity
+// URL activity.
 $string['activitytype_url'] = 'External Link';
 $string['urldescription'] = 'Links to external websites, articles, videos, or resources';
 
-// Assignment activity
+// Assignment activity.
 $string['activitytype_assignment'] = 'Assignment';
 $string['assignmentdescription'] = 'Student work submission activity for formative and summative assessments, essays, projects, and reflective tasks';
 
-// Learning activity (metadata module)
+// Learning activity (metadata module).
 $string['activitytype_learningactivity'] = 'Learning Activity';
 $string['learningactivity_created'] = 'Created learning activity metadata for {$a->name} (type: {$a->type})';
 $string['learningactivity_section'] = 'Section';
@@ -256,14 +257,14 @@ $string['moduletype_help'] = 'Choose how to structure your module:
 
 **Note**: If you upload a CSV file, the format will be automatically detected based on its contents (themes vs weekly structure). You can override the auto-detected format by selecting a specific option here.';
 
-// Form section headers
+// Form section headers.
 $string['selecttemplate'] = 'Select Structure';
 $string['uploadtemplatefile'] = 'Upload Structure File';
 $string['selectoruploadtemplate'] = 'Select or Upload Structure File';
 $string['templatesettings'] = 'Structure Setup';
 $string['suggestedcontent'] = 'Suggest Content';
 
-// CSV Template Library
+// CSV Template Library.
 $string['csvtemplatelibrary'] = 'CSV Structure Library';
 $string['csvtemplatelibrary_desc'] = 'Manage pre-made CSV structures that users can select when generating modules.';
 $string['managetemplates'] = 'Manage CSV Structure files';
@@ -293,16 +294,16 @@ $string['templatefilenotfound'] = 'Structure file not found';
 $string['templatename_help'] = 'Give this structure a descriptive name that users will see when selecting structures.';
 $string['templatedescription_help'] = 'Optionally provide a brief description of what this structure contains or when it should be used.';
 
-// Generator introduction
+// Generator introduction.
 $string['generatorintroduction'] = 'This page allows you to create your course structure in several ways. You can upload a CSV structure file to define sections, weeks, or themes, or optionally select a pre-made structure from the library. When you upload a structure file, the form will read its contents and create your course layout. You can edit titles and descriptions after the strucure has been created on your module. Choose whether to place the new structure at the top of your course or after existing content.';
 
-// Base on existing module settings
+// Base on existing module settings.
 $string['existingmoduleheading'] = 'Base on Existing Module';
 $string['existingmoduleheading_desc'] = 'Allow users to select existing modules as the basis for AI generation.';
 $string['enableexistingmodules'] = 'Enable base on existing module';
 $string['enableexistingmodules_desc'] = 'When enabled, users can select one or more existing modules to base their AI generation on. The AI will analyse the structure and activities of the selected modules and use them as a template for the new content.';
 
-// Activity creation toggle
+// Activity creation toggle.
 $string['expandonthemes'] = 'Expand on themes';
 $string['expandonthemes_help'] = 'When enabled, AI will enhance section titles and descriptions. Titles will be made clear, descriptive, and informative while maintaining the exact structure (same number of themes/weeks/sessions) from your CSV file. When disabled, section names remain exactly as specified in the CSV file.';
 $string['generateexamplecontent'] = 'Generate example content';
@@ -353,13 +354,13 @@ CRITICAL RULES:
 - Display important information in summaries or other activity types instead
 - Be specific about what students will learn (outcomes focus)';
 
-// AI enable/disable setting
+// AI enable/disable setting.
 $string['aienabledheading'] = 'AI Integration';
 $string['aienabledheading_desc'] = 'Control whether the plugin uses AI to generate module structures or processes uploaded files directly.';
 $string['enableai'] = 'Enable AI generation';
 $string['enableai_desc'] = 'When enabled, uploaded files are processed exactly as specified, and you can make additional adjustments via the prompt field or base the structure on an existing module template. When disabled, only uploaded CSV files are processed with no AI adjustments available.';
 
-// Placement options
+// Placement options.
 $string['contentplacement'] = 'Content placement';
 $string['contentplacement_help'] = 'Choose whether to place new module content at the top of the course or after existing content.';
 $string['hideexistingsections'] = 'Hide existing sections';
@@ -371,13 +372,13 @@ $string['createsummaryactivitiesai_help'] = 'When enabled, a Learning Activity "
 
 Note: if you are generating with AI, turning this off means any learning-design details the AI produced (durations, learning types, instructions) will not be added to the course — only the section structure is created.';
 
-// AI prompt configuration
+// AI prompt configuration.
 $string['aipromptheading'] = 'AI Generation Settings';
 $string['aipromptheading_desc'] = 'Configure the pedagogical guidance and institutional context sent to the AI for module generation. The JSON schema and technical requirements are managed by the system and cannot be modified here.';
 $string['baseprompt'] = 'Pedagogical Guidance';
 $string['baseprompt_desc'] = 'This guidance is sent to the AI to establish pedagogical context, institutional approach, and quality standards. Include information about your institution\'s teaching philosophy, any mandatory pedagogical frameworks, accessibility requirements, or specific learning design principles. The system automatically appends the technical JSON schema requirements to this guidance.';
 
-// Suggest toolbar
+// Suggest toolbar.
 $string['suggestheading'] = 'Suggest toolbar';
 $string['suggestheading_desc'] = 'Analyses your existing module section content and intelligently recommends complementary Moodle activities to enhance student learning and pedagogical balance.';
 $string['enablesuggest'] = 'Enable Suggest toolbar button';
@@ -388,12 +389,12 @@ $string['suggestlearningtypes'] = 'Section Learning Type Mix';
 $string['suggestpedagogicalguidance'] = 'Pedagogical guidance for suggestions';
 $string['suggestpedagogicalguidance_desc'] = 'Customise the pedagogical guidance included in the AI prompt when generating activity suggestions. This guidance helps the AI design appropriate learning activities. Each line should start with a dash (-).';
 
-// Validation error strings
+// Validation error strings.
 $string['generationfailed'] = 'Generation Failed';
 $string['validationerrorhelp'] = 'The AI response was malformed and cannot be used to create content. This sometimes happens when the AI double-encodes the response or returns an incorrect structure. Please try generating again with the same or modified prompt.';
 $string['tryagain'] = 'Try Again';
 
-// Module preview display strings
+// Module preview display strings.
 $string['moduleoverview'] = 'Module Overview';
 $string['themes'] = 'Themes';
 $string['weeks'] = 'Weeks';
@@ -405,7 +406,7 @@ $string['noactivities'] = 'No activities defined';
 $string['regenerate'] = 'Regenerate';
 $string['modulestructureinfo'] = 'This preview shows the structure and organisation of the module that will be created. It is a schematic representation and does not reflect how the content will appear in Moodle. Click "Create" below to proceed with creating the module in your course.';
 
-// Quick add forms
+// Quick add forms.
 $string['title'] = 'Title';
 $string['summary'] = 'Summary';
 $string['addtheme'] = 'Add Theme(s)';
@@ -437,7 +438,7 @@ $string['errorconvertingformat'] = 'Could not convert course to flexsections for
 $string['introductionsectionname'] = 'Introduction & General Information';
 $string['assessmentssectionname'] = 'Assessments';
 
-// Error messages for exceptions
+// Error messages for exceptions.
 $string['flexsectionsnotinstalled'] = 'The flexsections course format plugin is required but not installed. Please install the flexsections plugin before using this feature.';
 $string['flexsectionssetfailed'] = 'Failed to set course format to flexsections. Current format: {$a}';
 $string['flexsectionsmethodnotavailable'] = 'Flexsections create_new_section method not available';
@@ -448,17 +449,17 @@ $string['errorflexsectionsmissingmethod'] = 'Required flexsections method is not
 $string['invalidsectionparent'] = 'Invalid section parent number. Must be a non-negative integer.';
 $string['invalidsectionname'] = 'Section name cannot be empty';
 
-// Navigation and UI messages
+// Navigation and UI messages.
 $string['creationinprogress'] = 'Creation in progress. Leaving this page will abandon your changes.';
 $string['generatingcontent'] = 'Generating content... this may take a minute.';
 $string['genericerror'] = 'An error occurred';
 
-// Accessibility
+// Accessibility.
 $string['successicon'] = 'Success';
 $string['showdetailsaria'] = 'Show creation details';
 $string['sectionscreatedsuccess'] = 'Successfully created {$a} section(s)';
 
-// Dates for sections feature
+// Dates for sections feature.
 $string['datesforsections'] = 'Dates to sections...';
 $string['holidaydates'] = 'University Holiday Dates';
 $string['holidaydates_desc'] = 'Enter University holiday dates (one per line). When a week overlaps with a holiday, the holiday name will be appended to the section title. Format: Holiday Name: DDMMYYYY-DDMMYYYY. Examples accepted: 25122024-05012025, 25/12/2024-05/01/2025, or 25-12-2024 to 05-01-2025. Note: For best results, holiday dates should start on a Monday and end on a Sunday to align with teaching weeks.';
@@ -485,7 +486,7 @@ $string['nosectionsavailable'] = 'No sections available for date assignment';
 $string['selectallthemes'] = 'Select all top sections';
 $string['selectallweeks'] = 'Select all sub sections';
 
-// Help and Advice Links
+// Help and Advice Links.
 $string['helpandadvice'] = 'Help and Advice';
 $string['helplinksheading'] = 'Help and Advice Links';
 $string['helplinksheading_desc'] = 'Configure up to 5 external help links that will appear in the Module Assistant toolbar dropdown menu. Links will only appear if both text and URL are provided.';
@@ -494,7 +495,7 @@ $string['helplinktext_desc'] = 'Display text for the help link';
 $string['helplinkurl'] = 'Help Link {$a} URL';
 $string['helplinkurl_desc'] = 'Full URL for the help resource (must start with http:// or https://)';
 
-// Section Creation Limits
+// Section Creation Limits.
 $string['sectionlimitsheading'] = 'Section Creation Limits';
 $string['sectionlimitsheading_desc'] = 'Configure maximum number of sections that can be created at once through quick-add forms and CSV file uploads. These limits help prevent accidental creation of excessive course structure.';
 $string['maxquicksections'] = 'Maximum themes or weeks';
@@ -508,7 +509,7 @@ $string['maxtotalsections'] = 'Maximum total sections per course';
 $string['maxtotalsections_desc'] = 'Hard safety limit on the total number of sections a course may contain (existing sections plus those a generation would add). The flexsections format renumbers and rebuilds the whole course on every section insert, so creation slows down quadratically as a course grows and very large courses can exhaust memory. Generation is refused before it starts if it would push the course past this limit. Raise it only if your server has ample memory and you accept slower generation. Default: 300';
 $string['sectionlimitexceeded'] = 'That\'s too many sections to create at once. This would take the course to {$a->total} sections, but the limit is {$a->max} (it already has {$a->existing}). Please try again with fewer themes or weeks.';
 
-// Loading indicator strings
+// Loading indicator strings.
 $string['processingrequest'] = 'Processing your request...';
 $string['pleasewait'] = 'Please wait';
 $string['creatingthemes'] = 'Creating themes...';
@@ -520,7 +521,7 @@ $string['generatingsuggestions'] = 'Generating activity suggestions...';
 $string['loadingform'] = 'Loading form...';
 $string['creatingsections'] = 'Creating sections...';
 
-// Dates form
+// Dates form.
 $string['selectsections_hierarchical'] = 'Select sections to add dates to. New dates appear as badges <span class="badge bg-info text-white">Dec 21-27:</span> on the right in this preview, When applied, dates will be added to section titles and any existing dates will be updated. Use the toggle buttons to quickly select or deselect groups.';
 $string['sectiontitle'] = 'Section Title';
 $string['newdate'] = 'New Date';
@@ -538,7 +539,7 @@ $string['modgen:usesuggest'] = 'Use AI activity suggestions';
 $string['modgen:managetemplates'] = 'Manage site-wide templates';
 $string['sectionplaceholder'] = 'Section {$a}';
 
-// Admin tools page
+// Admin tools page.
 $string['admintools'] = 'Admin Diagnostic Tools';
 $string['admintoolsdesc'] = 'This page provides administrative tools for testing, diagnosing, and maintaining the modgen plugin. These tools help ensure database integrity and verify that security and performance improvements are working correctly.';
 $string['testing'] = 'Testing';
@@ -654,7 +655,7 @@ $string['checkstructure_ok'] = '✓';
 $string['checkstructure_unnamed'] = '(unnamed)';
 $string['checkstructure_missing'] = 'missing';
 
-// integrity_checker row-issue and fix-detail messages.
+// Integrity checker row-issue and fix-detail messages.
 $string['row_section0hasparent'] = 'Section 0 should not have a parent';
 $string['row_invalidparent'] = 'Invalid parent: {$a}';
 $string['row_nullparent'] = 'Null/empty parent value';

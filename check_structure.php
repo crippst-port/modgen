@@ -192,6 +192,14 @@ if ($diag !== null) {
     echo html_writer::end_tag('table');
     echo html_writer::end_div();
 
+    // Plain-language impact warnings for the issues that matter most.
+    if ($diag['counts']['circular_refs'] > 0) {
+        echo $OUTPUT->notification(get_string('checkstructure_circularwarning', 'aiplacement_modgen'), 'error');
+    }
+    if ($diag['counts']['orphaned_sections'] > 0) {
+        echo $OUTPUT->notification(get_string('checkstructure_orphanwarning', 'aiplacement_modgen'), 'warning');
+    }
+
     // Fix sections — shown only when relevant issues exist.
     $fixintegrity = $diag['counts']['section0_with_parent'] > 0
         || $diag['counts']['orphaned_options'] > 0

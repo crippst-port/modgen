@@ -603,13 +603,15 @@ $string['idnumberconfusion'] = 'ID/number confusion';
 // Check Structure page (course-editor diagnostic tool).
 $string['checkstructure'] = 'Check Structure';
 $string['modgen:checkstructure'] = 'View and fix course structure diagnostics';
-$string['checkstructuredesc'] = 'Run a full integrity check on this course\'s section structure and apply repairs.';
+$string['checkstructuredesc'] = 'This tool checks how this course\'s sections are nested and linked together, and can repair common problems automatically. Some problems, like circular references, can stop the course from loading; others, like orphaned sections, can silently block actions such as deleting or duplicating the course. Run a check below to see if any repairs are needed.';
 $string['checkstructurepage'] = 'Course Structure Diagnostics';
 $string['checkstructurerun'] = 'Run Check';
 $string['checkstructureresults'] = 'Diagnostic Results';
-$string['checkstructure_noissues'] = 'No structural issues detected. ✓';
-$string['checkstructure_issuesfound'] = '{$a} issue type(s) detected — see details below.';
+$string['checkstructure_noissues'] = 'No structural issues detected — this course\'s section structure looks healthy. ✓';
+$string['checkstructure_issuesfound'] = '{$a} issue type(s) detected. See the details and explanations below before applying any fixes.';
 $string['checkstructure_backtocourse'] = 'Back to Course';
+$string['checkstructure_circularwarning'] = 'Circular reference(s) found: some sections have parent links that loop back on themselves (for example, section A is set as the parent of section B, which is set as the parent of section A). Moodle cannot resolve a loop like this, so it can stop the course page from loading correctly for everyone, including students. It\'s recommended to fix this as soon as possible.';
+$string['checkstructure_orphanwarning'] = 'Orphaned section(s) found: these sections exist in the database but are hidden and disconnected from the visible course structure. They don\'t appear on the course page, but Moodle can still try to process them during actions like course deletion or duplication, which may cause those actions to fail or behave unexpectedly. Removing them clears the blockage.';
 
 // Fix action labels and descriptions.
 $string['fixintegrity_label'] = 'Repair Structure Data';
@@ -620,14 +622,14 @@ $string['fixintegrity_none'] = 'No structural data issues found to repair.';
 $string['fixdetails'] = 'Details: {$a}';
 
 $string['fixcleanup_label'] = 'Remove Orphaned Sections';
-$string['fixcleanup_desc'] = 'Permanently deletes hidden course sections that contain no activities and are no longer reachable.';
-$string['fixcleanup_confirm'] = 'Remove orphaned sections from this course? This permanently deletes all hidden empty sections. This cannot be undone.';
+$string['fixcleanup_desc'] = 'Permanently deletes hidden, empty sections that are no longer connected to the course structure. These sections aren\'t visible on the course page, but leaving them in place can cause actions like deleting or duplicating the course to fail — removing them clears the blockage.';
+$string['fixcleanup_confirm'] = 'Remove orphaned sections from this course? This permanently deletes all hidden, disconnected empty sections so they can no longer interfere with actions like deleting or duplicating the course. This cannot be undone.';
 $string['fixcleanup_done'] = '{$a} orphaned section(s) removed.';
 $string['fixcleanup_none'] = 'No orphaned sections found.';
 
 $string['fixcircular_label'] = 'Fix Circular References';
-$string['fixcircular_desc'] = 'Detects parent loops that prevent sections from loading correctly and breaks them by resetting affected sections to top-level.';
-$string['fixcircular_confirm'] = 'Fix circular parent references in this course? Sections in a loop will be reset to top-level (parent=0). This cannot be undone.';
+$string['fixcircular_desc'] = 'Detects sections whose parent links loop back on themselves, and breaks the loop by resetting the affected sections to top-level, directly under the course homepage. Circular references can stop the course page from loading correctly, so it\'s recommended to fix them promptly. Once fixed, you\'ll likely want to review these sections and move or delete them as appropriate, since they will no longer be nested where they originally were.';
+$string['fixcircular_confirm'] = 'Fix circular parent references in this course? Left unresolved, these loops can prevent the course from loading correctly. Sections in a loop will be reset to top-level (parent=0), appearing directly under the course homepage — you\'ll need to move or delete them afterwards as required. This cannot be undone.';
 $string['fixcircular_done'] = '{$a} circular reference(s) fixed.';
 $string['fixcircular_none'] = 'No circular references found.';
 

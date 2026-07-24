@@ -24,8 +24,6 @@
 
 namespace aiplacement_modgen\local;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Helper class for accessing plugin settings with caching.
  */

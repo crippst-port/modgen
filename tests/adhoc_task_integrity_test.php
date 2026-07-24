@@ -226,7 +226,6 @@ final class adhoc_task_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // Happy path.
-    // ------------------------------------------------------------------
 
     /**
      * A successful create_themes task marks the job completed and leaves a sound
@@ -258,7 +257,6 @@ final class adhoc_task_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // Retry re-entry — the prime corruption vector.
-    // ------------------------------------------------------------------
 
     /**
      * Re-running the SAME task after it already completed (as Moodle does on retry)
@@ -496,7 +494,6 @@ final class adhoc_task_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // Failure path.
-    // ------------------------------------------------------------------
 
     /**
      * A task whose action is invalid must mark the job failed (with will_retry),
@@ -563,8 +560,7 @@ final class adhoc_task_integrity_test extends advanced_testcase {
     }
 
     // ------------------------------------------------------------------
-    // create_from_json action through the task.
-    // ------------------------------------------------------------------
+    // The create_from_json action through the task.
 
     /**
      * The create_from_json action runs the section service through the task and

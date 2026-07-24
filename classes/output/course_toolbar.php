@@ -24,8 +24,6 @@
 
 namespace aiplacement_modgen\output;
 
-defined('MOODLE_INTERNAL') || die();
-
 use renderable;
 use templatable;
 use renderer_base;
@@ -83,7 +81,7 @@ class course_toolbar implements renderable, templatable {
         bool $showcheckstructure = false
     ) {
         $this->courseid = $courseid;
-        $this->showgenerator = $showgenerator || $showtemplatefromptompt; // Legacy support
+        $this->showgenerator = $showgenerator || $showtemplatefromptompt; // Legacy support.
         $this->showsuggest = $showsuggest;
         $this->showmanagestructure = $showmanagestructure;
         $this->showmanagedates = $showmanagedates;
@@ -117,7 +115,7 @@ class course_toolbar implements renderable, templatable {
             $data->checkstructureurl = $checkstructureurl->out(false);
         }
 
-        // Always provide generator URL (needed for "Template from file" link)
+        // Always provide generator URL (needed for "Template from file" link).
         $generatorurl = new moodle_url('/ai/placement/modgen/modal.php', ['id' => $this->courseid]);
         $data->generatorurl = $generatorurl->out(false);
 
@@ -151,13 +149,13 @@ class course_toolbar implements renderable, templatable {
             $data->aigenlisturl = $aigenlisturl->out(false);
         }
 
-        // Get help links from settings
+        // Get help links from settings.
         $helplinks = [];
         for ($i = 1; $i <= 5; $i++) {
             $text = get_config('aiplacement_modgen', "helplink{$i}_text");
             $url = get_config('aiplacement_modgen', "helplink{$i}_url");
 
-            // Only include links that have both text and URL
+            // Only include links that have both text and URL.
             if (!empty($text) && !empty($url)) {
                 $helplinks[] = [
                     'text' => $text,

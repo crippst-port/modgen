@@ -25,8 +25,6 @@
 
 namespace aiplacement_modgen\task;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Cleanup task for old job records.
  *

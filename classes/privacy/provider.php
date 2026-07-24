@@ -33,12 +33,13 @@ use core_privacy\local\request\userlist;
 use core_privacy\local\request\writer;
 use core_privacy\local\request\transform;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Privacy Subsystem for aiplacement_modgen implementing metadata and data providers.
  */
-class provider implements \core_privacy\local\metadata\provider, \core_privacy\local\request\core_userlist_provider, \core_privacy\local\request\plugin\provider {
+class provider implements
+    \core_privacy\local\metadata\provider,
+    \core_privacy\local\request\core_userlist_provider,
+    \core_privacy\local\request\plugin\provider {
     /**
      * Returns meta data about this system.
      *

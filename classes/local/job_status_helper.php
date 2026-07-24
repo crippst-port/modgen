@@ -24,8 +24,6 @@
 
 namespace aiplacement_modgen\local;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Small, testable helpers for the job status AJAX endpoint.
  */

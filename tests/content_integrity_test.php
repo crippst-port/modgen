@@ -419,9 +419,9 @@ final class content_integrity_test extends advanced_testcase {
     public function test_metadata_validator_drops_invalid_deterministically(): void {
         $result = learningactivity_validator::validate_metadata([
             'name'          => 'Mix',
-            'duration'      => '90 minutes', // non-numeric -> dropped.
-            'learningtypes' => 'Acquisition,Lecture,Discussion', // 'Lecture' not in set -> dropped.
-            'learningmode'  => 'Hybrid', // not in set -> dropped.
+            'duration'      => '90 minutes', // Non-numeric -> dropped.
+            'learningtypes' => 'Acquisition,Lecture,Discussion', // Lecture is not in set -> dropped.
+            'learningmode'  => 'Hybrid', // Not in set -> dropped.
         ]);
 
         $this->assertNull(

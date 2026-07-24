@@ -16,8 +16,6 @@
 
 namespace aiplacement_modgen;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Helper class for tracking AI-generated activities.
  *

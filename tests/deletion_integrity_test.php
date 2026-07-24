@@ -128,7 +128,6 @@ final class deletion_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // Observer-driven tracker cleanup.
-    // ------------------------------------------------------------------
 
     /**
      * Deleting a tracked module must fire course_module_deleted and remove its
@@ -219,7 +218,6 @@ final class deletion_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // Structural integrity after section deletion.
-    // ------------------------------------------------------------------
 
     /**
      * Deleting a generated section must not leave child sections orphaned — their

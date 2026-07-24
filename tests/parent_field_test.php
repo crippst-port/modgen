@@ -44,10 +44,13 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @category   test
  * @copyright  2026 Tom Cripps
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @coversDefaultClass \aiplacement_modgen\local\theme_builder
  */
 final class parent_field_test extends advanced_testcase {
     /**
      * Test that theme sections are created with parent=0 (top level).
+     *
+     * @covers ::create_theme_section
      */
     public function test_theme_section_has_zero_parent(): void {
         global $DB;
@@ -101,6 +104,9 @@ final class parent_field_test extends advanced_testcase {
 
     /**
      * Test that week sections are created with correct parent section NUMBER.
+     *
+     * @covers ::create_theme_section
+     * @covers ::create_week_section
      */
     public function test_week_section_has_correct_parent_number(): void {
         global $DB;
@@ -167,6 +173,10 @@ final class parent_field_test extends advanced_testcase {
 
     /**
      * Test session sections have correct parent section NUMBER.
+     *
+     * @covers ::create_theme_section
+     * @covers ::create_week_section
+     * @covers \aiplacement_modgen\local\session_creator::create_session_subsections
      */
     public function test_session_section_has_correct_parent_number(): void {
         global $DB;
@@ -243,6 +253,10 @@ final class parent_field_test extends advanced_testcase {
 
     /**
      * Test complete hierarchy: Theme -> Week -> Session.
+     *
+     * @covers ::create_theme_section
+     * @covers ::create_week_section
+     * @covers \aiplacement_modgen\local\session_creator::create_session_subsections
      */
     public function test_complete_hierarchy_parent_chain(): void {
         global $DB;
@@ -346,6 +360,9 @@ final class parent_field_test extends advanced_testcase {
 
     /**
      * Test that section_info object exposes parent as section number.
+     *
+     * @covers ::create_theme_section
+     * @covers ::create_week_section
      */
     public function test_section_info_parent_property(): void {
         $this->resetAfterTest(true);
@@ -391,6 +408,10 @@ final class parent_field_test extends advanced_testcase {
 
     /**
      * Test parent field validation helper method.
+     *
+     * @covers ::create_theme_section
+     * @covers ::create_week_section
+     * @covers ::validate_section_parent
      */
     public function test_validate_section_parent_helper(): void {
         global $DB;
@@ -441,6 +462,9 @@ final class parent_field_test extends advanced_testcase {
 
     /**
      * Test multiple themes and weeks maintain correct parent relationships.
+     *
+     * @covers ::create_theme_section
+     * @covers ::create_week_section
      */
     public function test_multiple_themes_and_weeks(): void {
         global $DB;

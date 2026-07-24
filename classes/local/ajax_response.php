@@ -24,8 +24,6 @@
 
 namespace aiplacement_modgen\local;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Helper class for sending consistent AJAX JSON responses.
  */
@@ -66,18 +64,18 @@ class ajax_response {
      * @return void (terminates script)
      */
     private static function send(array $data) {
-        // Clean any output buffers
+        // Clean any output buffers.
         while (ob_get_level() > 0) {
             ob_end_clean();
         }
 
-        // Set JSON header
+        // Set JSON header.
         header('Content-Type: application/json; charset=utf-8');
 
-        // Output JSON
+        // Output JSON.
         echo json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
 
-        // Terminate script
+        // Terminate script.
         exit(0);
     }
 }

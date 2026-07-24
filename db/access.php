@@ -26,7 +26,7 @@
 defined('MOODLE_INTERNAL') || die();
 
 $capabilities = [
-    // Manage course structure (themes, weeks)
+    // Manage course structure (themes, weeks).
     'aiplacement/modgen:managestructure' => [
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
@@ -34,7 +34,7 @@ $capabilities = [
         'archetypes' => [],
     ],
 
-    // Manage dates to sections
+    // Manage dates to sections.
     'aiplacement/modgen:managedates' => [
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
@@ -42,7 +42,7 @@ $capabilities = [
         'archetypes' => [],
     ],
 
-    // Generate content with AI prompt
+    // Generate content with AI prompt.
     'aiplacement/modgen:generatewithprompt' => [
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
@@ -50,7 +50,7 @@ $capabilities = [
         'archetypes' => [],
     ],
 
-    // Generate content from templates (CSV/file upload)
+    // Generate content from templates (CSV/file upload).
     'aiplacement/modgen:generatefromtemplate' => [
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
@@ -58,7 +58,7 @@ $capabilities = [
         'archetypes' => [],
     ],
 
-    // Use AI activity suggestions
+    // Use AI activity suggestions.
     'aiplacement/modgen:usesuggest' => [
         'riskbitmask' => RISK_DATALOSS,
         'captype' => 'write',
@@ -66,7 +66,7 @@ $capabilities = [
         'archetypes' => [],
     ],
 
-    // Manage site-wide templates (admin)
+    // Manage site-wide templates (admin).
     'aiplacement/modgen:managetemplates' => [
         'riskbitmask' => RISK_CONFIG,
         'captype' => 'write',

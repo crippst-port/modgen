@@ -31,26 +31,26 @@ require_login();
 $templateid = required_param('id', PARAM_INT);
 $courseid = optional_param('courseid', 0, PARAM_INT);
 
-// Use course context if provided, otherwise use system context
-// Course context: user is downloading from a course form
-// System context: user is downloading from admin template management
+// Use course context if provided, otherwise use system context.
+// Course context: user is downloading from a course form.
+// System context: user is downloading from admin template management.
 if ($courseid) {
     $context = context_course::instance($courseid);
 } else {
     $context = context_system::instance();
 }
 
-// Check capability - users must be able to generate from templates
+// Check capability - users must be able to generate from templates.
 require_capability('aiplacement/modgen:generatefromtemplate', $context);
 
-// Get template
+// Get template.
 try {
     $template = template_manager::get_by_id($templateid);
 } catch (Exception $e) {
     throw new moodle_exception('templatefilenotfound', 'aiplacement_modgen');
 }
 
-// Get file
+// Get file.
 $fs = get_file_storage();
 $file = $fs->get_file_by_id($template->fileid);
 
@@ -58,8 +58,8 @@ if (!$file) {
     throw new moodle_exception('templatefilenotfound', 'aiplacement_modgen');
 }
 
-// Create clean filename
+// Create clean filename.
 $filename = clean_filename($template->name . '.csv');
 
-// Send file
+// Send file.
 send_stored_file($file, 0, 0, true, ['filename' => $filename]);

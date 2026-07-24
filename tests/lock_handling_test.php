@@ -156,7 +156,7 @@ final class lock_handling_test extends advanced_testcase {
 
         $service = new section_creation_service();
 
-        // First successful request
+        // First successful request.
         $results1 = $service->create_sections_from_json(
             $structure,
             $course->id,
@@ -168,7 +168,7 @@ final class lock_handling_test extends advanced_testcase {
 
         $this->assertIsArray($results1, 'First request should succeed');
 
-        // Second request should also succeed - testing lock release
+        // Second request should also succeed - testing lock release.
         $results2 = $service->create_sections_from_json(
             ['themes' => [['title' => 'Theme 2', 'summary' => 'S', 'weeks' => []]]],
             $course->id,
@@ -337,7 +337,7 @@ final class lock_handling_test extends advanced_testcase {
         $service = new section_creation_service();
 
         // Sequential requests should both complete.
-        // (True concurrency test would require process forking)
+        // (True concurrency test would require process forking).
         $results1 = $service->create_sections_from_json(
             $structure,
             $course->id,

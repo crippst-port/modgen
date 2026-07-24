@@ -18,11 +18,12 @@ namespace aiplacement_modgen\activitytype;
 
 use stdClass;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Contract for AI-generated course activity handlers.
- * @package aiplacement_modgen
+ *
+ * @package     aiplacement_modgen
+ * @copyright   2025 Tom Cripps <tom.cripps@port.ac.uk>
+ * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 interface activity_type {
     /**

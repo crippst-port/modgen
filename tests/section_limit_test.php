@@ -79,8 +79,7 @@ final class section_limit_test extends advanced_testcase {
     }
 
     // ------------------------------------------------------------------
-    // enforce_section_limit().
-    // ------------------------------------------------------------------
+    // Tests for enforce_section_limit().
 
     /**
      * A projected total within the limit is allowed (no exception).
@@ -157,7 +156,6 @@ final class section_limit_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // JSON projection counting.
-    // ------------------------------------------------------------------
 
     /**
      * The JSON projector counts themes + weeks + sessions for connected_theme.
@@ -200,7 +198,6 @@ final class section_limit_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // End-to-end enforcement at the entry points, with no partial writes.
-    // ------------------------------------------------------------------
 
     /**
      * create_themes refuses an over-limit request and creates nothing.

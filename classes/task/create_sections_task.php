@@ -27,8 +27,6 @@
 
 namespace aiplacement_modgen\task;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Ad-hoc task for background section creation.
  */
@@ -57,7 +55,7 @@ class create_sections_task extends \core\task\adhoc_task {
         $data = $this->get_custom_data();
         $jobid = $data->jobid;
 
-        // Debug logging to help diagnose failures
+        // Debug logging to help diagnose failures.
         mtrace('Starting create_sections_task for job ID: ' . $jobid);
 
         // Update job status to running.
@@ -153,11 +151,11 @@ class create_sections_task extends \core\task\adhoc_task {
             } else if ($data->action === 'create_from_json') {
                 // Template upload workflow - decode parameters and create sections.
                 require_once(__DIR__ . '/../../classes/local/section_creation_service.php');
-                $section_service = new \aiplacement_modgen\local\section_creation_service();
+                $sectionservice = new \aiplacement_modgen\local\section_creation_service();
                 // Convert JSON stdClass to array for type safety.
                 // Task custom data stores JSON as stdClass, but service expects array.
                 $jsonarray = json_decode(json_encode($data->json), true);
-                $creation_result = $section_service->create_sections_from_json(
+                $creationresult = $sectionservice->create_sections_from_json(
                     $jsonarray,
                     $data->courseid,
                     $data->moduletype,
@@ -168,7 +166,7 @@ class create_sections_task extends \core\task\adhoc_task {
                 );
                 $result = [
                     'success' => true,
-                    'messages' => array_column($creation_result['results'], 'message'),
+                    'messages' => array_column($creationresult['results'], 'message'),
                 ];
             } else {
                 throw new \moodle_exception('invalidaction', 'aiplacement_modgen');

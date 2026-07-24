@@ -33,6 +33,9 @@ require_once($CFG->libdir . '/formslib.php');
  * to be converted into course activities.
  */
 class aiplacement_modgen_upload_form extends moodleform {
+    /**
+     * Form definition.
+     */
     public function definition() {
         $mform = $this->_form;
         $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
@@ -42,7 +45,7 @@ class aiplacement_modgen_upload_form extends moodleform {
             $mform->setType('embedded', PARAM_BOOL);
         }
 
-        // Use Moodle's filepicker
+        // Use Moodle's filepicker.
         $mform->addElement(
             'filepicker',
             'contentfile',

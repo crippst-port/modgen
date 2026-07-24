@@ -16,8 +16,6 @@
 
 namespace aiplacement_modgen\event;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Event observer for removing AI-generated markers when activities are edited.
  *

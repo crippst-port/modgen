@@ -120,8 +120,8 @@ final class session_routing_integrity_test extends advanced_testcase {
         $modinfo = get_fast_modinfo($this->course->id);
         $names = [];
         foreach ($modinfo->get_cms() as $cm) {
-            // get_session_sections() returns section numbers as DB strings; cast both
-            // sides to int so a string/int mismatch can't silently drop a match.
+            // Section numbers from get_session_sections() come back as DB strings; cast
+            // both sides to int so a string/int mismatch can't silently drop a match.
             if ((int)$cm->sectionnum === $sectionnumber && $cm->modname !== 'learningactivity') {
                 $names[] = $cm->name;
             }
@@ -132,7 +132,6 @@ final class session_routing_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // The create -> find round trip.
-    // ------------------------------------------------------------------
 
     /**
      * Subsections created by create_session_subsections must be found again by
@@ -222,7 +221,6 @@ final class session_routing_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // End-to-end activity routing through the service.
-    // ------------------------------------------------------------------
 
     /**
      * Activities supplied per phase must land in the matching phase subsection —
@@ -295,7 +293,6 @@ final class session_routing_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // Collision boundary characterisation (where silent misrouting lives).
-    // ------------------------------------------------------------------
 
     /**
      * Characterise the matcher when a sibling subsection's name happens to contain
@@ -368,8 +365,8 @@ final class session_routing_integrity_test extends advanced_testcase {
         $map = session_creator::get_session_sections($week, $this->course->id);
         $this->assertSame([], $map, 'A week with no session subsections maps to nothing.');
 
-        // create_session_activities must safely no-op when the map lacks the phase,
-        // never falling back to an arbitrary section.
+        // The create_session_activities() call must safely no-op when the map lacks the
+        // phase, never falling back to an arbitrary section.
         $results = [];
         $warnings = [];
         $course = get_course($this->course->id);

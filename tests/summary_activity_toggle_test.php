@@ -201,7 +201,7 @@ final class summary_activity_toggle_test extends advanced_testcase {
             false,
             false,
             false,
-            false // createsummaryactivities off.
+            false // Createsummaryactivities off.
         );
         $this->resetDebugging();
 

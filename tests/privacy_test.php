@@ -34,8 +34,6 @@ use core_privacy\local\request\writer;
 use core_privacy\tests\provider_testcase;
 use aiplacement_modgen\privacy\provider;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Privacy API test class.
  *
@@ -77,7 +75,7 @@ final class privacy_test extends provider_testcase
         // Create job for user2 in course2.
         $job2id = $this->create_test_job($user2->id, $course2->id, 'create_weeks');
 
-        // Verify jobs were created
+        // Verify jobs were created.
         $this->assertTrue($DB->record_exists('aiplacement_modgen_jobs', ['id' => $job1id]), 'Job 1 should exist');
         $this->assertTrue($DB->record_exists('aiplacement_modgen_jobs', ['id' => $job2id]), 'Job 2 should exist');
 
@@ -91,7 +89,7 @@ final class privacy_test extends provider_testcase
         $coursecontext1 = \context_course::instance($course1->id);
 
         // Verify it's the correct course context.
-        // Note: get_contextids() returns strings, so we need to convert for comparison
+        // Note: get_contextids() returns strings, so we need to convert for comparison.
         $this->assertContains((string)$coursecontext1->id, $contexts, 'Should contain the expected course context');
 
         // Verify user2's context is different.
@@ -223,7 +221,7 @@ final class privacy_test extends provider_testcase
         // Create jobs for user1 and user2 in course.
         $this->create_test_job($user1->id, $course->id, 'create_themes');
         $this->create_test_job($user2->id, $course->id, 'create_weeks');
-        // user3 has no jobs.
+        // User3 has no jobs.
 
         // Get users in context.
         $userlist = new userlist($coursecontext, 'aiplacement_modgen');
@@ -232,7 +230,7 @@ final class privacy_test extends provider_testcase
         $userids = $userlist->get_userids();
 
         $this->assertCount(2, $userids);
-        // Note: get_userids() returns integers, user->id is string, so we need to convert for comparison
+        // Note: get_userids() returns integers, user->id is string, so we need to convert for comparison.
         $this->assertContains((int)$user1->id, $userids);
         $this->assertContains((int)$user2->id, $userids);
         $this->assertNotContains((int)$user3->id, $userids);

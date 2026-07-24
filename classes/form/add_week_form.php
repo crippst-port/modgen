@@ -22,8 +22,6 @@
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Form for adding a new week.
  */
@@ -38,7 +36,7 @@ class aiplacement_modgen_add_week_form extends moodleform {
         $mform->addElement('hidden', 'courseid');
         $mform->setType('courseid', PARAM_INT);
 
-        // Get max sections from config
+        // Get max sections from config.
         $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections');
         if (!$maxsections) {
             $maxsections = 30;
@@ -51,7 +49,7 @@ class aiplacement_modgen_add_week_form extends moodleform {
         $mform->addRule('weekcount', null, 'required', null, 'client');
         $mform->addRule('weekcount', null, 'numeric', null, 'client');
         $mform->addHelpButton('weekcount', 'weekcount', 'aiplacement_modgen');
-        // Add hint text showing the maximum
+        // Add hint text showing the maximum.
         $hinttext = 'Enter a number between 1 and ' . $maxsections;
         $mform->addElement(
             'static',
@@ -73,7 +71,7 @@ class aiplacement_modgen_add_week_form extends moodleform {
             ? 'createsummaryactivitiesai' : 'createsummaryactivities';
         $mform->addHelpButton('createsummaryactivities', $summaryhelp, 'aiplacement_modgen');
 
-        // Action buttons
+        // Action buttons.
         $this->add_action_buttons(true, get_string('generatorbutton', 'aiplacement_modgen'));
     }
 
@@ -87,7 +85,7 @@ class aiplacement_modgen_add_week_form extends moodleform {
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
-        // Get max sections from config
+        // Get max sections from config.
         $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 10;
 
         if (empty($data['weekcount']) || $data['weekcount'] < 1 || $data['weekcount'] > $maxsections) {

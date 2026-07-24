@@ -221,7 +221,7 @@ final class concurrent_process_integrity_test extends advanced_testcase {
         theme_builder::ensure_flexsections_format($course->id);
         $this->preventResetByRollback();
 
-        // export_dbconfig() returns a stdClass; cast to array for the child helper.
+        // The result of export_dbconfig() is a stdClass; cast to array for the child helper.
         $dbconfig = (array) $DB->export_dbconfig();
         // Normalise optional keys export_dbconfig() may omit.
         $dbconfig += ['dblibrary' => 'native', 'dboptions' => []];
@@ -247,7 +247,7 @@ final class concurrent_process_integrity_test extends advanced_testcase {
                         $adminid,
                         "R{$round}W{$w}-" . substr(md5(uniqid('', true)), 0, 6)
                     );
-                    // run_child never returns.
+                    // Run_child() never returns.
                 }
                 $pids[] = $pid;
             }

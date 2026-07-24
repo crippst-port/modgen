@@ -33,6 +33,9 @@ require_once($CFG->libdir . '/formslib.php');
  * before creating it in the course.
  */
 class aiplacement_modgen_approve_form extends moodleform {
+    /**
+     * Form definition.
+     */
     public function definition() {
         $mform = $this->_form;
         $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
@@ -49,9 +52,12 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->addElement('hidden', 'moduletype', $this->_customdata['moduletype']);
         $mform->setType('moduletype', PARAM_ALPHANUMEXT);
         $mform->setDefault('moduletype', $this->_customdata['moduletype']);
-        $mform->addElement('hidden', 'generatethemeintroductions', !empty($this->_customdata['generatethemeintroductions']) ? $this->_customdata['generatethemeintroductions'] : 0);
+        $generatethemeintroductions = !empty($this->_customdata['generatethemeintroductions'])
+            ? $this->_customdata['generatethemeintroductions']
+            : 0;
+        $mform->addElement('hidden', 'generatethemeintroductions', $generatethemeintroductions);
         $mform->setType('generatethemeintroductions', PARAM_BOOL);
-        $mform->setDefault('generatethemeintroductions', !empty($this->_customdata['generatethemeintroductions']) ? $this->_customdata['generatethemeintroductions'] : 0);
+        $mform->setDefault('generatethemeintroductions', $generatethemeintroductions);
         $mform->addElement('hidden', 'createsuggestedactivities', $this->_customdata['createsuggestedactivities']);
         $mform->setType('createsuggestedactivities', PARAM_BOOL);
         $mform->setDefault('createsuggestedactivities', $this->_customdata['createsuggestedactivities']);
@@ -65,11 +71,16 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->setType('createsummaryactivities', PARAM_BOOL);
         $mform->setDefault('createsummaryactivities', $this->_customdata['createsummaryactivities'] ?? 0);
 
-        // Add regenerate button if AI is enabled AND user chose AI options (not from template)
+        // Add regenerate button if AI is enabled AND user chose AI options (not from template).
         if (get_config('aiplacement_modgen', 'enable_ai') && !empty($this->_customdata['usedaioptions'])) {
             $buttonarray = [];
-            // Explicitly set type="button" so it's not treated as a submit button by the modal handler
-            $buttonarray[] = &$mform->createElement('button', 'regeneratebutton', get_string('regenerate', 'aiplacement_modgen'), ['type' => 'button']);
+            // Explicitly set type="button" so it's not treated as a submit button by the modal handler.
+            $buttonarray[] = &$mform->createElement(
+                'button',
+                'regeneratebutton',
+                get_string('regenerate', 'aiplacement_modgen'),
+                ['type' => 'button']
+            );
             $buttonarray[] = &$mform->createElement('cancel');
             $buttonarray[] = &$mform->createElement('submit', 'submitbutton', get_string('approveandcreate', 'aiplacement_modgen'));
             $mform->addGroup($buttonarray, 'buttonar', '', [' '], false);

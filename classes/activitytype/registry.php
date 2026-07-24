@@ -19,13 +19,16 @@ namespace aiplacement_modgen\activitytype;
 use core_text;
 use stdClass;
 
-require_once(__DIR__ . '/activity_type.php');
-
 defined('MOODLE_INTERNAL') || die();
+
+require_once(__DIR__ . '/activity_type.php');
 
 /**
  * Registry that locates and instantiates AI activity handlers.
- * @package aiplacement_modgen
+ *
+ * @package     aiplacement_modgen
+ * @copyright   2025 Tom Cripps <tom.cripps@port.ac.uk>
+ * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 class registry {
     /** @var array<string, class-string<activity_type>>|null Cached map of type identifier => class FQCN. */
@@ -41,9 +44,9 @@ class registry {
         $handlers = [];
 
         foreach (self::get_map() as $type => $class) {
-            // Check if handler has AI_CREATABLE constant and respect it
+            // Check if handler has AI_CREATABLE constant and respect it.
             if (defined("$class::AI_CREATABLE") && !$class::AI_CREATABLE) {
-                // Skip handlers that are not AI-creatable
+                // Skip handlers that are not AI-creatable.
                 continue;
             }
 
@@ -182,8 +185,6 @@ class registry {
         $map = [];
         $directory = __DIR__;
         $files = glob($directory . '/*.php');
-
-        // Debug: log what files we're finding
 
         foreach ($files as $filepath) {
             $filename = basename($filepath, '.php');

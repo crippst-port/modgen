@@ -183,7 +183,6 @@ final class concurrency_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // Mutual exclusion.
-    // ------------------------------------------------------------------
 
     /**
      * While the per-course generation lock is held by another worker, a second
@@ -270,7 +269,6 @@ final class concurrency_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // Atomicity under failure (rollback).
-    // ------------------------------------------------------------------
 
     /**
      * Section creation that throws mid-flight must roll back completely, leaving

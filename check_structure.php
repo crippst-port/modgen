@@ -272,7 +272,8 @@ if ($diag !== null) {
         echo html_writer::start_tag('tr', ['class' => $rowclass]);
         echo html_writer::tag('td', $s->section);
         echo html_writer::tag('td', format_string($s->name ?? get_string('checkstructure_unnamed', 'aiplacement_modgen')));
-        echo html_writer::tag('td', $s->section == 0 ? '—' : ($s->parent ?? get_string('checkstructure_missing', 'aiplacement_modgen')));
+        $parentcell = $s->section == 0 ? '—' : ($s->parent ?? get_string('checkstructure_missing', 'aiplacement_modgen'));
+        echo html_writer::tag('td', $parentcell);
         echo html_writer::tag('td', $s->depth);
         echo html_writer::tag('td', $s->visible ? get_string('yes') : get_string('no'));
         echo html_writer::tag('td', $s->activitycount);

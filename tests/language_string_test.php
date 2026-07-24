@@ -29,8 +29,6 @@ use basic_testcase;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Tests that plugin string references resolve to local language definitions.
  */
@@ -115,7 +113,8 @@ final class language_string_test extends basic_testcase {
             '/get_string\\s*\\(\\s*[\\\'"]([^\\\'"]+)[\\\'"]\\s*,\\s*[\\\'"]' . $component . '[\\\'"]/' => 'get_string',
             '/getString\\s*\\(\\s*[\\\'"]([^\\\'"]+)[\\\'"]\\s*,\\s*[\\\'"]' . $component . '[\\\'"]/' => 'getString',
             '/Str\\.get_string\\s*\\(\\s*[\\\'"]([^\\\'"]+)[\\\'"]\\s*,\\s*[\\\'"]' . $component . '[\\\'"]/' => 'Str.get_string',
-            '/M\\.util\\.get_string\\s*\\(\\s*[\\\'"]([^\\\'"]+)[\\\'"]\\s*,\\s*[\\\'"]' . $component . '[\\\'"]/' => 'M.util.get_string',
+            '/M\\.util\\.get_string\\s*\\(\\s*[\\\'"]([^\\\'"]+)[\\\'"]\\s*,\\s*[\\\'"]'
+                . $component . '[\\\'"]/' => 'M.util.get_string',
             '/\\{\\{#str\\}\\}\\s*([^,}\\s]+)\\s*,\\s*' . $component . '(?:\\s*,[^}]*)?\\s*\\{\\{\\/str\\}\\}/' => 'mustache_str',
         ];
 
@@ -160,6 +159,8 @@ final class language_string_test extends basic_testcase {
 
     /**
      * All static plugin string references should have language definitions.
+     *
+     * @coversNothing
      */
     public function test_static_plugin_string_references_are_defined(): void {
         $definitions = $this->language_definitions();
@@ -182,6 +183,8 @@ final class language_string_test extends basic_testcase {
 
     /**
      * Duplicate keys silently override earlier definitions and should not creep in.
+     *
+     * @coversNothing
      */
     public function test_language_string_keys_are_unique(): void {
         $duplicates = [];

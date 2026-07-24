@@ -34,7 +34,7 @@ define('CLI_SCRIPT', true);
 require(__DIR__ . '/../../../../config.php');
 require_once($CFG->libdir . '/clilib.php');
 
-// Ensure we're running from CLI
+// Ensure we're running from CLI.
 if (!CLI_SCRIPT) {
     die('This script must be run from the command line.');
 }
@@ -44,7 +44,7 @@ echo "=== Moodle Plugin Security Fixes - Automated Tests ===\n\n";
 $passed = 0;
 $failed = 0;
 
-// Test 1: Rate Limiting Cache Definition
+// Test 1: Rate Limiting Cache Definition.
 echo "Test 1: Verifying rate limiting cache definition exists...\n";
 try {
     $cache = cache::make('aiplacement_modgen', 'ai_requests');
@@ -61,7 +61,7 @@ try {
 }
 echo "\n";
 
-// Test 2: Section Maps Cache Definition
+// Test 2: Section Maps Cache Definition.
 echo "Test 2: Verifying section maps cache definition exists...\n";
 try {
     $cache = cache::make('aiplacement_modgen', 'section_maps');
@@ -78,7 +78,7 @@ try {
 }
 echo "\n";
 
-// Test 3: Rate Limit Configuration
+// Test 3: Rate Limit Configuration.
 echo "Test 3: Verifying rate limit configuration...\n";
 $ratelimit = get_config('aiplacement_modgen', 'ai_rate_limit');
 if ($ratelimit !== false) {
@@ -86,11 +86,11 @@ if ($ratelimit !== false) {
     $passed++;
 } else {
     echo "  ⚠ WARNING: Rate limit setting not configured, using default (10)\n";
-    $passed++; // Still pass as default is acceptable
+    $passed++; // Still pass as default is acceptable.
 }
 echo "\n";
 
-// Test 4: Database Index on courseid
+// Test 4: Database Index on courseid.
 echo "Test 4: Checking database index on aiplacement_modgen_aigen.courseid...\n";
 try {
     $dbman = $DB->get_manager();
@@ -111,7 +111,7 @@ try {
 }
 echo "\n";
 
-// Test 5: Mustache Template Exists
+// Test 5: Mustache Template Exists.
 echo "Test 5: Verifying XSS fix - Mustache template exists...\n";
 $templatepath = $CFG->dirroot . '/ai/placement/modgen/templates/ai_policy_acceptance.mustache';
 if (file_exists($templatepath)) {
@@ -123,7 +123,7 @@ if (file_exists($templatepath)) {
 }
 echo "\n";
 
-// Test 6: AMD Module Exists
+// Test 6: AMD Module Exists.
 echo "Test 6: Verifying XSS fix - AMD module exists...\n";
 $amdpath = $CFG->dirroot . '/ai/placement/modgen/amd/src/policy_acceptance.js';
 if (file_exists($amdpath)) {
@@ -135,16 +135,16 @@ if (file_exists($amdpath)) {
 }
 echo "\n";
 
-// Test 7: Rate Limiting Functionality
+// Test 7: Rate Limiting Functionality.
 echo "Test 7: Testing rate limiting functionality...\n";
 try {
     $cache = cache::make('aiplacement_modgen', 'ai_requests');
     $testkey = 'test_user_999999';
 
-    // Clear any existing test data
+    // Clear any existing test data.
     $cache->delete($testkey);
 
-    // Simulate first request
+    // Simulate first request.
     $cache->set($testkey, 1);
     $count = $cache->get($testkey);
 
@@ -156,7 +156,7 @@ try {
         $failed++;
     }
 
-    // Clean up
+    // Clean up.
     $cache->delete($testkey);
 } catch (Exception $e) {
     echo "  ✗ FAILED: " . $e->getMessage() . "\n";
@@ -164,7 +164,7 @@ try {
 }
 echo "\n";
 
-// Test 8: Database Query Optimization - Check for enrol_get_my_courses usage
+// Test 8: Database Query Optimization - Check for enrol_get_my_courses usage.
 echo "Test 8: Verifying SQL optimization in generator_form.php...\n";
 $formpath = $CFG->dirroot . '/ai/placement/modgen/classes/form/generator_form.php';
 if (file_exists($formpath)) {
@@ -182,7 +182,7 @@ if (file_exists($formpath)) {
 }
 echo "\n";
 
-// Test 9: N+1 Query Fix - Check for batch fetching in suggest.php
+// Test 9: N+1 Query Fix - Check for batch fetching in suggest.php.
 echo "Test 9: Verifying N+1 query fix in suggest.php...\n";
 $suggestpath = $CFG->dirroot . '/ai/placement/modgen/ajax/suggest.php';
 if (file_exists($suggestpath)) {
@@ -200,7 +200,7 @@ if (file_exists($suggestpath)) {
 }
 echo "\n";
 
-// Summary
+// Summary.
 echo "=== Test Summary ===\n";
 echo "Total tests: " . ($passed + $failed) . "\n";
 echo "Passed: $passed\n";

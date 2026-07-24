@@ -27,7 +27,9 @@
 
 namespace aiplacement_modgen\local;
 
-defined('MOODLE_INTERNAL') || die();
+/**
+ * Validates and sanitizes learningactivity metadata fields.
+ */
 class learningactivity_validator {
     /**
      * Get valid activity icons from learningactivity module.
@@ -90,16 +92,16 @@ class learningactivity_validator {
 
         $validated = [];
 
-        // Name (string, sanitize to prevent XSS)
+        // Name (string, sanitize to prevent XSS).
         $name = isset($metadata['name']) ? trim((string) $metadata['name']) : '';
         $validated['name'] = clean_param($name, PARAM_TEXT);
 
-        // Enforce maximum length
+        // Enforce maximum length.
         if (strlen($validated['name']) > 255) {
             $validated['name'] = substr($validated['name'], 0, 255);
         }
 
-        // Activity icon (must be in valid list)
+        // Activity icon (must be in valid list).
         $validated['activityicon'] = '';
         if (isset($metadata['activityicon'])) {
             $icon = trim($metadata['activityicon']);
@@ -109,16 +111,16 @@ class learningactivity_validator {
             }
         }
 
-        // Instructions (string, sanitize to prevent XSS)
+        // Instructions (string, sanitize to prevent XSS).
         $instructions = isset($metadata['instructions']) ? (string) $metadata['instructions'] : '';
         $validated['instructions'] = clean_param($instructions, PARAM_TEXT);
 
-        // Enforce maximum length (64KB should be sufficient for instructions)
+        // Enforce maximum length (64KB should be sufficient for instructions).
         if (strlen($validated['instructions']) > 65535) {
             $validated['instructions'] = substr($validated['instructions'], 0, 65535);
         }
 
-        // Duration (integer/string, should be numeric)
+        // Duration (integer/string, should be numeric).
         $validated['duration'] = null;
         if (isset($metadata['duration'])) {
             $duration = trim($metadata['duration']);
@@ -127,24 +129,24 @@ class learningactivity_validator {
             }
         }
 
-        // Learningmode (must be in valid list)
+        // Learningmode (must be in valid list).
         $validated['learningmode'] = null;
         if (isset($metadata['learningmode'])) {
             $mode = trim($metadata['learningmode']);
             $validmodes = self::get_valid_learningmodes();
             if (in_array($mode, $validmodes, true)) {
-                // Store as index for form compatibility
+                // Store as index for form compatibility.
                 $validated['learningmode'] = array_search($mode, $validmodes);
             }
         }
 
-        // Group activity (boolean)
+        // Group activity (boolean).
         $validated['groupactivity'] = null;
         if (isset($metadata['groupactivity'])) {
             $validated['groupactivity'] = (bool) $metadata['groupactivity'] ? 1 : 0;
         }
 
-        // Learningtypes (comma-separated string, validate each type)
+        // Learningtypes (comma-separated string, validate each type).
         $validated['learningtypes'] = null;
         if (isset($metadata['learningtypes']) && !empty($metadata['learningtypes'])) {
             $types = is_array($metadata['learningtypes'])
@@ -166,16 +168,16 @@ class learningactivity_validator {
             }
         }
 
-        // Learning outcomes weekly (string with newlines, sanitize to prevent XSS)
+        // Learning outcomes weekly (string with newlines, sanitize to prevent XSS).
         $outcomes = isset($metadata['learningoutcomes_weekly']) ? (string) $metadata['learningoutcomes_weekly'] : '';
         $validated['learningoutcomes_weekly'] = clean_param($outcomes, PARAM_TEXT);
 
-        // Enforce maximum length
+        // Enforce maximum length.
         if (strlen($validated['learningoutcomes_weekly']) > 65535) {
             $validated['learningoutcomes_weekly'] = substr($validated['learningoutcomes_weekly'], 0, 65535);
         }
 
-        // Design notes (sanitize if present)
+        // Design notes (sanitize if present).
         if (isset($metadata['designnotes'])) {
             $designnotes = clean_param((string) $metadata['designnotes'], PARAM_TEXT);
             if (strlen($designnotes) > 65535) {

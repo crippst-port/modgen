@@ -22,8 +22,6 @@
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Form for adding a new theme.
  */
@@ -38,14 +36,14 @@ class aiplacement_modgen_add_theme_form extends moodleform {
         $mform->addElement('hidden', 'courseid');
         $mform->setType('courseid', PARAM_INT);
 
-        // Get max sections from config
+        // Get max sections from config.
         $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections');
         if (!$maxsections) {
             $maxsections = 30;
         }
-        $maxweeksperTheme = (int)get_config('aiplacement_modgen', 'maxweeksperTheme');
-        if (!$maxweeksperTheme) {
-            $maxweeksperTheme = 5;
+        $maxweeksperthemecount = (int)get_config('aiplacement_modgen', 'maxweeksperTheme');
+        if (!$maxweeksperthemecount) {
+            $maxweeksperthemecount = 5;
         }
 
         // Number of themes to create (text input).
@@ -55,7 +53,7 @@ class aiplacement_modgen_add_theme_form extends moodleform {
         $mform->addRule('themecount', null, 'required', null, 'client');
         $mform->addRule('themecount', null, 'numeric', null, 'client');
         $mform->addHelpButton('themecount', 'themecount', 'aiplacement_modgen');
-        // Add hint text showing the maximum
+        // Add hint text showing the maximum.
         $hinttext = 'Enter a number between 1 and ' . $maxsections;
         $mform->addElement(
             'static',
@@ -71,8 +69,8 @@ class aiplacement_modgen_add_theme_form extends moodleform {
         $mform->addRule('weeksperTheme', null, 'required', null, 'client');
         $mform->addRule('weeksperTheme', null, 'numeric', null, 'client');
         $mform->addHelpButton('weeksperTheme', 'weeksperTheme', 'aiplacement_modgen');
-        // Add hint text showing the maximum
-        $hinttext = 'Enter a number between 1 and ' . $maxweeksperTheme;
+        // Add hint text showing the maximum.
+        $hinttext = 'Enter a number between 1 and ' . $maxweeksperthemecount;
         $mform->addElement(
             'static',
             'weeksperTheme_hint',
@@ -93,7 +91,7 @@ class aiplacement_modgen_add_theme_form extends moodleform {
             ? 'createsummaryactivitiesai' : 'createsummaryactivities';
         $mform->addHelpButton('createsummaryactivities', $summaryhelp, 'aiplacement_modgen');
 
-        // Action buttons
+        // Action buttons.
         $this->add_action_buttons(true, get_string('generatorbutton', 'aiplacement_modgen'));
     }
 
@@ -107,16 +105,16 @@ class aiplacement_modgen_add_theme_form extends moodleform {
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
-        // Get max sections from config
+        // Get max sections from config.
         $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 30;
-        $maxweeksperTheme = (int)get_config('aiplacement_modgen', 'maxweeksperTheme') ?: 5;
+        $maxweeksperthemecount = (int)get_config('aiplacement_modgen', 'maxweeksperTheme') ?: 5;
 
         if (empty($data['themecount']) || $data['themecount'] < 1 || $data['themecount'] > $maxsections) {
             $errors['themecount'] = get_string('invalidthemecount', 'aiplacement_modgen', $maxsections);
         }
 
-        if (empty($data['weeksperTheme']) || $data['weeksperTheme'] < 1 || $data['weeksperTheme'] > $maxweeksperTheme) {
-            $errors['weeksperTheme'] = get_string('invalidweeksperTheme', 'aiplacement_modgen', $maxweeksperTheme);
+        if (empty($data['weeksperTheme']) || $data['weeksperTheme'] < 1 || $data['weeksperTheme'] > $maxweeksperthemecount) {
+            $errors['weeksperTheme'] = get_string('invalidweeksperTheme', 'aiplacement_modgen', $maxweeksperthemecount);
         }
 
         return $errors;

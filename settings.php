@@ -28,7 +28,7 @@ defined('MOODLE_INTERNAL') || die();
 use core_ai\admin\admin_settingspage_provider;
 
 if ($hassiteconfig) {
-    // Create settings page
+    // Create settings page.
     $settings = new admin_settingspage_provider(
         'aiplacement_modgen',
         new lang_string('pluginname', 'aiplacement_modgen'),
@@ -38,7 +38,7 @@ if ($hassiteconfig) {
 
     // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedIf
     if ($ADMIN->fulltree) {
-        // AI Enable/Disable Setting
+        // AI Enable/Disable Setting.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/aienabledheading',
             new lang_string('aienabledheading', 'aiplacement_modgen'),
@@ -52,7 +52,7 @@ if ($hassiteconfig) {
             1
         ));
 
-        // AI Generation Settings
+        // AI Generation Settings.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/aipromptheading',
             new lang_string('aipromptheading', 'aiplacement_modgen'),
@@ -62,7 +62,8 @@ if ($hassiteconfig) {
         $basepromptdefault = "You are an expert Moodle learning content designer at a UK higher education institution.\n" .
             "Your task is to design a Moodle module for the user's input, using activities and resources appropriate for UK HE.\n" .
             "Design learning activities aligned with UK HE standards, inclusive pedagogy, and clear learning outcomes.\n" .
-            "Structure the module with sections, activities, and resources that promote engagement and effective learning, keep any graphical elements consistent, and ensure accessibility for all users.";
+            "Structure the module with sections, activities, and resources that promote engagement and " .
+            "effective learning, keep any graphical elements consistent, and ensure accessibility for all users.";
 
         $settings->add(new admin_setting_configtextarea(
             'aiplacement_modgen/baseprompt',
@@ -89,7 +90,7 @@ if ($hassiteconfig) {
             PARAM_INT
         ));
 
-        // Base on existing module configuration
+        // Base on existing module configuration.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/existingmoduleheading',
             new lang_string('existingmoduleheading', 'aiplacement_modgen'),
@@ -99,10 +100,11 @@ if ($hassiteconfig) {
         $settings->add(new admin_setting_configcheckbox(
             'aiplacement_modgen/enable_existing_modules',
             new lang_string('enableexistingmodules', 'aiplacement_modgen'),
-            new lang_string('enableexistingmodules_desc', 'aiplacement_modgen') . "\n\nNote: AI generation must be enabled for this feature to work.",
+            new lang_string('enableexistingmodules_desc', 'aiplacement_modgen') .
+                "\n\nNote: AI generation must be enabled for this feature to work.",
             1
         ));
-        // Suggest toolbar button control
+        // Suggest toolbar button control.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/suggestheading',
             new lang_string('suggestheading', 'aiplacement_modgen'),
@@ -131,14 +133,14 @@ if ($hassiteconfig) {
             6
         ));
 
-        // Help and Advice Links
+        // Help and Advice Links.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/helplinksheading',
             new lang_string('helplinksheading', 'aiplacement_modgen'),
             new lang_string('helplinksheading_desc', 'aiplacement_modgen')
         ));
 
-        // Add 5 configurable help links
+        // Add 5 configurable help links.
         for ($i = 1; $i <= 5; $i++) {
             $settings->add(new admin_setting_configtext(
                 "aiplacement_modgen/helplink{$i}_text",
@@ -157,7 +159,7 @@ if ($hassiteconfig) {
             ));
         }
 
-        // Section Creation Limits
+        // Section Creation Limits.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/sectionlimitsheading',
             new lang_string('sectionlimitsheading', 'aiplacement_modgen'),
@@ -196,7 +198,7 @@ if ($hassiteconfig) {
             PARAM_INT
         ));
 
-        // Dates for sections - Holiday configuration
+        // Dates for sections - Holiday configuration.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/datesforsectionsheading',
             new lang_string('datesforsections', 'aiplacement_modgen'),
@@ -214,7 +216,7 @@ if ($hassiteconfig) {
             10
         ));
 
-        // CSV Template Library
+        // CSV Template Library.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/csvtemplateheading',
             new lang_string('csvtemplatelibrary', 'aiplacement_modgen'),

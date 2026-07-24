@@ -43,23 +43,26 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
         $mform->addElement('hidden', 'courseid');
         $mform->setType('courseid', PARAM_INT);
 
-        // Hidden field for selected sections (populated by JavaScript)
+        // Hidden field for selected sections (populated by JavaScript).
         $mform->addElement('hidden', 'selectedsections');
         $mform->setType('selectedsections', PARAM_RAW);
 
-        // Date picker for start date with additional padding
+        // Date picker for start date with additional padding.
         $mform->addElement('html', '<div style="padding: 0 1rem;">');
         $mform->addElement('date_selector', 'startdate', get_string('startdate', 'aiplacement_modgen'));
         $mform->addHelpButton('startdate', 'startdate', 'aiplacement_modgen');
         $mform->addElement('html', '</div>');
 
-        // Set default to course start date
+        // Set default to course start date.
         if (!empty($customdata['coursestartdate'])) {
             $mform->setDefault('startdate', $customdata['coursestartdate']);
         }
 
         // Add ARIA live region for dynamic updates.
-        $mform->addElement('html', '<div id="dates-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>');
+        $mform->addElement(
+            'html',
+            '<div id="dates-status" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></div>'
+        );
 
         // Render the sections table using Mustache template.
         if (!empty($customdata['sections'])) {
@@ -116,7 +119,7 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
             return $a['section'] <=> $b['section'];
         });
 
-        // Build hierarchy structure
+        // Build hierarchy structure.
         $hierarchy = $this->build_hierarchy($sections);
 
         // Prepare template data.
@@ -138,7 +141,7 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
      * @return array Hierarchical array of sections
      */
     private function build_hierarchy($sections) {
-        // Build maps for quick lookup
+        // Build maps for quick lookup.
         $sectionmap = [];
         $childrenmap = [];
 
@@ -147,7 +150,7 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
             $childrenmap[$section['id']] = [];
         }
 
-        // Build parent-child relationships
+        // Build parent-child relationships.
         foreach ($sections as $section) {
             if (!empty($section['parent_id'])) {
                 $parentid = $section['parent_id'];
@@ -157,10 +160,10 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
             }
         }
 
-        // Build hierarchical structure starting with top-level sections
+        // Build hierarchical structure starting with top-level sections.
         $hierarchy = [];
         foreach ($sections as $section) {
-            // Only process top-level sections (no parent)
+            // Only process top-level sections (no parent).
             if (empty($section['parent_id'])) {
                 $hierarchy[] = $this->build_section_node($section, $childrenmap, $sectionmap, 0);
             }
@@ -190,7 +193,7 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
             'children' => [],
         ];
 
-        // Recursively add children
+        // Recursively add children.
         if (!empty($childrenmap[$section['id']])) {
             foreach ($childrenmap[$section['id']] as $childid) {
                 if (isset($sectionmap[$childid])) {
@@ -217,7 +220,7 @@ class aiplacement_modgen_dates_for_sections_form extends moodleform {
     public function validation($data, $files) {
         $errors = parent::validation($data, $files);
 
-        // selectedsections comes as JSON string from JavaScript
+        // The selectedsections field comes as a JSON string from JavaScript.
         $selectedsections = [];
         if (!empty($data['selectedsections'])) {
             $decoded = json_decode($data['selectedsections'], true);

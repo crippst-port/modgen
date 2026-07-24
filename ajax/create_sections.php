@@ -62,8 +62,8 @@ require_sesskey();
 
 // Get parameters.
 $courseid = required_param('courseid', PARAM_INT);
-$action = required_param('action', PARAM_ALPHAEXT); // 'create_themes' or 'create_weeks' (ALPHAEXT allows underscores)
-$parentsection = optional_param('parentsection', 0, PARAM_INT); // Current section to add content within
+$action = required_param('action', PARAM_ALPHAEXT); // Action name: 'create_themes' or 'create_weeks' (ALPHAEXT allows underscores).
+$parentsection = optional_param('parentsection', 0, PARAM_INT); // Current section to add content within.
 // Whether to create the learningactivity "section summary" placeholder modules.
 // The Quick Add forms always submit this (advcheckbox, default off); this fallback
 // only applies to callers that omit the field entirely.
@@ -79,20 +79,20 @@ core_php_time_limit::raise(600);
 // Set page context (required by some Moodle functions).
 $PAGE->set_context($context);
 
-// Get max sections from config
+// Get max sections from config.
 $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 10;
 
 try {
     require_once(__DIR__ . '/../classes/local/theme_builder.php');
 
-    // All creation jobs now use background processing
+    // All creation jobs now use background processing.
     $totalsections = 0;
 
     if ($action === 'create_themes') {
         // Get theme parameters.
         $themecount = required_param('themecount', PARAM_INT);
-        $weeksperTheme = required_param('weeksperTheme', PARAM_INT);
-        $maxweeksperTheme = (int)get_config('aiplacement_modgen', 'maxweeksperTheme') ?: 5;
+        $weeksperthemecount = required_param('weeksperTheme', PARAM_INT);
+        $maxweeksperthemecount = (int)get_config('aiplacement_modgen', 'maxweeksperTheme') ?: 5;
 
         // Validate.
         if ($themecount < 1 || $themecount > $maxsections) {
@@ -101,15 +101,15 @@ try {
                 'invalidthemecount'
             );
         }
-        if ($weeksperTheme < 1 || $weeksperTheme > $maxweeksperTheme) {
+        if ($weeksperthemecount < 1 || $weeksperthemecount > $maxweeksperthemecount) {
             ajax_response::error(
-                get_string('invalidweeksperTheme', 'aiplacement_modgen', $maxweeksperTheme),
+                get_string('invalidweeksperTheme', 'aiplacement_modgen', $maxweeksperthemecount),
                 'invalidweeksperTheme'
             );
         }
 
         // Calculate total sections for display: themes + (themes × weeks × 4 sessions).
-        $totalsections = $themecount + ($themecount * $weeksperTheme * 4);
+        $totalsections = $themecount + ($themecount * $weeksperthemecount * 4);
 
         // Queue as background task.
         $job = new stdClass();
@@ -119,7 +119,7 @@ try {
         $job->status = 'queued';
         $job->parameters = json_encode([
             'themecount' => $themecount,
-            'weeksperTheme' => $weeksperTheme,
+            'weeksperTheme' => $weeksperthemecount,
             'parentsection' => $parentsection,
             'createsummaryactivities' => $createsummaryactivities,
         ]);
@@ -133,7 +133,7 @@ try {
             'courseid' => $courseid,
             'action' => 'create_themes',
             'themecount' => $themecount,
-            'weeksperTheme' => $weeksperTheme,
+            'weeksperTheme' => $weeksperthemecount,
             'parentsection' => $parentsection,
             'createsummaryactivities' => $createsummaryactivities,
         ]);

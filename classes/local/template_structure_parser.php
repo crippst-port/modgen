@@ -28,10 +28,8 @@
 
 namespace aiplacement_modgen;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
- * Parser for extracting template structure and creating content placeholders
+ * Parser for extracting template structure and creating content placeholders.
  */
 class template_structure_parser {
     /**
@@ -49,17 +47,17 @@ class template_structure_parser {
 
         libxml_use_internal_errors(true);
         $dom = new \DOMDocument();
-        // Preserve UTF-8
+        // Preserve UTF-8.
         $dom->loadHTML('<?xml encoding="UTF-8">' . $html, LIBXML_HTML_NOIMPLIED | LIBXML_HTML_NODEFDTD);
         libxml_clear_errors();
 
         $xpath = new \DOMXPath($dom);
 
-        // Build a map of old ids -> new ids
+        // Build a map of old ids -> new ids.
         $idmap = [];
         foreach ($xpath->query('//*[@id]') as $node) {
             $oldid = $node->getAttribute('id');
-            // If id already contains the suffix, skip
+            // If id already contains the suffix, skip.
             if (substr($oldid, - (strlen($suffix) + 1)) === '-' . $suffix) {
                 $idmap[$oldid] = $oldid;
                 continue;
@@ -70,19 +68,18 @@ class template_structure_parser {
         }
 
         if (empty($idmap)) {
-            // No ids to update
-            // Return original HTML (without the xml wrapper)
+            // No ids to update. Return original HTML (without the xml wrapper).
             $outer = $dom->saveHTML();
             if ($outer === false) {
-                // saveHTML failed, return empty string
+                // SaveHTML failed, return empty string.
                 return '';
             }
-            // Remove the XML encoding stub if present
+            // Remove the XML encoding stub if present.
             $outer = preg_replace('/^<\?xml.*?\?>\s*/', '', $outer);
             return $outer;
         }
 
-        // Update href attributes that reference ids (anchors like href="#someid")
+        // Update href attributes that reference ids (anchors like href="#someid").
         foreach ($xpath->query('//*[@href]') as $node) {
             $href = $node->getAttribute('href');
             if (strlen($href) > 1 && $href[0] === '#') {
@@ -93,7 +90,7 @@ class template_structure_parser {
             }
         }
 
-        // Update aria-controls attributes referencing ids
+        // Update aria-controls attributes referencing ids.
         foreach ($xpath->query('//*[@aria-controls]') as $node) {
             $ac = $node->getAttribute('aria-controls');
             if (isset($idmap[$ac])) {
@@ -101,7 +98,7 @@ class template_structure_parser {
             }
         }
 
-        // Update data-bs-target attributes that reference ids (may start with '#')
+        // Update data-bs-target attributes that reference ids (may start with '#').
         foreach ($xpath->query('//*[@data-bs-target]') as $node) {
             $t = $node->getAttribute('data-bs-target');
             if (strlen($t) > 1 && $t[0] === '#') {
@@ -112,14 +109,11 @@ class template_structure_parser {
             }
         }
 
-        // Update data-toggle attribute references (Bootstrap 4 style href targets may be used)
-        foreach ($xpath->query('//*[@data-toggle]') as $node) {
-            // Some templates use href for target - handled above. Nothing more required here for now.
-        }
+        // Note: data-toggle (Bootstrap 4 style) targets use href, already handled above.
 
         $outer = $dom->saveHTML();
         if ($outer === false) {
-            // saveHTML failed, return empty string
+            // SaveHTML failed, return empty string.
             return '';
         }
         $outer = preg_replace('/^<\?xml.*?\?>\s*/', '', $outer);

@@ -31,25 +31,38 @@ require_once("$CFG->libdir/formslib.php");
  * Form for managing CSV templates.
  */
 class aiplacement_modgen_template_form extends moodleform {
+    /**
+     * Form definition.
+     */
     public function definition() {
         $mform = $this->_form;
 
-        // Hidden field for template ID (when editing)
+        // Hidden field for template ID (when editing).
         $mform->addElement('hidden', 'id', 0);
         $mform->setType('id', PARAM_INT);
 
-        // Template name (required)
-        $mform->addElement('text', 'name', get_string('templatename', 'aiplacement_modgen'), 'maxlength="255" size="50"');
+        // Template name (required).
+        $mform->addElement(
+            'text',
+            'name',
+            get_string('templatename', 'aiplacement_modgen'),
+            'maxlength="255" size="50"'
+        );
         $mform->setType('name', PARAM_TEXT);
         $mform->addRule('name', get_string('required'), 'required', null, 'client');
         $mform->addHelpButton('name', 'templatename', 'aiplacement_modgen');
 
-        // Template description (optional)
-        $mform->addElement('textarea', 'description', get_string('templatedescription', 'aiplacement_modgen'), 'wrap="virtual" rows="3" cols="50"');
+        // Template description (optional).
+        $mform->addElement(
+            'textarea',
+            'description',
+            get_string('templatedescription', 'aiplacement_modgen'),
+            'wrap="virtual" rows="3" cols="50"'
+        );
         $mform->setType('description', PARAM_TEXT);
         $mform->addHelpButton('description', 'templatedescription', 'aiplacement_modgen');
 
-        // File upload (CSV only, 1 file, 5MB max)
+        // File upload (CSV only, 1 file, 5MB max).
         $mform->addElement(
             'filemanager',
             'templatefile',
@@ -57,7 +70,7 @@ class aiplacement_modgen_template_form extends moodleform {
             null,
             [
                 'subdirs' => 0,
-                'maxbytes' => 5242880, // 5MB
+                'maxbytes' => 5242880, // 5MB.
                 'maxfiles' => 1,
                 'accepted_types' => ['.csv'],
             ]
@@ -65,15 +78,18 @@ class aiplacement_modgen_template_form extends moodleform {
         $mform->addRule('templatefile', get_string('required'), 'required', null, 'client');
         $mform->addHelpButton('templatefile', 'csvtemplate', 'aiplacement_modgen');
 
-        // Submit buttons
+        // Submit buttons.
         $this->add_action_buttons(true, get_string('savechanges'));
     }
 
+    /**
+     * Prepare the draft file area for the template file after form data is set.
+     */
     public function definition_after_data() {
         global $USER;
         parent::definition_after_data();
 
-        // Prepare draft area for template file
+        // Prepare draft area for template file.
         $draftitemid = file_get_submitted_draft_itemid('templatefile');
         $context = context_system::instance();
         file_prepare_draft_area(
@@ -87,11 +103,18 @@ class aiplacement_modgen_template_form extends moodleform {
         $this->_form->setDefault('templatefile', $draftitemid);
     }
 
+    /**
+     * Form validation.
+     *
+     * @param array $data Data from the form
+     * @param array $files Files uploaded with the form
+     * @return array Array of errors
+     */
     public function validation($data, $files) {
         global $USER;
         $errors = parent::validation($data, $files);
 
-        // Validate CSV file structure
+        // Validate CSV file structure.
         if (!empty($data['templatefile'])) {
             $draftitemid = $data['templatefile'];
             $fs = get_file_storage();
@@ -101,11 +124,11 @@ class aiplacement_modgen_template_form extends moodleform {
             if (!empty($draftfiles)) {
                 $file = reset($draftfiles);
 
-                // Validate CSV structure using existing parser
+                // Validate CSV structure using existing parser.
                 require_once(__DIR__ . '/../local/csv_parser.php');
 
                 try {
-                    // Pass the file object directly, and use auto-detect for module type
+                    // Pass the file object directly, and use auto-detect for module type.
                     $result = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($file, 'connected_weekly');
 
                     if (!$result || empty($result)) {

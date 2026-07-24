@@ -24,8 +24,6 @@
 
 namespace aiplacement_modgen\local;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Service class for processing uploaded files and extracting text content.
  */
@@ -47,7 +45,7 @@ class file_processor_service {
                 continue;
             }
 
-            // Validate file size
+            // Validate file size.
             if ($file->get_filesize() > constants::MAX_UPLOAD_SIZE) {
                 debugging('File ' . $file->get_filename() . ' exceeds max size, skipping', DEBUG_DEVELOPER);
                 continue;
@@ -78,7 +76,7 @@ class file_processor_service {
     public function process_single_file(string $filename, string $mimetype, string $content): ?array {
         $ext = strtolower(pathinfo($filename, PATHINFO_EXTENSION));
 
-        // Validate file extension
+        // Validate file extension.
         if (!in_array($ext, constants::SUPPORTED_EXTENSIONS)) {
             return null;
         }
@@ -89,7 +87,7 @@ class file_processor_service {
             return null;
         }
 
-        // Truncate large content
+        // Truncate large content.
         if (strlen($extracted) > constants::MAX_FILE_CONTENT_LENGTH) {
             $extracted = substr($extracted, 0, constants::MAX_FILE_CONTENT_LENGTH) . "\n...[truncated]";
         }
@@ -111,27 +109,27 @@ class file_processor_service {
      * @return string|null Extracted text or null if extraction failed
      */
     private function extract_text_content(string $content, string $ext, string $mimetype): ?string {
-        // Simple text files
+        // Simple text files.
         if (in_array($ext, constants::TEXT_EXTENSIONS)) {
             return $content;
         }
 
-        // RTF files
+        // RTF files.
         if ($ext === 'rtf' || $mimetype === 'application/rtf' || $mimetype === 'text/rtf') {
             return $this->extract_rtf_text($content);
         }
 
-        // DOCX files
+        // DOCX files.
         if ($ext === 'docx') {
             return $this->extract_docx_text($content);
         }
 
-        // ODT files
+        // ODT files.
         if ($ext === 'odt') {
             return $this->extract_odt_text($content);
         }
 
-        // Generic text-based MIME types
+        // Generic text-based MIME types.
         if (
             strpos($mimetype, 'text/') === 0 ||
             strpos($mimetype, 'application/xml') === 0 ||
@@ -151,7 +149,7 @@ class file_processor_service {
      */
     private function extract_rtf_text(string $content): ?string {
         try {
-            // Set timeout for regex operations to prevent hanging
+            // Set timeout for regex operations to prevent hanging.
             $oldlimit = ini_get('pcre.backtrack_limit');
             ini_set('pcre.backtrack_limit', '1000000');
 
@@ -159,7 +157,7 @@ class file_processor_service {
             $extracted = preg_replace('/[{}]/', '', $extracted);
             $extracted = trim($extracted);
 
-            // Clean up common RTF artifacts
+            // Clean up common RTF artifacts.
             $extracted = str_replace(['\\\'97', '\\\'92'], ['-', '\''], $extracted);
 
             ini_set('pcre.backtrack_limit', $oldlimit);
@@ -188,7 +186,7 @@ class file_processor_service {
                 return null;
             }
 
-            // Validate ZIP entries to prevent path traversal
+            // Validate ZIP entries to prevent path traversal.
             for ($i = 0; $i < $zip->numFiles; $i++) {
                 $name = $zip->getNameIndex($i);
                 if (strpos($name, '..') !== false || strpos($name, '/') === 0) {
@@ -231,7 +229,7 @@ class file_processor_service {
                 return null;
             }
 
-            // Validate ZIP entries to prevent path traversal
+            // Validate ZIP entries to prevent path traversal.
             for ($i = 0; $i < $zip->numFiles; $i++) {
                 $name = $zip->getNameIndex($i);
                 if (strpos($name, '..') !== false || strpos($name, '/') === 0) {

@@ -27,8 +27,6 @@
 
 namespace aiplacement_modgen\local;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Learning type color definitions and utilities.
  */
@@ -41,12 +39,12 @@ class learning_type_colors {
      */
     public static function get_activity_type_colors(): array {
         return [
-            'acquisition' => 'rgb(221, 60, 46)', // blue (Narrative)
-            'investigation' => 'rgb(181, 202, 75)', // orange (Interactive)
-            'practice' => 'rgb(43, 116, 184)', // yellow (Adaptive)
-            'discussion' => 'rgb(229, 182, 59)', // green (Dialogic)
-            'collaboration' => 'rgb(228, 144, 54)', // teal (custom within palette)
-            'production' => 'rgb(41, 59, 141)', // red (Productive)
+            'acquisition' => 'rgb(221, 60, 46)', // Blue (Narrative).
+            'investigation' => 'rgb(181, 202, 75)', // Orange (Interactive).
+            'practice' => 'rgb(43, 116, 184)', // Yellow (Adaptive).
+            'discussion' => 'rgb(229, 182, 59)', // Green (Dialogic).
+            'collaboration' => 'rgb(228, 144, 54)', // Teal (custom within palette).
+            'production' => 'rgb(41, 59, 141)', // Red (Productive).
         ];
     }
 
@@ -58,11 +56,11 @@ class learning_type_colors {
      */
     public static function get_learning_type_colors(): array {
         return [
-            'Narrative' => 'rgba(66, 139, 202, 0.8)', // Blue
-            'Dialogic' => 'rgba(40, 167, 69, 0.8)', // Green
-            'Adaptive' => 'rgba(255, 193, 7, 0.8)', // Yellow
-            'Interactive' => 'rgba(255, 152, 0, 0.8)', // Orange
-            'Productive' => 'rgba(220, 53, 69, 0.8)', // Red
+            'Narrative' => 'rgba(66, 139, 202, 0.8)', // Blue.
+            'Dialogic' => 'rgba(40, 167, 69, 0.8)', // Green.
+            'Adaptive' => 'rgba(255, 193, 7, 0.8)', // Yellow.
+            'Interactive' => 'rgba(255, 152, 0, 0.8)', // Orange.
+            'Productive' => 'rgba(220, 53, 69, 0.8)', // Red.
         ];
     }
 

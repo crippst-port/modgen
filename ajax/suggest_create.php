@@ -22,7 +22,10 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-// Resolve Moodle config.php from plugin ajax directory.
+// Resolve Moodle config.php from plugin ajax directory. Must check it exists before
+// requiring it, so a missing/misconfigured install returns a clean JSON error instead
+// of a fatal include error.
+// phpcs:ignore moodle.Files.MoodleInternal.MoodleInternalGlobalState
 $configpath = __DIR__ . '/../../../../config.php';
 if (!file_exists($configpath)) {
     @header('Content-Type: application/json');
@@ -37,15 +40,15 @@ use aiplacement_modgen\local\ajax_response;
 
 defined('MOODLE_INTERNAL') || die();
 
-// Prevent PHP from outputting HTML errors directly to the response
+// Prevent PHP from outputting HTML errors directly to the response.
 @ini_set('display_errors', '0');
 @error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
 
-// Buffer unexpected output so we can always return JSON
+// Buffer unexpected output so we can always return JSON.
 @ob_start();
 
 try {
-    // Immediately set JSON content-type so clients always see the correct header
+    // Immediately set JSON content-type so clients always see the correct header.
     header('Content-Type: application/json');
 
     require_login();
@@ -64,7 +67,7 @@ try {
 
     $course = get_course($courseid);
 
-    // Decode selected JSON
+    // Decode selected JSON.
     $items = json_decode($selected, true);
     if (!is_array($items)) {
         ajax_response::error('Invalid selected data', 'invalid_json');
@@ -75,21 +78,21 @@ try {
     // each item to be an object/array with a top-level `type` property (and other fields).
     $normalized = [];
     foreach ($items as $idx => $it) {
-        // If it's an object decode into array first
+        // If it's an object decode into array first.
         if ($it instanceof stdClass) {
             $it = (array) $it;
         }
         if (isset($it['activity']) && (is_array($it['activity']) || $it['activity'] instanceof stdClass)) {
             $act = (array) $it['activity'];
         } else if (isset($it['type']) || isset($it['name'])) {
-            // Already in the expected flat shape
+            // Already in the expected flat shape.
             $act = (array) $it;
         } else {
-            // Unknown shape: keep as-is to allow registry to report meaningful warnings
+            // Unknown shape: keep as-is to allow registry to report meaningful warnings.
             $act = (array) $it;
         }
 
-        // Ensure type is present and trimmed
+        // Ensure type is present and trimmed.
         if (isset($act['type'])) {
             $act['type'] = is_string($act['type']) ? trim($act['type']) : $act['type'];
         }
@@ -97,10 +100,10 @@ try {
         $normalized[] = $act;
     }
 
-    // Replace items with the normalized array we will send to registry
+    // Replace items with the normalized array we will send to registry.
     $items = $normalized;
 
-    // Sanitize all text fields to prevent XSS
+    // Sanitize all text fields to prevent XSS.
     foreach ($items as &$item) {
         if (isset($item['name'])) {
             $item['name'] = clean_param($item['name'], PARAM_TEXT);
@@ -117,7 +120,7 @@ try {
     }
     unset($item);
 
-    // Acquire course editing lock (same mechanism used by theme_builder/prompt flows)
+    // Acquire course editing lock (same mechanism used by theme_builder/prompt flows).
     $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');
     $lock = $lockfactory->get_lock('course_edit_' . $courseid, 60);
     if (!$lock) {
@@ -125,16 +128,17 @@ try {
     }
 
     try {
-        // Create activities using the shared registry helper
+        // Create activities using the shared registry helper.
         $result = registry::create_for_section($items, $course, $section);
     } finally {
         $lock->release();
     }
 
-    // Capture any accidental output
+    // Capture any accidental output.
     $extra = @ob_get_clean();
     $response = ['created' => $result['created'] ?? [], 'warnings' => $result['warnings'] ?? []];
     if ($extra !== false && trim($extra) !== '') {
+        debugging('Unexpected output before JSON response: ' . $extra, DEBUG_DEVELOPER);
     }
 
     ajax_response::success($response);

@@ -24,8 +24,6 @@
 
 namespace aiplacement_modgen\local;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Manages CSV template CRUD operations and file storage.
  */
@@ -45,26 +43,26 @@ class template_manager {
         $context = \context_system::instance();
         $fs = get_file_storage();
 
-        // Prepare file record for permanent storage
+        // Prepare file record for permanent storage.
         $filerecord = [
             'contextid' => $context->id,
             'component' => 'aiplacement_modgen',
             'filearea' => 'csvtemplates',
-            'itemid' => 0, // Will be updated after template creation
+            'itemid' => 0, // Will be updated after template creation.
             'filepath' => '/',
             'filename' => clean_filename($file->get_filename()),
             'timecreated' => time(),
             'timemodified' => time(),
         ];
 
-        // Copy file to permanent storage
+        // Copy file to permanent storage.
         $storedfile = $fs->create_file_from_storedfile($filerecord, $file);
 
-        // Get next sort order
+        // Get next sort order.
         $maxsortorder = $DB->get_field('aiplacement_modgen_templates', 'MAX(sortorder)', []);
         $sortorder = $maxsortorder !== false ? $maxsortorder + 1 : 0;
 
-        // Create template record
+        // Create template record.
         $template = new \stdClass();
         $template->name = $name;
         $template->description = $description;
@@ -93,18 +91,18 @@ class template_manager {
 
         $template = $DB->get_record('aiplacement_modgen_templates', ['id' => $id], '*', MUST_EXIST);
 
-        // Update file if provided
+        // Update file if provided.
         if ($file) {
             $context = \context_system::instance();
             $fs = get_file_storage();
 
-            // Delete old file
+            // Delete old file.
             $oldfile = $fs->get_file_by_id($template->fileid);
             if ($oldfile) {
                 $oldfile->delete();
             }
 
-            // Store new file
+            // Store new file.
             $filerecord = [
                 'contextid' => $context->id,
                 'component' => 'aiplacement_modgen',
@@ -120,7 +118,7 @@ class template_manager {
             $template->fileid = $storedfile->get_id();
         }
 
-        // Update template record
+        // Update template record.
         $template->name = $name;
         $template->description = $description;
         $template->timemodified = time();
@@ -140,14 +138,14 @@ class template_manager {
 
         $template = $DB->get_record('aiplacement_modgen_templates', ['id' => $id], '*', MUST_EXIST);
 
-        // Delete file
+        // Delete file.
         $fs = get_file_storage();
         $file = $fs->get_file_by_id($template->fileid);
         if ($file) {
             $file->delete();
         }
 
-        // Delete template record
+        // Delete template record.
         return $DB->delete_records('aiplacement_modgen_templates', ['id' => $id]);
     }
 
@@ -164,7 +162,7 @@ class template_manager {
         $template = $DB->get_record('aiplacement_modgen_templates', ['id' => $id], '*', MUST_EXIST);
 
         if ($direction === 'up') {
-            // Find template above this one
+            // Find template above this one.
             $records = $DB->get_records_select(
                 'aiplacement_modgen_templates',
                 'sortorder < ?',
@@ -176,7 +174,7 @@ class template_manager {
             );
             $swap = !empty($records) ? reset($records) : false;
         } else {
-            // Find template below this one
+            // Find template below this one.
             $records = $DB->get_records_select(
                 'aiplacement_modgen_templates',
                 'sortorder > ?',
@@ -190,10 +188,10 @@ class template_manager {
         }
 
         if (!$swap) {
-            return false; // Already at top/bottom
+            return false; // Already at top/bottom.
         }
 
-        // Swap sort orders
+        // Swap sort orders.
         $tempsortorder = $template->sortorder;
         $template->sortorder = $swap->sortorder;
         $swap->sortorder = $tempsortorder;

@@ -104,13 +104,13 @@ final class section_reordering_test extends advanced_testcase {
         $existingsection1 = $this->create_existing_top_level_section($course->id, 'Old Section 1');
         $existingsection2 = $this->create_existing_top_level_section($course->id, 'Old Section 2');
 
-        // Verify they're visible initially
+        // Verify they're visible initially.
         $section1 = $DB->get_record('course_sections', ['id' => $existingsection1->id]);
         $section2 = $DB->get_record('course_sections', ['id' => $existingsection2->id]);
         $this->assertEquals(1, $section1->visible, 'Old section 1 should be visible initially');
         $this->assertEquals(1, $section2->visible, 'Old section 2 should be visible initially');
 
-        // Now create new structure with hideexistingsections=true
+        // Now create new structure with hideexistingsections=true.
         $structure = [
             'themes' => [
                 ['title' => 'New Theme', 'summary' => 'New theme summary', 'weeks' => []],
@@ -122,12 +122,12 @@ final class section_reordering_test extends advanced_testcase {
             $structure,
             $course->id,
             'connected_theme',
-            false, // generatethemeintroductions
-            false, // createsuggestedactivities
-            true   // hideexistingsections = TRUE
+            false, // Generatethemeintroductions.
+            false, // Createsuggestedactivities.
+            true   // Hideexistingsections = TRUE.
         );
 
-        // Check that old sections are now hidden
+        // Check that old sections are now hidden.
         $section1after = $DB->get_record('course_sections', ['id' => $existingsection1->id]);
         $section2after = $DB->get_record('course_sections', ['id' => $existingsection2->id]);
 
@@ -142,7 +142,7 @@ final class section_reordering_test extends advanced_testcase {
             'Old section 2 should be hidden after creating new structure with hideexistingsections=true'
         );
 
-        // Verify new theme section is visible
+        // Verify new theme section is visible.
         $newtheme = $DB->get_record('course_sections', [
             'course' => $course->id,
             'name' => 'New Theme',
@@ -164,14 +164,14 @@ final class section_reordering_test extends advanced_testcase {
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
 
-        // Get section 0
+        // Get section 0.
         $section0before = $DB->get_record('course_sections', [
             'course' => $course->id,
             'section' => 0,
         ]);
         $this->assertEquals(1, $section0before->visible, 'Section 0 should be visible initially');
 
-        // Create new structure with hideexistingsections=true
+        // Create new structure with hideexistingsections=true.
         $structure = [
             'themes' => [
                 ['title' => 'Theme', 'summary' => 'Summary', 'weeks' => []],
@@ -185,10 +185,10 @@ final class section_reordering_test extends advanced_testcase {
             'connected_theme',
             false,
             false,
-            true // hideexistingsections = TRUE
+            true // Hideexistingsections = TRUE.
         );
 
-        // Section 0 should still be visible
+        // Section 0 should still be visible.
         $section0after = $DB->get_record('course_sections', [
             'course' => $course->id,
             'section' => 0,
@@ -216,7 +216,7 @@ final class section_reordering_test extends advanced_testcase {
         // Create a genuine existing top-level content section (not a core section).
         $existingsection = $this->create_existing_top_level_section($course->id, 'Old Section');
 
-        // Create new structure with weeks (child sections)
+        // Create new structure with weeks (child sections).
         $structure = [
             'themes' => [
                 [
@@ -240,14 +240,14 @@ final class section_reordering_test extends advanced_testcase {
             'connected_theme',
             false,
             false,
-            true // hideexistingsections = TRUE
+            true // Hideexistingsections = TRUE.
         );
 
-        // Old section should be hidden
+        // Old section should be hidden.
         $oldsection = $DB->get_record('course_sections', ['id' => $existingsection->id]);
         $this->assertEquals(0, $oldsection->visible, 'Old section should be hidden');
 
-        // New theme and its child week should both be visible
+        // New theme and its child week should both be visible.
         $newtheme = $DB->get_record('course_sections', [
             'course' => $course->id,
             'name' => 'New Theme',
@@ -281,7 +281,7 @@ final class section_reordering_test extends advanced_testcase {
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
 
-        // Create existing sections
+        // Create existing sections.
         $existingsection1 = $this->getDataGenerator()->create_course_section([
             'course' => $course->id,
             'section' => 1,
@@ -296,7 +296,7 @@ final class section_reordering_test extends advanced_testcase {
             'visible' => 1,
         ]);
 
-        // Create new theme
+        // Create new theme.
         $structure = [
             'themes' => [
                 ['title' => 'New Theme', 'summary' => 'Summary', 'weeks' => []],
@@ -310,15 +310,15 @@ final class section_reordering_test extends advanced_testcase {
             'connected_theme',
             false,
             false,
-            true // hideexistingsections = TRUE
+            true // Hideexistingsections = TRUE.
         );
 
-        // Get all sections in order
+        // Get all sections in order.
         $allsections = $DB->get_records('course_sections', [
             'course' => $course->id,
         ], 'section ASC');
 
-        // Find the new theme section
+        // Find the new theme section.
         $newthemesection = null;
         $newthemesectionnumber = null;
         foreach ($allsections as $section) {
@@ -363,7 +363,7 @@ final class section_reordering_test extends advanced_testcase {
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
 
-        // Create existing sections
+        // Create existing sections.
         $existingsection1 = $this->getDataGenerator()->create_course_section([
             'course' => $course->id,
             'section' => 1,
@@ -378,7 +378,7 @@ final class section_reordering_test extends advanced_testcase {
             'visible' => 1,
         ]);
 
-        // Create new structure with hideexistingsections=false
+        // Create new structure with hideexistingsections=false.
         $structure = [
             'themes' => [
                 ['title' => 'New Theme', 'summary' => 'Summary', 'weeks' => []],
@@ -392,10 +392,10 @@ final class section_reordering_test extends advanced_testcase {
             'connected_theme',
             false,
             false,
-            false // hideexistingsections = FALSE
+            false // Hideexistingsections = FALSE.
         );
 
-        // Old sections should still be visible
+        // Old sections should still be visible.
         $section1after = $DB->get_record('course_sections', ['id' => $existingsection1->id]);
         $section2after = $DB->get_record('course_sections', ['id' => $existingsection2->id]);
 
@@ -427,7 +427,7 @@ final class section_reordering_test extends advanced_testcase {
         // Create a genuine existing top-level content section (not a core section).
         $existingsection = $this->create_existing_top_level_section($course->id, 'Old Section');
 
-        // Create multiple new themes
+        // Create multiple new themes.
         $structure = [
             'themes' => [
                 ['title' => 'Theme 1', 'summary' => 'Summary 1', 'weeks' => []],
@@ -443,14 +443,14 @@ final class section_reordering_test extends advanced_testcase {
             'connected_theme',
             false,
             false,
-            true // hideexistingsections = TRUE
+            true // Hideexistingsections = TRUE.
         );
 
-        // Old section should be hidden
+        // Old section should be hidden.
         $oldsection = $DB->get_record('course_sections', ['id' => $existingsection->id]);
         $this->assertEquals(0, $oldsection->visible, 'Old section should be hidden');
 
-        // All new themes should be visible
+        // All new themes should be visible.
         $theme1 = $DB->get_record('course_sections', ['course' => $course->id, 'name' => 'Theme 1']);
         $theme2 = $DB->get_record('course_sections', ['course' => $course->id, 'name' => 'Theme 2']);
         $theme3 = $DB->get_record('course_sections', ['course' => $course->id, 'name' => 'Theme 3']);
@@ -482,7 +482,7 @@ final class section_reordering_test extends advanced_testcase {
 
         $service = new section_creation_service();
 
-        // First generation with hideexistingsections=true
+        // First generation with hideexistingsections=true.
         $structure1 = [
             'themes' => [
                 ['title' => 'Theme 1', 'summary' => 'Summary', 'weeks' => []],
@@ -498,11 +498,11 @@ final class section_reordering_test extends advanced_testcase {
             true
         );
 
-        // Old section should be hidden
+        // Old section should be hidden.
         $oldsection = $DB->get_record('course_sections', ['id' => $existingsection->id]);
         $this->assertEquals(0, $oldsection->visible, 'Old section should be hidden after first generation');
 
-        // Second generation with hideexistingsections=true
+        // Second generation with hideexistingsections=true.
         $structure2 = [
             'themes' => [
                 ['title' => 'Theme 2', 'summary' => 'Summary', 'weeks' => []],
@@ -518,7 +518,7 @@ final class section_reordering_test extends advanced_testcase {
             true
         );
 
-        // Old section should still be hidden, Theme 1 should now be hidden, Theme 2 should be visible
+        // Old section should still be hidden, Theme 1 should now be hidden, Theme 2 should be visible.
         $oldsection = $DB->get_record('course_sections', ['id' => $existingsection->id]);
         $theme1 = $DB->get_record('course_sections', ['course' => $course->id, 'name' => 'Theme 1']);
         $theme2 = $DB->get_record('course_sections', ['course' => $course->id, 'name' => 'Theme 2']);
@@ -541,10 +541,10 @@ final class section_reordering_test extends advanced_testcase {
         $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($course->id);
 
-        // Initialize core sections (creates Assessments section)
+        // Initialize core sections (creates Assessments section).
         theme_builder::initialize_core_sections($course->id);
 
-        // Get the Assessments section
+        // Get the Assessments section.
         $assessments = $DB->get_record('course_sections', [
             'course' => $course->id,
             'name' => 'Assessments',
@@ -552,7 +552,7 @@ final class section_reordering_test extends advanced_testcase {
         $this->assertNotEmpty($assessments, 'Assessments section should exist');
         $this->assertEquals(1, $assessments->visible, 'Assessments should be visible initially');
 
-        // Create existing section
+        // Create existing section.
         $existingsection = $this->getDataGenerator()->create_course_section([
             'course' => $course->id,
             'section' => 3,
@@ -560,7 +560,7 @@ final class section_reordering_test extends advanced_testcase {
             'visible' => 1,
         ]);
 
-        // Create new structure with hideexistingsections=true
+        // Create new structure with hideexistingsections=true.
         $structure = [
             'themes' => [
                 ['title' => 'New Theme', 'summary' => 'Summary', 'weeks' => []],
@@ -577,11 +577,11 @@ final class section_reordering_test extends advanced_testcase {
             true
         );
 
-        // Old section should be hidden
+        // Old section should be hidden.
         $oldsection = $DB->get_record('course_sections', ['id' => $existingsection->id]);
         $this->assertEquals(0, $oldsection->visible, 'Old section should be hidden');
 
-        // Assessments section should still be visible
+        // Assessments section should still be visible.
         $assessmentsafter = $DB->get_record('course_sections', [
             'course' => $course->id,
             'name' => 'Assessments',

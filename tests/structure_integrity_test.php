@@ -75,7 +75,6 @@ final class structure_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // Reusable integrity auditor.
-    // ------------------------------------------------------------------
 
     /**
      * Audit a course's section structure for every corruption class.
@@ -129,8 +128,8 @@ final class structure_integrity_test extends advanced_testcase {
         }
 
         // Build a section-number -> parent-number map from course_format_options.
-        $parentmap = [];        // sectionnum => parent sectionnum (int).
-        $parentoptioncount = []; // sectionid => number of 'parent' rows (must be <= 1).
+        $parentmap = [];        // Maps sectionnum => parent sectionnum (int).
+        $parentoptioncount = []; // Maps sectionid => number of 'parent' rows (must be <= 1).
         foreach ($sections as $section) {
             if ((int)$section->section === 0) {
                 continue; // Section 0 has no parent.
@@ -170,7 +169,7 @@ final class structure_integrity_test extends advanced_testcase {
             if ($parentnum === 0) {
                 continue; // Top level.
             }
-            // Self-parent.
+            // Check for a section that is its own parent.
             if ($parentnum === $sectionnum) {
                 $problems[] = "Section {$sectionnum} is its own parent.";
                 continue;
@@ -238,7 +237,7 @@ final class structure_integrity_test extends advanced_testcase {
     private function assert_course_state_renders(int $courseid): void {
         rebuild_course_cache($courseid, true, true);
 
-        // get_fast_modinfo() walks the full section tree; corrupt parents blow up here.
+        // Walking the full section tree via get_fast_modinfo(); corrupt parents blow up here.
         $modinfo = get_fast_modinfo($courseid);
         $this->assertNotEmpty(
             $modinfo->get_section_info_all(),
@@ -269,7 +268,6 @@ final class structure_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // Positive tests: the service must never emit corruption.
-    // ------------------------------------------------------------------
 
     /**
      * A typical theme/week/session structure must be sound and renderable.
@@ -369,7 +367,7 @@ final class structure_integrity_test extends advanced_testcase {
             'connected_theme',
             false,
             false,
-            true // hideexistingsections.
+            true // Hideexistingsections.
         );
 
         $this->assert_structure_sound($this->course->id, 'after hide & reorder');
@@ -436,7 +434,6 @@ final class structure_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // Adversarial inputs: malformed AI JSON must degrade gracefully, never corrupt.
-    // ------------------------------------------------------------------
 
     /**
      * Malformed AI JSON must not produce a corrupt structure.
@@ -525,7 +522,7 @@ final class structure_integrity_test extends advanced_testcase {
                 ['sections' => [['title' => 'W', 'summary' => 's', 'outline' => 'not-a-list']]], 'connected_weekly',
             ],
             'wrong key for module type' => [
-                // 'sections' supplied but processed as connected_theme (expects 'themes').
+                // The 'sections' key is supplied but processed as connected_theme (expects 'themes').
                 ['sections' => [['title' => 'W', 'summary' => 's']]], 'connected_theme',
             ],
             'completely empty payload' => [
@@ -536,10 +533,11 @@ final class structure_integrity_test extends advanced_testcase {
 
     // ------------------------------------------------------------------
     // Negative controls: the auditor must actually catch each corruption type.
-    // ------------------------------------------------------------------
 
     /**
      * The auditor must flag an orphaned section (parent -> non-existent section).
+     *
+     * @coversNothing
      */
     public function test_auditor_catches_orphaned_section(): void {
         global $DB;
@@ -569,6 +567,8 @@ final class structure_integrity_test extends advanced_testcase {
 
     /**
      * The auditor must flag a self-referential parent.
+     *
+     * @coversNothing
      */
     public function test_auditor_catches_self_parent(): void {
         global $DB;
@@ -596,6 +596,8 @@ final class structure_integrity_test extends advanced_testcase {
 
     /**
      * The auditor must flag a circular parent chain (A -> B -> A).
+     *
+     * @coversNothing
      */
     public function test_auditor_catches_circular_chain(): void {
         global $DB;
@@ -633,6 +635,8 @@ final class structure_integrity_test extends advanced_testcase {
 
     /**
      * The auditor must flag a non-flexsections course format.
+     *
+     * @coversNothing
      */
     public function test_auditor_catches_wrong_format(): void {
         global $DB;
@@ -655,6 +659,8 @@ final class structure_integrity_test extends advanced_testcase {
      * schema change drops the constraint, this test fails and the auditor's
      * duplicate-parent check (which would otherwise be dead code) starts
      * earning its keep.
+     *
+     * @coversNothing
      */
     public function test_duplicate_parent_options_blocked_by_schema(): void {
         global $DB;
@@ -687,6 +693,8 @@ final class structure_integrity_test extends advanced_testcase {
 
     /**
      * The auditor must flag a course module with no context.
+     *
+     * @coversNothing
      */
     public function test_auditor_catches_module_without_context(): void {
         global $DB;
@@ -702,6 +710,8 @@ final class structure_integrity_test extends advanced_testcase {
 
     /**
      * Control: a freshly initialised flexsections course must be sound (auditor not over-eager).
+     *
+     * @covers \aiplacement_modgen\local\theme_builder::initialize_core_sections
      */
     public function test_auditor_passes_clean_course(): void {
         theme_builder::initialize_core_sections($this->course->id);

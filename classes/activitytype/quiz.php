@@ -24,38 +24,55 @@
 
 namespace aiplacement_modgen\activitytype;
 
-defined('MOODLE_INTERNAL') || die();
-
 use stdClass;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
- * Label activity type for creating label activities.
+ * Quiz activity type for creating quiz activities.
  */
 class quiz implements activity_type {
-    /** @inheritDoc */
+    /**
+     * Machine-readable identifier for this activity type.
+     *
+     * @return string
+     */
     public static function get_type(): string {
         return 'quiz';
     }
 
-    /** @inheritDoc */
+    /**
+     * Language string identifier describing this activity type for display to users.
+     *
+     * @return string
+     */
     public static function get_display_string_id(): string {
         return 'activitytype_quiz';
     }
 
-    /** @inheritDoc */
+    /**
+     * Short natural-language description shared with the AI prompt.
+     *
+     * @return string
+     */
     public static function get_prompt_description(): string {
-        return 'A Moodle quiz activity containing the supplied questions and settings. Supports multiple question types and assessment configurations.';
+        return 'A Moodle quiz activity containing the supplied questions and settings. Supports multiple ' .
+            'question types and assessment configurations.';
     }
 
-    /** @inheritDoc */
+    /**
+     * Create the quiz activity in the requested course section.
+     *
+     * @param stdClass $activitydata Raw activity definition returned by the AI response.
+     * @param stdClass $course Full course record.
+     * @param int $sectionnumber Target section number within the course.
+     * @param array $options Additional contextual options.
+     * @return array|null Returns an array with 'coursemodule' and 'instance' on success, null otherwise.
+     */
     public function create(stdClass $activitydata, stdClass $course, int $sectionnumber, array $options = []): ?array {
         global $CFG;
 
         require_once($CFG->dirroot . '/course/modlib.php');
 
-        // Extract name and intro, ensuring proper handling
+        // Extract name and intro, ensuring proper handling.
         $name = trim($activitydata->name ?? '');
         $intro = trim($activitydata->intro ?? '');
 
@@ -64,37 +81,37 @@ class quiz implements activity_type {
         }
 
         try {
-            // Prepare the module information for quiz - minimal fields only
+            // Prepare the module information for quiz - minimal fields only.
             $moduleinfo = new stdClass();
             $moduleinfo->course = $course->id;
             $moduleinfo->modulename = 'quiz';
             $moduleinfo->section = $sectionnumber;
             $moduleinfo->visible = 1;
             $moduleinfo->name = $name;
-            $moduleinfo->cmidnumber = ''; // Course module ID number (optional identifier)
+            $moduleinfo->cmidnumber = ''; // Course module ID number (optional identifier).
 
-            // Quiz intro
+            // Quiz intro.
             $moduleinfo->introeditor = [
                 'text' => $intro,
                 'format' => 1,
                 'itemid' => 0,
             ];
 
-            // Minimal quiz-specific fields
+            // Minimal quiz-specific fields.
             $moduleinfo->introformat = 1;
-            $moduleinfo->showdescription = 1;  // Display description on course page
+            $moduleinfo->showdescription = 1;  // Display description on course page.
             $moduleinfo->preferredbehaviour = 'deferredfeedback';
             $moduleinfo->questionsperpage = 1;
             $moduleinfo->navmethod = 'free';
             $moduleinfo->grade = 10;
-            $moduleinfo->timeopen = 0;  // No time restriction
-            $moduleinfo->timeclose = 0;  // No time restriction
-            $moduleinfo->questiondecimalpoints = -1;  // Default decimal points
-            $moduleinfo->decimalpoints = 2;  // Decimal points for grades (0-10, or -1 for default)
+            $moduleinfo->timeopen = 0;  // No time restriction.
+            $moduleinfo->timeclose = 0;  // No time restriction.
+            $moduleinfo->questiondecimalpoints = -1;  // Default decimal points.
+            $moduleinfo->decimalpoints = 2;  // Decimal points for grades (0-10, or -1 for default).
 
-            // Required fields that quiz_process_options expects
-            $moduleinfo->quizpassword = ''; // Gets converted to password by quiz_process_options
-            $moduleinfo->feedbackboundarycount = -1; // Disable feedback processing
+            // Required fields that quiz_process_options expects.
+            $moduleinfo->quizpassword = ''; // Gets converted to password by quiz_process_options.
+            $moduleinfo->feedbackboundarycount = -1; // Disable feedback processing.
 
             $cm = create_module($moduleinfo);
 

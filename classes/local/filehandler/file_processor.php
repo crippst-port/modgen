@@ -28,8 +28,6 @@ use context_course;
 use stored_file;
 use core_files\conversion;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Handles file uploads and extraction for activity creation.
  *
@@ -79,11 +77,11 @@ class file_processor {
         $mimetype = $file->get_mimetype();
         $filename = $file->get_filename();
 
-        // Validate supported formats
+        // Validate supported formats.
         $supported = [
-            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
-            'application/msword', // .doc
-            'application/vnd.oasis.opendocument.text', // .odt
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // Word .docx.
+            'application/msword', // Word .doc.
+            'application/vnd.oasis.opendocument.text', // OpenDocument .odt.
         ];
 
         if (!in_array($mimetype, $supported)) {
@@ -91,7 +89,7 @@ class file_processor {
             return $result;
         }
 
-        // Try Moodle's native conversion API first
+        // Try Moodle's native conversion API first.
         if ($convertto === 'html') {
             $htmlcontent = $this->convert_document_via_moodle($file);
             if ($htmlcontent !== false) {
@@ -104,7 +102,7 @@ class file_processor {
             }
         }
 
-        // Fallback: Extract plain text
+        // Fallback: Extract plain text.
         $textcontent = $this->extract_text_from_file($file);
         if ($textcontent !== false) {
             $result['success'] = true;
@@ -131,11 +129,11 @@ class file_processor {
      */
     private function convert_document_via_moodle(stored_file $file): ?string {
         try {
-            // Check if a conversion is available via Moodle's API
+            // Check if a conversion is available via Moodle's API.
             $conversions = conversion::get_conversions_for_file($file, 'html');
 
             if (!empty($conversions)) {
-                // Use the first available conversion
+                // Use the first available conversion.
                 $conversion = reset($conversions);
                 $destfile = $conversion->get_destfile();
 
@@ -146,12 +144,12 @@ class file_processor {
             }
 
             // If no conversion available, try direct conversion
-            // Create a new conversion request
+            // Create a new conversion request.
             $conversion = new conversion($file, 'html');
 
-            // Start the conversion (async-friendly)
+            // Start the conversion (async-friendly).
             if ($conversion->start_conversion()) {
-                // Try to get the result (may be async)
+                // Try to get the result (may be async).
                 $destfile = $conversion->get_destfile();
                 if ($destfile) {
                     $content = $destfile->get_content();
@@ -177,7 +175,7 @@ class file_processor {
         if ($mimetype === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document') {
             return $this->extract_from_docx($file);
         } else if ($mimetype === 'application/msword') {
-            // For older .doc format, LibreOffice is the best bet
+            // For older .doc format, LibreOffice is the best bet.
             return false;
         } else if ($mimetype === 'application/vnd.oasis.opendocument.text') {
             return $this->extract_from_odt($file);
@@ -203,7 +201,7 @@ class file_processor {
                 return false;
             }
 
-            // Extract document.xml from the archive
+            // Extract document.xml from the archive.
             $xmlcontent = $zip->getFromName('word/document.xml');
             $zip->close();
 
@@ -211,12 +209,12 @@ class file_processor {
                 return false;
             }
 
-            // Parse XML and extract text nodes
+            // Parse XML and extract text nodes.
             $dom = new \DOMDocument();
             $dom->loadXML($xmlcontent, LIBXML_NOERROR);
             $xpath = new \DOMXPath($dom);
 
-            // Extract all text nodes from paragraphs and tables
+            // Extract all text nodes from paragraphs and tables.
             $textnodes = $xpath->query('//w:t');
             $text = '';
             foreach ($textnodes as $node) {
@@ -247,7 +245,7 @@ class file_processor {
                 return false;
             }
 
-            // Extract content.xml from the archive
+            // Extract content.xml from the archive.
             $xmlcontent = $zip->getFromName('content.xml');
             $zip->close();
 
@@ -255,12 +253,12 @@ class file_processor {
                 return false;
             }
 
-            // Parse XML and extract text nodes
+            // Parse XML and extract text nodes.
             $dom = new \DOMDocument();
             $dom->loadXML($xmlcontent, LIBXML_NOERROR);
             $xpath = new \DOMXPath($dom);
 
-            // Extract all text nodes
+            // Extract all text nodes.
             $textnodes = $xpath->query('//text:p//text()');
             $text = '';
             foreach ($textnodes as $node) {
@@ -280,7 +278,7 @@ class file_processor {
      * @return bool
      */
     private function is_libreoffice_available(): bool {
-        // Use PHP's built-in functions to check for LibreOffice binary in PATH
+        // Use PHP's built-in functions to check for LibreOffice binary in PATH.
         static $available = null;
         if ($available === null) {
             $paths = explode(PATH_SEPARATOR, getenv('PATH') ?: '');
@@ -322,7 +320,7 @@ class file_processor {
                 $tagname = strtolower($node->nodeName);
 
                 if ($tagname === 'h1') {
-                    // Save previous chapter
+                    // Save previous chapter.
                     if ($currentchapter !== null) {
                         $chapters[] = [
                             'title' => $currentchapter,
@@ -330,16 +328,16 @@ class file_processor {
                         ];
                     }
 
-                    // Start new chapter
+                    // Start new chapter.
                     $currentchapter = $this->extract_text_from_node($node);
                     $currentcontent = '';
                 } else if ($currentchapter !== null) {
-                    // Add content to current chapter
+                    // Add content to current chapter.
                     $currentcontent .= $this->get_node_html($node);
                 }
             }
 
-            // Save final chapter
+            // Save final chapter.
             if ($currentchapter !== null) {
                 $chapters[] = [
                     'title' => $currentchapter,

@@ -24,38 +24,56 @@
 
 namespace aiplacement_modgen\activitytype;
 
-defined('MOODLE_INTERNAL') || die();
-
 use stdClass;
-
-defined('MOODLE_INTERNAL') || die();
 
 /**
  * Label activity type for creating label activities.
  */
 class label implements activity_type {
-    /** @inheritDoc */
+    /**
+     * Machine-readable identifier for this activity type.
+     *
+     * @return string
+     */
     public static function get_type(): string {
         return 'label';
     }
 
-    /** @inheritDoc */
+    /**
+     * Language string identifier describing this activity type for display to users.
+     *
+     * @return string
+     */
     public static function get_display_string_id(): string {
         return 'activitytype_label';
     }
 
-    /** @inheritDoc */
+    /**
+     * Short natural-language description shared with the AI prompt.
+     *
+     * @return string
+     */
     public static function get_prompt_description(): string {
-        return 'A Moodle label to display text and information. Can include HTML markup with Bootstrap 4/5 classes for layout purposes (cards, grid layouts, alerts, badges, etc.). Use HTML to create visually structured content sections.';
+        return 'A Moodle label to display text and information. Can include HTML markup with Bootstrap 4/5 ' .
+            'classes for layout purposes (cards, grid layouts, alerts, badges, etc.). Use HTML to create ' .
+            'visually structured content sections.';
     }
 
-    /** @inheritDoc */
+    /**
+     * Create the label activity in the requested course section.
+     *
+     * @param stdClass $activitydata Raw activity definition returned by the AI response.
+     * @param stdClass $course Full course record.
+     * @param int $sectionnumber Target section number within the course.
+     * @param array $options Additional contextual options.
+     * @return array|null Returns an array with 'coursemodule' and 'instance' on success, null otherwise.
+     */
     public function create(stdClass $activitydata, stdClass $course, int $sectionnumber, array $options = []): ?array {
         global $CFG;
 
         require_once($CFG->dirroot . '/course/modlib.php');
 
-        // Extract name and intro, ensuring proper handling
+        // Extract name and intro, ensuring proper handling.
         $name = trim($activitydata->name ?? '');
         $intro = trim($activitydata->intro ?? '');
 
@@ -64,25 +82,25 @@ class label implements activity_type {
         }
 
         try {
-            // Prepare the module information for label
+            // Prepare the module information for label.
             $moduleinfo = new stdClass();
             $moduleinfo->course = $course->id;
             $moduleinfo->modulename = 'label';
             $moduleinfo->section = $sectionnumber;
             $moduleinfo->visible = 1;
             $moduleinfo->name = $name;
-            $moduleinfo->cmidnumber = '';  // Course module ID number (optional identifier)
+            $moduleinfo->cmidnumber = '';  // Course module ID number (optional identifier).
 
-            // Label intro - labels use intro as the main content
+            // Label intro - labels use intro as the main content.
             $moduleinfo->introeditor = [
                 'text' => $intro,
                 'format' => 1,
                 'itemid' => 0,
             ];
 
-            // Label-specific fields
+            // Label-specific fields.
             $moduleinfo->introformat = 1;
-            $moduleinfo->showdescription = 1;  // Display description on course page
+            $moduleinfo->showdescription = 1;  // Display description on course page.
 
             $cm = create_module($moduleinfo);
 

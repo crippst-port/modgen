@@ -29,14 +29,13 @@ namespace aiplacement_modgen;
 
 use aiplacement_modgen\local\theme_builder;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Test transaction handling in section creation.
  *
  * @package    aiplacement_modgen
  * @copyright  2025 Tom Cripps
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ * @coversDefaultClass \aiplacement_modgen\local\theme_builder
  */
 final class transaction_handling_test extends \advanced_testcase {
     /**
@@ -44,6 +43,8 @@ final class transaction_handling_test extends \advanced_testcase {
      *
      * When section creation fails, no partial data should remain in the database.
      * This prevents orphaned sections and format options.
+     *
+     * @covers ::create_section_with_parent
      */
     public function test_section_creation_rollback_on_error(): void {
         global $DB;
@@ -111,6 +112,8 @@ final class transaction_handling_test extends \advanced_testcase {
      *
      * Attempting to create a section with non-existent parent should fail
      * with clear error message before any database changes.
+     *
+     * @covers ::create_section_with_parent
      */
     public function test_parent_validation_prevents_invalid_parent(): void {
         $this->resetAfterTest();
@@ -138,6 +141,8 @@ final class transaction_handling_test extends \advanced_testcase {
      * Test that empty section name is rejected.
      *
      * Section names are required and should be validated before database operations.
+     *
+     * @covers ::create_section_with_parent
      */
     public function test_empty_section_name_rejected(): void {
         $this->resetAfterTest();
@@ -165,6 +170,9 @@ final class transaction_handling_test extends \advanced_testcase {
      * Test successful section creation with valid parameters.
      *
      * Verify that section is created correctly with proper parent relationship.
+     *
+     * @covers ::create_section_with_parent
+     * @covers ::validate_section_parent
      */
     public function test_successful_section_creation_with_parent(): void {
         global $DB;
@@ -217,6 +225,8 @@ final class transaction_handling_test extends \advanced_testcase {
      *
      * If any error occurs during bulk theme creation, verify that either
      * all sections are created or none are created (no partial state).
+     *
+     * @covers ::create_themes
      */
     public function test_bulk_theme_creation_atomicity(): void {
         global $DB;
@@ -274,6 +284,8 @@ final class transaction_handling_test extends \advanced_testcase {
      * Test that create_weeks operation maintains atomicity.
      *
      * Verify bulk week creation is atomic - all or nothing.
+     *
+     * @covers ::create_weeks
      */
     public function test_bulk_week_creation_atomicity(): void {
         global $DB;
@@ -330,6 +342,9 @@ final class transaction_handling_test extends \advanced_testcase {
      * Test that flexsections format is required.
      *
      * Creating sections should fail gracefully if course is not using flexsections.
+     *
+     * @covers ::create_themes
+     * @covers ::ensure_flexsections_format
      */
     public function test_requires_flexsections_format(): void {
         $this->resetAfterTest();
@@ -353,6 +368,7 @@ final class transaction_handling_test extends \advanced_testcase {
      * Test validation helper with various invalid inputs.
      *
      * @dataProvider invalid_validation_params_provider
+     * @covers ::create_section_with_parent
      */
     public function test_validation_with_invalid_params($courseid, $parentsection, $expectedexception): void {
         $this->resetAfterTest();
@@ -384,7 +400,7 @@ final class transaction_handling_test extends \advanced_testcase {
      *
      * @return array Test cases with invalid parameters
      */
-    public function invalid_validation_params_provider() {
+    public static function invalid_validation_params_provider(): array {
         return [
             'negative_parent' => ['valid', -5, 'invalidsectionparent'],
             'invalid_courseid_zero' => [0, 0, 'invalidcourseid'],
@@ -397,6 +413,8 @@ final class transaction_handling_test extends \advanced_testcase {
      *
      * Verify cache is rebuilt once at the end, not after every section.
      * This test measures the performance improvement from cache optimization.
+     *
+     * @covers ::create_themes
      */
     public function test_bulk_operations_defer_cache_rebuild(): void {
         global $DB;
@@ -405,24 +423,24 @@ final class transaction_handling_test extends \advanced_testcase {
 
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
 
-        // Measure performance improvement
+        // Measure performance improvement.
         $starttime = microtime(true);
 
-        // Create 5 themes with 3 weeks each = 5 + 15 + 45 = 65 sections
+        // Create 5 themes with 3 weeks each = 5 + 15 + 45 = 65 sections.
         theme_builder::create_themes($course->id, 5, 3, 0);
 
         $endtime = microtime(true);
         $duration = $endtime - $starttime;
 
-        // With optimization, should complete in reasonable time
-        // Without optimization (65 cache rebuilds), takes 2x longer
+        // With optimization, should complete in reasonable time.
+        // Without optimization (65 cache rebuilds), takes 2x longer.
         $this->assertLessThan(
             15,
             $duration,
             'Bulk creation should complete in under 15 seconds with cache optimization'
         );
 
-        // Verify all sections were created
+        // Verify all sections were created.
         $sectioncount = $DB->count_records('course_sections', ['course' => $course->id]);
         $this->assertGreaterThan(65, $sectioncount, 'All sections should be created');
     }

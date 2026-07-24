@@ -26,28 +26,47 @@ namespace aiplacement_modgen\activitytype;
 
 use stdClass;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Creates assignment activities for student work submission.
  */
 class assignment implements activity_type {
-    /** @inheritDoc */
+    /**
+     * Machine-readable identifier for this activity type.
+     *
+     * @return string
+     */
     public static function get_type(): string {
         return 'assignment';
     }
 
-    /** @inheritDoc */
+    /**
+     * Language string identifier describing this activity type for display to users.
+     *
+     * @return string
+     */
     public static function get_display_string_id(): string {
         return 'activitytype_assignment';
     }
 
-    /** @inheritDoc */
+    /**
+     * Short natural-language description shared with the AI prompt.
+     *
+     * @return string
+     */
     public static function get_prompt_description(): string {
-        return 'A Moodle assignment activity where students submit work (files, text, or other formats). Ideal for formative and summative assessments, essays, projects, and reflective tasks.';
+        return 'A Moodle assignment activity where students submit work (files, text, or other formats). ' .
+            'Ideal for formative and summative assessments, essays, projects, and reflective tasks.';
     }
 
-    /** @inheritDoc */
+    /**
+     * Create the assignment activity in the requested course section.
+     *
+     * @param stdClass $activitydata Raw activity definition returned by the AI response.
+     * @param stdClass $course Full course record.
+     * @param int $sectionnumber Target section number within the course.
+     * @param array $options Additional contextual options.
+     * @return array|null Returns an array with 'coursemodule' and 'instance' on success, null otherwise.
+     */
     public function create(stdClass $activitydata, stdClass $course, int $sectionnumber, array $options = []): ?array {
         global $CFG, $DB;
 
@@ -62,59 +81,61 @@ class assignment implements activity_type {
 
         $intro = trim($activitydata->intro ?? '');
 
-        // Create the assignment module using minimal required fields
+        // Create the assignment module using minimal required fields.
         $moduleinfo = new stdClass();
         $moduleinfo->course = $course->id;
         $moduleinfo->modulename = 'assign';
         $moduleinfo->section = $sectionnumber;
         $moduleinfo->visible = 1;
         $moduleinfo->name = $name;
-        $moduleinfo->cmidnumber = '';  // Course module ID number (optional identifier)
+        $moduleinfo->cmidnumber = '';  // Course module ID number (optional identifier).
 
-        // Assignment intro/description
+        // Assignment intro/description.
         $moduleinfo->introeditor = [
             'text' => $intro,
             'format' => 1,
             'itemid' => 0,
         ];
 
-        // Assignment-specific fields with sensible defaults
+        // Assignment-specific fields with sensible defaults.
         $moduleinfo->introformat = 1;
-        $moduleinfo->showdescription = 1;  // Display description on course page (coursemodule setting)
-        $moduleinfo->alwaysshowdescription = 1;  // Always show description even before submissions allowed
-        $moduleinfo->submissiondrafts = 1;  // Allow students to save drafts
-        $moduleinfo->sendnotifications = 1;  // Notify teachers of submissions
-        $moduleinfo->sendstudentnotifications = 1;  // Notify students of grading
-        $moduleinfo->duedate = 0;  // No due date by default
-        $moduleinfo->cutoffdate = 0;  // No cutoff date by default
-        $moduleinfo->gradingduedate = 0;  // No grading due date
-        $moduleinfo->allowsubmissionsfromdate = 0;  // Allow submissions immediately
-        $moduleinfo->grade = 100;  // Default grade to 100
+        $moduleinfo->showdescription = 1;  // Display description on course page (coursemodule setting).
+        $moduleinfo->alwaysshowdescription = 1;  // Always show description even before submissions allowed.
+        $moduleinfo->submissiondrafts = 1;  // Allow students to save drafts.
+        $moduleinfo->sendnotifications = 1;  // Notify teachers of submissions.
+        $moduleinfo->sendstudentnotifications = 1;  // Notify students of grading.
+        $moduleinfo->duedate = 0;  // No due date by default.
+        $moduleinfo->cutoffdate = 0;  // No cutoff date by default.
+        $moduleinfo->gradingduedate = 0;  // No grading due date.
+        $moduleinfo->allowsubmissionsfromdate = 0;  // Allow submissions immediately.
+        $moduleinfo->grade = 100;  // Default grade to 100.
 
-        // Submission statement and notifications
-        $moduleinfo->requiresubmissionstatement = 0;  // Don't require submission statement
-        $moduleinfo->sendlatenotifications = 0;  // Don't send late submission notifications
+        // Submission statement and notifications.
+        $moduleinfo->requiresubmissionstatement = 0;  // Don't require submission statement.
+        $moduleinfo->sendlatenotifications = 0;  // Don't send late submission notifications.
 
-        // Team submission settings
-        $moduleinfo->teamsubmission = 0;  // Individual submissions (not team)
-        $moduleinfo->requireallteammemberssubmit = 0;  // N/A for individual submissions
+        // Team submission settings.
+        $moduleinfo->teamsubmission = 0;  // Individual submissions (not team).
+        $moduleinfo->requireallteammemberssubmit = 0;  // N/A for individual submissions.
 
-        // Marking settings
-        $moduleinfo->blindmarking = 0;  // Don't use blind marking
-        $moduleinfo->markingworkflow = 0;  // Don't use marking workflow
-        $moduleinfo->markingallocation = 0;  // Don't use marking allocation
+        // Marking settings.
+        $moduleinfo->blindmarking = 0;  // Don't use blind marking.
+        $moduleinfo->markingworkflow = 0;  // Don't use marking workflow.
+        $moduleinfo->markingallocation = 0;  // Don't use marking allocation.
 
-        // Submission plugin settings
-        $moduleinfo->assignsubmission_onlinetext_enabled = 1; // Enable online text
-        $moduleinfo->assignsubmission_file_enabled = 0; // Disable file submissions
-        $moduleinfo->assignfeedback_comments_enabled = 1; // Enable feedback comments
+        // Submission plugin settings.
+        $moduleinfo->assignsubmission_onlinetext_enabled = 1; // Enable online text.
+        $moduleinfo->assignsubmission_file_enabled = 0; // Disable file submissions.
+        $moduleinfo->assignfeedback_comments_enabled = 1; // Enable feedback comments.
 
         try {
             $cm = \create_module($moduleinfo);
 
             if (!isset($cm->coursemodule) || !isset($cm->instance)) {
                 return null;
-            }            return [
+            }
+
+            return [
                 'coursemodule' => $cm->coursemodule,
                 'instance' => $cm->instance,
             ];

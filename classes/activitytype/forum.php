@@ -26,28 +26,48 @@ namespace aiplacement_modgen\activitytype;
 
 use stdClass;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Creates Forum activities for course discussions and collaborative learning.
  */
 class forum implements activity_type {
-    /** @inheritDoc */
+    /**
+     * Machine-readable identifier for this activity type.
+     *
+     * @return string
+     */
     public static function get_type(): string {
         return 'forum';
     }
 
-    /** @inheritDoc */
+    /**
+     * Language string identifier describing this activity type for display to users.
+     *
+     * @return string
+     */
     public static function get_display_string_id(): string {
         return 'activitytype_forum';
     }
 
-    /** @inheritDoc */
+    /**
+     * Short natural-language description shared with the AI prompt.
+     *
+     * @return string
+     */
     public static function get_prompt_description(): string {
-        return 'A Moodle Forum activity for group discussions and peer interaction. Can be configured as a single simple forum, Q&A forum, or general discussion forum where students can create topics and engage in threaded conversations.';
+        return 'A Moodle Forum activity for group discussions and peer interaction. Can be configured as a ' .
+            'single simple forum, Q&A forum, or general discussion forum where students can create topics and ' .
+            'engage in threaded conversations.';
     }
 
-    /** @inheritDoc */
+    /**
+     * Create the forum activity in the requested course section.
+     *
+     * @param stdClass $activitydata Raw activity definition returned by the AI response.
+     * @param stdClass $course Full course record.
+     * @param int $sectionnumber Target section number within the course.
+     * @param array $options Additional contextual options.
+     * @return array|null Returns an array with 'coursemodule' and 'instance' on success, null otherwise.
+     */
     public function create(stdClass $activitydata, stdClass $course, int $sectionnumber, array $options = []): ?array {
         global $CFG;
 
@@ -63,7 +83,7 @@ class forum implements activity_type {
         $forumtype = trim($activitydata->type ?? 'general');
         $forumtype = $this->normalize_forum_type($forumtype);
 
-        // Create the forum module
+        // Create the forum module.
         $moduleinfo = new stdClass();
         $moduleinfo->course = $course->id;
         $moduleinfo->modulename = 'forum';
@@ -71,31 +91,31 @@ class forum implements activity_type {
         $moduleinfo->visible = 1;
         $moduleinfo->name = $name;
 
-        // Forum intro
+        // Forum intro.
         $moduleinfo->introeditor = [
             'text' => $intro,
             'format' => 1,
             'itemid' => 0,
         ];
 
-        // Forum-specific fields
+        // Forum-specific fields.
         $moduleinfo->introformat = 1;
-        $moduleinfo->showdescription = 1;  // Display description on course page
-        $moduleinfo->type = $forumtype;  // general, news, qanda
-        $moduleinfo->daystokeep = 0;  // Keep all posts
-        $moduleinfo->displaywordcount = 0;  // Don't display word count
-        $moduleinfo->blockafter = 0;  // No post blocking
-        $moduleinfo->blockperiod = 0;  // No block period
-        $moduleinfo->trackingtype = 1;  // Optional tracking
-        $moduleinfo->allowforcedreadtracking = 0;  // Don't force tracking
-        $moduleinfo->maxbytes = 0;  // Use course default file size
-        $moduleinfo->maxattachments = 9;  // Allow up to 9 attachments
-        $moduleinfo->forcesubscribe = 0;  // Optional subscription
-        $moduleinfo->maildigest = 0;  // No digest by default
-        $moduleinfo->scale = 0;  // No rating
-        $moduleinfo->canposttomygroups = 0;  // Post to all groups accessible to user
-        $moduleinfo->cmidnumber = '';  // No custom ID number
-        $moduleinfo->grade_forum = 0;  // No grading by default
+        $moduleinfo->showdescription = 1;  // Display description on course page.
+        $moduleinfo->type = $forumtype;  // General, news, qanda.
+        $moduleinfo->daystokeep = 0;  // Keep all posts.
+        $moduleinfo->displaywordcount = 0;  // Don't display word count.
+        $moduleinfo->blockafter = 0;  // No post blocking.
+        $moduleinfo->blockperiod = 0;  // No block period.
+        $moduleinfo->trackingtype = 1;  // Optional tracking.
+        $moduleinfo->allowforcedreadtracking = 0;  // Don't force tracking.
+        $moduleinfo->maxbytes = 0;  // Use course default file size.
+        $moduleinfo->maxattachments = 9;  // Allow up to 9 attachments.
+        $moduleinfo->forcesubscribe = 0;  // Optional subscription.
+        $moduleinfo->maildigest = 0;  // No digest by default.
+        $moduleinfo->scale = 0;  // No rating.
+        $moduleinfo->canposttomygroups = 0;  // Post to all groups accessible to user.
+        $moduleinfo->cmidnumber = '';  // No custom ID number.
+        $moduleinfo->grade_forum = 0;  // No grading by default.
 
         try {
             $cm = \create_module($moduleinfo);
@@ -121,7 +141,7 @@ class forum implements activity_type {
     private function normalize_forum_type(string $type): string {
         $type = strtolower(trim($type));
 
-        // Map common variations to valid types
+        // Map common variations to valid types.
         $map = [
             'q&a' => 'qanda',
             'qa' => 'qanda',
@@ -143,7 +163,7 @@ class forum implements activity_type {
             return $map[$type];
         }
 
-        // Default to general discussion
+        // Default to general discussion.
         return 'general';
     }
 }

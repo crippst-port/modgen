@@ -126,7 +126,8 @@ final class comprehensive_workflow_test extends advanced_testcase {
             ]);
 
             if (!$parentsection) {
-                $errors[] = "Section {$section->section} ('{$section->name}') has non-existent parent section number: {$parentvalue}";
+                $errors[] = "Section {$section->section} ('{$section->name}') has non-existent parent " .
+                    "section number: {$parentvalue}";
             }
         }
 
@@ -206,7 +207,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
             'Introduction to the module'
         );
         $this->assertGreaterThan(0, $theme1);
-        $this->assert_section_has_parent($theme1, 0); // Themes have parent=0
+        $this->assert_section_has_parent($theme1, 0); // Themes have parent=0.
 
         // Create theme 2 and validate immediately.
         $theme2 = theme_builder::create_theme_section(
@@ -216,7 +217,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
             'Advanced material'
         );
         $this->assertGreaterThan(0, $theme2);
-        $this->assert_section_has_parent($theme2, 0); // Themes have parent=0
+        $this->assert_section_has_parent($theme2, 0); // Themes have parent=0.
 
         // Create week 1 under theme 1 and validate immediately.
         $week1 = theme_builder::create_week_section(
@@ -227,7 +228,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
             'Week 1 content'
         );
         $this->assertGreaterThan(0, $week1);
-        $this->assert_section_has_parent($week1, $theme1); // Week parent = theme section number
+        $this->assert_section_has_parent($week1, $theme1); // Week parent = theme section number.
 
         // Create week 2 under theme 1 and validate immediately.
         $week2 = theme_builder::create_week_section(
@@ -299,12 +300,12 @@ final class comprehensive_workflow_test extends advanced_testcase {
         // Create sections from JSON.
         $service = new section_creation_service();
         $results = $service->create_sections_from_json(
-            $jsonstructure, // Array of structure
-            $this->course->id, // Course ID
-            'connected_theme', // MUST be 'connected_theme' to process themes array
-            false, // Don't generate theme introductions
-            false, // Don't create suggested activities
-            false  // Don't hide existing sections
+            $jsonstructure, // Array of structure.
+            $this->course->id, // Course ID.
+            'connected_theme', // MUST be 'connected_theme' to process themes array.
+            false, // Don't generate theme introductions.
+            false, // Don't create suggested activities.
+            false  // Don't hide existing sections.
         );
 
         // Verify method executed without errors.
@@ -627,7 +628,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
         $this->expectExceptionMessage('invalid course');
 
         theme_builder::create_section_with_parent(
-            -1, // Invalid course ID
+            -1, // Invalid course ID.
             $this->courseformat,
             0,
             'Test Section',
@@ -648,7 +649,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
         theme_builder::create_section_with_parent(
             $this->course->id,
             $this->courseformat,
-            -5, // Invalid parent
+            -5, // Invalid parent.
             'Test Section',
             'Test summary',
             FORMAT_PLAIN
@@ -668,7 +669,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
             $this->course->id,
             $this->courseformat,
             0,
-            '', // Empty name
+            '', // Empty name.
             'Test summary',
             FORMAT_PLAIN
         );
@@ -678,6 +679,9 @@ final class comprehensive_workflow_test extends advanced_testcase {
      * Test 9: Orphaned Section Detection.
      *
      * Tests that we can detect sections with non-existent parent numbers.
+     *
+     * @covers \aiplacement_modgen\local\theme_builder::create_theme_section
+     * @covers \aiplacement_modgen\local\theme_builder::create_week_section
      */
     public function test_orphaned_section_detection(): void {
         global $DB;
@@ -714,7 +718,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
             'format' => 'flexsections',
             'sectionid' => $orphan->id,
             'name' => 'parent',
-            'value' => '999', // Non-existent parent
+            'value' => '999', // Non-existent parent.
         ]);
 
         // Verify orphan has invalid parent.
@@ -836,7 +840,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
                     $weeksectionnum = theme_builder::create_week_section(
                         $course->id,
                         $courseformat,
-                        $themesectionnum, // parent = theme section number
+                        $themesectionnum, // Parent = theme section number.
                         $weekname,
                         "Week {$weeknum} summary for stress testing"
                     );
@@ -941,7 +945,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
         $newweek = theme_builder::create_week_section(
             $testcourse->id,
             $testcourseformat,
-            $newtheme, // parent = new theme section number
+            $newtheme, // Parent = new theme section number.
             'Recreated Week',
             'After deletion test'
         );
@@ -1011,7 +1015,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
 
         // Attempt to create section in non-existent course.
         theme_builder::create_theme_section(
-            99999999, // Invalid course ID
+            99999999, // Invalid course ID.
             $this->courseformat,
             'Invalid Course Test',
             'Should throw exception'
@@ -1030,7 +1034,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
         theme_builder::create_theme_section(
             $this->course->id,
             $this->courseformat,
-            '', // Empty name
+            '', // Empty name.
             'Test summary'
         );
     }
@@ -1190,14 +1194,15 @@ final class comprehensive_workflow_test extends advanced_testcase {
         // Attempt invalid operation that should fail.
         try {
             theme_builder::create_theme_section(
-                99999, // Invalid course ID
+                99999, // Invalid course ID.
                 $this->courseformat,
                 'Should Fail',
                 'This should not create anything'
             );
             $this->fail('Should have thrown exception');
         } catch (\dml_missing_record_exception $e) {
-            // Expected exception.
+            // Expected exception - verify no partial state was left behind below.
+            $this->assertInstanceOf(\dml_missing_record_exception::class, $e);
         }
 
         // Verify database unchanged after failure.
@@ -1371,7 +1376,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
         // Check all sections created in this test course.
         $newsections = $DB->get_records('course_sections', [
             'course' => $testcourse->id,
-        ], 'id DESC', '*', 0, 10); // Limit to last 10 sections
+        ], 'id DESC', '*', 0, 10); // Limit to last 10 sections.
 
         $orphancount = 0;
         foreach ($newsections as $section) {

@@ -30,8 +30,6 @@ namespace aiplacement_modgen\activitytype;
 
 use stdClass;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Creates Learning Activity modules for capturing learning design metadata.
  */
@@ -42,53 +40,73 @@ class learningactivity implements activity_type {
      */
     public const AI_CREATABLE = false;
 
-    /** @inheritDoc */
+    /**
+     * Machine-readable identifier for this activity type.
+     *
+     * @return string
+     */
     public static function get_type(): string {
         return 'learningactivity';
     }
 
-    /** @inheritDoc */
+    /**
+     * Language string identifier describing this activity type for display to users.
+     *
+     * @return string
+     */
     public static function get_display_string_id(): string {
         return 'activitytype_learningactivity';
     }
 
-    /** @inheritDoc */
+    /**
+     * Short natural-language description shared with the AI prompt.
+     *
+     * @return string
+     */
     public static function get_prompt_description(): string {
-        // Empty description since this should not be shown to AI
+        // Empty description since this should not be shown to AI.
         return '';
     }
 
-    /** @inheritDoc */
+    /**
+     * Create the learningactivity module in the requested course section.
+     *
+     * @param stdClass $activitydata Raw activity definition returned by the AI response.
+     * @param stdClass $course Full course record.
+     * @param int $sectionnumber Target section number within the course.
+     * @param array $options Additional contextual options.
+     * @return array|null Returns an array with 'cmid' and 'message' on success, null otherwise.
+     */
     public function create(stdClass $activitydata, stdClass $course, int $sectionnumber, array $options = []): ?array {
         global $CFG;
 
         require_once($CFG->dirroot . '/course/modlib.php');
 
-        // Security: Verify user has permission to manage course structure
+        // Security: Verify user has permission to manage course structure.
         $context = \context_course::instance($course->id);
         require_capability('aiplacement/modgen:managestructure', $context);
 
-        // Sanitize name field to prevent XSS
+        // Sanitize name field to prevent XSS.
         $name = isset($activitydata->name) ? clean_param(trim($activitydata->name), PARAM_TEXT) : '';
 
-        // Enforce maximum length
+        // Enforce maximum length.
         if (strlen($name) > 255) {
             $name = substr($name, 0, 255);
         }
 
-        // If no name, try to infer from section type
+        // If no name, try to infer from section type.
         if ($name === '') {
             $sectiontype = $activitydata->sectiontype ?? 'section';
             if ($sectiontype === 'section') {
-                // For sections, name is optional (hidden in form)
+                // For sections, name is optional (hidden in form).
                 $name = '';
             } else {
-                // For activities, name is required
+                // For activities, name is required.
                 return null;
             }
         }
 
-        // Create the learningactivity module
+        // Create the learningactivity module.
         $moduleinfo = new stdClass();
         $moduleinfo->course = $course->id;
         $moduleinfo->modulename = 'learningactivity';
@@ -96,7 +114,7 @@ class learningactivity implements activity_type {
         $moduleinfo->visible = 1;
         $moduleinfo->name = $name;
 
-        // Learning design fields
+        // Learning design fields.
         $moduleinfo->sectiontype = $activitydata->sectiontype ?? 'section';
         $moduleinfo->activityicon = $activitydata->activityicon ?? '';
         $moduleinfo->duration = $activitydata->duration ?? '';
@@ -105,7 +123,7 @@ class learningactivity implements activity_type {
         $moduleinfo->designnotes = $activitydata->designnotes ?? '';
         $moduleinfo->learningoutcomes_weekly = $activitydata->learningoutcomes_weekly ?? '';
 
-        // Instructions (must be in editor format for learningactivity module)
+        // Instructions (must be in editor format for learningactivity module).
         if (isset($activitydata->instructions)) {
             $instructionstext = '';
             if (is_array($activitydata->instructions)) {
@@ -113,7 +131,7 @@ class learningactivity implements activity_type {
             } else {
                 $instructionstext = $activitydata->instructions;
             }
-            // Convert to editor format expected by learningactivity_add_instance()
+            // Convert to editor format expected by learningactivity_add_instance().
             $moduleinfo->instructions_editor = [
                 'text' => $instructionstext,
                 'format' => FORMAT_HTML,
@@ -121,22 +139,22 @@ class learningactivity implements activity_type {
             ];
         }
 
-        // Weekly learning outcomes (for weeks only)
+        // Weekly learning outcomes (for weeks only).
         if (isset($activitydata->learningoutcomes_weekly)) {
             $moduleinfo->learningoutcomes_weekly = $activitydata->learningoutcomes_weekly;
         }
 
-        // Learning types (array of tags, will be imploded to CSV)
+        // Learning types (array of tags, will be imploded to CSV).
         if (isset($activitydata->learningtypes)) {
             if (is_array($activitydata->learningtypes)) {
                 $moduleinfo->learningtypes = $activitydata->learningtypes;
             } else {
-                // Already a string
+                // Already a string.
                 $moduleinfo->learningtypes = explode(',', $activitydata->learningtypes);
             }
         }
 
-        // Learning outcomes (array, will be JSON encoded)
+        // Learning outcomes (array, will be JSON encoded).
         if (isset($activitydata->learningoutcomes)) {
             if (is_string($activitydata->learningoutcomes)) {
                 $outcomes = json_decode($activitydata->learningoutcomes, true);
@@ -150,7 +168,7 @@ class learningactivity implements activity_type {
             }
         }
 
-        // Assessments (array, will be JSON encoded)
+        // Assessments (array, will be JSON encoded).
         if (isset($activitydata->assessments)) {
             if (is_string($activitydata->assessments)) {
                 $assessments = json_decode($activitydata->assessments, true);

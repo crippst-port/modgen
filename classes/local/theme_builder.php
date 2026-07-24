@@ -56,30 +56,30 @@ class theme_builder {
     private static function create_learningactivity_metadata($courseid, $sectionnumber, $sectiontype, $name = '', $metadata = []) {
         global $DB;
 
-        // Get handler
+        // Get handler.
         $handler = registry::get_handler('learningactivity');
         if (!$handler) {
-            // learningactivity handler not found.
+            // Learningactivity handler not found.
             return null;
         }
 
-        // Get course
+        // Get course.
         $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 
-        // Prepare activity data
+        // Prepare activity data.
         $activitydata = new \stdClass();
         $activitydata->sectiontype = $sectiontype;
         $activitydata->name = $name;
 
-        // Merge additional metadata - skip null/empty values
+        // Merge additional metadata - skip null/empty values.
         foreach ($metadata as $key => $value) {
-            // Skip null values and empty strings to avoid issues with learningactivity module
+            // Skip null values and empty strings to avoid issues with learningactivity module.
             if ($value !== null && $value !== '') {
                 $activitydata->$key = $value;
             }
         }
 
-        // Create instance
+        // Create instance.
         try {
             $instance = new $handler();
             $result = $instance->create($activitydata, $course, $sectionnumber);
@@ -91,7 +91,8 @@ class theme_builder {
                 return $result['cmid'];
             }
         } catch (\Exception $e) {
-            // Failed to create learningactivity: expected in test environment.
+            // Expected in test environment; log for real failures elsewhere.
+            debugging('Failed to create learningactivity: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
 
         return null;
@@ -170,7 +171,7 @@ class theme_builder {
                 }
                 $count++; // Week/section.
                 $sessions = (!empty($section['sessions']) && is_array($section['sessions'])) ? $section['sessions'] : [];
-                // connected_weekly always materialises 3 session subsections.
+                // Connected-weekly courses always materialise 3 session subsections.
                 $count += $sessions ? count($sessions) : ($moduletype === 'connected_weekly' ? 3 : 0);
             }
         }
@@ -185,18 +186,24 @@ class theme_builder {
      *
      * @param int $courseid Course ID
      * @param int $themecount Number of themes to create (1-10)
-     * @param int $weeksperTheme Number of weeks per theme (1-10)
+     * @param int $weeksperthemecount Number of weeks per theme (1-10)
      * @param int $parent Parent section number (0 = top level, N = nested under section N)
      * @return array Result with 'success' boolean and 'messages' array
      */
-    public static function create_themes($courseid, $themecount, $weeksperTheme, $parent = 0, $createsummaryactivities = true) {
+    public static function create_themes(
+        $courseid,
+        $themecount,
+        $weeksperthemecount,
+        $parent = 0,
+        $createsummaryactivities = true
+    ) {
         global $DB;
 
         $messages = [];
 
         // Refuse before doing any work if this would push the course past the section
         // limit. Each theme is 1 section; each week is 1 + 3 session subsections.
-        self::enforce_section_limit($courseid, $themecount + ($themecount * $weeksperTheme * 4));
+        self::enforce_section_limit($courseid, $themecount + ($themecount * $weeksperthemecount * 4));
 
         // Acquire lock before any course modifications to prevent nested lock conflicts.
         $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');
@@ -234,7 +241,7 @@ class theme_builder {
             $transaction = $DB->start_delegated_transaction();
 
             try {
-                $createdcount = 0; // Track sections created for cache rebuild
+                $createdcount = 0; // Track sections created for cache rebuild.
 
                 for ($i = 1; $i <= $themecount; $i++) {
                     $themetitle = get_string('defaultthemename', 'aiplacement_modgen', $i);
@@ -248,14 +255,14 @@ class theme_builder {
                         $themetitle,
                         $themesummary,
                         $options,
-                        false  // Defer cache rebuild
+                        false  // Defer cache rebuild.
                     );
                     $createdcount++;
 
                     $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $themetitle);
 
                     // Create weeks under this theme.
-                    for ($w = 1; $w <= $weeksperTheme; $w++) {
+                    for ($w = 1; $w <= $weeksperthemecount; $w++) {
                         $weektitle = get_string('defaultweekname', 'aiplacement_modgen', [
                             'theme' => $i,
                             'week' => $w,
@@ -273,9 +280,9 @@ class theme_builder {
                             $weektitle,
                             $weeksummary,
                             $weekoptions,
-                            false  // Defer cache rebuild
+                            false  // Defer cache rebuild.
                         );
-                        $createdcount += 4; // Week + 3 session subsections
+                        $createdcount += 4; // Week + 3 session subsections.
 
                         $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
 
@@ -408,7 +415,7 @@ class theme_builder {
             $transaction = $DB->start_delegated_transaction();
 
             try {
-                $createdcount = 0; // Track sections created for cache rebuild
+                $createdcount = 0; // Track sections created for cache rebuild.
 
                 for ($i = 1; $i <= $weekcount; $i++) {
                     $weektitle = get_string('defaultstandaloneweekname', 'aiplacement_modgen', $i);
@@ -421,13 +428,13 @@ class theme_builder {
                     $weeksectionnum = self::create_week_section(
                         $courseid,
                         $courseformat,
-                        $parent, // Use provided parent section
+                        $parent, // Use provided parent section.
                         $weektitle,
                         $weeksummary,
                         $weekoptions,
-                        false  // Defer cache rebuild
+                        false  // Defer cache rebuild.
                     );
-                    $createdcount += 4; // Week + 3 session subsections
+                    $createdcount += 4; // Week + 3 session subsections.
 
                     $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $weektitle);
 
@@ -511,7 +518,7 @@ class theme_builder {
         }
 
         // Format title and summary.
-        // Use format_string for title (XSS-safe) and FORMAT_PLAIN for summary to prevent XSS from AI-generated content
+        // Use format_string for title (XSS-safe) and FORMAT_PLAIN for summary to prevent XSS from AI-generated content.
         $themetitle = format_string($title, true, ['context' => $context]);
         $sectionhtml = trim($summary) !== '' ? format_text($summary, FORMAT_PLAIN, ['context' => $context]) : '';
 
@@ -520,12 +527,12 @@ class theme_builder {
         $themesection = self::create_section_with_parent(
             $courseid,
             $courseformat,
-            0, // Themes are always top-level
+            0, // Themes are always top-level.
             $themetitle,
             $sectionhtml,
             FORMAT_PLAIN,
             ['collapsed' => $collapsed],
-            $rebuildcache  // Pass through rebuild cache parameter
+            $rebuildcache  // Pass through rebuild cache parameter.
         );
 
         return $themesection->section;
@@ -546,7 +553,15 @@ class theme_builder {
      * @param bool $rebuildcache Whether to rebuild course cache after creation (default true)
      * @return int Section number of created week
      */
-    public static function create_week_section($courseid, $courseformat, $parentsectionnum, $title, $summary, $options = [], $rebuildcache = true) {
+    public static function create_week_section(
+        $courseid,
+        $courseformat,
+        $parentsectionnum,
+        $title,
+        $summary,
+        $options = [],
+        $rebuildcache = true
+    ) {
         global $DB;
 
         $context = \context_course::instance($courseid);
@@ -560,17 +575,17 @@ class theme_builder {
             throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
         }
 
-        // Format week title
+        // Format week title.
         $weektitle = format_string($title, true, ['context' => $context]);
 
-        // Prepare metadata for week-level learningactivity
-        // If metadata includes instructions, use that instead of setting summary on section
+        // Prepare metadata for week-level learningactivity.
+        // If metadata includes instructions, use that instead of setting summary on section.
         $weekmetadata = $options['metadata'] ?? [];
         $usemetadataforintro = !empty($weekmetadata['instructions']);
 
-        // If using metadata for intro, don't set summary on section (leave it minimal/empty)
-        // Otherwise, use the provided summary on the section
-        // Use FORMAT_PLAIN to prevent XSS from AI-generated content
+        // If using metadata for intro, don't set summary on section (leave it minimal/empty).
+        // Otherwise, use the provided summary on the section.
+        // Use FORMAT_PLAIN to prevent XSS from AI-generated content.
         $weeksectionhtml = '';
         if (!$usemetadataforintro && trim($summary) !== '') {
             $weeksectionhtml = format_text($summary, FORMAT_PLAIN, ['context' => $context]);
@@ -586,7 +601,7 @@ class theme_builder {
             $weeksectionhtml,
             FORMAT_PLAIN,
             ['collapsed' => $collapsed],
-            false  // Don't rebuild cache yet - wait until session subsections created
+            false  // Don't rebuild cache yet - wait until session subsections created.
         );
 
         $weeksectionnum = $weeksection->section;
@@ -597,7 +612,7 @@ class theme_builder {
         $createsummaryactivities = $options['createsummaryactivities'] ?? true;
 
         // Create learningactivity metadata module at the start of the week.
-        // Use custom name from metadata if provided, otherwise use the week title
+        // Use custom name from metadata if provided, otherwise use the week title.
         if ($createsummaryactivities) {
             $weekactivityname = !empty($weekmetadata['name']) ? $weekmetadata['name'] : $title;
 
@@ -679,11 +694,11 @@ class theme_builder {
                 $assessmentssection = self::create_section_with_parent(
                     $courseid,
                     $courseformat,
-                    0, // parent = 0 (top level)
+                    0, // Top level (no parent section).
                     $assessmentsname,
-                    '', // No summary
+                    '', // No summary.
                     FORMAT_HTML,
-                    [] // No additional format options
+                    [] // No additional format options.
                 );
 
                 $assessmentssectionnum = $assessmentssection->section;
@@ -694,7 +709,7 @@ class theme_builder {
                         $courseformat->move_section($assessmentssectionnum, 0, 1);
                     } catch (\Throwable $e) {
                         // If move fails, section will remain at end but still be created.
-                        // Failed to move Assessments section.
+                        debugging('Failed to move Assessments section: ' . $e->getMessage(), DEBUG_DEVELOPER);
                     }
                 }
             } else {
@@ -757,10 +772,16 @@ class theme_builder {
      * @param bool $skipdepthcheck Skip depth validation (for bulk operations)
      * @throws \moodle_exception If validation fails
      */
-    private static function validate_section_creation_params($courseid, $courseformat, $parentsectionnum, $childsectionnum = null, $skipdepthcheck = false) {
+    private static function validate_section_creation_params(
+        $courseid,
+        $courseformat,
+        $parentsectionnum,
+        $childsectionnum = null,
+        $skipdepthcheck = false
+    ) {
         global $DB;
 
-        // Basic parameter validation
+        // Basic parameter validation.
         if (!is_numeric($courseid) || $courseid <= 0) {
             throw new \moodle_exception('invalidcourseid', 'error');
         }
@@ -773,7 +794,7 @@ class theme_builder {
             throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
         }
 
-        // PROTECTION 1: Prevent section from being its own parent
+        // PROTECTION 1: Prevent section from being its own parent.
         if ($childsectionnum !== null && $parentsectionnum === $childsectionnum) {
             debugging("Prevented circular reference: Section {$childsectionnum} cannot be its own parent", DEBUG_DEVELOPER);
             throw new \moodle_exception(
@@ -784,7 +805,7 @@ class theme_builder {
             );
         }
 
-        // Validate parent section exists if not top-level
+        // Validate parent section exists if not top-level.
         if ($parentsectionnum > 0) {
             $parentsection = $DB->get_record('course_sections', [
                 'course' => $courseid,
@@ -795,9 +816,15 @@ class theme_builder {
                 throw new \moodle_exception('invalidparentsection', 'aiplacement_modgen', '', $parentsectionnum);
             }
 
-            // PROTECTION 2: Check for circular references in parent chain
-            if ($childsectionnum !== null && self::would_create_circular_reference($courseid, $parentsectionnum, $childsectionnum)) {
-                debugging("Prevented circular reference: Section {$childsectionnum} with parent {$parentsectionnum} would create a loop", DEBUG_DEVELOPER);
+            // PROTECTION 2: Check for circular references in parent chain.
+            $wouldloop = $childsectionnum !== null &&
+                self::would_create_circular_reference($courseid, $parentsectionnum, $childsectionnum);
+            if ($wouldloop) {
+                debugging(
+                    "Prevented circular reference: Section {$childsectionnum} with parent " .
+                    "{$parentsectionnum} would create a loop",
+                    DEBUG_DEVELOPER
+                );
                 throw new \moodle_exception(
                     'circularsectionchain',
                     'aiplacement_modgen',
@@ -844,13 +871,22 @@ class theme_builder {
      * @return object Section record with id and section number
      * @throws \moodle_exception If section creation fails or invalid parameters
      */
-    public static function create_section_with_parent($courseid, $courseformat, $parentsectionnum, $name, $summary, $summaryformat, $options = [], $rebuildcache = true) {
+    public static function create_section_with_parent(
+        $courseid,
+        $courseformat,
+        $parentsectionnum,
+        $name,
+        $summary,
+        $summaryformat,
+        $options = [],
+        $rebuildcache = true
+    ) {
         global $DB;
 
         // Basic validation (parent existence and hierarchy depth).
         // Note: Cannot check circular refs yet as child section doesn't exist.
         // PERFORMANCE: Skip depth check if deferring cache rebuild (bulk operation).
-        $skipdepthcheck = !$rebuildcache; // If deferring rebuild, skip expensive validation
+        $skipdepthcheck = !$rebuildcache; // If deferring rebuild, skip expensive validation.
         self::validate_section_creation_params($courseid, $courseformat, $parentsectionnum, null, $skipdepthcheck);
 
         // Additional validation for section name.
@@ -877,9 +913,9 @@ class theme_builder {
             self::validate_section_creation_params($courseid, $courseformat, $parentsectionnum, $sectionnum, $skipdepthcheck);
 
             // Step 3: Update section properties (name, summary) with XSS protection.
-            $section->name = clean_param($name, PARAM_TEXT); // Strip HTML/JS from names
-            $section->summary = $summary; // Keep raw - will be sanitized on display
-            // Validate summary format - only allow safe formats
+            $section->name = clean_param($name, PARAM_TEXT); // Strip HTML/JS from names.
+            $section->summary = $summary; // Keep raw - will be sanitized on display.
+            // Validate summary format - only allow safe formats.
             if (!in_array($summaryformat, [FORMAT_PLAIN, FORMAT_MARKDOWN, FORMAT_HTML, FORMAT_MOODLE])) {
                 debugging('Invalid summary format ' . $summaryformat . ', defaulting to FORMAT_HTML', DEBUG_DEVELOPER);
                 $summaryformat = FORMAT_HTML;
@@ -910,7 +946,7 @@ class theme_builder {
                 'aiplacement_modgen',
                 '',
                 clean_param($name, PARAM_TEXT)
-            ); // Sanitized name in user message
+            ); // Sanitized name in user message.
         }
     }
 

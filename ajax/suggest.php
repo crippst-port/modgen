@@ -22,7 +22,10 @@
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-// Resolve Moodle config.php from plugin ajax directory.
+// Resolve Moodle config.php from plugin ajax directory. Must check it exists before
+// requiring it, so a missing/misconfigured install returns a clean JSON error instead
+// of a fatal include error.
+// phpcs:ignore moodle.Files.MoodleInternal.MoodleInternalGlobalState
 $configpath = __DIR__ . '/../../../../config.php';
 if (!file_exists($configpath)) {
     // Ensure clients always get JSON rather than a PHP warning/fatal HTML page.
@@ -40,15 +43,15 @@ require_once(__DIR__ . '/../classes/local/ai_service.php');
 
 defined('MOODLE_INTERNAL') || die();
 
-// Prevent PHP from outputting HTML errors directly to the response
+// Prevent PHP from outputting HTML errors directly to the response.
 @ini_set('display_errors', '0');
 @error_reporting(E_ALL & ~E_DEPRECATED & ~E_STRICT);
 
-// Buffer any unexpected output so we can return clean JSON
+// Buffer any unexpected output so we can return clean JSON.
 @ob_start();
 
 try {
-    // Immediately set JSON content-type so clients always see the correct header
+    // Immediately set JSON content-type so clients always see the correct header.
     header('Content-Type: application/json');
 
     require_login();
@@ -67,7 +70,7 @@ try {
     $modinfo = get_fast_modinfo($courseid);
     $sectionmap = [];
 
-    // Prefer using the template_reader to obtain richer structure and label/content extraction
+    // Prefer using the template_reader to obtain richer structure and label/content extraction.
     $templatereaderavailable = false;
     try {
         $templclass = 'aiplacement_modgen\\local\\template_reader';
@@ -96,7 +99,7 @@ try {
                 }
             }
         } catch (\Throwable $e) {
-            // Fall back to modinfo if template reader fails
+            // Fall back to modinfo if template reader fails.
             $templatereaderavailable = false;
         }
     }
@@ -112,7 +115,7 @@ try {
         }
     }
 
-    // If a specific section was requested, filter the map to only that section
+    // If a specific section was requested, filter the map to only that section.
     if (!empty($section) && is_int($section) && $section > 0) {
         $filtered = array_values(array_filter($sectionmap, function ($s) use ($section) {
             $id = isset($s['section']) ? (int) $s['section'] : (int) ($s['id'] ?? 0);
@@ -130,42 +133,42 @@ try {
         $result['suggestions'] = array_slice($result['suggestions'], 0, 20);
     }
 
-    // Check if generation failed
+    // Check if generation failed.
     if (!empty($result['error'])) {
         ajax_response::error($result['error'], 'generation_failed', $result);
     }
 
-    // Compute current learning-type mix for the requested section (if any)
+    // Compute current learning-type mix for the requested section (if any).
     // Map common module names to Laurillard learning types to keep consistent with Explore report.
-    $learningtype_map = [
-        // Acquisition-like resources
+    $learningtypemap = [
+        // Acquisition-like resources.
         'page' => 'Acquisition',
         'book' => 'Acquisition',
         'resource' => 'Acquisition',
         'label' => 'Acquisition',
         'url' => 'Acquisition',
-        // Discussion/dialogic
+        // Discussion/dialogic.
         'forum' => 'Discussion',
         'chat' => 'Discussion',
-        // Investigation/interactive
+        // Investigation/interactive.
         'choice' => 'Investigation',
         'survey' => 'Investigation',
         'workshop' => 'Investigation',
         'hsuforum' => 'Investigation',
-        // Practice/adaptive
+        // Practice/adaptive.
         'lesson' => 'Practice',
         'feedback' => 'Practice',
-        // Production/collaborative
+        // Production/collaborative.
         'assign' => 'Production',
         'assignment' => 'Production',
         'quiz' => 'Production',
         'scorm' => 'Production',
-        // Collaboration (webconferencing)
+        // Collaboration (webconferencing).
         'bigbluebuttonbn' => 'Collaboration',
         'zoom' => 'Collaboration',
     ];
 
-    $learning_counts = [
+    $learningcounts = [
         'Acquisition' => 0,
         'Discussion' => 0,
         'Investigation' => 0,
@@ -176,7 +179,7 @@ try {
 
     $hasactivities = false;
     if (!empty($section) && is_int($section) && $section > 0) {
-        // Find course_sections record for this section number
+        // Find course_sections record for this section number.
         $sectionrec = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $section]);
         if ($sectionrec) {
             // Try to obtain the course modules for this section using the already-loaded
@@ -195,7 +198,7 @@ try {
                 }
                 if ($target && !empty($target->sequence)) {
                     $cmids = array_filter(array_map('intval', explode(',', $target->sequence)));
-                    // modinfo may expose cms as an array of cm_info objects.
+                    // Modinfo may expose cms as an array of cm_info objects.
                     if (!empty($modinfo->cms) && is_array($modinfo->cms)) {
                         foreach ($cmids as $cmid) {
                             if (isset($modinfo->cms[$cmid])) {
@@ -208,8 +211,8 @@ try {
                             }
                         }
                     } else {
-                        // As a last resort build lightweight cms array from DB course_modules
-                        // PERFORMANCE FIX: Batch fetch module names to avoid N+1 queries
+                        // As a last resort build lightweight cms array from DB course_modules.
+                        // PERFORMANCE FIX: Batch fetch module names to avoid N+1 queries.
                         $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
                         if (!empty($dbcms)) {
                             $moduleids = array_unique(array_column((array) $dbcms, 'module'));
@@ -223,8 +226,8 @@ try {
                         }
                     }
                 } else {
-                    // No sequence on the section (empty section) - try DB fallback
-                    // PERFORMANCE FIX: Batch fetch module names to avoid N+1 queries
+                    // No sequence on the section (empty section) - try DB fallback.
+                    // PERFORMANCE FIX: Batch fetch module names to avoid N+1 queries.
                     $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
                     if (!empty($dbcms)) {
                         $moduleids = array_unique(array_column((array) $dbcms, 'module'));
@@ -238,8 +241,8 @@ try {
                     }
                 }
             } catch (\Throwable $e) {
-                // If anything goes wrong, fall back to querying course_modules directly
-                // PERFORMANCE FIX: Batch fetch module names to avoid N+1 queries
+                // If anything goes wrong, fall back to querying course_modules directly.
+                // PERFORMANCE FIX: Batch fetch module names to avoid N+1 queries.
                 $dbcms = $DB->get_records('course_modules', ['section' => $sectionrec->id]);
                 if (!empty($dbcms)) {
                     $moduleids = array_unique(array_column((array) $dbcms, 'module'));
@@ -261,28 +264,28 @@ try {
                     } else if (!empty($cm->module) && is_string($cm->module)) {
                         $modname = strtolower($cm->module);
                     }
-                    $lt = $learningtype_map[$modname] ?? 'Production';
-                    if (!isset($learning_counts[$lt])) {
-                        $learning_counts[$lt] = 0;
+                    $lt = $learningtypemap[$modname] ?? 'Production';
+                    if (!isset($learningcounts[$lt])) {
+                        $learningcounts[$lt] = 0;
                     }
-                    $learning_counts[$lt]++;
+                    $learningcounts[$lt]++;
                     $hasactivities = true;
                 }
             }
         }
     }
 
-    // Provide chart-friendly arrays using centralized color configuration
-    $labels = array_keys($learning_counts);
-    $data = array_values($learning_counts);
+    // Provide chart-friendly arrays using centralized color configuration.
+    $labels = array_keys($learningcounts);
+    $data = array_values($learningcounts);
 
-    // Use centralized learning type colors instead of hardcoded array
+    // Use centralized learning type colors instead of hardcoded array.
     $colorclass = 'aiplacement_modgen\\local\\learning_type_colors';
     if (!class_exists($colorclass)) {
         require_once(__DIR__ . '/../classes/local/learning_type_colors.php');
     }
     $allcolors = $colorclass::get_activity_type_colors();
-    // Map activity type names to colors (lowercase keys in config match display names)
+    // Map activity type names to colors (lowercase keys in config match display names).
     $colors = [];
     foreach ($labels as $label) {
         $key = strtolower($label);
@@ -298,9 +301,10 @@ try {
         'hasActivities' => $hasactivities,
     ];
 
-    // Discard any accidental output and return JSON
+    // Discard any accidental output and return JSON.
     $extra = @ob_get_clean();
     if ($extra !== false && trim($extra) !== '') {
+        debugging('Unexpected output before JSON response: ' . $extra, DEBUG_DEVELOPER);
     }
 
     ajax_response::success($result);

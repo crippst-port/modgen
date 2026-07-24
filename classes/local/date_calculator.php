@@ -24,8 +24,6 @@
 
 namespace aiplacement_modgen\local;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Service class for calculating section dates with holiday support.
  */
@@ -52,7 +50,7 @@ class date_calculator {
         ];
 
         $hasthemes = false;
-        $hasweeksunderThemes = false;
+        $hasweeksunderthemes = false;
         $hasstandaloneweeks = false;
         $toplevelcount = 0;
 
@@ -92,7 +90,7 @@ class date_calculator {
 
                         // If child is NOT a session, it's a week.
                         if (!in_array($childsection->name, $sessionnames)) {
-                            $hasweeksunderThemes = true;
+                            $hasweeksunderthemes = true;
                             break;
                         }
                     }
@@ -104,7 +102,7 @@ class date_calculator {
         }
 
         // Determine layout type based on what we found.
-        if ($hasthemes && $hasweeksunderThemes) {
+        if ($hasthemes && $hasweeksunderthemes) {
             return [
                 'type' => 'theme_based',
                 'description' => 'Theme-based layout with nested weeks',
@@ -112,10 +110,10 @@ class date_calculator {
                     'has_themes' => true,
                     'has_weeks_under_themes' => true,
                     'top_level_sections' => $toplevelcount,
-                    'hierarchy_levels' => 3, // Theme → Week → Session
+                    'hierarchy_levels' => 3, // Theme → Week → Session.
                 ],
             ];
-        } else if ($hasthemes && !$hasweeksunderThemes) {
+        } else if ($hasthemes && !$hasweeksunderthemes) {
             return [
                 'type' => 'week_based',
                 'description' => 'Week-based layout (themes treated as weeks)',
@@ -123,7 +121,7 @@ class date_calculator {
                     'has_themes' => true,
                     'has_weeks_under_themes' => false,
                     'top_level_sections' => $toplevelcount,
-                    'hierarchy_levels' => 2, // Theme (as week) → Session
+                    'hierarchy_levels' => 2, // Theme (as week) → Session.
                 ],
             ];
         } else {
@@ -134,7 +132,7 @@ class date_calculator {
                     'has_themes' => false,
                     'has_weeks_under_themes' => false,
                     'top_level_sections' => $toplevelcount,
-                    'hierarchy_levels' => 1, // Week only (may have sessions)
+                    'hierarchy_levels' => 1, // Week only (may have sessions).
                 ],
             ];
         }
@@ -154,7 +152,12 @@ class date_calculator {
      * @param int|null $startdate Optional custom start date timestamp (defaults to course start date)
      * @return array Array mapping section IDs to date information
      */
-    public static function calculate_section_dates($courseid, $excludedsectionids = [], $includeparents = false, $startdate = null) {
+    public static function calculate_section_dates(
+        $courseid,
+        $excludedsectionids = [],
+        $includeparents = false,
+        $startdate = null
+    ) {
         global $DB;
 
         $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
@@ -294,7 +297,7 @@ class date_calculator {
 
                 // Only process theme sections (those with no parent themselves).
                 if (!empty($parentsection->parent)) {
-                    continue; // Skip week sections that have children (sessions)
+                    continue; // Skip week sections that have children (sessions).
                 }
 
                 // Skip if theme already processed (shouldn't happen).
@@ -338,7 +341,7 @@ class date_calculator {
                     'id' => $parentid,
                     'section' => $parentsection->section,
                     'name' => $cleanname,
-                    'formatted_date' => '', // No dates for themes in theme-based layouts
+                    'formatted_date' => '', // No dates for themes in theme-based layouts.
                     'week_number' => null,
                     'is_parent' => true,
                     'start_timestamp' => $themestartts,
@@ -361,17 +364,17 @@ class date_calculator {
     private static function build_section_hierarchy($sections) {
         $parents = [];
         $idtoindex = [];
-        $sectionnumtoid = []; // Map section number to section ID
+        $sectionnumtoid = []; // Map section number to section ID.
 
         foreach ($sections as $index => $section) {
             $idtoindex[$section->id] = $index;
             $sectionnumtoid[$section->section] = $section->id;
         }
 
-        // Second pass: build parent-child relationships using section IDs
+        // Second pass: build parent-child relationships using section IDs.
         foreach ($sections as $section) {
             if (!empty($section->parent)) {
-                // Convert parent section number to parent section ID
+                // Convert parent section number to parent section ID.
                 $parentsectionid = $sectionnumtoid[$section->parent] ?? null;
                 if ($parentsectionid) {
                     if (!isset($parents[$parentsectionid])) {
@@ -445,17 +448,17 @@ class date_calculator {
      * @return string Formatted date range
      */
     public static function format_date_range_uk($startdate, $enddate, $holidays = []) {
-        // Format: "Dec 1–7:" (compact style with en-dash)
+        // Format: "Dec 1–7:" (compact style with en-dash).
         $startmonth = userdate($startdate, '%b', 99, false);
         $startday = (int)userdate($startdate, '%d', 99, false);
         $endday = (int)userdate($enddate, '%d', 99, false);
         $endmonth = userdate($enddate, '%b', 99, false);
 
-        // If same month, use format "Dec 1–7:"
+        // If same month, use format "Dec 1–7:".
         if ($startmonth === $endmonth) {
             $datestr = "{$startmonth} {$startday}–{$endday}:";
         } else {
-            // Different months: "Dec 28–Jan 3:"
+            // Different months: "Dec 28–Jan 3:".
             $datestr = "{$startmonth} {$startday}–{$endmonth} {$endday}:";
         }
 
@@ -470,7 +473,9 @@ class date_calculator {
     /**
      * Remove existing date prefix from section name.
      *
-     * Detects and removes various date formats including:     * - "14/09/2026 - 18/09/2026" (full date format)     * - "Dec 1–7:" (current format)
+     * Detects and removes various date formats including:
+     * - "14/09/2026 - 18/09/2026" (full date format)
+     * - "Dec 1–7:" (current format)
      * - "Dec 1–7: (Holiday Name)" (date with holiday)
      * - "Nov 29 - Dec 5" (cross-month with space-dash-space)
      * - "Mon 20 Jan - Fri 24 Jan" (old format)
@@ -484,40 +489,61 @@ class date_calculator {
     public static function remove_existing_date($name) {
         $name = trim($name);
 
-        // Pattern 1: Month day range format with optional holiday "Dec 1–7: (Holiday)" or "Dec 28–Jan 3: (Easter Break)" or "June 1–7:"
-        // Handles both short (Dec, Jan) and full (June, July) month names, with optional parenthetical holiday names
-        $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}–([A-Z][a-z]+\s+)?\d{1,2}:\s*(\([^)]+\)\s*)*/i', '', $name);
+        // Pattern 1: Month day range format with optional holiday, e.g. "Dec 1–7: (Holiday)",
+        // "Dec 28–Jan 3: (Easter Break)" or "June 1–7:". Handles both short (Dec, Jan) and full
+        // (June, July) month names, with optional parenthetical holiday names.
+        $name = preg_replace(
+            '/^[A-Z][a-z]+\s+\d{1,2}–([A-Z][a-z]+\s+)?\d{1,2}:\s*(\([^)]+\)\s*)*/i',
+            '',
+            $name
+        );
 
-        // Pattern 2: Cross-month format "Nov 29 - Dec 5" or "May 11–June 7"
-        // Handles various dash types and full month names
-        $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*[A-Z][a-z]+\s+\d{1,2}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
+        // Pattern 2: Cross-month format "Nov 29 - Dec 5" or "May 11–June 7". Handles various
+        // dash types and full month names.
+        $name = preg_replace(
+            '/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*[A-Z][a-z]+\s+\d{1,2}\s*:?\s*(\([^)]+\)\s*)*/i',
+            '',
+            $name
+        );
 
-        // Pattern 3: Old verbose format "Mon 20 Jan - Fri 24 Jan"
-        $name = preg_replace('/^[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]+\s*[-–—]\s*[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]+\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
+        // Pattern 3: Old verbose format "Mon 20 Jan - Fri 24 Jan".
+        $name = preg_replace(
+            '/^[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]+\s*[-–—]\s*[A-Z][a-z]{2}\s+\d{1,2}\s+[A-Z][a-z]+\s*:?\s*(\([^)]+\)\s*)*/i',
+            '',
+            $name
+        );
 
-        // Pattern 4: Full date format "14/09/2026 - 18/09/2026" or "14-09-2026 - 18-09-2026"
-        $name = preg_replace('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
+        // Pattern 4: Full date format "14/09/2026 - 18/09/2026" or "14-09-2026 - 18-09-2026".
+        $name = preg_replace(
+            '/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*:?\s*(\([^)]+\)\s*)*/i',
+            '',
+            $name
+        );
 
-        // Pattern 5: Numeric format "20/01 - 24/01" or "20-01 - 24-01"
+        // Pattern 5: Numeric format "20/01 - 24/01" or "20-01 - 24-01".
         $name = preg_replace('/^\d{1,2}[\/\-]\d{1,2}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
 
-        // Pattern 6: Short format "Jan 20-24" or "June 20 - 24"
+        // Pattern 6: Short format "Jan 20-24" or "June 20 - 24".
         $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*\d{1,2}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
 
-        // Pattern 7: Dates in parentheses at start "(Dec 1-7) " or "(14/09/2026 - 18/09/2026) "
+        // Pattern 7: Dates in parentheses at start "(Dec 1-7) " or "(14/09/2026 - 18/09/2026) ".
         $name = preg_replace('/^\([^)]*\d{1,2}[^)]*\)\s*:?\s*/i', '', $name);
 
-        // Pattern 8: Dates in parentheses at end " (Dec 1-7)" or " (14/09/2026 - 18/09/2026)"
+        // Pattern 8: Dates in parentheses at end " (Dec 1-7)" or " (14/09/2026 - 18/09/2026)".
         $name = preg_replace('/\s*\([^)]*\d{1,2}[^)]*\)\s*$/i', '', $name);
 
-        // Apply patterns again to handle doubled dates (e.g., "June 1–7: June 1–7: Title")
-        // This ensures we remove all date prefixes if they were applied multiple times
+        // Apply patterns again to handle doubled dates (e.g., "June 1–7: June 1–7: Title").
+        // This ensures we remove all date prefixes if they were applied multiple times.
         $previousname = '';
         $iterations = 0;
         while ($name !== $previousname && $iterations < 5) {
             $previousname = $name;
 
-            $name = preg_replace('/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
+            $name = preg_replace(
+                '/^\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*[-–—]\s*\d{1,2}[\/\-]\d{1,2}[\/\-]\d{4}\s*:?\s*(\([^)]+\)\s*)*/i',
+                '',
+                $name
+            );
             $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}–([A-Z][a-z]+\s+)?\d{1,2}:\s*(\([^)]+\)\s*)*/i', '', $name);
             $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*[A-Z][a-z]+\s+\d{1,2}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
             $name = preg_replace('/^[A-Z][a-z]+\s+\d{1,2}\s*[-–—]\s*\d{1,2}\s*:?\s*(\([^)]+\)\s*)*/i', '', $name);
@@ -569,7 +595,10 @@ class date_calculator {
             $dateparts = explode('-', $daterange);
 
             if (count($dateparts) < 2) {
-                debugging("Invalid holiday format on line " . ($linenum + 1) . ": date range must have start and end", DEBUG_DEVELOPER);
+                debugging(
+                    "Invalid holiday format on line " . ($linenum + 1) . ": date range must have start and end",
+                    DEBUG_DEVELOPER
+                );
                 continue;
             }
 
@@ -613,10 +642,10 @@ class date_calculator {
 
         // Try standard formats first.
         $formats = [
-            'dmY' => '/^(\d{2})(\d{2})(\d{4})$/', // DDMMYYYY
-            'd/m/Y' => '/^(\d{2})\/(\d{2})\/(\d{4})$/', // DD/MM/YYYY
-            'd-m-Y' => '/^(\d{2})-(\d{2})-(\d{4})$/', // DD-MM-YYYY
-            'd.m.Y' => '/^(\d{2})\.(\d{2})\.(\d{4})$/', // DD.MM.YYYY
+            'dmY' => '/^(\d{2})(\d{2})(\d{4})$/', // DDMMYYYY.
+            'd/m/Y' => '/^(\d{2})\/(\d{2})\/(\d{4})$/', // DD/MM/YYYY.
+            'd-m-Y' => '/^(\d{2})-(\d{2})-(\d{4})$/', // DD-MM-YYYY.
+            'd.m.Y' => '/^(\d{2})\.(\d{2})\.(\d{4})$/', // DD.MM.YYYY.
         ];
 
         foreach ($formats as $format => $pattern) {

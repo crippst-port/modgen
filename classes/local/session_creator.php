@@ -27,8 +27,6 @@
 
 namespace aiplacement_modgen\local;
 
-defined('MOODLE_INTERNAL') || die();
-
 use aiplacement_modgen\activitytype\registry;
 use context_module;
 
@@ -44,13 +42,20 @@ class session_creator {
      * @param int $courseid The course ID
      * @param array|null $sessiondata Optional session data with 'presession', 'session', 'postsession' keys
      * @param bool $createsummaryactivities Whether to create the learningactivity summary module in each session
-     * @return array Associative array mapping session type to section number ['presession' => N, 'session' => N, 'postsession' => N]
+     * @return array Associative array mapping session type to section number
+     *               ['presession' => N, 'session' => N, 'postsession' => N]
      * @throws \Exception If course format is not flexsections or method is missing
      */
-    public static function create_session_subsections($courseformat, $parentsectionnum, $courseid, $sessiondata = null, $createsummaryactivities = true) {
+    public static function create_session_subsections(
+        $courseformat,
+        $parentsectionnum,
+        $courseid,
+        $sessiondata = null,
+        $createsummaryactivities = true
+    ) {
         global $DB;
 
-        // Validate course format
+        // Validate course format.
         if (!$courseformat || get_class($courseformat) !== 'format_flexsections') {
             throw new \moodle_exception('errorformatnotflexsections', 'aiplacement_modgen');
         }
@@ -59,8 +64,8 @@ class session_creator {
             throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
         }
 
-        // Get the parent section ID from the section number
-        // flexsections create_new_section() expects the parent SECTION ID, not the section number
+        // Get the parent section ID from the section number.
+        // Flexsections create_new_section() expects the parent SECTION ID, not the section number.
         $parentsectionid = null;
         if ($parentsectionnum > 0) {
             $parentsectionid = $DB->get_field(
@@ -70,7 +75,7 @@ class session_creator {
             );
         }
 
-        // Define session types with language strings
+        // Define session types with language strings.
         $sessiontypes = [
             'presession' => get_string('presession', 'aiplacement_modgen'),
             'session' => get_string('session', 'aiplacement_modgen'),
@@ -80,7 +85,7 @@ class session_creator {
         $sessionsectionmap = [];
 
         foreach ($sessiontypes as $sessionkey => $sessionlabel) {
-            // Prepare session summary from description if provided
+            // Prepare session summary from description if provided.
             $sessionsummary = '';
             if (!empty($sessiondata[$sessionkey]) && is_array($sessiondata[$sessionkey])) {
                 $data = $sessiondata[$sessionkey];
@@ -89,7 +94,7 @@ class session_creator {
                 }
             }
 
-            // Create session section using centralized helper
+            // Create session section using centralized helper.
             $sessionsection = \aiplacement_modgen\local\theme_builder::create_section_with_parent(
                 $courseid,
                 $courseformat,
@@ -97,8 +102,8 @@ class session_creator {
                 $sessionlabel,
                 $sessionsummary,
                 FORMAT_PLAIN,
-                ['collapsed' => 0], // Sessions don't appear as links
-                false  // Defer cache rebuild until all 3 sessions created
+                ['collapsed' => 0], // Sessions don't appear as links.
+                false  // Defer cache rebuild until all 3 sessions created.
             );
 
             $sessionsectionnum = $sessionsection->section;
@@ -108,21 +113,21 @@ class session_creator {
             // unless summary activities are switched off (e.g. Quick Add, where they
             // would be empty placeholders).
             if ($createsummaryactivities) {
-                // Extract metadata - new structure or backward compatible
+                // Extract metadata - new structure or backward compatible.
                 $metadata = [];
-                $activityname = $sessionlabel . ' activity'; // Default name
+                $activityname = $sessionlabel . ' activity'; // Default name.
 
                 if (!empty($sessiondata[$sessionkey]) && is_array($sessiondata[$sessionkey])) {
                     $data = $sessiondata[$sessionkey];
                     if (isset($data['learningactivity_metadata']) && is_array($data['learningactivity_metadata'])) {
-                        // New structure with separate metadata
+                        // New structure with separate metadata.
                         $metadata = $data['learningactivity_metadata'];
-                        // Use custom name if provided, otherwise use default
+                        // Use custom name if provided, otherwise use default.
                         if (!empty($metadata['name'])) {
                             $activityname = $metadata['name'];
                         }
                     } else if (!empty($data['description'])) {
-                        // Backward compatibility: use description as instructions
+                        // Backward compatibility: use description as instructions.
                         $metadata['instructions'] = $data['description'];
                     }
                 }
@@ -133,7 +138,7 @@ class session_creator {
                     'activity',
                     $activityname,
                     $metadata,
-                    false  // Don't validate - allows empty metadata from Quick Add
+                    false  // Don't validate - allows empty metadata from Quick Add.
                 );
             }
         }
@@ -154,27 +159,34 @@ class session_creator {
      * @param bool $validate Whether to validate metadata (true for AI-generated, false for manual/Quick Add)
      * @return int|null CM ID of created activity or null on failure
      */
-    private static function create_learningactivity_metadata($courseid, $sectionnumber, $sectiontype, $name, $metadata, $validate = false) {
+    private static function create_learningactivity_metadata(
+        $courseid,
+        $sectionnumber,
+        $sectiontype,
+        $name,
+        $metadata,
+        $validate = false
+    ) {
         global $DB;
 
-        // Get handler
+        // Get handler.
         $handler = registry::get_handler('learningactivity');
         if (!$handler) {
-            // learningactivity handler not found.
+            // Learningactivity handler not found.
             return null;
         }
 
-        // Get course
+        // Get course.
         $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 
-        // Prepare activity data
+        // Prepare activity data.
         $activitydata = new \stdClass();
         $activitydata->sectiontype = $sectiontype;
         $activitydata->name = $name;
 
-        // Apply metadata - validate only if requested (AI-generated content)
+        // Apply metadata - validate only if requested (AI-generated content).
         if ($validate && !empty($metadata)) {
-            // Validate and sanitize metadata for AI-generated content
+            // Validate and sanitize metadata for AI-generated content.
             $validatedmetadata = learningactivity_validator::validate_metadata($metadata);
             foreach ($validatedmetadata as $field => $value) {
                 if ($value !== null) {
@@ -182,9 +194,9 @@ class session_creator {
                 }
             }
         } else {
-            // Direct merge for manual/Quick Add - skip null/empty values
+            // Direct merge for manual/Quick Add - skip null/empty values.
             foreach ($metadata as $key => $value) {
-                // Skip null values and empty strings to avoid issues with learningactivity module
+                // Skip null values and empty strings to avoid issues with learningactivity module.
                 if ($value !== null && $value !== '') {
                     $activitydata->$key = $value;
                 }
@@ -205,8 +217,10 @@ class session_creator {
         } catch (\Exception $e) {
             // Log the error for debugging. Learningactivity creation failures are non-fatal
             // as the section structure can still be created without metadata modules.
-            debugging('Failed to create learningactivity in section ' . $sectionnumber . ': ' . $e->getMessage(), DEBUG_DEVELOPER);
-            error_log('aiplacement_modgen: Learningactivity creation failed in section ' . $sectionnumber . ' - ' . $e->getMessage());
+            debugging(
+                'Failed to create learningactivity in section ' . $sectionnumber . ': ' . $e->getMessage(),
+                DEBUG_DEVELOPER
+            );
         }
 
         return null;
@@ -225,7 +239,7 @@ class session_creator {
     public static function get_session_sections($parentsectionnum, $courseid) {
         global $DB;
 
-        // Get all child sections of the parent
+        // Get all child sections of the parent.
         $sql = "SELECT cs.section, cs.name
                 FROM {course_sections} cs
                 JOIN {course_format_options} cfo ON cfo.sectionid = cs.id
@@ -240,7 +254,7 @@ class session_creator {
         ]);
 
         $sessionsectionmap = [];
-        // IMPORTANT: Check longest strings first to avoid 'session' matching inside 'postsession'
+        // IMPORTANT: Check longest strings first to avoid 'session' matching inside 'postsession'.
         $sessiontypes = ['presession', 'postsession', 'session'];
 
         foreach ($childsections as $section) {

@@ -26,35 +26,55 @@ namespace aiplacement_modgen\activitytype;
 
 use stdClass;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Creates URL activities that link to external resources.
  */
 class url implements activity_type {
-    /** @inheritDoc */
+    /**
+     * Machine-readable identifier for this activity type.
+     *
+     * @return string
+     */
     public static function get_type(): string {
         return 'url';
     }
 
-    /** @inheritDoc */
+    /**
+     * Language string identifier describing this activity type for display to users.
+     *
+     * @return string
+     */
     public static function get_display_string_id(): string {
         return 'activitytype_url';
     }
 
-    /** @inheritDoc */
+    /**
+     * Short natural-language description shared with the AI prompt.
+     *
+     * @return string
+     */
     public static function get_prompt_description(): string {
-        return 'A Moodle URL activity that links to external websites, articles, videos, or resources. Ideal for directing students to external reading materials, reference sites, multimedia content, or context from other activities.';
+        return 'A Moodle URL activity that links to external websites, articles, videos, or resources. Ideal ' .
+            'for directing students to external reading materials, reference sites, multimedia content, or ' .
+            'context from other activities.';
     }
 
-    /** @inheritDoc */
+    /**
+     * Create the URL activity in the requested course section.
+     *
+     * @param stdClass $activitydata Raw activity definition returned by the AI response.
+     * @param stdClass $course Full course record.
+     * @param int $sectionnumber Target section number within the course.
+     * @param array $options Additional contextual options.
+     * @return array|null Returns an array with 'coursemodule' and 'instance' on success, null otherwise.
+     */
     public function create(stdClass $activitydata, stdClass $course, int $sectionnumber, array $options = []): ?array {
         global $CFG, $DB;
 
         require_once($CFG->dirroot . '/course/modlib.php');
         require_once($CFG->dirroot . '/mod/url/lib.php');
         require_once($CFG->dirroot . '/mod/url/locallib.php');
-        require_once($CFG->libdir . '/resourcelib.php');  // For RESOURCELIB constants
+        require_once($CFG->libdir . '/resourcelib.php');  // For RESOURCELIB constants.
 
         $name = trim($activitydata->name ?? '');
 
@@ -62,29 +82,29 @@ class url implements activity_type {
             return null;
         }
 
-        // Extract URL from various possible field names
+        // Extract URL from various possible field names.
         $externalurl = trim($activitydata->externalurl ?? $activitydata->url ?? '');
 
-        // Track if we're using a placeholder URL
-        $usingPlaceholder = false;
+        // Track if we're using a placeholder URL.
+        $usingplaceholder = false;
 
-        // If no URL provided or invalid, use a placeholder that prompts user to edit
+        // If no URL provided or invalid, use a placeholder that prompts user to edit.
         if ($externalurl === '' || !$this->is_valid_url($externalurl)) {
             $externalurl = 'https://example.com/edit-this-url';
-            $usingPlaceholder = true;
+            $usingplaceholder = true;
         }
 
         $intro = trim($activitydata->intro ?? '');
 
-        // If using placeholder URL, add a note to the intro
-        if ($usingPlaceholder) {
+        // If using placeholder URL, add a note to the intro.
+        if ($usingplaceholder) {
             $intro = '<p><strong>Note: Please edit this activity to set the correct URL.</strong></p>' . $intro;
         }
 
-        // Validate and ensure URL has a protocol (use Moodle's function)
+        // Validate and ensure URL has a protocol (use Moodle's function).
         $externalurl = url_fix_submitted_url($externalurl);
 
-        // Create the URL module
+        // Create the URL module.
         $moduleinfo = new stdClass();
         $moduleinfo->course = $course->id;
         $moduleinfo->modulename = 'url';
@@ -93,19 +113,19 @@ class url implements activity_type {
         $moduleinfo->name = $name;
         $moduleinfo->cmidnumber = '';
 
-        // URL intro - use introeditor format like other modules
+        // URL intro - use introeditor format like other modules.
         $moduleinfo->introeditor = [
             'text' => $intro,
             'format' => FORMAT_HTML,
             'itemid' => 0,
         ];
 
-        // URL-specific required fields
-        $moduleinfo->showdescription = 1;  // Display description on course page
+        // URL-specific required fields.
+        $moduleinfo->showdescription = 1;  // Display description on course page.
         $moduleinfo->externalurl = $externalurl;
         $moduleinfo->display = RESOURCELIB_DISPLAY_AUTO;
 
-        // Display options as expected by url_add_instance
+        // Display options as expected by url_add_instance.
         $moduleinfo->printintro = 1;
         $moduleinfo->popupwidth = 620;
         $moduleinfo->popupheight = 450;
@@ -122,8 +142,8 @@ class url implements activity_type {
                 'instance' => $cm->instance,
             ];
 
-            // Add a custom message if using placeholder URL to inform the user
-            if ($usingPlaceholder) {
+            // Add a custom message if using placeholder URL to inform the user.
+            if ($usingplaceholder) {
                 $result['message'] = get_string('url_created_placeholder', 'aiplacement_modgen', $name);
             }
 
@@ -144,17 +164,17 @@ class url implements activity_type {
     private function ensure_url_protocol(string $url): string {
         $url = trim($url);
 
-        // Check if URL already has a protocol
+        // Check if URL already has a protocol.
         if (preg_match('~^https?://~i', $url)) {
             return $url;
         }
 
-        // If URL looks like a domain, add https://
+        // If URL looks like a domain, add https://.
         if (preg_match('~^[a-z0-9]~i', $url) && !preg_match('~^/~', $url)) {
             return 'https://' . $url;
         }
 
-        // Default to https:// for any other case
+        // Default to https:// for any other case.
         return 'https://' . $url;
     }
 
@@ -167,17 +187,17 @@ class url implements activity_type {
     private function is_valid_url(string $url): bool {
         $url = trim($url);
 
-        // Check for common URL patterns
+        // Check for common URL patterns.
         if (preg_match('~^(https?://|www\.|[a-z0-9]+\.[a-z]{2,})~i', $url)) {
             return true;
         }
 
-        // Check for paths starting with /
+        // Check for paths starting with /.
         if (preg_match('~^/~', $url)) {
             return true;
         }
 
-        // Looks like plain text, not a URL
+        // Looks like plain text, not a URL.
         return false;
     }
 }

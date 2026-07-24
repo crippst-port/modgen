@@ -92,18 +92,18 @@ try {
         }
     }
 
-    // Apply dates sequentially to selected sections in order they appear
+    // Apply dates sequentially to selected sections in order they appear.
     require_once($CFG->dirroot . '/ai/placement/modgen/classes/local/date_calculator.php');
 
-    // Parse holidays from config
+    // Parse holidays from config.
     $holidayconfig = get_config('aiplacement_modgen', 'holiday_dates');
     $holidays = date_calculator::parse_holidays($holidayconfig);
 
-    // Get course for start date
+    // Get course for start date.
     $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
     $coursestartdate = $startdate > 0 ? $startdate : (!empty($course->startdate) ? $course->startdate : time());
 
-    // Sort selected sections by section number to apply dates in order
+    // Sort selected sections by section number to apply dates in order.
     $selectedsections = [];
     foreach ($selectedids as $sectionid) {
         if (isset($sectionmap[$sectionid])) {
@@ -114,28 +114,28 @@ try {
         return $a->section <=> $b->section;
     });
 
-    // Update selected sections with sequential dates
+    // Update selected sections with sequential dates.
     $updatedcount = 0;
     $updatedsections = [];
     $currentdate = $coursestartdate;
 
     foreach ($selectedsections as $section) {
-        // Calculate week start date, skipping holidays
+        // Calculate week start date, skipping holidays.
         $weekstartresult = date_calculator::calculate_week_start($currentdate, $holidays);
         $weekstartdate = $weekstartresult['start'];
         $skipedholidays = $weekstartresult['skipped_holidays'];
         $weekenddate = strtotime('+6 days', $weekstartdate);
 
-        // Format dates in UK style, including holiday names
+        // Format dates in UK style, including holiday names.
         $formatteddate = date_calculator::format_date_range_uk($weekstartdate, $weekenddate, $skipedholidays);
 
-        // Remove any existing date from the section name
+        // Remove any existing date from the section name.
         $cleanname = date_calculator::remove_existing_date($section->name);
 
-        // Build new name with date prepended
+        // Build new name with date prepended.
         $newname = $formatteddate . ' ' . $cleanname;
 
-        // Update section in database
+        // Update section in database.
         $DB->update_record('course_sections', [
             'id' => $section->id,
             'name' => $newname,
@@ -150,7 +150,7 @@ try {
             'formatted_date' => $formatteddate,
         ];
 
-        // Move to next week (skip holidays)
+        // Move to next week (skip holidays).
         $currentdate = strtotime('+7 days', $weekstartdate);
     }
 

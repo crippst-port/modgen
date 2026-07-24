@@ -27,8 +27,6 @@
 
 namespace aiplacement_modgen\local;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Runs all course structure integrity checks and repairs.
  *
@@ -78,7 +76,7 @@ class integrity_checker {
             'sections'   => [],
         ];
 
-        // --- Check 1: Section 0 with a parent value ---
+        // Check 1: Section 0 with a parent value.
         $section0sql = "SELECT cs.*, cfo.value AS parentval
                           FROM {course_sections} cs
                           JOIN {course_format_options} cfo
@@ -93,7 +91,7 @@ class integrity_checker {
             $result['has_issues'] = true;
         }
 
-        // --- Check 2: Orphaned format options (options for deleted sections) ---
+        // Check 2: Orphaned format options (options for deleted sections).
         $orphanedsql = "SELECT cfo.*
                           FROM {course_format_options} cfo
                          WHERE cfo.courseid = ?
@@ -107,7 +105,7 @@ class integrity_checker {
             $result['has_issues'] = true;
         }
 
-        // --- Check 3: Invalid parent references (parent points to non-existent section number) ---
+        // Check 3: Invalid parent references (parent points to non-existent section number).
         $invalidsql = "SELECT cs.*, cfo.value AS parentnum
                          FROM {course_sections} cs
                          JOIN {course_format_options} cfo
@@ -124,7 +122,7 @@ class integrity_checker {
             $result['has_issues'] = true;
         }
 
-        // --- Check 4: Null or empty parent values (sections > 0) ---
+        // Check 4: Null or empty parent values (sections > 0).
         $nullsql = "SELECT cs.*, cfo.value AS parentval
                       FROM {course_sections} cs
                       JOIN {course_format_options} cfo
@@ -139,7 +137,7 @@ class integrity_checker {
             $result['has_issues'] = true;
         }
 
-        // --- Check 5: Sections missing the parent format option entirely ---
+        // Check 5: Sections missing the parent format option entirely.
         $missingsql = "SELECT cs.*
                          FROM {course_sections} cs
                         WHERE cs.course = ?
@@ -155,7 +153,7 @@ class integrity_checker {
             $result['has_issues'] = true;
         }
 
-        // --- Check 6: Duplicate section numbers ---
+        // Check 6: Duplicate section numbers.
         $dupsql = "SELECT section, COUNT(*) AS count
                      FROM {course_sections}
                     WHERE course = ?
@@ -168,7 +166,7 @@ class integrity_checker {
             $result['has_issues'] = true;
         }
 
-        // --- Check 7: Circular references ---
+        // Check 7: Circular references.
         $circularsql = "WITH RECURSIVE section_tree AS (
                             SELECT cs.id, cs.section, cs.course,
                                    CAST(cfo.value AS INTEGER) AS parent,
@@ -233,7 +231,7 @@ class integrity_checker {
             debugging('Circular reference check failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
 
-        // --- Check 8: Orphaned sections (hidden, no activities, cleanup target) ---
+        // Check 8: Orphaned sections (hidden, no activities, cleanup target).
         $orphanedsectionssql = "SELECT cs.id, cs.section, cs.name
                                   FROM {course_sections} cs
                                  WHERE cs.course = ?
@@ -249,7 +247,7 @@ class integrity_checker {
             $result['has_issues'] = true;
         }
 
-        // --- Section detail table data ---
+        // Section detail table data.
         $sectionssql = "SELECT cs.id, cs.course, cs.section, cs.name, cs.visible, cs.sequence,
                                cfo.value AS parent
                           FROM {course_sections} cs

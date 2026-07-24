@@ -22,8 +22,6 @@
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Upgrade function for aiplacement_modgen plugin.
  *
@@ -35,29 +33,29 @@ function xmldb_aiplacement_modgen_upgrade($oldversion) {
 
     $dbman = $DB->get_manager();
 
-    // Upgrade path for version 2025201600
+    // Upgrade path for version 2025201600.
     if ($oldversion < 2025201600) {
-        // Define table aiplacement_modgen_cache to be created
+        // Define table aiplacement_modgen_cache to be created.
         $table = new xmldb_table('aiplacement_modgen_cache');
 
-        // Adding fields to table aiplacement_modgen_cache
+        // Adding fields to table aiplacement_modgen_cache.
         $table->add_field('id', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL, XMLDB_SEQUENCE);
         $table->add_field('courseid', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
         $table->add_field('data', XMLDB_TYPE_TEXT, 'medium', null, XMLDB_NOTNULL);
         $table->add_field('timecreated', XMLDB_TYPE_INTEGER, '10', null, XMLDB_NOTNULL);
 
-        // Adding keys to table aiplacement_modgen_cache
+        // Adding keys to table aiplacement_modgen_cache.
         $table->add_key('primary', XMLDB_KEY_PRIMARY, ['id']);
         $table->add_key('courseid_fk', XMLDB_KEY_FOREIGN, ['courseid'], 'course', ['id']);
 
-        // Note: Foreign keys automatically create indexes, so we don't need a separate index
+        // Note: Foreign keys automatically create indexes, so we don't need a separate index.
 
-        // Create table if it doesn't exist
+        // Create table if it doesn't exist.
         if (!$dbman->table_exists($table)) {
             $dbman->create_table($table);
         }
 
-        // Savepoint reached
+        // Savepoint reached.
         upgrade_plugin_savepoint(true, 2025201600, 'aiplacement', 'modgen');
     }
 

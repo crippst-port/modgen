@@ -22,6 +22,9 @@
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
+// Must decide AJAX_SCRIPT before requiring config.php, since Moodle's bootstrap reads
+// it to decide whether to emit JSON or HTML error pages.
+// phpcs:ignore moodle.Files.MoodleInternal.MoodleInternalGlobalState
 if (!defined('AJAX_SCRIPT') && !empty($_REQUEST['ajax'])) {
     define('AJAX_SCRIPT', true);
 }
@@ -40,10 +43,10 @@ function aiplacement_modgen_send_json(array $data): void {
     exit;
 }
 
-// Get course ID from parameters
+// Get course ID from parameters.
 $courseid = required_param('id', PARAM_INT);
 
-// Verify course exists and user has access
+// Verify course exists and user has access.
 $course = get_course($courseid);
 $coursecontext = context_course::instance($courseid);
 $hasprompt = has_capability('aiplacement/modgen:generatewithprompt', $coursecontext);
@@ -57,34 +60,34 @@ if (!$hasprompt && !$hastemplate) {
     );
 }
 
-// Set page context
+// Set page context.
 global $PAGE, $OUTPUT;
 $PAGE->set_context($coursecontext);
 $PAGE->set_course($course);
 
-// Get request parameters
+// Get request parameters.
 $ajax = optional_param('ajax', 0, PARAM_BOOL);
 
 if (!$ajax) {
-    // Non-AJAX requests should go to the generator form directly
+    // Non-AJAX requests should go to the generator form directly.
     redirect(new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid]));
 }
 
-// AJAX request: Return modal content
+// AJAX request: Return modal content.
 
-// Generate URL to the standalone generator form
+// Generate URL to the standalone generator form.
 $generatorurl = new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid]);
 
-// Prepare template data
+// Prepare template data.
 $modaldata = [
     'courseid' => $courseid,
     'generatorurl' => $generatorurl->out(false),
 ];
 
-// Render modal content
+// Render modal content.
 $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/modal_link', $modaldata);
 
-// Send JSON response with modal content
+// Send JSON response with modal content.
 aiplacement_modgen_send_json([
     'body' => $bodyhtml,
     'footer' => '',

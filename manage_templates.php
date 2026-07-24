@@ -40,7 +40,7 @@ $PAGE->set_context($context);
 $PAGE->set_title(get_string('managetemplates', 'aiplacement_modgen'));
 $PAGE->set_heading(get_string('managetemplates', 'aiplacement_modgen'));
 
-// Handle actions
+// Handle actions.
 if ($action === 'delete' && $templateid && confirm_sesskey()) {
     template_manager::delete($templateid);
     redirect($PAGE->url, get_string('templatedeleted', 'aiplacement_modgen'), null, \core\output\notification::NOTIFY_SUCCESS);
@@ -56,7 +56,7 @@ if ($action === 'movedown' && $templateid && confirm_sesskey()) {
     redirect($PAGE->url);
 }
 
-// Form handling
+// Form handling.
 require_once($CFG->dirroot . '/ai/placement/modgen/classes/form/template_form.php');
 
 $mform = new aiplacement_modgen_template_form();
@@ -66,7 +66,7 @@ if ($mform->is_cancelled()) {
 } else if ($data = $mform->get_data()) {
     global $USER;
 
-    // Get uploaded file
+    // Get uploaded file.
     $draftitemid = $data->templatefile;
     $fs = get_file_storage();
     $context = context_user::instance($USER->id);
@@ -76,11 +76,11 @@ if ($mform->is_cancelled()) {
         $file = reset($draftfiles);
 
         if ($data->id) {
-            // Update existing template
+            // Update existing template.
             template_manager::update($data->id, $data->name, $data->description, $file);
             $message = get_string('templateupdated', 'aiplacement_modgen');
         } else {
-            // Create new template
+            // Create new template.
             template_manager::create($data->name, $data->description, $file);
             $message = get_string('templatecreated', 'aiplacement_modgen');
         }
@@ -92,7 +92,7 @@ if ($mform->is_cancelled()) {
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('managetemplates', 'aiplacement_modgen'));
 
-// Display existing templates
+// Display existing templates.
 $templates = template_manager::get_all();
 
 if (!empty($templates)) {
@@ -113,7 +113,7 @@ if (!empty($templates)) {
 
         $actions = [];
 
-        // Move up/down
+        // Move up/down.
         if ($index > 1) {
             $moveup = new moodle_url($PAGE->url, ['action' => 'moveup', 'id' => $template->id, 'sesskey' => sesskey()]);
             $actions[] = html_writer::link($moveup, $OUTPUT->pix_icon('t/up', get_string('moveup')));
@@ -123,7 +123,7 @@ if (!empty($templates)) {
             $actions[] = html_writer::link($movedown, $OUTPUT->pix_icon('t/down', get_string('movedown')));
         }
 
-        // Delete
+        // Delete.
         $deleteurl = new moodle_url($PAGE->url, ['action' => 'delete', 'id' => $template->id, 'sesskey' => sesskey()]);
         $actions[] = html_writer::link(
             $deleteurl,
@@ -144,7 +144,7 @@ if (!empty($templates)) {
     echo $OUTPUT->notification(get_string('notemplates', 'aiplacement_modgen'), 'info');
 }
 
-// Display form for adding new template
+// Display form for adding new template.
 echo $OUTPUT->heading(get_string('addnewtemplate', 'aiplacement_modgen'), 3);
 $mform->display();
 

@@ -57,30 +57,30 @@ try {
         }
     }
 
-    // If no sections selected, return empty
+    // If no sections selected, return empty.
     if (empty($selectedids)) {
         ajax_response::success(['sections' => []]);
     }
 
-    // Get course and parse holidays
+    // Get course and parse holidays.
     $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
     $holidayconfig = get_config('aiplacement_modgen', 'holiday_dates');
     $holidays = date_calculator::parse_holidays($holidayconfig);
 
-    // Get start date
+    // Get start date.
     $coursestartdate = $startdate > 0 ? $startdate : (!empty($course->startdate) ? $course->startdate : time());
 
-    // Get section info for selected sections
+    // Get section info for selected sections.
     $modinfo = get_fast_modinfo($courseid);
     $allsections = $modinfo->get_section_info_all();
 
-    // Build map of section ID to section object
+    // Build map of section ID to section object.
     $sectionmap = [];
     foreach ($allsections as $section) {
         $sectionmap[$section->id] = $section;
     }
 
-    // Calculate dates for selected sections in order
+    // Calculate dates for selected sections in order.
     $results = [];
     $currentdate = $coursestartdate;
     $weekcounter = 1;
@@ -92,16 +92,16 @@ try {
 
         $section = $sectionmap[$sectionid];
 
-        // Calculate week start date and detect holidays
+        // Calculate week start date and detect holidays.
         $weekstartresult = date_calculator::calculate_week_start($currentdate, $holidays);
         $weekstartdate = $weekstartresult['start'];
         $skipedholidays = $weekstartresult['skipped_holidays'];
         $weekenddate = strtotime('+6 days', $weekstartdate);
 
-        // Format dates in UK style, including holiday names
+        // Format dates in UK style, including holiday names.
         $formatteddate = date_calculator::format_date_range_uk($weekstartdate, $weekenddate, $skipedholidays);
 
-        // Remove any existing date from the section name
+        // Remove any existing date from the section name.
         $cleanname = date_calculator::remove_existing_date($section->name);
 
         $results[] = [
@@ -112,7 +112,7 @@ try {
             'week_number' => $weekcounter,
         ];
 
-        // Move to next week
+        // Move to next week.
         $currentdate = strtotime('+7 days', $weekstartdate);
         $weekcounter++;
     }

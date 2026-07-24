@@ -177,7 +177,7 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
             $section = get_fast_modinfo($courseid)->get_section_info_by_id($sectionid, MUST_EXIST);
             $format->delete_section_with_children($section);
         } catch (\Throwable $e) {
-            // locktimeout (lock held) or a deadlock abort are ACCEPTABLE declines:
+            // A locktimeout (lock held) or a deadlock abort are ACCEPTABLE declines:
             // the worker backed off rather than committing corruption.
             fwrite(STDERR, "delete child declined: " . $e->getMessage() . "\n");
             $exitcode = 3;
@@ -505,12 +505,20 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
     /** @var string Barrier directory for the deterministic stale-snapshot test. */
     private string $barrierdir = '';
 
-    /** Signal a barrier flag. */
+    /**
+     * Signal a barrier flag.
+     *
+     * @param string $name Barrier flag name.
+     */
     private function barrier_signal(string $name): void {
         @file_put_contents($this->barrierdir . '/' . $name, '1');
     }
 
-    /** Block until a barrier flag exists (bounded ~6s). */
+    /**
+     * Block until a barrier flag exists (bounded ~6s).
+     *
+     * @param string $name Barrier flag name.
+     */
     private function barrier_wait(string $name): void {
         $tries = 0;
         while (!is_file($this->barrierdir . '/' . $name) && $tries < 300) {
@@ -550,7 +558,7 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
             $format = course_get_format($courseid);
             $section = $format->get_section($movenum);
 
-            // --- COMPUTE from the pre-A snapshot (mirrors move_section()). ---
+            // Compute from the pre-A snapshot (mirrors move_section()).
             $origorder = [];
             foreach ($format->get_sections() as $s) {
                 $origorder[$s->id] = $s->section;
@@ -583,11 +591,11 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
             }
             $changeparent[$section->id] = $newparentnum;
 
-            // --- BARRIER: snapshot captured; wait for A to commit. ---
+            // Barrier: snapshot captured; wait for A to commit.
             $this->barrier_signal('b_computed');
             $this->barrier_wait('a_committed');
 
-            // --- WRITE the stale transaction (identical to move_section()'s writes). ---
+            // Write the stale transaction (identical to move_section()'s writes).
             $tx = $DB->start_delegated_transaction();
             foreach ($changes as $id => $ch) {
                 $DB->set_field('course_sections', 'section', -$ch['new'], ['id' => $id]);
@@ -837,10 +845,26 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
         $courseid = $course->id;
         $hookfired = false;
         $barrierformat = new class ($courseid) extends \format_flexsections {
+            /** @var callable|null Hook invoked from inside duplicate_section_properties(). */
             public $onhook;
+
+            /**
+             * Construct the barrier format for the given course.
+             *
+             * @param int $courseid Course ID.
+             */
             public function __construct($courseid) {
                 parent::__construct('flexsections', $courseid);
             }
+
+            /**
+             * Pauses at the hook point before delegating to the real implementation.
+             *
+             * @param \section_info $originalsection Section being duplicated.
+             * @param int $newparent Destination parent section number.
+             * @param bool $istop Whether this is the top-level section of the duplication.
+             * @return \stdClass
+             */
             protected function duplicate_section_properties(
                 \section_info $originalsection,
                 int $newparent,

@@ -31,15 +31,18 @@ require_once($CFG->libdir . '/formslib.php');
  * Form for generating module structure from a text prompt.
  */
 class aiplacement_modgen_prompt_form extends moodleform {
+    /**
+     * Form definition.
+     */
     public function definition() {
         $mform = $this->_form;
         $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
         $mform->setType('courseid', PARAM_INT);
 
-        // Add module type selection
+        // Add module type selection.
         $moduletypeoptions = [];
 
-        // Add Connected Curriculum format options if flexsections is installed
+        // Add Connected Curriculum format options if flexsections is installed.
         $pluginmanager = core_plugin_manager::instance();
         $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
         if (!empty($flexsectionsplugin)) {
@@ -47,22 +50,22 @@ class aiplacement_modgen_prompt_form extends moodleform {
             $moduletypeoptions['connected_theme'] = get_string('moduletype_connected_theme', 'aiplacement_modgen');
         }
 
-        // Module type selection
+        // Module type selection.
         $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
         $mform->setType('moduletype', PARAM_ALPHANUMEXT);
         $mform->setDefault('moduletype', 'connected_weekly');
         $mform->addHelpButton('moduletype', 'moduletype', 'aiplacement_modgen');
 
-        // Main content prompt
+        // Main content prompt.
         $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), 'rows="6" cols="60"');
         $mform->setType('prompt', PARAM_TEXT);
         $mform->addRule('prompt', null, 'required', null, 'client');
         $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
 
-        // === SUGGESTED CONTENT SECTION ===
+        // Suggested content section.
         $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
 
-        // Generate example content option
+        // Generate example content option.
         $mform->addElement('advcheckbox', 'generateexamplecontent', get_string('generateexamplecontent', 'aiplacement_modgen'));
         $mform->addHelpButton('generateexamplecontent', 'generateexamplecontent', 'aiplacement_modgen');
         $mform->setType('generateexamplecontent', PARAM_BOOL);

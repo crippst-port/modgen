@@ -24,8 +24,6 @@
 
 namespace aiplacement_modgen\local;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Service class for determining CSV processing mode.
  *
@@ -54,12 +52,12 @@ class csv_processing_service {
         bool $expandonthemes,
         bool $generateexamples
     ): bool {
-        // If AI is completely disabled, always use pure CSV
+        // If AI is completely disabled, always use pure CSV.
         if (!$aienabled) {
             return true;
         }
 
-        // AI is enabled - use pure CSV only if: has CSV + no prompt + no expand + no examples
+        // AI is enabled - use pure CSV only if: has CSV + no prompt + no expand + no examples.
         return $hascsvfile && !$hasuserprompt && !$expandonthemes && !$generateexamples;
     }
 
@@ -72,12 +70,12 @@ class csv_processing_service {
      * @return \stored_file|null CSV file or null if not found
      */
     public function get_csv_file(?\stored_file $templatecsvfile, int $draftitemid, int $contextid): ?\stored_file {
-        // If CSV file provided (uploaded file takes priority over template), use it
+        // If CSV file provided (uploaded file takes priority over template), use it.
         if ($templatecsvfile !== null) {
             return $templatecsvfile;
         }
 
-        // Otherwise, try to find CSV in uploaded files
+        // Otherwise, try to find CSV in uploaded files.
         if (empty($draftitemid)) {
             return null;
         }
@@ -89,7 +87,7 @@ class csv_processing_service {
             return null;
         }
 
-        // Find first CSV file
+        // Find first CSV file.
         foreach ($files as $file) {
             if ($file->is_directory()) {
                 continue;
@@ -101,7 +99,7 @@ class csv_processing_service {
             }
         }
 
-        // If no CSV found, return first file (might be processable as CSV)
+        // If no CSV found, return first file (might be processable as CSV).
         return array_shift($files);
     }
 
@@ -118,7 +116,7 @@ class csv_processing_service {
         bool $expandonthemes,
         string $moduletype
     ): string {
-        // Count themes/weeks for explicit instruction
+        // Count themes/weeks for explicit instruction.
         $themecount = 0;
         $weekcount = 0;
 

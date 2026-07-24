@@ -22,14 +22,17 @@
  * Admin-only direct diagnostic endpoint.
  *
  * Access: http://localhost/moodle45/ai/placement/modgen/debug_webservice.php?courseid=214
- * @package aiplacement_modgen
+ *
+ * @package     aiplacement_modgen
+ * @copyright   2026 Tom Cripps <tom.cripps@port.ac.uk>
+ * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
 define('CLI_SCRIPT', false);
 require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->dirroot . '/course/lib.php');
 
-// Get course ID
+// Get course ID.
 $courseid = required_param('courseid', PARAM_INT);
 
 // Security: direct diagnostics are site-admin only because this page exposes
@@ -40,7 +43,7 @@ require_capability('moodle/site:config', context_system::instance());
 $course = get_course($courseid);
 $context = context_course::instance($courseid);
 
-// Set page context to avoid debugging warnings
+// Set page context to avoid debugging warnings.
 global $PAGE;
 $PAGE->set_context($context);
 $PAGE->set_url('/ai/placement/modgen/debug_webservice.php', ['courseid' => $courseid]);
@@ -195,9 +198,9 @@ try {
                 $errors[] = "CM {$cm->id} ({$cm->modname}) fatal error: " . $e->getMessage();
                 echo "<td class='error'>✗ FATAL: " . s($e->getMessage()) . "</td>";
             } catch (ArgumentCountError $e) {
-                // Handle constructor argument mismatch for different Moodle versions
+                // Handle constructor argument mismatch for different Moodle versions.
                 try {
-                    // Try without istrackeduser parameter (older Moodle versions)
+                    // Try without istrackeduser parameter (older Moodle versions).
                     $cmstate = new $cmclass($courseformat, $section, $cm);
                     $cmstatedata = $cmstate->export_for_template($renderer);
                     echo "<td class='success'>✓ OK (compat mode)</td>";
@@ -235,7 +238,7 @@ try {
     $errors[] = "Fatal PHP Error: " . $e->getMessage();
 }
 
-// Summary
+// Summary.
 echo "<hr>";
 echo "<div class='step'>";
 echo "<h2>Summary</h2>";

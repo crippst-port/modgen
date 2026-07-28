@@ -337,101 +337,115 @@ class integrity_checker {
 
         $fixed = 0;
         $details = [];
+        $transaction = $DB->start_delegated_transaction();
 
-        // Fix section 0 with parent.
-        $section0sql = "SELECT cfo.*
-                          FROM {course_format_options} cfo
-                          JOIN {course_sections} cs ON cs.id = cfo.sectionid
-                         WHERE cs.course = ?
-                           AND cs.section = 0
-                           AND cfo.name = 'parent'
-                           AND cfo.value IS NOT NULL";
-        $rows = $DB->get_records_sql($section0sql, [$courseid]);
-        foreach ($rows as $row) {
-            $DB->delete_records('course_format_options', ['id' => $row->id]);
-            $fixed++;
-            $details[] = get_string('detail_removedsection0parent', 'aiplacement_modgen');
-        }
-
-        // Fix orphaned format options.
-        $orphanedsql = "SELECT cfo.*
-                          FROM {course_format_options} cfo
-                         WHERE cfo.courseid = ?
-                           AND cfo.sectionid NOT IN (
-                               SELECT id FROM {course_sections} WHERE course = ?
-                           )";
-        $rows = $DB->get_records_sql($orphanedsql, [$courseid, $courseid]);
-        if (!empty($rows)) {
+        try {
+            // Fix section 0 with parent.
+            $section0sql = "SELECT cfo.*
+                              FROM {course_format_options} cfo
+                              JOIN {course_sections} cs ON cs.id = cfo.sectionid
+                             WHERE cs.course = ?
+                               AND cs.section = 0
+                               AND cfo.name = 'parent'
+                               AND cfo.value IS NOT NULL";
+            $rows = $DB->get_records_sql($section0sql, [$courseid]);
             foreach ($rows as $row) {
                 $DB->delete_records('course_format_options', ['id' => $row->id]);
                 $fixed++;
+                $details[] = get_string('detail_removedsection0parent', 'aiplacement_modgen');
             }
-            $details[] = get_string('detail_removedorphanedoptions', 'aiplacement_modgen', count($rows));
+
+            // Fix orphaned format options.
+            $orphanedsql = "SELECT cfo.*
+                              FROM {course_format_options} cfo
+                             WHERE cfo.courseid = ?
+                               AND cfo.sectionid NOT IN (
+                                   SELECT id FROM {course_sections} WHERE course = ?
+                               )";
+            $rows = $DB->get_records_sql($orphanedsql, [$courseid, $courseid]);
+            if (!empty($rows)) {
+                foreach ($rows as $row) {
+                    $DB->delete_records('course_format_options', ['id' => $row->id]);
+                    $fixed++;
+                }
+                $details[] = get_string('detail_removedorphanedoptions', 'aiplacement_modgen', count($rows));
+            }
+
+            // Fix invalid parent references (set to 0 = top level).
+            // Null/empty values are handled separately below (null_parents) — excluded here so
+            // they don't fail the CAST for every row in this query.
+            $invalidsql = "SELECT cs.*, cfo.value AS parentnum
+                             FROM {course_sections} cs
+                             JOIN {course_format_options} cfo
+                               ON cfo.sectionid = cs.id AND cfo.name = 'parent'
+                            WHERE cs.course = ?
+                              AND cfo.value IS NOT NULL AND cfo.value <> ''
+                              AND " . $DB->sql_cast_char2int('cfo.value') . " > 0
+                              AND " . $DB->sql_cast_char2int('cfo.value') . " NOT IN (
+                                  SELECT section FROM {course_sections} WHERE course = ?
+                              )";
+            $rows = $DB->get_records_sql($invalidsql, [$courseid, $courseid]);
+            if (!empty($rows)) {
+                foreach ($rows as $row) {
+                    $DB->set_field('course_format_options', 'value', '0', [
+                        'sectionid' => $row->id,
+                        'name'      => 'parent',
+                    ]);
+                    $fixed++;
+                }
+                $details[] = get_string('detail_resetinvalidparents', 'aiplacement_modgen', count($rows));
+            }
+
+            // Fix null/empty parent values.
+            $nullsql = "SELECT cs.*, cfo.id AS cfoid
+                          FROM {course_sections} cs
+                          JOIN {course_format_options} cfo
+                            ON cfo.sectionid = cs.id AND cfo.name = 'parent'
+                         WHERE cs.course = ?
+                           AND cs.section > 0
+                           AND (cfo.value IS NULL OR cfo.value = '')";
+            $rows = $DB->get_records_sql($nullsql, [$courseid]);
+            if (!empty($rows)) {
+                foreach ($rows as $row) {
+                    $DB->set_field('course_format_options', 'value', '0', ['id' => $row->cfoid]);
+                    $fixed++;
+                }
+                $details[] = get_string('detail_fixednullparents', 'aiplacement_modgen', count($rows));
+            }
+
+            // Insert missing parent options.
+            $missingsql = "SELECT cs.*
+                             FROM {course_sections} cs
+                            WHERE cs.course = ?
+                              AND cs.section > 0
+                              AND NOT EXISTS (
+                                  SELECT 1 FROM {course_format_options} cfo
+                                   WHERE cfo.sectionid = cs.id AND cfo.name = 'parent'
+                              )";
+            $rows = $DB->get_records_sql($missingsql, [$courseid]);
+            if (!empty($rows)) {
+                foreach ($rows as $row) {
+                    $DB->insert_record('course_format_options', (object)[
+                        'courseid'  => $courseid,
+                        'format'    => 'flexsections',
+                        'sectionid' => $row->id,
+                        'name'      => 'parent',
+                        'value'     => '0',
+                    ]);
+                    $fixed++;
+                }
+                $details[] = get_string('detail_insertedmissingparents', 'aiplacement_modgen', count($rows));
+            }
+
+            $transaction->allow_commit();
+        } catch (\Exception $e) {
+            $transaction->rollback($e);
+            throw $e;
         }
 
-        // Fix invalid parent references (set to 0 = top level).
-        $invalidsql = "SELECT cs.*, cfo.value AS parentnum
-                         FROM {course_sections} cs
-                         JOIN {course_format_options} cfo
-                           ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                        WHERE cs.course = ?
-                          AND " . $DB->sql_cast_char2int('cfo.value') . " > 0
-                          AND " . $DB->sql_cast_char2int('cfo.value') . " NOT IN (
-                              SELECT section FROM {course_sections} WHERE course = ?
-                          )";
-        $rows = $DB->get_records_sql($invalidsql, [$courseid, $courseid]);
-        if (!empty($rows)) {
-            foreach ($rows as $row) {
-                $DB->set_field('course_format_options', 'value', '0', [
-                    'sectionid' => $row->id,
-                    'name'      => 'parent',
-                ]);
-                $fixed++;
-            }
-            $details[] = get_string('detail_resetinvalidparents', 'aiplacement_modgen', count($rows));
-        }
-
-        // Fix null/empty parent values.
-        $nullsql = "SELECT cs.*, cfo.id AS cfoid
-                      FROM {course_sections} cs
-                      JOIN {course_format_options} cfo
-                        ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                     WHERE cs.course = ?
-                       AND cs.section > 0
-                       AND (cfo.value IS NULL OR cfo.value = '')";
-        $rows = $DB->get_records_sql($nullsql, [$courseid]);
-        if (!empty($rows)) {
-            foreach ($rows as $row) {
-                $DB->set_field('course_format_options', 'value', '0', ['id' => $row->cfoid]);
-                $fixed++;
-            }
-            $details[] = get_string('detail_fixednullparents', 'aiplacement_modgen', count($rows));
-        }
-
-        // Insert missing parent options.
-        $missingsql = "SELECT cs.*
-                         FROM {course_sections} cs
-                        WHERE cs.course = ?
-                          AND cs.section > 0
-                          AND NOT EXISTS (
-                              SELECT 1 FROM {course_format_options} cfo
-                               WHERE cfo.sectionid = cs.id AND cfo.name = 'parent'
-                          )";
-        $rows = $DB->get_records_sql($missingsql, [$courseid]);
-        if (!empty($rows)) {
-            foreach ($rows as $row) {
-                $DB->insert_record('course_format_options', (object)[
-                    'courseid'  => $courseid,
-                    'format'    => 'flexsections',
-                    'sectionid' => $row->id,
-                    'name'      => 'parent',
-                    'value'     => '0',
-                ]);
-                $fixed++;
-            }
-            $details[] = get_string('detail_insertedmissingparents', 'aiplacement_modgen', count($rows));
-        }
-
+        // Outside the transaction: allow_commit() disposes it, so a failure here must not
+        // attempt a rollback (rollback() on a disposed transaction throws its own
+        // "already disposed" exception, masking the real error).
         if ($fixed > 0) {
             rebuild_course_cache($courseid, false, true);
         }

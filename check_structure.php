@@ -306,10 +306,46 @@ if ($diag !== null) {
         );
     }
 
-    // Section detail table.
+    // Section detail table — filterable: defaults to issues-only when this course has
+    // issues (full listing is noisy on large courses), with a toggle to reveal every section.
     echo $OUTPUT->heading(get_string('sectiondetails', 'aiplacement_modgen'), 3);
+
+    $showallattrs = [
+        'type'  => 'checkbox',
+        'id'    => 'checkstructure-showall',
+        'class' => 'form-check-input',
+    ];
+    if (!$diag['has_issues']) {
+        $showallattrs['checked'] = 'checked';
+    }
+    echo html_writer::start_div('form-check mb-2');
+    echo html_writer::empty_tag('input', $showallattrs);
+    echo html_writer::tag('label', get_string('checkstructure_showall', 'aiplacement_modgen'), [
+        'for'   => 'checkstructure-showall',
+        'class' => 'form-check-label',
+    ]);
+    echo html_writer::end_div();
+
+    $PAGE->requires->js_init_code(
+        "var cb = document.getElementById('checkstructure-showall');
+        var table = document.getElementById('checkstructure-sectiontable');
+        if (cb && table) {
+            var apply = function() {
+                table.querySelectorAll('tbody tr').forEach(function(row) {
+                    row.style.display = (cb.checked || row.dataset.issue === '1') ? '' : 'none';
+                });
+            };
+            cb.addEventListener('change', apply);
+            apply();
+        }",
+        true
+    );
+
     echo html_writer::start_div('table-responsive mb-4');
-    echo html_writer::start_tag('table', ['class' => 'table table-striped table-bordered table-sm']);
+    echo html_writer::start_tag('table', [
+        'id'    => 'checkstructure-sectiontable',
+        'class' => 'table table-striped table-bordered table-sm',
+    ]);
     echo html_writer::start_tag('thead');
     echo html_writer::start_tag('tr');
     echo html_writer::tag('th', get_string('checkstructure_col_secnum', 'aiplacement_modgen'));
@@ -326,7 +362,10 @@ if ($diag !== null) {
 
     foreach ($diag['sections'] as $s) {
         $rowclass = $s->has_row_issues ? 'table-warning' : '';
-        echo html_writer::start_tag('tr', ['class' => $rowclass]);
+        echo html_writer::start_tag('tr', [
+            'class'      => $rowclass,
+            'data-issue' => $s->has_row_issues ? '1' : '0',
+        ]);
         echo html_writer::tag('td', $s->section);
         echo html_writer::tag('td', format_string($s->name ?? get_string('checkstructure_unnamed', 'aiplacement_modgen')));
         $parentcell = $s->section == 0 ? '—' : ($s->parent ?? get_string('checkstructure_missing', 'aiplacement_modgen'));

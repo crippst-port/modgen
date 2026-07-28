@@ -654,6 +654,7 @@ $string['checkstructure_col_issues'] = 'Issues';
 $string['checkstructure_ok'] = 'None ✓';
 $string['checkstructure_unnamed'] = '(unnamed)';
 $string['checkstructure_missing'] = 'missing';
+$string['checkstructure_showall'] = 'Show all sections (including clean ones)';
 
 // Integrity checker row-issue and fix-detail messages.
 $string['row_section0hasparent'] = 'Section 0 should not have a parent';

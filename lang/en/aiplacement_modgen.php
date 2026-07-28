@@ -672,7 +672,7 @@ $string['detail_brokecircular'] = 'Broke circular ref at section "{$a->name}" (s
 
 // Sections reparented to top-level by the circular-reference fix.
 $string['reparented_heading'] = 'Sections moved to top level';
-$string['reparented_desc'] = 'These sections were part of a circular parent reference and have been reset to top-level so the course structure could be repaired. They may not be where you expect — use the link below to jump to each one and drag it back into place, or delete it if it is no longer needed.';
+$string['reparented_desc'] = 'These sections were part of a circular parent reference and have been reset to top-level (The main course page) so the course structure could be repaired. They may not be where you or the course author expect.';
 $string['reparented_col_action'] = 'Action';
 $string['reparented_jumplink'] = 'Jump to section';
 

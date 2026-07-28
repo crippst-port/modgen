@@ -258,57 +258,9 @@ if ($diag !== null) {
         echo $OUTPUT->notification(get_string('checkstructure_orphanwarning', 'aiplacement_modgen'), 'warning');
     }
 
-    // Fix sections — shown only when relevant issues exist.
-    $fixintegrity = $diag['counts']['section0_with_parent'] > 0
-        || $diag['counts']['orphaned_options'] > 0
-        || $diag['counts']['invalid_parents'] > 0
-        || $diag['counts']['null_parents'] > 0
-        || $diag['counts']['missing_parents'] > 0;
-
-    if ($fixintegrity) {
-        echo $OUTPUT->heading(get_string('fixintegrity_label', 'aiplacement_modgen'), 4);
-        echo html_writer::tag('p', get_string('fixintegrity_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
-        echo html_writer::link(
-            new moodle_url('/ai/placement/modgen/check_structure.php', [
-                'id'      => $courseid,
-                'action'  => 'fixintegrity',
-                'sesskey' => sesskey(),
-            ]),
-            get_string('fixintegrity_label', 'aiplacement_modgen'),
-            ['class' => 'btn btn-warning mb-4']
-        );
-    }
-
-    if ($diag['counts']['orphaned_sections'] > 0) {
-        echo $OUTPUT->heading(get_string('fixcleanup_label', 'aiplacement_modgen'), 4);
-        echo html_writer::tag('p', get_string('fixcleanup_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
-        echo html_writer::link(
-            new moodle_url('/ai/placement/modgen/check_structure.php', [
-                'id'      => $courseid,
-                'action'  => 'fixcleanup',
-                'sesskey' => sesskey(),
-            ]),
-            get_string('fixcleanup_label', 'aiplacement_modgen'),
-            ['class' => 'btn btn-danger mb-4']
-        );
-    }
-
-    if ($diag['counts']['circular_refs'] > 0) {
-        echo $OUTPUT->heading(get_string('fixcircular_label', 'aiplacement_modgen'), 4);
-        echo html_writer::tag('p', get_string('fixcircular_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
-        echo html_writer::link(
-            new moodle_url('/ai/placement/modgen/check_structure.php', [
-                'id'      => $courseid,
-                'action'  => 'fixcircular',
-                'sesskey' => sesskey(),
-            ]),
-            get_string('fixcircular_label', 'aiplacement_modgen'),
-            ['class' => 'btn btn-danger mb-4']
-        );
-    }
-
     // Section detail table — filterable: defaults to issues-only when this course has
     // issues (full listing is noisy on large courses), with a toggle to reveal every section.
+    // Shown before the fix actions below so the admin can see exactly what's wrong first.
     echo $OUTPUT->heading(get_string('sectiondetails', 'aiplacement_modgen'), 3);
 
     $showallattrs = [
@@ -388,6 +340,56 @@ if ($diag !== null) {
     echo html_writer::end_tag('tbody');
     echo html_writer::end_tag('table');
     echo html_writer::end_div();
+
+    // Fix sections — shown only when relevant issues exist, always last on the page so the
+    // admin sees the full diagnostic picture before being offered a destructive action.
+    $fixintegrity = $diag['counts']['section0_with_parent'] > 0
+        || $diag['counts']['orphaned_options'] > 0
+        || $diag['counts']['invalid_parents'] > 0
+        || $diag['counts']['null_parents'] > 0
+        || $diag['counts']['missing_parents'] > 0;
+
+    if ($fixintegrity) {
+        echo $OUTPUT->heading(get_string('fixintegrity_label', 'aiplacement_modgen'), 4);
+        echo html_writer::tag('p', get_string('fixintegrity_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
+        echo html_writer::link(
+            new moodle_url('/ai/placement/modgen/check_structure.php', [
+                'id'      => $courseid,
+                'action'  => 'fixintegrity',
+                'sesskey' => sesskey(),
+            ]),
+            get_string('fixintegrity_label', 'aiplacement_modgen'),
+            ['class' => 'btn btn-warning mb-4']
+        );
+    }
+
+    if ($diag['counts']['orphaned_sections'] > 0) {
+        echo $OUTPUT->heading(get_string('fixcleanup_label', 'aiplacement_modgen'), 4);
+        echo html_writer::tag('p', get_string('fixcleanup_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
+        echo html_writer::link(
+            new moodle_url('/ai/placement/modgen/check_structure.php', [
+                'id'      => $courseid,
+                'action'  => 'fixcleanup',
+                'sesskey' => sesskey(),
+            ]),
+            get_string('fixcleanup_label', 'aiplacement_modgen'),
+            ['class' => 'btn btn-danger mb-4']
+        );
+    }
+
+    if ($diag['counts']['circular_refs'] > 0) {
+        echo $OUTPUT->heading(get_string('fixcircular_label', 'aiplacement_modgen'), 4);
+        echo html_writer::tag('p', get_string('fixcircular_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
+        echo html_writer::link(
+            new moodle_url('/ai/placement/modgen/check_structure.php', [
+                'id'      => $courseid,
+                'action'  => 'fixcircular',
+                'sesskey' => sesskey(),
+            ]),
+            get_string('fixcircular_label', 'aiplacement_modgen'),
+            ['class' => 'btn btn-danger mb-4']
+        );
+    }
 }
 
 // Back to course link.

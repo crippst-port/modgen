@@ -239,9 +239,10 @@ if ($diag !== null) {
             if ($count === 0) {
                 continue;
             }
-            echo html_writer::start_tag('tr', ['class' => 'table-warning']);
+            echo html_writer::start_tag('tr');
             echo html_writer::tag('td', get_string('diag_' . $key, 'aiplacement_modgen'));
-            echo html_writer::tag('td', (string) $count);
+            $icon = html_writer::tag('i', '', ['class' => 'fa fa-exclamation-triangle text-danger', 'aria-hidden' => 'true']);
+            echo html_writer::tag('td', html_writer::tag('span', $icon . ' ' . $count, ['class' => 'text-danger font-weight-bold']));
             echo html_writer::end_tag('tr');
         }
         echo html_writer::end_tag('tbody');

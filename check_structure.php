@@ -211,38 +211,43 @@ if ($diag !== null) {
         echo html_writer::end_div();
     }
 
-    // Issue summary table.
-    echo html_writer::start_div('table-responsive mb-4');
-    echo html_writer::start_tag('table', ['class' => 'table table-sm table-bordered']);
-    echo html_writer::start_tag('thead');
-    echo html_writer::start_tag('tr');
-    echo html_writer::tag('th', get_string('checkstructure_col_check', 'aiplacement_modgen'));
-    echo html_writer::tag('th', get_string('checkstructure_col_issuesfound', 'aiplacement_modgen'));
-    echo html_writer::end_tag('tr');
-    echo html_writer::end_tag('thead');
-    echo html_writer::start_tag('tbody');
-
-    $checkkeys = [
-        'section0_with_parent',
-        'orphaned_options',
-        'invalid_parents',
-        'null_parents',
-        'missing_parents',
-        'duplicate_sections',
-        'circular_refs',
-        'orphaned_sections',
-    ];
-    foreach ($checkkeys as $key) {
-        $count = $diag['counts'][$key];
-        $rowclass = $count > 0 ? 'table-warning' : '';
-        echo html_writer::start_tag('tr', ['class' => $rowclass]);
-        echo html_writer::tag('td', get_string('diag_' . $key, 'aiplacement_modgen'));
-        echo html_writer::tag('td', $count > 0 ? (string)$count : get_string('checkstructure_ok', 'aiplacement_modgen'));
+    // Issue summary table — only shown when there's something to report; the green
+    // "no structural issues" banner above already covers the all-clear case.
+    if ($diag['has_issues']) {
+        echo html_writer::start_div('table-responsive mb-4');
+        echo html_writer::start_tag('table', ['class' => 'table table-sm table-bordered']);
+        echo html_writer::start_tag('thead');
+        echo html_writer::start_tag('tr');
+        echo html_writer::tag('th', get_string('checkstructure_col_check', 'aiplacement_modgen'));
+        echo html_writer::tag('th', get_string('checkstructure_col_issuesfound', 'aiplacement_modgen'));
         echo html_writer::end_tag('tr');
+        echo html_writer::end_tag('thead');
+        echo html_writer::start_tag('tbody');
+
+        $checkkeys = [
+            'section0_with_parent',
+            'orphaned_options',
+            'invalid_parents',
+            'null_parents',
+            'missing_parents',
+            'duplicate_sections',
+            'circular_refs',
+            'orphaned_sections',
+        ];
+        foreach ($checkkeys as $key) {
+            $count = $diag['counts'][$key];
+            if ($count === 0) {
+                continue;
+            }
+            echo html_writer::start_tag('tr', ['class' => 'table-warning']);
+            echo html_writer::tag('td', get_string('diag_' . $key, 'aiplacement_modgen'));
+            echo html_writer::tag('td', (string) $count);
+            echo html_writer::end_tag('tr');
+        }
+        echo html_writer::end_tag('tbody');
+        echo html_writer::end_tag('table');
+        echo html_writer::end_div();
     }
-    echo html_writer::end_tag('tbody');
-    echo html_writer::end_tag('table');
-    echo html_writer::end_div();
 
     // Plain-language impact warnings for the issues that matter most.
     if ($diag['counts']['circular_refs'] > 0) {

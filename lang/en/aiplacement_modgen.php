@@ -651,7 +651,7 @@ $string['checkstructure_col_secnum'] = 'Sec #';
 $string['checkstructure_col_depth'] = 'Depth';
 $string['checkstructure_col_dbid'] = 'DB ID';
 $string['checkstructure_col_issues'] = 'Issues';
-$string['checkstructure_ok'] = '✓';
+$string['checkstructure_ok'] = 'None ✓';
 $string['checkstructure_unnamed'] = '(unnamed)';
 $string['checkstructure_missing'] = 'missing';
 

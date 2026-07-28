@@ -375,9 +375,13 @@ if ($diag !== null) {
         echo html_writer::tag('td', $s->visible ? get_string('yes') : get_string('no'));
         echo html_writer::tag('td', $s->activitycount);
         echo html_writer::tag('td', $s->id);
-        echo html_writer::tag('td', $s->has_row_issues
-            ? html_writer::tag('span', s(implode('; ', $s->row_issues)), ['class' => 'text-danger small'])
-            : get_string('checkstructure_ok', 'aiplacement_modgen'));
+        if ($s->has_row_issues) {
+            $icon = html_writer::tag('i', '', ['class' => 'fa fa-exclamation-triangle text-danger', 'aria-hidden' => 'true']);
+            $issuescell = $icon . ' ' . html_writer::tag('span', s(implode('; ', $s->row_issues)), ['class' => 'text-danger small']);
+        } else {
+            $issuescell = get_string('checkstructure_ok', 'aiplacement_modgen');
+        }
+        echo html_writer::tag('td', $issuescell);
         echo html_writer::end_tag('tr');
     }
 

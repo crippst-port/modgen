@@ -508,7 +508,7 @@ class integrity_checker {
             }
 
             foreach ($sections as $s) {
-                if (!$s->parent || $s->parent === '0') {
+                if ($s->section == 0 || !$s->parent || $s->parent === '0') {
                     continue;
                 }
 

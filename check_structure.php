@@ -89,8 +89,11 @@ if ($action && $confirm) {
             $msg = $result['fixed'] > 0
                 ? get_string('fixcircular_done', 'aiplacement_modgen', $result['fixed'])
                 : get_string('fixcircular_none', 'aiplacement_modgen');
+            $reparentedparam = implode(',', array_column($result['reparented'], 'section'));
             redirect(
-                new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $courseid, 'check' => 1]),
+                new moodle_url('/ai/placement/modgen/check_structure.php', [
+                    'id' => $courseid, 'check' => 1, 'reparented' => $reparentedparam,
+                ]),
                 $msg,
                 null,
                 \core\output\notification::NOTIFY_SUCCESS
@@ -133,6 +136,12 @@ if ($check) {
     $diag = integrity_checker::check($courseid);
 }
 
+// Sections reparented to top-level by a just-completed circular-reference fix. This rides the
+// redirect URL as a one-time flash — nothing is persisted — so the table below only appears
+// immediately after the fix runs, and disappears again once the admin navigates elsewhere.
+$reparentedraw = optional_param('reparented', '', PARAM_SEQUENCE);
+$reparentedsections = $reparentedraw !== '' ? explode(',', $reparentedraw) : [];
+
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('checkstructurepage', 'aiplacement_modgen'), 2);
 echo html_writer::tag('p', get_string('checkstructuredesc', 'aiplacement_modgen'));
@@ -157,6 +166,49 @@ if ($diag !== null) {
             get_string('checkstructure_issuesfound', 'aiplacement_modgen', $issuecount),
             'warning'
         );
+    }
+
+    // Sections just reparented to top-level by the circular-reference fix — shown once,
+    // immediately after that fix runs, so the admin can find and reposition them.
+    if (!empty($reparentedsections)) {
+        echo $OUTPUT->heading(get_string('reparented_heading', 'aiplacement_modgen'), 3);
+        echo html_writer::tag('p', get_string('reparented_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
+
+        echo html_writer::start_div('table-responsive mb-4');
+        echo html_writer::start_tag('table', ['class' => 'table table-sm table-bordered table-warning']);
+        echo html_writer::start_tag('thead');
+        echo html_writer::start_tag('tr');
+        echo html_writer::tag('th', get_string('checkstructure_col_secnum', 'aiplacement_modgen'));
+        echo html_writer::tag('th', get_string('name'));
+        echo html_writer::tag('th', get_string('checkstructure_col_dbid', 'aiplacement_modgen'));
+        echo html_writer::tag('th', get_string('reparented_col_action', 'aiplacement_modgen'));
+        echo html_writer::end_tag('tr');
+        echo html_writer::end_tag('thead');
+        echo html_writer::start_tag('tbody');
+
+        $sectionsbynum = [];
+        foreach ($diag['sections'] as $sectionrow) {
+            $sectionsbynum[$sectionrow->section] = $sectionrow;
+        }
+
+        foreach ($reparentedsections as $secnum) {
+            $sectionrow = $sectionsbynum[$secnum] ?? null;
+            echo html_writer::start_tag('tr');
+            echo html_writer::tag('td', $secnum);
+            echo html_writer::tag('td', $sectionrow
+                ? format_string($sectionrow->name ?? get_string('checkstructure_unnamed', 'aiplacement_modgen'))
+                : get_string('checkstructure_unnamed', 'aiplacement_modgen'));
+            echo html_writer::tag('td', $sectionrow->id ?? '—');
+            echo html_writer::tag('td', html_writer::link(
+                new moodle_url('/course/view.php', ['id' => $courseid], 'section-' . $secnum),
+                get_string('reparented_jumplink', 'aiplacement_modgen')
+            ));
+            echo html_writer::end_tag('tr');
+        }
+
+        echo html_writer::end_tag('tbody');
+        echo html_writer::end_tag('table');
+        echo html_writer::end_div();
     }
 
     // Issue summary table.

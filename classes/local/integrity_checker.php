@@ -106,11 +106,15 @@ class integrity_checker {
         }
 
         // Check 3: Invalid parent references (parent points to non-existent section number).
+        // Null/empty values are check 4's domain (null_parents below) — exclude them here,
+        // otherwise a non-numeric parent value fails the CAST for the whole query rather
+        // than just being skipped.
         $invalidsql = "SELECT cs.*, cfo.value AS parentnum
                          FROM {course_sections} cs
                          JOIN {course_format_options} cfo
                            ON cfo.sectionid = cs.id AND cfo.name = 'parent'
                         WHERE cs.course = ?
+                          AND cfo.value IS NOT NULL AND cfo.value <> ''
                           AND " . $DB->sql_cast_char2int('cfo.value') . " > 0
                           AND " . $DB->sql_cast_char2int('cfo.value') . " NOT IN (
                               SELECT section FROM {course_sections} WHERE course = ?
@@ -167,6 +171,8 @@ class integrity_checker {
         }
 
         // Check 7: Circular references.
+        // Null/empty parent values are excluded before the CAST in both arms below — same
+        // reasoning as check 3: a non-numeric value must not fail the cast for every row.
         $circularsql = "WITH RECURSIVE section_tree AS (
                             SELECT cs.id, cs.section, cs.course,
                                    CAST(cfo.value AS INTEGER) AS parent,
@@ -177,6 +183,7 @@ class integrity_checker {
                               JOIN {course_format_options} cfo
                                 ON cfo.sectionid = cs.id AND cfo.name = 'parent'
                              WHERE cs.course = ? AND cs.section > 0
+                               AND cfo.value IS NOT NULL AND cfo.value <> ''
                             UNION ALL
                             SELECT cs.id, cs.section, cs.course,
                                    CAST(cfo.value AS INTEGER) AS parent,
@@ -188,6 +195,7 @@ class integrity_checker {
                                 ON cfo.sectionid = cs.id AND cfo.name = 'parent'
                               JOIN section_tree st ON cs.section = st.parent
                              WHERE st.depth < 10 AND st.course = ?
+                               AND cfo.value IS NOT NULL AND cfo.value <> ''
                         )
                         SELECT DISTINCT root_section, path
                           FROM section_tree

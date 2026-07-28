@@ -470,7 +470,7 @@ class integrity_checker {
      * Fix circular parent references by resetting looping sections to top-level.
      *
      * @param int $courseid Course ID
-     * @return array ['fixed' => int, 'details' => string[]]
+     * @return array ['fixed' => int, 'details' => string[], 'reparented' => array{id:int, section:int, name:string}[]]
      */
     public static function fix_circular(int $courseid): array {
         global $DB;
@@ -493,6 +493,7 @@ class integrity_checker {
 
         $fixed = 0;
         $details = [];
+        $reparented = [];
         $transaction = $DB->start_delegated_transaction();
 
         try {
@@ -537,6 +538,11 @@ class integrity_checker {
                         'name'    => format_string($s->name),
                         'section' => $s->section,
                     ]);
+                    $reparented[] = [
+                        'id'      => (int) $s->id,
+                        'section' => (int) $s->section,
+                        'name'    => format_string($s->name),
+                    ];
                 }
             }
 
@@ -553,7 +559,7 @@ class integrity_checker {
             rebuild_course_cache($courseid, false, true);
         }
 
-        return ['fixed' => $fixed, 'details' => $details];
+        return ['fixed' => $fixed, 'details' => $details, 'reparented' => $reparented];
     }
 
     /**

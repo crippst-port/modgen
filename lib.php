@@ -120,13 +120,6 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     // Validate and clean parameters.
     $courseid = clean_param($args['courseid'], PARAM_INT);
     $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
-    $showgenerator = !empty($args['showgenerator']);
-    $showsuggest = !empty($args['showsuggest']);
-    $showmanagestructure = !empty($args['showmanagestructure']);
-    $showmanagedates = !empty($args['showmanagedates']);
-    $showtemplatefromfile = !empty($args['showtemplatefromfile']);
-    $showtemplatefromptompt = !empty($args['showtemplatefromptompt']);
-    $showcheckstructure = !empty($args['showcheckstructure']);
 
     // Verify course exists and get context.
     $course = get_course($courseid);
@@ -136,15 +129,20 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
         $context = context_course::instance($courseid);
     }
 
-    // Verify permissions - user must have at least one toolbar capability.
-    $hasanycapability = has_capability('aiplacement/modgen:managestructure', $context) ||
-                        has_capability('aiplacement/modgen:managedates', $context) ||
-                        has_capability('aiplacement/modgen:generatewithprompt', $context) ||
-                        has_capability('aiplacement/modgen:generatefromtemplate', $context) ||
-                        has_capability('aiplacement/modgen:usesuggest', $context) ||
-                        has_capability('aiplacement/modgen:checkstructure', $context);
+    // This is a Fragment API callback, reachable directly over AJAX by any logged-in user -
+    // the client-supplied show* args are never trusted for visibility. Each button's
+    // capability is re-checked here, mirroring aiplacement_modgen_extend_navigation_course().
+    $canmanagestructure = has_capability('aiplacement/modgen:managestructure', $context);
+    $canmanagedates = has_capability('aiplacement/modgen:managedates', $context);
+    $cangenerateprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
+    $cangeneratetemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
+    $canusesuggest = has_capability('aiplacement/modgen:usesuggest', $context);
+    $cancheckstructure = has_capability('aiplacement/modgen:checkstructure', $context);
 
-    if (!$hasanycapability) {
+    if (
+        !$canmanagestructure && !$canmanagedates && !$cangenerateprompt
+            && !$cangeneratetemplate && !$canusesuggest && !$cancheckstructure
+    ) {
         throw new required_capability_exception(
             $context,
             'aiplacement/modgen:managestructure',
@@ -152,6 +150,16 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
             ''
         );
     }
+
+    $aienabled = \aiplacement_modgen\local\settings_helper::is_ai_enabled();
+    $showtemplatefromptompt = $cangenerateprompt && $aienabled;
+
+    $showgenerator = $showtemplatefromptompt; // Legacy support.
+    $showsuggest = $canusesuggest && \aiplacement_modgen\local\settings_helper::is_suggest_enabled();
+    $showmanagestructure = $canmanagestructure;
+    $showmanagedates = $canmanagedates;
+    $showtemplatefromfile = $cangeneratetemplate;
+    $showcheckstructure = $cancheckstructure;
 
     // Create the toolbar renderable with all capability flags.
     $toolbar = new \aiplacement_modgen\output\course_toolbar(

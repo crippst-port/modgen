@@ -43,6 +43,8 @@ global $CFG;
 require_once($CFG->dirroot . '/course/lib.php');
 
 /**
+ * Tests that check() survives non-numeric and empty parent values alongside other corruption.
+ *
  * @package    aiplacement_modgen
  * @category   test
  * @copyright  2026 Tom Cripps
@@ -66,6 +68,8 @@ final class integrity_check_non_numeric_parent_test extends advanced_testcase {
     }
 
     /**
+     * Survives empty parent values alongside invalid and circular references.
+     *
      * @covers ::check
      */
     public function test_check_survives_empty_parent_alongside_invalid_and_circular_refs(): void {
@@ -75,7 +79,10 @@ final class integrity_check_non_numeric_parent_test extends advanced_testcase {
 
         // Section with an empty-string parent — the null_parents corruption.
         $nullparentnum = theme_builder::create_theme_section(
-            $this->course->id, $courseformat, 'Null Parent Section', 'Desc'
+            $this->course->id,
+            $courseformat,
+            'Null Parent Section',
+            'Desc'
         );
         $nullparentsection = $DB->get_record('course_sections', [
             'course' => $this->course->id, 'section' => $nullparentnum,
@@ -86,7 +93,10 @@ final class integrity_check_non_numeric_parent_test extends advanced_testcase {
 
         // Section pointing at a section number that does not exist — the invalid_parents case.
         $invalidparentnum = theme_builder::create_theme_section(
-            $this->course->id, $courseformat, 'Invalid Parent Section', 'Desc'
+            $this->course->id,
+            $courseformat,
+            'Invalid Parent Section',
+            'Desc'
         );
         $invalidparentsection = $DB->get_record('course_sections', [
             'course' => $this->course->id, 'section' => $invalidparentnum,
@@ -97,10 +107,18 @@ final class integrity_check_non_numeric_parent_test extends advanced_testcase {
 
         // A genuine two-section mutual cycle, independent of the corruption above.
         $sectiona = theme_builder::create_theme_section(
-            $this->course->id, $courseformat, 'Cycle A', 'Desc'
+            $this->course->id,
+            $courseformat,
+            'Cycle A',
+            'Desc'
         );
         $sectionb = theme_builder::create_section_with_parent(
-            $this->course->id, $courseformat, $sectiona, 'Cycle B', 'Desc', FORMAT_PLAIN
+            $this->course->id,
+            $courseformat,
+            $sectiona,
+            'Cycle B',
+            'Desc',
+            FORMAT_PLAIN
         );
         $sectionarecord = $DB->get_record('course_sections', [
             'course' => $this->course->id, 'section' => $sectiona,

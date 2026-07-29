@@ -42,6 +42,8 @@ global $CFG;
 require_once($CFG->dirroot . '/course/lib.php');
 
 /**
+ * Tests that fix_integrity repairs all five known issue types in a single call.
+ *
  * @package    aiplacement_modgen
  * @category   test
  * @copyright  2026 Tom Cripps
@@ -71,6 +73,8 @@ final class fix_integrity_all_issues_test extends advanced_testcase {
     }
 
     /**
+     * Repairs all five issue types in one call.
+     *
      * @covers ::fix_integrity
      */
     public function test_fix_integrity_repairs_all_five_issue_types_in_one_call(): void {
@@ -95,7 +99,10 @@ final class fix_integrity_all_issues_test extends advanced_testcase {
 
         // 3. invalid_parents: parent points at a nonexistent section number.
         $invalidnum = theme_builder::create_theme_section(
-            $this->course->id, $courseformat, 'Invalid Parent Section', 'Desc'
+            $this->course->id,
+            $courseformat,
+            'Invalid Parent Section',
+            'Desc'
         );
         $invalidsection = $DB->get_record('course_sections', [
             'course' => $this->course->id, 'section' => $invalidnum,
@@ -106,7 +113,10 @@ final class fix_integrity_all_issues_test extends advanced_testcase {
 
         // 4. null_parents: empty-string parent value.
         $nullnum = theme_builder::create_theme_section(
-            $this->course->id, $courseformat, 'Null Parent Section', 'Desc'
+            $this->course->id,
+            $courseformat,
+            'Null Parent Section',
+            'Desc'
         );
         $nullsection = $DB->get_record('course_sections', [
             'course' => $this->course->id, 'section' => $nullnum,
@@ -117,7 +127,10 @@ final class fix_integrity_all_issues_test extends advanced_testcase {
 
         // 5. missing_parents: no parent format option row at all.
         $missingnum = theme_builder::create_theme_section(
-            $this->course->id, $courseformat, 'Missing Parent Section', 'Desc'
+            $this->course->id,
+            $courseformat,
+            'Missing Parent Section',
+            'Desc'
         );
         $missingsection = $DB->get_record('course_sections', [
             'course' => $this->course->id, 'section' => $missingnum,

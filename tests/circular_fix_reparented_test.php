@@ -35,6 +35,8 @@ global $CFG;
 require_once($CFG->dirroot . '/course/lib.php');
 
 /**
+ * Tests that fix_circular reports reparented sections correctly.
+ *
  * @package    aiplacement_modgen
  * @category   test
  * @copyright  2026 Tom Cripps
@@ -58,6 +60,8 @@ final class circular_fix_reparented_test extends advanced_testcase {
     }
 
     /**
+     * Reports reparented sections when a cycle is detected.
+     *
      * @covers ::fix_circular
      */
     public function test_fix_circular_reports_reparented_sections(): void {
@@ -67,10 +71,18 @@ final class circular_fix_reparented_test extends advanced_testcase {
 
         // Build two sections via the normal API: A at top-level, B as a child of A.
         $sectionnuma = theme_builder::create_theme_section(
-            $this->course->id, $courseformat, 'Section A', 'Desc A'
+            $this->course->id,
+            $courseformat,
+            'Section A',
+            'Desc A'
         );
         $sectionb = theme_builder::create_section_with_parent(
-            $this->course->id, $courseformat, $sectionnuma, 'Section B', 'Desc B', FORMAT_PLAIN
+            $this->course->id,
+            $courseformat,
+            $sectionnuma,
+            'Section B',
+            'Desc B',
+            FORMAT_PLAIN
         );
 
         $sectiona = $DB->get_record('course_sections', [
@@ -117,6 +129,8 @@ final class circular_fix_reparented_test extends advanced_testcase {
     }
 
     /**
+     * Returns an empty reparented list when no cycles exist.
+     *
      * @covers ::fix_circular
      */
     public function test_fix_circular_reparented_empty_when_no_cycles(): void {
@@ -146,10 +160,18 @@ final class circular_fix_reparented_test extends advanced_testcase {
         $courseformat = \course_get_format($this->course->id);
 
         $sectionc = theme_builder::create_theme_section(
-            $this->course->id, $courseformat, 'Section C', 'Desc C'
+            $this->course->id,
+            $courseformat,
+            'Section C',
+            'Desc C'
         );
         $sectiond = theme_builder::create_section_with_parent(
-            $this->course->id, $courseformat, $sectionc, 'Section D', 'Desc D', FORMAT_PLAIN
+            $this->course->id,
+            $courseformat,
+            $sectionc,
+            'Section D',
+            'Desc D',
+            FORMAT_PLAIN
         );
 
         $sectioncrecord = $DB->get_record('course_sections', [

@@ -242,7 +242,8 @@ if ($diag !== null) {
             echo html_writer::start_tag('tr');
             echo html_writer::tag('td', get_string('diag_' . $key, 'aiplacement_modgen'));
             $icon = html_writer::tag('i', '', ['class' => 'fa fa-exclamation-triangle text-danger', 'aria-hidden' => 'true']);
-            echo html_writer::tag('td', html_writer::tag('span', $icon . ' ' . $count, ['class' => 'text-danger font-weight-bold']));
+            $countspan = html_writer::tag('span', $icon . ' ' . $count, ['class' => 'text-danger font-weight-bold']);
+            echo html_writer::tag('td', $countspan);
             echo html_writer::end_tag('tr');
         }
         echo html_writer::end_tag('tbody');
@@ -329,7 +330,8 @@ if ($diag !== null) {
         echo html_writer::tag('td', $s->id);
         if ($s->has_row_issues) {
             $icon = html_writer::tag('i', '', ['class' => 'fa fa-exclamation-triangle text-danger', 'aria-hidden' => 'true']);
-            $issuescell = $icon . ' ' . html_writer::tag('span', s(implode('; ', $s->row_issues)), ['class' => 'text-danger small']);
+            $issuestext = s(implode('; ', $s->row_issues));
+            $issuescell = $icon . ' ' . html_writer::tag('span', $issuestext, ['class' => 'text-danger small']);
         } else {
             $issuescell = get_string('checkstructure_ok', 'aiplacement_modgen');
         }

@@ -534,20 +534,34 @@ class integrity_checker {
                     continue;
                 }
 
-                $visited = [];
+                // Only $s itself walking back to $s counts as $s being part of a cycle.
+                // Merely passing through a node the walk has already seen is not enough:
+                // that also happens when $s sits downstream of a cycle it isn't a member
+                // of (e.g. B -> A where A is self-looping) and must be left untouched.
+                $visited = [(int) $s->section => true];
                 $current = $s;
                 $depth = 0;
                 $hascircular = false;
 
-                while ($current && $current->parent !== '0' && $depth < 20) {
-                    if (isset($visited[$current->section])) {
-                        $hascircular = true;
-                        break;
-                    }
-                    $visited[$current->section] = true;
+                while ($current && $current->parent !== null && $current->parent !== '0' && $depth < 20) {
                     $parentnum = $current->parent;
                     $current = $bynum[$parentnum] ?? null;
                     $depth++;
+
+                    if (!$current) {
+                        break;
+                    }
+                    if ((int) $current->section === (int) $s->section) {
+                        $hascircular = true;
+                        break;
+                    }
+                    if (isset($visited[(int) $current->section])) {
+                        // Wandered into a different, pre-existing cycle that doesn't loop
+                        // back to $s — that cycle's own members will be detected when the
+                        // loop reaches them directly.
+                        break;
+                    }
+                    $visited[(int) $current->section] = true;
                 }
 
                 if ($hascircular) {

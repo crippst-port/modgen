@@ -208,4 +208,72 @@ final class circular_fix_reparented_test extends advanced_testcase {
             'sectionid' => $section0->id, 'name' => 'parent',
         ]), 'section 0 parent option should be removed entirely');
     }
+
+    /**
+     * A self-referential section (A -> A) must be reset on its own, but sections that merely
+     * hang beneath it in an otherwise-valid chain (B -> A, C -> B) must NOT be swept up too:
+     * their own parent links were never broken, and once A stops looping, walking from B or C
+     * terminates normally. Resetting them as well — as the old "any repeated node in this walk"
+     * detection did — would needlessly flatten a valid nested structure.
+     *
+     * @covers ::fix_circular
+     */
+    public function test_fix_circular_preserves_valid_descendants_below_a_self_loop(): void {
+        global $DB;
+
+        $courseformat = \course_get_format($this->course->id);
+
+        $sectionnuma = theme_builder::create_theme_section(
+            $this->course->id,
+            $courseformat,
+            'Section A',
+            'Desc A'
+        );
+        $sectionb = theme_builder::create_section_with_parent(
+            $this->course->id,
+            $courseformat,
+            $sectionnuma,
+            'Section B',
+            'Desc B',
+            FORMAT_PLAIN
+        );
+        $sectionc = theme_builder::create_section_with_parent(
+            $this->course->id,
+            $courseformat,
+            $sectionb->section,
+            'Section C',
+            'Desc C',
+            FORMAT_PLAIN
+        );
+
+        $sectiona = $DB->get_record('course_sections', [
+            'course' => $this->course->id, 'section' => $sectionnuma,
+        ], '*', MUST_EXIST);
+
+        // Corrupt A's own parent to point at itself: a self-loop, independent of B and C.
+        $DB->set_field('course_format_options', 'value', (string) $sectionnuma, [
+            'sectionid' => $sectiona->id,
+            'name'      => 'parent',
+        ]);
+
+        $result = integrity_checker::fix_circular($this->course->id);
+
+        $reparentednums = array_column($result['reparented'], 'section');
+        $this->assertEquals([$sectionnuma], $reparentednums, 'Only the self-looping section should be reset');
+
+        $parentofa = $DB->get_field('course_format_options', 'value', [
+            'sectionid' => $sectiona->id, 'name' => 'parent',
+        ]);
+        $this->assertEquals('0', $parentofa);
+
+        $parentofb = $DB->get_field('course_format_options', 'value', [
+            'sectionid' => $sectionb->id, 'name' => 'parent',
+        ]);
+        $this->assertEquals((string) $sectionnuma, $parentofb, 'B must keep pointing at A, untouched');
+
+        $parentofc = $DB->get_field('course_format_options', 'value', [
+            'sectionid' => $sectionc->id, 'name' => 'parent',
+        ]);
+        $this->assertEquals((string) $sectionb->section, $parentofc, 'C must keep pointing at B, untouched');
+    }
 }

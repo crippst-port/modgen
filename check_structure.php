@@ -259,35 +259,44 @@ if ($diag !== null) {
         echo $OUTPUT->notification(get_string('checkstructure_orphanwarning', 'aiplacement_modgen'), 'warning');
     }
 
-    // Section detail table — filterable: defaults to issues-only when this course has
-    // issues (full listing is noisy on large courses), with a toggle to reveal every section.
+    // Section detail table — filterable: defaults to issues-only (full listing is noisy on
+    // large courses), with a toggle to reveal every section. When the issues-only view has
+    // nothing to show, a message replaces the (otherwise empty-looking) table.
     // Shown before the fix actions below so the admin can see exactly what's wrong first.
     echo $OUTPUT->heading(get_string('sectiondetails', 'aiplacement_modgen'), 3);
 
-    $showallattrs = [
+    echo html_writer::start_div('form-check mb-2');
+    echo html_writer::empty_tag('input', [
         'type'  => 'checkbox',
         'id'    => 'checkstructure-showall',
         'class' => 'form-check-input',
-    ];
-    if (!$diag['has_issues']) {
-        $showallattrs['checked'] = 'checked';
-    }
-    echo html_writer::start_div('form-check mb-2');
-    echo html_writer::empty_tag('input', $showallattrs);
+    ]);
     echo html_writer::tag('label', get_string('checkstructure_showall', 'aiplacement_modgen'), [
         'for'   => 'checkstructure-showall',
         'class' => 'form-check-label',
     ]);
     echo html_writer::end_div();
 
+    echo html_writer::tag('div', get_string('checkstructure_nosectionissues', 'aiplacement_modgen'), [
+        'id'    => 'checkstructure-noissuesmsg',
+        'class' => 'alert alert-info',
+        'style' => 'display:none;',
+    ]);
+
     $PAGE->requires->js_init_code(
         "var cb = document.getElementById('checkstructure-showall');
+        var wrap = document.getElementById('checkstructure-sectiontablewrap');
         var table = document.getElementById('checkstructure-sectiontable');
+        var msg = document.getElementById('checkstructure-noissuesmsg');
         if (cb && table) {
+            var hasissues = table.querySelector(\"tbody tr[data-issue='1']\") !== null;
             var apply = function() {
                 table.querySelectorAll('tbody tr').forEach(function(row) {
                     row.style.display = (cb.checked || row.dataset.issue === '1') ? '' : 'none';
                 });
+                var showmsg = !cb.checked && !hasissues;
+                if (msg) { msg.style.display = showmsg ? '' : 'none'; }
+                if (wrap) { wrap.style.display = showmsg ? 'none' : ''; }
             };
             cb.addEventListener('change', apply);
             apply();
@@ -295,7 +304,7 @@ if ($diag !== null) {
         true
     );
 
-    echo html_writer::start_div('table-responsive mb-4');
+    echo html_writer::start_div('table-responsive mb-4', ['id' => 'checkstructure-sectiontablewrap']);
     echo html_writer::start_tag('table', [
         'id'    => 'checkstructure-sectiontable',
         'class' => 'table table-striped table-bordered table-sm',

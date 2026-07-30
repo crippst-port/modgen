@@ -609,6 +609,7 @@ $string['checkstructurepage'] = 'Course Structure Diagnostics';
 $string['checkstructurerun'] = 'Run Check';
 $string['checkstructureresults'] = 'Diagnostic Results';
 $string['checkstructure_noissues'] = 'No structural issues detected. This course\'s section structure is healthy.';
+$string['checkstructure_nosectionissues'] = 'No sections have issues. Tick "Show all sections" above to see the details of all sections.';
 $string['checkstructure_issuesfound'] = '{$a} issue type(s) detected. See the details and explanations below before applying any fixes.';
 $string['checkstructure_backtocourse'] = 'Back to Course';
 $string['checkstructure_circularwarning'] = 'Circular reference(s) found: some sections have parent links that loop back on themselves (for example, section A is set as the parent of section B, which is set as the parent of section A). Moodle cannot resolve a loop like this, so it can stop the course page from loading correctly for everyone, including students. It\'s recommended to fix this as soon as possible.';

@@ -599,6 +599,92 @@ class integrity_checker {
     }
 
     /**
+     * Directly set a section's parent to an editor-chosen value.
+     *
+     * This is the manual counterpart to fix_circular(): where that method can only make the
+     * safe automatic choice (top-level), this lets an editor point a section at wherever it
+     * actually belongs in one step — e.g. re-homing sections fix_circular() already reset to
+     * top-level, or resolving a self-parent without guessing. It still refuses moves that
+     * would themselves be invalid (unknown section, section 0, self-parent, or a move that
+     * would create a brand new cycle).
+     *
+     * @param int $courseid Course ID
+     * @param int $sectionnum Section number to update
+     * @param int $newparent New parent section number (0 = top-level)
+     * @return array ['success' => bool, 'error' => string|null] error is one of:
+     *   'section0', 'selfparent', 'sectionnotfound', 'parentnotfound', 'wouldcreatecycle'
+     */
+    public static function set_parent(int $courseid, int $sectionnum, int $newparent): array {
+        global $DB;
+
+        if ($sectionnum === 0) {
+            return ['success' => false, 'error' => 'section0'];
+        }
+        if ($sectionnum === $newparent) {
+            return ['success' => false, 'error' => 'selfparent'];
+        }
+
+        $section = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $sectionnum]);
+        if (!$section) {
+            return ['success' => false, 'error' => 'sectionnotfound'];
+        }
+
+        if ($newparent !== 0) {
+            $parentexists = $DB->record_exists('course_sections', ['course' => $courseid, 'section' => $newparent]);
+            if (!$parentexists) {
+                return ['success' => false, 'error' => 'parentnotfound'];
+            }
+
+            // Reject moves that would create a new cycle: walk up from the proposed parent. If
+            // that walk reaches $sectionnum, then $sectionnum is already an ancestor of
+            // $newparent, so making $newparent its parent would loop back on itself.
+            $bynum = [];
+            $rows = $DB->get_records_sql(
+                "SELECT cs.section, cfo.value AS parent
+                   FROM {course_sections} cs
+                   LEFT JOIN {course_format_options} cfo
+                     ON cfo.sectionid = cs.id AND cfo.name = 'parent'
+                  WHERE cs.course = ?",
+                [$courseid]
+            );
+            foreach ($rows as $row) {
+                $bynum[(int) $row->section] = $row->parent;
+            }
+
+            $walk = $newparent;
+            $depth = 0;
+            while ($walk !== null && (int) $walk !== 0 && $depth < 50) {
+                if ((int) $walk === $sectionnum) {
+                    return ['success' => false, 'error' => 'wouldcreatecycle'];
+                }
+                $walk = $bynum[(int) $walk] ?? null;
+                $depth++;
+            }
+        }
+
+        $existing = $DB->get_record('course_format_options', [
+            'courseid'  => $courseid,
+            'sectionid' => $section->id,
+            'name'      => 'parent',
+        ]);
+        if ($existing) {
+            $DB->set_field('course_format_options', 'value', (string) $newparent, ['id' => $existing->id]);
+        } else {
+            $DB->insert_record('course_format_options', (object) [
+                'courseid'  => $courseid,
+                'format'    => 'flexsections',
+                'sectionid' => $section->id,
+                'name'      => 'parent',
+                'value'     => (string) $newparent,
+            ]);
+        }
+
+        rebuild_course_cache($courseid, false, true);
+
+        return ['success' => true, 'error' => null];
+    }
+
+    /**
      * Calculate section depth using a memoised recursive walk.
      *
      * @param int $sectionnum Section number

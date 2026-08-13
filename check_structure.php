@@ -53,11 +53,34 @@ $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_pagelayout('course');
 $PAGE->requires->css('/ai/placement/modgen/styles.css');
 
+// Actions that apply immediately without a separate confirmation click: each one only
+// touches a single, explicitly-chosen section and is trivially reversible by picking a
+// different parent again, unlike the bulk fix actions below.
+$noconfirmactions = ['setparent'];
+
 // Handle fix actions — all require sesskey.
-if ($action && $confirm) {
+if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
     require_sesskey();
 
     switch ($action) {
+        case 'setparent':
+            $sectionnum = required_param('section', PARAM_INT);
+            $newparent  = required_param('newparent', PARAM_INT);
+            $result = integrity_checker::set_parent($courseid, $sectionnum, $newparent);
+            if ($result['success']) {
+                $msg = get_string('setparent_done', 'aiplacement_modgen', $sectionnum);
+                $type = \core\output\notification::NOTIFY_SUCCESS;
+            } else {
+                $msg = get_string('setparent_error_' . $result['error'], 'aiplacement_modgen');
+                $type = \core\output\notification::NOTIFY_ERROR;
+            }
+            redirect(
+                new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $courseid, 'check' => 1]),
+                $msg,
+                null,
+                $type
+            );
+            break;
         case 'fixintegrity':
             $result = integrity_checker::fix_integrity($courseid);
             $msg = $result['fixed'] > 0
@@ -323,6 +346,24 @@ if ($diag !== null) {
     echo html_writer::end_tag('thead');
     echo html_writer::start_tag('tbody');
 
+    // Options for the per-row parent picker: every section number/name in the course, plus
+    // top-level. Built once and reused for every row rather than requeried per section.
+    // Names are truncated — some course sections carry very long titles that would otherwise
+    // blow the <select> out to an unusable width — with the full name kept alongside for a
+    // hover tooltip on each <option>.
+    $toplevellabel = get_string('checkstructure_toplevel', 'aiplacement_modgen');
+    $parentoptions = ['0' => ['short' => $toplevellabel, 'full' => $toplevellabel]];
+    foreach ($diag['sections'] as $optionsection) {
+        if ($optionsection->section == 0) {
+            continue;
+        }
+        $fullname = format_string($optionsection->name ?? get_string('checkstructure_unnamed', 'aiplacement_modgen'));
+        $parentoptions[(string) $optionsection->section] = [
+            'short' => $optionsection->section . ' — ' . shorten_text($fullname, 40),
+            'full'  => $optionsection->section . ' — ' . $fullname,
+        ];
+    }
+
     foreach ($diag['sections'] as $s) {
         $rowclass = $s->has_row_issues ? 'table-warning' : '';
         echo html_writer::start_tag('tr', [
@@ -330,9 +371,55 @@ if ($diag !== null) {
             'data-issue' => $s->has_row_issues ? '1' : '0',
         ]);
         echo html_writer::tag('td', $s->section);
-        echo html_writer::tag('td', format_string($s->name ?? get_string('checkstructure_unnamed', 'aiplacement_modgen')));
-        $parentcell = $s->section == 0 ? '—' : ($s->parent ?? get_string('checkstructure_missing', 'aiplacement_modgen'));
-        echo html_writer::tag('td', $parentcell);
+        $fullsectionname = format_string($s->name ?? get_string('checkstructure_unnamed', 'aiplacement_modgen'));
+        echo html_writer::tag('td', shorten_text($fullsectionname, 40), ['title' => $fullsectionname]);
+
+        if ($s->section == 0) {
+            echo html_writer::tag('td', '—');
+        } else {
+            $currentparent = $s->parent ?? get_string('checkstructure_missing', 'aiplacement_modgen');
+            $rowoptions = $parentoptions;
+            unset($rowoptions[(string) $s->section]); // A section can't be its own parent.
+
+            $select = html_writer::start_tag('select', [
+                'name'  => 'newparent',
+                'class' => 'form-control form-control-sm d-inline-block',
+                'style' => 'max-width: 260px;',
+            ]);
+            foreach ($rowoptions as $optionvalue => $option) {
+                $optionattrs = ['value' => $optionvalue, 'title' => $option['full']];
+                if ((string) $optionvalue === (string) $currentparent) {
+                    $optionattrs['selected'] = 'selected';
+                }
+                $select .= html_writer::tag('option', $option['short'], $optionattrs);
+            }
+            $select .= html_writer::end_tag('select');
+
+            // Show the raw stored value as plain text too — the dropdown alone can't represent
+            // a self-parent (its own section number is deliberately excluded from the options),
+            // so this is the only place that state stays visible once the row has a picker.
+            $currentlabel = html_writer::tag('div', get_string('setparent_current', 'aiplacement_modgen', $currentparent), [
+                'class' => 'small text-muted',
+            ]);
+
+            $form = $currentlabel . html_writer::start_tag('form', [
+                'method' => 'post',
+                'action' => new moodle_url('/ai/placement/modgen/check_structure.php'),
+                'class'  => 'form-inline',
+            ]);
+            $form .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'id', 'value' => $courseid]);
+            $form .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action', 'value' => 'setparent']);
+            $form .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'section', 'value' => $s->section]);
+            $form .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
+            $form .= $select . ' ';
+            $form .= html_writer::tag('button', get_string('setparent_apply', 'aiplacement_modgen'), [
+                'type'  => 'submit',
+                'class' => 'btn btn-primary btn-sm ml-1',
+            ]);
+            $form .= html_writer::end_tag('form');
+
+            echo html_writer::tag('td', $form);
+        }
         echo html_writer::tag('td', $s->depth);
         echo html_writer::tag('td', $s->visible ? get_string('yes') : get_string('no'));
         echo html_writer::tag('td', $s->activitycount);

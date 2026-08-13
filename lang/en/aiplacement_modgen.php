@@ -617,20 +617,20 @@ $string['checkstructure_orphanwarning'] = 'Orphaned section(s) found: these sect
 
 // Fix action labels and descriptions.
 $string['fixintegrity_label'] = 'Repair Structure Data';
-$string['fixintegrity_desc'] = 'Resets invalid parent references to top-level and removes orphaned format options. Affects: orphaned options, invalid parents, null/empty parents, missing parent records, section 0 with parent.';
+$string['fixintegrity_desc'] = 'Resets invalid, null, or missing parent references to top-level and removes orphaned format options.';
 $string['fixintegrity_confirm'] = 'Repair structure data for this course? This resets invalid parent references to top-level (parent=0) and deletes orphaned format options. This cannot be undone.';
 $string['fixintegrity_done'] = 'Structure data repaired. {$a} item(s) fixed.';
 $string['fixintegrity_none'] = 'No structural data issues found to repair.';
 $string['fixdetails'] = 'Details: {$a}';
 
 $string['fixcleanup_label'] = 'Remove Orphaned Sections';
-$string['fixcleanup_desc'] = 'Permanently deletes hidden, empty sections that are no longer connected to the course structure. These sections aren\'t visible on the course page, but leaving them in place can cause actions like deleting or duplicating the course to fail — removing them clears the blockage.';
+$string['fixcleanup_desc'] = 'Permanently deletes hidden, empty sections no longer connected to the course structure.';
 $string['fixcleanup_confirm'] = 'Remove orphaned sections from this course? This permanently deletes all hidden, disconnected empty sections so they can no longer interfere with actions like deleting or duplicating the course. This cannot be undone.';
 $string['fixcleanup_done'] = '{$a} orphaned section(s) removed.';
 $string['fixcleanup_none'] = 'No orphaned sections found.';
 
 $string['fixcircular_label'] = 'Fix Circular References';
-$string['fixcircular_desc'] = 'Detects sections whose parent links loop back on themselves, and breaks the loop by resetting the affected sections to top-level, directly under the course homepage. Circular references can stop the course page from loading correctly, so it\'s recommended to fix them promptly. Once fixed, you\'ll likely want to review these sections and move or delete them as appropriate, since they will no longer be nested where they originally were.';
+$string['fixcircular_desc'] = 'Breaks parent-reference loops by resetting all affected sections to top-level. You\'ll likely need to move them afterwards.';
 $string['fixcircular_confirm'] = 'Fix circular parent references in this course? Left unresolved, these loops can prevent the course from loading correctly. Sections in a loop will be reset to top-level (parent=0), appearing directly under the course homepage — you\'ll need to move or delete them afterwards as required. This cannot be undone.';
 $string['fixcircular_done'] = '{$a} circular reference(s) fixed.';
 $string['fixcircular_none'] = 'No circular references found.';
@@ -676,6 +676,17 @@ $string['reparented_heading'] = 'Sections moved to top level';
 $string['reparented_desc'] = 'These sections were part of a circular parent reference and have been reset to top-level (The main course page) so the course structure could be repaired. They may not be where you or the course author expect.';
 $string['reparented_col_action'] = 'Action';
 $string['reparented_jumplink'] = 'Jump to section';
+
+// Per-section parent picker.
+$string['checkstructure_toplevel'] = '— Top level —';
+$string['setparent_current'] = 'Current: {$a}';
+$string['setparent_apply'] = 'Set';
+$string['setparent_done'] = 'Section {$a} reparented.';
+$string['setparent_error_section0'] = 'Section 0 cannot have a parent.';
+$string['setparent_error_selfparent'] = 'A section cannot be its own parent.';
+$string['setparent_error_sectionnotfound'] = 'That section could not be found.';
+$string['setparent_error_parentnotfound'] = 'The chosen parent section could not be found.';
+$string['setparent_error_wouldcreatecycle'] = 'That change would create a new circular reference, so it was not applied.';
 
 // Settings page external link.
 $string['admintools_link'] = 'Admin Diagnostic Tools';

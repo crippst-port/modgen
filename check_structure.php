@@ -56,7 +56,7 @@ $PAGE->requires->css('/ai/placement/modgen/styles.css');
 // Actions that apply immediately without a separate confirmation click: each one only
 // touches a single, explicitly-chosen section and is trivially reversible by picking a
 // different parent again, unlike the bulk fix actions below.
-$noconfirmactions = ['setparent'];
+$noconfirmactions = ['setparent', 'setparentall'];
 
 // Handle fix actions — all require sesskey.
 if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
@@ -74,8 +74,62 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
                 $msg = get_string('setparent_error_' . $result['error'], 'aiplacement_modgen');
                 $type = \core\output\notification::NOTIFY_ERROR;
             }
+
+            // If this row was submitted from the "just reparented by fix" flash table, carry
+            // the remaining rows forward on the redirect so the table survives applying one
+            // suggestion at a time instead of vanishing after the first click.
+            $redirecturlparams = ['id' => $courseid, 'check' => 1];
+            $remreparented = optional_param('remreparented', '', PARAM_SEQUENCE);
+            if ($remreparented !== '') {
+                $redirecturlparams['reparented'] = $remreparented;
+                $redirecturlparams['reparentedsuggestions'] = optional_param(
+                    'remreparentedsuggestions',
+                    '',
+                    PARAM_SEQUENCE
+                );
+            }
+
             redirect(
-                new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $courseid, 'check' => 1]),
+                new moodle_url('/ai/placement/modgen/check_structure.php', $redirecturlparams),
+                $msg,
+                null,
+                $type
+            );
+            break;
+        case 'setparentall':
+            // Bulk counterpart to 'setparent' above: applies every suggested-parent row from
+            // the flash table in one go instead of one submit per row.
+            $sections = required_param_array('sections', PARAM_INT);
+            $newparents = required_param_array('newparents', PARAM_INT);
+            $batchresult = integrity_checker::set_parents_bulk($courseid, $sections, $newparents);
+            $applied = $batchresult['applied'];
+            $failed = $batchresult['failed'];
+
+            if ($failed > 0) {
+                $msg = get_string('setparentall_done_withfailures', 'aiplacement_modgen', (object) [
+                    'applied' => $applied, 'failed' => $failed,
+                ]);
+                $type = \core\output\notification::NOTIFY_WARNING;
+            } else {
+                $msg = get_string('setparentall_done', 'aiplacement_modgen', $applied);
+                $type = \core\output\notification::NOTIFY_SUCCESS;
+            }
+
+            // Rows that had no suggestion weren't touched by this action, so carry them forward
+            // on the redirect so they stay visible for manual handling, same as 'setparent'.
+            $redirecturlparams = ['id' => $courseid, 'check' => 1];
+            $remreparented = optional_param('remreparented', '', PARAM_SEQUENCE);
+            if ($remreparented !== '') {
+                $redirecturlparams['reparented'] = $remreparented;
+                $redirecturlparams['reparentedsuggestions'] = optional_param(
+                    'remreparentedsuggestions',
+                    '',
+                    PARAM_SEQUENCE
+                );
+            }
+
+            redirect(
+                new moodle_url('/ai/placement/modgen/check_structure.php', $redirecturlparams),
                 $msg,
                 null,
                 $type
@@ -87,7 +141,14 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
                 ? get_string('fixintegrity_done', 'aiplacement_modgen', $result['fixed'])
                 : get_string('fixintegrity_none', 'aiplacement_modgen');
             redirect(
-                new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $courseid, 'check' => 1]),
+                new moodle_url('/ai/placement/modgen/check_structure.php', [
+                    'id' => $courseid, 'check' => 1,
+                    'reparented' => implode(',', array_column($result['reparented'], 'section')),
+                    'reparentedsuggestions' => implode(',', array_map(
+                        fn($r) => (string) ($r['suggestedparent'] ?? 0),
+                        $result['reparented']
+                    )),
+                ]),
                 $msg,
                 null,
                 \core\output\notification::NOTIFY_SUCCESS
@@ -113,9 +174,14 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
                 ? get_string('fixcircular_done', 'aiplacement_modgen', $result['fixed'])
                 : get_string('fixcircular_none', 'aiplacement_modgen');
             $reparentedparam = implode(',', array_column($result['reparented'], 'section'));
+            $reparentedsuggestionsparam = implode(',', array_map(
+                fn($r) => (string) ($r['suggestedparent'] ?? 0),
+                $result['reparented']
+            ));
             redirect(
                 new moodle_url('/ai/placement/modgen/check_structure.php', [
                     'id' => $courseid, 'check' => 1, 'reparented' => $reparentedparam,
+                    'reparentedsuggestions' => $reparentedsuggestionsparam,
                 ]),
                 $msg,
                 null,
@@ -165,6 +231,14 @@ if ($check) {
 $reparentedraw = optional_param('reparented', '', PARAM_SEQUENCE);
 $reparentedsections = $reparentedraw !== '' ? explode(',', $reparentedraw) : [];
 
+// Best-guess replacement parent for each section above, same order, computed from the state
+// just before the fix ran. A sentinel of '0' means no confident suggestion was found (0 can
+// never itself be a suggestion: suggest_parent_from_map() only ever proposes section numbers
+// above 0, since a genuine top-level answer and "nothing to suggest" would look identical
+// downstream otherwise).
+$reparentedsuggestionsraw = optional_param('reparentedsuggestions', '', PARAM_SEQUENCE);
+$reparentedsuggestionslist = $reparentedsuggestionsraw !== '' ? explode(',', $reparentedsuggestionsraw) : [];
+
 echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('checkstructurepage', 'aiplacement_modgen'), 2);
 echo html_writer::tag('p', get_string('checkstructuredesc', 'aiplacement_modgen'));
@@ -197,6 +271,56 @@ if ($diag !== null) {
         echo $OUTPUT->heading(get_string('reparented_heading', 'aiplacement_modgen'), 3);
         echo html_writer::tag('p', get_string('reparented_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
 
+        // Split into rows with a suggestion to apply and rows without one, so "Fix All" can
+        // submit only the former and leave the latter in the flash table for manual handling.
+        $applicablesections = [];
+        $applicablesuggestions = [];
+        $unsuggestedsections = [];
+        foreach ($reparentedsections as $idx => $secnum) {
+            $suggestion = isset($reparentedsuggestionslist[$idx]) ? (int) $reparentedsuggestionslist[$idx] : 0;
+            if ($suggestion > 0) {
+                $applicablesections[] = $secnum;
+                $applicablesuggestions[] = $suggestion;
+            } else {
+                $unsuggestedsections[] = $secnum;
+            }
+        }
+
+        if (!empty($applicablesections)) {
+            echo html_writer::start_tag('form', [
+                'method' => 'post',
+                'action' => new moodle_url('/ai/placement/modgen/check_structure.php'),
+                'class'  => 'mb-2',
+            ]);
+            echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'id', 'value' => $courseid]);
+            echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action', 'value' => 'setparentall']);
+            foreach ($applicablesections as $i => $secnum) {
+                echo html_writer::empty_tag(
+                    'input',
+                    ['type' => 'hidden', 'name' => 'sections[]', 'value' => $secnum]
+                );
+                echo html_writer::empty_tag(
+                    'input',
+                    ['type' => 'hidden', 'name' => 'newparents[]', 'value' => $applicablesuggestions[$i]]
+                );
+            }
+            if (!empty($unsuggestedsections)) {
+                echo html_writer::empty_tag('input', [
+                    'type' => 'hidden', 'name' => 'remreparented', 'value' => implode(',', $unsuggestedsections),
+                ]);
+                echo html_writer::empty_tag('input', [
+                    'type' => 'hidden', 'name' => 'remreparentedsuggestions',
+                    'value' => implode(',', array_fill(0, count($unsuggestedsections), '0')),
+                ]);
+            }
+            echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
+            echo html_writer::tag('button', get_string('reparented_fixall', 'aiplacement_modgen'), [
+                'type'  => 'submit',
+                'class' => 'btn btn-sm btn-primary',
+            ]);
+            echo html_writer::end_tag('form');
+        }
+
         echo html_writer::start_div('table-responsive mb-4');
         echo html_writer::start_tag('table', ['class' => 'table table-sm table-bordered table-warning']);
         echo html_writer::start_tag('thead');
@@ -204,6 +328,7 @@ if ($diag !== null) {
         echo html_writer::tag('th', get_string('checkstructure_col_secnum', 'aiplacement_modgen'));
         echo html_writer::tag('th', get_string('name'));
         echo html_writer::tag('th', get_string('checkstructure_col_dbid', 'aiplacement_modgen'));
+        echo html_writer::tag('th', get_string('reparented_col_suggested', 'aiplacement_modgen'));
         echo html_writer::tag('th', get_string('reparented_col_action', 'aiplacement_modgen'));
         echo html_writer::end_tag('tr');
         echo html_writer::end_tag('thead');
@@ -214,14 +339,71 @@ if ($diag !== null) {
             $sectionsbynum[$sectionrow->section] = $sectionrow;
         }
 
-        foreach ($reparentedsections as $secnum) {
+        foreach ($reparentedsections as $idx => $secnum) {
             $sectionrow = $sectionsbynum[$secnum] ?? null;
+            $suggestion = isset($reparentedsuggestionslist[$idx]) ? (int) $reparentedsuggestionslist[$idx] : 0;
+
             echo html_writer::start_tag('tr');
             echo html_writer::tag('td', $secnum);
             echo html_writer::tag('td', $sectionrow
                 ? format_string($sectionrow->name ?? get_string('checkstructure_unnamed', 'aiplacement_modgen'))
                 : get_string('checkstructure_unnamed', 'aiplacement_modgen'));
             echo html_writer::tag('td', $sectionrow->id ?? '—');
+
+            if ($suggestion > 0) {
+                $suggestedrow = $sectionsbynum[$suggestion] ?? null;
+                $suggestedname = $suggestedrow
+                    ? format_string($suggestedrow->name ?? get_string('checkstructure_unnamed', 'aiplacement_modgen'))
+                    : get_string('checkstructure_unnamed', 'aiplacement_modgen');
+
+                // The other rows in this flash table, so the server can restore them on redirect
+                // after this row's suggestion is applied, otherwise applying one row's suggestion
+                // would wipe the whole table instead of just that row.
+                $remainingsections = $reparentedsections;
+                unset($remainingsections[$idx]);
+                $remainingsuggestions = $reparentedsuggestionslist;
+                unset($remainingsuggestions[$idx]);
+
+                $suggestcell = html_writer::tag('span', $suggestion . ' - ' . shorten_text($suggestedname, 30), [
+                    'class' => 'mr-2', 'title' => $suggestedname,
+                ]);
+                $suggestcell .= html_writer::start_tag('form', [
+                    'method' => 'post',
+                    'action' => new moodle_url('/ai/placement/modgen/check_structure.php'),
+                    'class'  => 'form-inline d-inline',
+                ]);
+                $suggestcell .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'id', 'value' => $courseid]);
+                $suggestcell .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action', 'value' => 'setparent']);
+                $suggestcell .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'section', 'value' => $secnum]);
+                $suggestcell .= html_writer::empty_tag(
+                    'input',
+                    ['type' => 'hidden', 'name' => 'newparent', 'value' => $suggestion]
+                );
+                $suggestcell .= html_writer::empty_tag('input', [
+                    'type' => 'hidden', 'name' => 'remreparented', 'value' => implode(',', $remainingsections),
+                ]);
+                $suggestcell .= html_writer::empty_tag('input', [
+                    'type' => 'hidden', 'name' => 'remreparentedsuggestions',
+                    'value' => implode(',', $remainingsuggestions),
+                ]);
+                $suggestcell .= html_writer::empty_tag(
+                    'input',
+                    ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]
+                );
+                $suggestcell .= html_writer::tag('button', get_string('reparented_apply_suggestion', 'aiplacement_modgen'), [
+                    'type'  => 'submit',
+                    'class' => 'btn btn-sm btn-outline-primary',
+                ]);
+                $suggestcell .= html_writer::end_tag('form');
+                echo html_writer::tag('td', $suggestcell);
+            } else {
+                echo html_writer::tag(
+                    'td',
+                    get_string('reparented_no_suggestion', 'aiplacement_modgen'),
+                    ['class' => 'text-muted small']
+                );
+            }
+
             echo html_writer::tag('td', html_writer::link(
                 new moodle_url('/course/view.php', ['id' => $courseid], 'section-' . $secnum),
                 get_string('reparented_jumplink', 'aiplacement_modgen')
@@ -348,8 +530,8 @@ if ($diag !== null) {
 
     // Options for the per-row parent picker: every section number/name in the course, plus
     // top-level. Built once and reused for every row rather than requeried per section.
-    // Names are truncated — some course sections carry very long titles that would otherwise
-    // blow the <select> out to an unusable width — with the full name kept alongside for a
+    // Names are truncated: some course sections carry very long titles that would otherwise
+    // blow the <select> out to an unusable width, with the full name kept alongside for a
     // hover tooltip on each <option>.
     $toplevellabel = get_string('checkstructure_toplevel', 'aiplacement_modgen');
     $parentoptions = ['0' => ['short' => $toplevellabel, 'full' => $toplevellabel]];
@@ -359,8 +541,8 @@ if ($diag !== null) {
         }
         $fullname = format_string($optionsection->name ?? get_string('checkstructure_unnamed', 'aiplacement_modgen'));
         $parentoptions[(string) $optionsection->section] = [
-            'short' => $optionsection->section . ' — ' . shorten_text($fullname, 40),
-            'full'  => $optionsection->section . ' — ' . $fullname,
+            'short' => $optionsection->section . ': ' . shorten_text($fullname, 40),
+            'full'  => $optionsection->section . ': ' . $fullname,
         ];
     }
 
@@ -476,7 +658,9 @@ if ($diag !== null) {
     }
 
     if ($diag['counts']['circular_refs'] > 0) {
-        echo $OUTPUT->heading(get_string('fixcircular_label', 'aiplacement_modgen'), 4);
+        $fixcircularheading = get_string('fixcircular_label', 'aiplacement_modgen')
+            . ' ' . $OUTPUT->help_icon('fixcircular_label', 'aiplacement_modgen');
+        echo $OUTPUT->heading($fixcircularheading, 4);
         echo html_writer::tag('p', get_string('fixcircular_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
         echo html_writer::link(
             new moodle_url('/ai/placement/modgen/check_structure.php', [

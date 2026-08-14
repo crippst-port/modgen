@@ -612,7 +612,7 @@ $string['checkstructure_noissues'] = 'No structural issues detected. This course
 $string['checkstructure_nosectionissues'] = 'No sections have issues. Tick "Show all sections" above to see the details of all sections.';
 $string['checkstructure_issuesfound'] = '{$a} issue type(s) detected. See the details and explanations below before applying any fixes.';
 $string['checkstructure_backtocourse'] = 'Back to Course';
-$string['checkstructure_circularwarning'] = 'Circular reference(s) found: some sections have parent links that loop back on themselves (for example, section A is set as the parent of section B, which is set as the parent of section A). Moodle cannot resolve a loop like this, so it can stop the course page from loading correctly for everyone, including students. It\'s recommended to fix this as soon as possible.';
+$string['checkstructure_circularwarning'] = 'Circular reference(s) found: some sections have parent links that loop back on themselves (for example, section A is set as the parent of section B, which is set as the parent of section A). Moodle cannot resolve a loop like this. You can manually choose to reparent sections in the table below, or you can attempt to fix it automatically with the button below the list of affected sections.';
 $string['checkstructure_orphanwarning'] = 'Orphaned section(s) found: these sections exist in the database but are hidden and disconnected from the visible course structure. They don\'t appear on the course page, but Moodle can still try to process them during actions like course deletion or duplication, which may cause those actions to fail or behave unexpectedly. Removing them clears the blockage.';
 
 // Fix action labels and descriptions.
@@ -629,7 +629,10 @@ $string['fixcleanup_confirm'] = 'Remove orphaned sections from this course? This
 $string['fixcleanup_done'] = '{$a} orphaned section(s) removed.';
 $string['fixcleanup_none'] = 'No orphaned sections found.';
 
-$string['fixcircular_label'] = 'Fix Circular References';
+$string['fixcircular_label'] = 'Attempt Circular Reference Auto Fix';
+$string['fixcircular_label_help'] = 'This button fixes the affected section(s) by moving them out to the main course page (the top level), so the course works again.
+
+It can\'t always know exactly where a section was originally meant to go, so afterwards it makes a best guess at a new home for each moved section, and shows you that suggestion so you can review it. It guesses by looking at the section that comes right before the moved one in the course and checking that section is itself in good order: if so, that\'s the suggestion; if not, it keeps looking further back until it finds one that is. This is only ever a guess based on position, not a certainty, so always check it before accepting it.';
 $string['fixcircular_desc'] = 'Breaks parent-reference loops by resetting all affected sections to top-level. You\'ll likely need to move them afterwards.';
 $string['fixcircular_confirm'] = 'Fix circular parent references in this course? Left unresolved, these loops can prevent the course from loading correctly. Sections in a loop will be reset to top-level (parent=0), appearing directly under the course homepage — you\'ll need to move or delete them afterwards as required. This cannot be undone.';
 $string['fixcircular_done'] = '{$a} circular reference(s) fixed.';
@@ -671,14 +674,20 @@ $string['detail_fixednullparents'] = 'Fixed {$a} null/empty parent values';
 $string['detail_insertedmissingparents'] = 'Inserted {$a} missing parent options';
 $string['detail_brokecircular'] = 'Broke circular ref at section "{$a->name}" (sec {$a->section})';
 
-// Sections reparented to top-level by the circular-reference fix.
+// Sections reparented to top-level by the circular-reference / invalid-parent fixes.
 $string['reparented_heading'] = 'Sections moved to top level';
-$string['reparented_desc'] = 'These sections were part of a circular parent reference and have been reset to top-level (The main course page) so the course structure could be repaired. They may not be where you or the course author expect.';
+$string['reparented_desc'] = 'These sections had a broken parent reference and have been reset to top-level (the main course page) so the course structure could be repaired. Where possible, a likely original parent is suggested below, based on where the section sits relative to the rest of the course: check it before applying, it is a guess, not a certainty.';
+$string['reparented_col_suggested'] = 'Suggested parent';
+$string['reparented_apply_suggestion'] = 'Apply';
+$string['reparented_fixall'] = 'Fix All';
+$string['reparented_no_suggestion'] = 'No confident suggestion, pick manually below';
 $string['reparented_col_action'] = 'Action';
 $string['reparented_jumplink'] = 'Jump to section';
+$string['setparentall_done'] = '{$a} section(s) reparented to their suggested parent.';
+$string['setparentall_done_withfailures'] = '{$a->applied} section(s) reparented to their suggested parent; {$a->failed} could not be applied.';
 
 // Per-section parent picker.
-$string['checkstructure_toplevel'] = '— Top level —';
+$string['checkstructure_toplevel'] = '(Top level)';
 $string['setparent_current'] = 'Current: {$a}';
 $string['setparent_apply'] = 'Set';
 $string['setparent_done'] = 'Section {$a} reparented.';
@@ -687,6 +696,7 @@ $string['setparent_error_selfparent'] = 'A section cannot be its own parent.';
 $string['setparent_error_sectionnotfound'] = 'That section could not be found.';
 $string['setparent_error_parentnotfound'] = 'The chosen parent section could not be found.';
 $string['setparent_error_wouldcreatecycle'] = 'That change would create a new circular reference, so it was not applied.';
+$string['setparent_error_maxdepthexceeded'] = 'That change would nest the section deeper than this course format allows, so it was not applied.';
 
 // Settings page external link.
 $string['admintools_link'] = 'Admin Diagnostic Tools';

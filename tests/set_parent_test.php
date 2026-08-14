@@ -205,4 +205,91 @@ final class set_parent_test extends advanced_testcase {
         $this->assertFalse($result['success']);
         $this->assertEquals('sectionnotfound', $result['error']);
     }
+
+    /**
+     * Refuses a move that would nest a section deeper than the course format allows, and
+     * leaves the section untouched.
+     *
+     * @covers ::set_parent
+     */
+    public function test_set_parent_rejects_move_that_would_exceed_max_depth(): void {
+        global $DB;
+
+        set_config('maxsectiondepth', 2, 'format_flexsections');
+
+        $courseformat = \course_get_format($this->course->id);
+        $sectionnuma = theme_builder::create_theme_section($this->course->id, $courseformat, 'A', 'Desc A');
+        $sectionb = theme_builder::create_section_with_parent(
+            $this->course->id,
+            $courseformat,
+            $sectionnuma,
+            'B',
+            'Desc B',
+            FORMAT_PLAIN
+        );
+        $sectionnumx = theme_builder::create_theme_section($this->course->id, $courseformat, 'X', 'Desc X');
+
+        // A is depth 1, B (A's child) is depth 2, the configured max. Moving X under B would
+        // put X at depth 3.
+        $result = integrity_checker::set_parent($this->course->id, $sectionnumx, $sectionb->section);
+
+        $this->assertFalse($result['success']);
+        $this->assertEquals('maxdepthexceeded', $result['error']);
+
+        $xrow = $DB->get_record('course_sections', [
+            'course' => $this->course->id, 'section' => $sectionnumx,
+        ], '*', MUST_EXIST);
+        $parentvalue = $DB->get_field('course_format_options', 'value', [
+            'sectionid' => $xrow->id, 'name' => 'parent',
+        ]);
+        $this->assertEquals('0', $parentvalue, 'X should be untouched, still top-level');
+    }
+
+    /**
+     * A move that's still within the configured max depth is allowed.
+     *
+     * @covers ::set_parent
+     */
+    public function test_set_parent_allows_move_within_max_depth(): void {
+        set_config('maxsectiondepth', 2, 'format_flexsections');
+
+        $courseformat = \course_get_format($this->course->id);
+        $sectionnuma = theme_builder::create_theme_section($this->course->id, $courseformat, 'A', 'Desc A');
+        $sectionnumx = theme_builder::create_theme_section($this->course->id, $courseformat, 'X', 'Desc X');
+
+        // X under A is depth 2, exactly at the configured max, not past it.
+        $result = integrity_checker::set_parent($this->course->id, $sectionnumx, $sectionnuma);
+
+        $this->assertTrue($result['success']);
+        $this->assertNull($result['error']);
+    }
+
+    /**
+     * Moving a visible section under a hidden parent hides it too.
+     *
+     * @covers ::set_parent
+     */
+    public function test_set_parent_cascades_visibility(): void {
+        global $DB;
+
+        $courseformat = \course_get_format($this->course->id);
+        $sectionnuma = theme_builder::create_theme_section($this->course->id, $courseformat, 'A', 'Desc A');
+        \set_section_visible($this->course->id, $sectionnuma, 0);
+
+        $sectionnumb = theme_builder::create_theme_section($this->course->id, $courseformat, 'B', 'Desc B');
+        $sectionbbefore = $DB->get_record('course_sections', [
+            'course' => $this->course->id, 'section' => $sectionnumb,
+        ], '*', MUST_EXIST);
+        $this->assertEquals(1, $sectionbbefore->visible, 'B should start visible');
+
+        $result = integrity_checker::set_parent($this->course->id, $sectionnumb, $sectionnuma);
+        $this->assertTrue($result['success']);
+
+        $sectionbafter = $DB->get_record('course_sections', ['id' => $sectionbbefore->id], '*', MUST_EXIST);
+        $this->assertEquals(
+            0,
+            $sectionbafter->visible,
+            'Moving B under hidden A should hide B too, like a manual drag would'
+        );
+    }
 }

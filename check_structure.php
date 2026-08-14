@@ -457,6 +457,9 @@ if ($diag !== null) {
     }
 
     // Plain-language impact warnings for the issues that matter most.
+    if (!empty($diag['possible_format_switch_wipe'])) {
+        echo $OUTPUT->notification(get_string('checkstructure_wipewarning', 'aiplacement_modgen'), 'error');
+    }
     if ($diag['counts']['circular_refs'] > 0) {
         echo $OUTPUT->notification(get_string('checkstructure_circularwarning', 'aiplacement_modgen'), 'error');
     }
@@ -630,7 +633,9 @@ if ($diag !== null) {
         || $diag['counts']['missing_parents'] > 0;
 
     if ($fixintegrity) {
-        echo $OUTPUT->heading(get_string('fixintegrity_label', 'aiplacement_modgen'), 4);
+        $fixintegrityheading = get_string('fixintegrity_label', 'aiplacement_modgen')
+            . ' ' . $OUTPUT->help_icon('fixintegrity_label', 'aiplacement_modgen');
+        echo $OUTPUT->heading($fixintegrityheading, 4);
         echo html_writer::tag('p', get_string('fixintegrity_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
         echo html_writer::link(
             new moodle_url('/ai/placement/modgen/check_structure.php', [

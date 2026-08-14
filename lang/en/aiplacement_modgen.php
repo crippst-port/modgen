@@ -564,18 +564,18 @@ $string['cleanup'] = 'Delete Hidden Empty Sections';
 $string['integritycheck'] = 'Integrity Check Results';
 $string['fixingintegrity'] = 'Fixing Integrity Issues';
 $string['cleaningup'] = 'Cleaning Up Orphaned Sections';
-$string['confirmfixintegrity'] = 'Are you sure you want to fix integrity issues in this course? This will set invalid parent sections to top-level (parent=0) and delete orphaned format options.';
-$string['confirmcleanup'] = 'Are you sure you want to clean up orphaned sections? This will permanently delete all hidden sections that have no activities.';
+$string['confirmfixintegrity'] = 'Fix integrity issues in this course? This sets invalid parent sections to top-level and deletes orphaned format options.';
+$string['confirmcleanup'] = 'Clean up orphaned sections? This permanently deletes hidden sections with no activities.';
 $string['checkingcourse'] = 'Checking integrity for course: {$a}';
 $string['cleaningcourse'] = 'Cleaning orphaned sections from course: {$a}';
 $string['orphanedoptions'] = '{$a} orphaned format options (options for sections that no longer exist)';
 $string['invalidparents'] = '{$a} sections with invalid parent references';
 $string['fixedorphaned'] = 'Fixed {$a} orphaned format options';
 $string['fixedinvalid'] = 'Fixed {$a} sections with invalid parent references';
-$string['noissuesfound'] = 'No integrity issues found. Database is clean! ✓';
+$string['noissuesfound'] = 'No integrity issues found.';
 $string['usefixbutton'] = 'Use the "Repair Invalid Parents" button to automatically repair these problems.';
 $string['nosectionstoclean'] = 'No orphaned sections found to clean up.';
-$string['sectionsdeleted'] = 'Successfully deleted {$a} orphaned sections';
+$string['sectionsdeleted'] = '{$a} orphaned section(s) deleted.';
 $string['backtomainpage'] = 'Back to Admin Tools';
 $string['statistics'] = 'Statistics';
 $string['pluginstatistics'] = 'Plugin Usage Statistics';
@@ -604,28 +604,32 @@ $string['idnumberconfusion'] = 'ID/number confusion';
 // Check Structure page (course-editor diagnostic tool).
 $string['checkstructure'] = 'Check Structure';
 $string['modgen:checkstructure'] = 'View and fix course structure diagnostics';
-$string['checkstructuredesc'] = 'This tool checks how this course\'s sections are nested and linked together, and can repair common problems automatically. Some problems, like circular references, can stop the course from loading; others, like orphaned sections, can silently block actions such as deleting or duplicating the course. Run a check below to see if any repairs are needed.';
+$string['checkstructuredesc'] = 'Checks how this course\'s sections are nested and linked, and can fix common problems automatically. Some, like circular references, can stop the course from loading; others, like orphaned sections, can silently block actions like deleting or duplicating the course.';
 $string['checkstructurepage'] = 'Course Structure Diagnostics';
 $string['checkstructurerun'] = 'Run Check';
 $string['checkstructureresults'] = 'Diagnostic Results';
-$string['checkstructure_noissues'] = 'No structural issues detected. This course\'s section structure is healthy.';
-$string['checkstructure_nosectionissues'] = 'No sections have issues. Tick "Show all sections" above to see the details of all sections.';
-$string['checkstructure_issuesfound'] = '{$a} issue type(s) detected. See the details and explanations below before applying any fixes.';
+$string['checkstructure_noissues'] = 'No structural issues detected.';
+$string['checkstructure_nosectionissues'] = 'No sections have issues. Tick "Show all sections" above to see every section.';
+$string['checkstructure_issuesfound'] = '{$a} issue type(s) detected. Review the details below before applying any fixes.';
 $string['checkstructure_backtocourse'] = 'Back to Course';
-$string['checkstructure_circularwarning'] = 'Circular reference(s) found: some sections have parent links that loop back on themselves (for example, section A is set as the parent of section B, which is set as the parent of section A). Moodle cannot resolve a loop like this. You can manually choose to reparent sections in the table below, or you can attempt to fix it automatically with the button below the list of affected sections.';
-$string['checkstructure_orphanwarning'] = 'Orphaned section(s) found: these sections exist in the database but are hidden and disconnected from the visible course structure. They don\'t appear on the course page, but Moodle can still try to process them during actions like course deletion or duplication, which may cause those actions to fail or behave unexpectedly. Removing them clears the blockage.';
+$string['checkstructure_circularwarning'] = 'Circular reference(s) found: some sections\' parent links loop back on themselves (e.g. A is B\'s parent, and B is A\'s parent). Moodle cannot resolve this. Reparent the affected sections manually below, or use the automatic fix button.';
+$string['checkstructure_orphanwarning'] = 'Orphaned section(s) found: hidden, empty sections disconnected from the course structure. They don\'t appear on the course page but can still block actions like deleting or duplicating the course. Removing them clears the blockage.';
+$string['checkstructure_wipewarning'] = 'Every section is missing its parent record — a sign this course was switched away from Flexsections and back. Moodle deletes Flexsections\' section data on switch-away and does not restore it, so the original nesting is genuinely gone, not just unset. "Repair Structure Data" below will set every section to top-level, the only safe automatic fix; to recover the original hierarchy, restore a course backup taken before the format was changed.';
 
 // Fix action labels and descriptions.
 $string['fixintegrity_label'] = 'Repair Structure Data';
+$string['fixintegrity_label_help'] = 'Removes a wrongly-set parent on section 0, deletes leftover format options for sections that no longer exist, and resets invalid, empty, or missing parent references to top-level.
+
+If every section is missing its parent, the course was likely switched away from Flexsections and back. The original nesting can\'t be recovered here — restore from a backup if you need it.';
 $string['fixintegrity_desc'] = 'Resets invalid, null, or missing parent references to top-level and removes orphaned format options.';
-$string['fixintegrity_confirm'] = 'Repair structure data for this course? This resets invalid parent references to top-level (parent=0) and deletes orphaned format options. This cannot be undone.';
+$string['fixintegrity_confirm'] = 'Repair structure data for this course? Resets invalid parent references to top-level and deletes orphaned format options. This cannot be undone.';
 $string['fixintegrity_done'] = 'Structure data repaired. {$a} item(s) fixed.';
 $string['fixintegrity_none'] = 'No structural data issues found to repair.';
 $string['fixdetails'] = 'Details: {$a}';
 
 $string['fixcleanup_label'] = 'Remove Orphaned Sections';
 $string['fixcleanup_desc'] = 'Permanently deletes hidden, empty sections no longer connected to the course structure.';
-$string['fixcleanup_confirm'] = 'Remove orphaned sections from this course? This permanently deletes all hidden, disconnected empty sections so they can no longer interfere with actions like deleting or duplicating the course. This cannot be undone.';
+$string['fixcleanup_confirm'] = 'Remove orphaned sections from this course? This permanently deletes hidden, disconnected empty sections. This cannot be undone.';
 $string['fixcleanup_done'] = '{$a} orphaned section(s) removed.';
 $string['fixcleanup_none'] = 'No orphaned sections found.';
 
@@ -676,7 +680,7 @@ $string['detail_brokecircular'] = 'Broke circular ref at section "{$a->name}" (s
 
 // Sections reparented to top-level by the circular-reference / invalid-parent fixes.
 $string['reparented_heading'] = 'Sections moved to top level';
-$string['reparented_desc'] = 'These sections had a broken parent reference and have been reset to top-level (the main course page) so the course structure could be repaired. Where possible, a likely original parent is suggested below, based on where the section sits relative to the rest of the course: check it before applying, it is a guess, not a certainty.';
+$string['reparented_desc'] = 'These sections had a broken parent reference and were reset to top-level so the structure could be repaired. Where possible, a likely original parent is suggested below — check it before applying, it\'s a guess, not a certainty.';
 $string['reparented_col_suggested'] = 'Suggested parent';
 $string['reparented_apply_suggestion'] = 'Apply';
 $string['reparented_fixall'] = 'Fix All';
@@ -720,7 +724,7 @@ $string['recheck'] = 'Run Integrity Check Again';
 $string['reanalyzehierarchy'] = 'View Hierarchy Report Again';
 $string['fixcircular'] = 'Break Circular Reference Loops';
 $string['flattenhierarchy'] = 'Reset All to Top Level (Destructive)';
-$string['confirmfixcircular'] = 'Are you sure you want to fix circular parent references? This will break cycles by setting affected sections to top-level (parent=0).';
+$string['confirmfixcircular'] = 'Fix circular parent references? This breaks cycles by setting affected sections to top-level.';
 $string['confirmflattenhierarchy'] = 'WARNING: This will set ALL sections to top-level (parent=0), destroying the entire hierarchy structure. This is a destructive operation that cannot be undone. Are you absolutely sure you want to continue?';
 $string['fixingcircular'] = 'Fixing Circular References';
 $string['flatteninghierarchy'] = 'Flattening Hierarchy';

@@ -515,6 +515,10 @@ function render_integrity_results(array $diag): void {
         return;
     }
 
+    if (!empty($diag['possible_format_switch_wipe'])) {
+        echo $OUTPUT->notification(get_string('checkstructure_wipewarning', 'aiplacement_modgen'), 'error');
+    }
+
     $checkkeys = [
         'section0_with_parent',
         'orphaned_options',
@@ -584,6 +588,14 @@ function display_hierarchy_analysis($courseid) {
         get_string('analyzingcourse', 'aiplacement_modgen', format_string($course->fullname)),
         ['class' => 'alert alert-info']
     );
+
+    // Warn before the tree below, which otherwise defaults every missing parent value to '0'
+    // for display and would render a fully top-level tree indistinguishable from a course that
+    // was always flat, masking a wholesale loss of the stored hierarchy.
+    $diag = integrity_checker::check($courseid);
+    if (!empty($diag['possible_format_switch_wipe'])) {
+        echo $OUTPUT->notification(get_string('checkstructure_wipewarning', 'aiplacement_modgen'), 'error');
+    }
 
     // Build complete section hierarchy.
     // SECURITY: Using parameter binding (?) to prevent SQL injection.

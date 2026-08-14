@@ -53,6 +53,7 @@ class integrity_checker {
         $result = [
             'course'     => $course,
             'has_issues' => false,
+            'possible_format_switch_wipe' => false,
             'counts'     => [
                 'section0_with_parent' => 0,
                 'orphaned_options'     => 0,
@@ -155,6 +156,23 @@ class integrity_checker {
             $result['issues']['missing_parents'] = array_values($rows);
             $result['counts']['missing_parents'] = count($rows);
             $result['has_issues'] = true;
+
+            // Distinguish an isolated missing row (e.g. a raw import gap, harmless — the
+            // section was never nested) from every non-root section losing its parent row at
+            // once. The latter is the signature of a course being switched away from
+            // flexsections and back: core Moodle hard-deletes all course_format_options rows
+            // for the old format on switch-away (course/lib.php update_course()), and
+            // switching back re-creates sections with no 'parent' row at all rather than an
+            // explicit '0'. Once every section is missing the row, defaulting each to 0 makes
+            // a formerly-nested course look like it was always flat — real nesting information
+            // is gone, not merely defaulted, so this is surfaced as a distinct warning rather
+            // than silently folded into the generic missing_parents count. Gated at >= 2
+            // sections so a single-section course (where "all" and "one" coincide) doesn't
+            // read as a wipe from what's just as likely an isolated gap.
+            $nonrootcount = $DB->count_records_select('course_sections', 'course = ? AND section > 0', [$courseid]);
+            if ($nonrootcount >= 2 && count($rows) === $nonrootcount) {
+                $result['possible_format_switch_wipe'] = true;
+            }
         }
 
         // Check 6: Duplicate section numbers.
@@ -333,7 +351,11 @@ class integrity_checker {
      * @return array ['fixed' => int, 'details' => string[], 'reparented' => array{id:int,
      *   section:int, name:string, suggestedparent:int|null}[]] reparented covers only the
      *   invalid_parents branch; the other branches (missing/null/section-0/orphaned) don't
-     *   represent lost nesting information, so there's nothing to suggest for them.
+     *   represent lost nesting information in the ordinary case, so there's nothing to suggest
+     *   for them. The exception is a wholesale missing_parents wipe (see check()'s
+     *   possible_format_switch_wipe flag) — there the original parent values are genuinely
+     *   gone, not merely un-set, and no heuristic here can recover them; this method still
+     *   just resets those rows to top-level, which is the only safe automatic choice.
      */
     public static function fix_integrity(int $courseid): array {
         global $DB;

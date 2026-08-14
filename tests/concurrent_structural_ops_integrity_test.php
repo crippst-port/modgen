@@ -907,4 +907,177 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
             . 'duplicate_section()\'s own captured snapshot went stale mid-operation.'
         );
     }
+
+    /**
+     * Same race as test_duplicate_section_orphans_parent_when_interleaved_with_delete(), but
+     * with Q scaled up to a large section (25 children, each with a real activity) instead of
+     * a 2-child toy.
+     *
+     * Motivation: the production incident this whole file was written to explain involved
+     * deleting large, slow sections specifically — not the small ones used above for a fast,
+     * deterministic proof. The corruption mechanism itself (a captured-then-stale snapshot in
+     * duplicate_section()) doesn't depend on Q's size, but this exists to confirm nothing about
+     * scale changes the outcome: a bigger renumbering shift, more rows removed in one
+     * transaction, more modules deleted in the unlocked loop — none of it self-corrects.
+     *
+     * @covers \format_flexsections::duplicate_section
+     * @covers \format_flexsections::duplicate_section_properties
+     * @covers \format_flexsections::delete_section_with_children
+     */
+    public function test_duplicate_section_orphans_parent_when_interleaved_with_large_delete(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        // Q = section 1, with 25 children, each carrying a real activity — standing in for
+        // the "large, slow section" reported in production, rather than the 2-child toy above.
+        $childcount = 25;
+        $course = $this->getDataGenerator()->create_course(
+            ['numsections' => 1, 'format' => 'flexsections'],
+            ['createsections' => true]
+        );
+        $format = course_get_format($course->id);
+        $qnum = $format->create_new_section(0);
+        for ($i = 0; $i < $childcount; $i++) {
+            $childnum = $format->create_new_section($qnum);
+            $this->getDataGenerator()->create_module('page', ['course' => $course->id, 'section' => $childnum]);
+        }
+
+        // P = a fresh top-level section; X = P's only child (the one we'll duplicate).
+        $pnum = $format->create_new_section(0);
+        $xnum = $format->create_new_section($pnum);
+        rebuild_course_cache($course->id, true);
+        course_modinfo::clear_instance_cache($course->id);
+
+        $modinfo = get_fast_modinfo($course->id);
+        $qid = $modinfo->get_section_info($qnum)->id;
+        $xid = $modinfo->get_section_info($xnum)->id;
+
+        // Same barrier technique as the toy-scale test above: pause the real
+        // duplicate_section_properties() right before it writes the clone's parent, run a
+        // real delete_section_with_children() on the now-large Q inline (standing in for
+        // "another tab's request finishing its slow delete"), then resume.
+        $courseid = $course->id;
+        $hookfired = false;
+        $barrierformat = new class ($courseid) extends \format_flexsections {
+            /** @var callable|null Hook invoked from inside duplicate_section_properties(). */
+            public $onhook;
+
+            /**
+             * Construct the barrier format for the given course.
+             *
+             * @param int $courseid Course ID.
+             */
+            public function __construct($courseid) {
+                parent::__construct('flexsections', $courseid);
+            }
+
+            /**
+             * Pauses at the hook point before delegating to the real implementation.
+             *
+             * @param \section_info $originalsection Section being duplicated.
+             * @param int $newparent Destination parent section number.
+             * @param bool $istop Whether this is the top-level section of the duplication.
+             * @return \stdClass
+             */
+            protected function duplicate_section_properties(
+                \section_info $originalsection,
+                int $newparent,
+                bool $istop = false
+            ): \stdClass {
+                if ($this->onhook) {
+                    $hook = $this->onhook;
+                    $this->onhook = null;
+                    $hook();
+                }
+                return parent::duplicate_section_properties($originalsection, $newparent, $istop);
+            }
+        };
+
+        $barrierformat->onhook = function () use ($courseid, $qid, &$hookfired) {
+            $hookfired = true;
+            course_modinfo::clear_instance_cache($courseid);
+            $otherformat = course_get_format($courseid);
+            $qsection = get_fast_modinfo($courseid)->get_section_info_by_id($qid, MUST_EXIST);
+            $otherformat->delete_section_with_children($qsection);
+        };
+
+        $xinfo = get_fast_modinfo($courseid)->get_section_info_by_id($xid, MUST_EXIST);
+        $newsection = $barrierformat->duplicate_section($xinfo);
+
+        $this->assertTrue($hookfired, 'The mid-duplicate hook must have fired (sanity check on the test itself).');
+
+        course_modinfo::clear_instance_cache($courseid);
+        $problems = $this->audit($courseid);
+        fwrite(STDERR, "[large-duplicate-orphan] Q had {$childcount} children; new section num="
+            . "{$newsection->section}; audit: " . ($problems ? implode('; ', $problems) : 'SOUND') . "\n");
+
+        $this->assertNotEmpty(
+            $problems,
+            'Expected the large delete to still produce structural corruption — scale should not '
+            . 'self-correct a stale-snapshot race.'
+        );
+    }
+
+    /**
+     * Quantifies the "slow" half of "large, slow sections cause this": deleting a section with
+     * many children and activities takes measurably longer than deleting a small one, which is
+     * exactly what widens the race window the tests above exploit deterministically via a
+     * hook. This doesn't race anything itself — it just confirms the premise with real
+     * wall-clock numbers instead of assuming it.
+     *
+     * @covers \format_flexsections::delete_section_with_children
+     */
+    public function test_delete_duration_increases_with_section_size(): void {
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $smallcourse = $this->getDataGenerator()->create_course(
+            ['numsections' => 1, 'format' => 'flexsections'],
+            ['createsections' => true]
+        );
+        $smallformat = course_get_format($smallcourse->id);
+        $smallqnum = $smallformat->create_new_section(0);
+        for ($i = 0; $i < 2; $i++) {
+            $childnum = $smallformat->create_new_section($smallqnum);
+            $this->getDataGenerator()->create_module('page', ['course' => $smallcourse->id, 'section' => $childnum]);
+        }
+        rebuild_course_cache($smallcourse->id, true);
+        course_modinfo::clear_instance_cache($smallcourse->id);
+
+        $largecourse = $this->getDataGenerator()->create_course(
+            ['numsections' => 1, 'format' => 'flexsections'],
+            ['createsections' => true]
+        );
+        $largeformat = course_get_format($largecourse->id);
+        $largeqnum = $largeformat->create_new_section(0);
+        for ($i = 0; $i < 40; $i++) {
+            $childnum = $largeformat->create_new_section($largeqnum);
+            $this->getDataGenerator()->create_module('page', ['course' => $largecourse->id, 'section' => $childnum]);
+        }
+        rebuild_course_cache($largecourse->id, true);
+        course_modinfo::clear_instance_cache($largecourse->id);
+
+        $smallsection = get_fast_modinfo($smallcourse->id)->get_section_info($smallqnum);
+        $smallstart = microtime(true);
+        course_get_format($smallcourse->id)->delete_section_with_children($smallsection);
+        $smallduration = microtime(true) - $smallstart;
+
+        $largesection = get_fast_modinfo($largecourse->id)->get_section_info($largeqnum);
+        $largestart = microtime(true);
+        course_get_format($largecourse->id)->delete_section_with_children($largesection);
+        $largeduration = microtime(true) - $largestart;
+
+        fwrite(STDERR, sprintf(
+            "[delete-duration] small (2 children): %.3fs; large (40 children): %.3fs\n",
+            $smallduration,
+            $largeduration
+        ));
+
+        $this->assertGreaterThan(
+            $smallduration,
+            $largeduration,
+            'Deleting a large section should take measurably longer than a small one — this is '
+            . 'the real-world mechanism that widens the race window in the tests above.'
+        );
+    }
 }

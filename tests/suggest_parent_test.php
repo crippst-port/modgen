@@ -197,8 +197,8 @@ final class suggest_parent_test extends advanced_testcase {
         ], '*', MUST_EXIST);
         $this->force_self_parent($sectiona->id, $sectionnuma);
 
-        // setUp() already broke every ambient section before A, and A itself is now broken
-        // too, so nothing valid exists anywhere before A.
+        // The setUp() method already broke every ambient section before A, and A itself is
+        // now broken too, so nothing valid exists anywhere before A.
         $this->assertNull(integrity_checker::suggest_parent($this->course->id, $sectionnuma));
     }
 

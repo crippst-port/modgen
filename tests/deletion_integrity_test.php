@@ -105,6 +105,59 @@ final class deletion_integrity_test extends advanced_testcase {
     }
 
     /**
+     * Find sections whose flexsections parent chain loops back on itself.
+     *
+     * @return int[] Section numbers with a recursive parent chain.
+     */
+    private function find_recursive_parent_options(): array {
+        global $DB;
+
+        $sections = $DB->get_records('course_sections', ['course' => $this->course->id]);
+        $parents = [];
+        $sectionbyid = [];
+        foreach ($sections as $section) {
+            $sectionnum = (int)$section->section;
+            $parents[$sectionnum] = 0;
+            $sectionbyid[(int)$section->id] = $sectionnum;
+        }
+
+        $parentrows = $DB->get_records('course_format_options', [
+            'courseid' => $this->course->id,
+            'format'   => 'flexsections',
+            'name'     => 'parent',
+        ]);
+        foreach ($parentrows as $row) {
+            $sectionid = (int)$row->sectionid;
+            if (isset($sectionbyid[$sectionid])) {
+                $parents[$sectionbyid[$sectionid]] = (int)$row->value;
+            }
+        }
+
+        $recursive = [];
+        foreach ($parents as $sectionnum => $parent) {
+            $seen = [$sectionnum => true];
+            while ($parent !== 0 && isset($parents[$parent])) {
+                if (isset($seen[$parent])) {
+                    $recursive[] = $sectionnum;
+                    break;
+                }
+                $seen[$parent] = true;
+                $parent = $parents[$parent];
+            }
+        }
+        return $recursive;
+    }
+
+    /**
+     * Skip the deliberately expensive stress test unless long tests are enabled.
+     */
+    private function require_long_test(): void {
+        if (!defined('PHPUNIT_LONGTEST') || !PHPUNIT_LONGTEST) {
+            $this->markTestSkipped('Repeated large-section deletion test only runs with PHPUNIT_LONGTEST=1.');
+        }
+    }
+
+    /**
      * Build a theme payload with activities so tracker rows get created.
      *
      * @return array
@@ -320,6 +373,49 @@ final class deletion_integrity_test extends advanced_testcase {
 
         // Final render check.
         $this->assertNotEmpty(get_fast_modinfo($this->course->id)->get_section_info_all());
+    }
+
+    /**
+     * Repeatedly deleting large, nested sections must never create a circular
+     * flexsections parent chain while section numbers are being renumbered.
+     *
+     * @covers \format_flexsections::delete_section_with_children
+     */
+    public function test_repeated_large_section_deletions_leave_no_recursive_parents(): void {
+        $this->require_long_test();
+
+        $cycles = 4;
+        $childcount = 25;
+        for ($cycle = 1; $cycle <= $cycles; $cycle++) {
+            $format = course_get_format($this->course->id);
+            $rootnum = $format->create_new_section(0);
+            for ($child = 1; $child <= $childcount; $child++) {
+                $childnum = $format->create_new_section($rootnum);
+                $this->getDataGenerator()->create_module('page', [
+                    'course' => $this->course->id,
+                    'section' => $childnum,
+                    'name' => "Cycle {$cycle} child {$child}",
+                ]);
+            }
+            rebuild_course_cache($this->course->id, true);
+            \course_modinfo::clear_instance_cache($this->course->id);
+
+            $root = get_fast_modinfo($this->course->id)->get_section_info($rootnum, MUST_EXIST);
+            $format->delete_section_with_children($root);
+            rebuild_course_cache($this->course->id, true, true);
+            \course_modinfo::clear_instance_cache($this->course->id);
+
+            $this->assertSame(
+                [],
+                $this->find_orphaned_parent_options(),
+                "Cycle {$cycle}: no parent may point at a deleted section."
+            );
+            $this->assertSame(
+                [],
+                $this->find_recursive_parent_options(),
+                "Cycle {$cycle}: no section may be its own ancestor after the large delete."
+            );
+        }
     }
 
     /**

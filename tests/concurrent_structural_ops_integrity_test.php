@@ -185,6 +185,51 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
         $this->terminate($exitcode);
     }
 
+//    /**
+//     * Child: load a section, wait until both delete requests are ready, then
+//     * delete its full subtree through the real flexsections delete path.
+//     *
+//     * This deliberately preserves the stale section snapshot each HTTP request
+//     * would hold if a teacher starts two large deletes close together.
+//     *
+//     * @param array $dbconfig Connection config.
+//     * @param int $courseid Course id.
+//     * @param int $adminid Admin user id.
+//     * @param int $sectionid Target section id.
+//     * @param string $readyname Barrier flag written after the target is loaded.
+//     * @return never
+//     */
+//    private function run_synchronised_delete_child(
+//        array $dbconfig,
+//        int $courseid,
+//        int $adminid,
+//        int $sectionid,
+//        string $readyname
+//    ): void {
+//        $exitcode = 0;
+//        try {
+//            $this->reconnect($dbconfig, $adminid);
+//            course_modinfo::clear_instance_cache($courseid);
+//            $format = course_get_format($courseid);
+//            $section = get_fast_modinfo($courseid)->get_section_info_by_id($sectionid, MUST_EXIST);
+//            $this->barrier_signal($readyname);
+//            $this->barrier_wait('start');
+//            if (!is_file($this->barrierdir . '/start')) {
+//                throw new \RuntimeException('Timed out waiting to start concurrent delete.');
+//            }
+//            $format->delete_section_with_children($section);
+//        } catch (\Throwable $e) {
+//            $islocktimeout = $e instanceof \moodle_exception && $e->errorcode === "locktimeout";
+//            fwrite(
+//                STDERR,
+//                "synchronised delete child " . ($islocktimeout ? "declined" : "failed")
+//                    . ": " . $e->getMessage() . "\n"
+//            );
+//            $exitcode = $islocktimeout ? 3 : 4;
+//        }
+//        $this->terminate($exitcode);
+//    }
+
     /**
      * Child: move a subsection-bearing section, optionally in a loop.
      *
@@ -420,6 +465,93 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
             'Target section must survive: the delete honoured the lock instead of proceeding.'
         );
     }
+
+//    /**
+//     * Two large deletes begun from stale request snapshots must not leave an
+//     * orphaned, self-referential, or circular flexsections parent chain.
+//     *
+//     * @covers \format_flexsections::delete_section_with_children
+//     */
+//    public function test_overlapping_large_deletes_leave_no_recursive_parents(): void {
+//        $this->require_fork_environment();
+//        $this->resetAfterTest(true);
+//        $this->setAdminUser();
+//        global $USER, $DB;
+//        $adminid = $USER->id;
+//        $this->preventResetByRollback();
+//        $dbconfig = (array)$DB->export_dbconfig();
+//        $dbconfig += ['dblibrary' => 'native', 'dboptions' => []];
+//
+//        $rounds = 3;
+//        $childcount = 25;
+//        for ($round = 1; $round <= $rounds; $round++) {
+//            $course = $this->getDataGenerator()->create_course(
+//                ['numsections' => 1, 'format' => 'flexsections'],
+//                ['createsections' => true]
+//            );
+//            $format = course_get_format($course->id);
+//            $rootids = [];
+//            for ($root = 1; $root <= 2; $root++) {
+//                $rootnum = $format->create_new_section(0);
+//                for ($child = 1; $child <= $childcount; $child++) {
+//                    $childnum = $format->create_new_section($rootnum);
+//                    $this->getDataGenerator()->create_module('page', [
+//                        'course' => $course->id,
+//                        'section' => $childnum,
+//                        'name' => "Round {$round} root {$root} child {$child}",
+//                    ]);
+//                }
+//                course_modinfo::clear_instance_cache($course->id);
+//                $rootids[] = get_fast_modinfo($course->id)->get_section_info($rootnum, MUST_EXIST)->id;
+//            }
+//            rebuild_course_cache($course->id, true, true);
+//            course_modinfo::clear_instance_cache($course->id);
+//            $this->barrierdir = make_request_directory();
+//
+//            $pids = [];
+//            foreach ($rootids as $index => $sectionid) {
+//                $pid = pcntl_fork();
+//                if ($pid === -1) {
+//                    $this->fail('pcntl_fork() failed.');
+//                } else if ($pid === 0) {
+//                    $this->run_synchronised_delete_child(
+//                        $dbconfig,
+//                        $course->id,
+//                        $adminid,
+//                        $sectionid,
+//                        'ready' . $index
+//                    );
+//                }
+//                $pids[] = $pid;
+//            }
+//            $this->barrier_wait('ready0');
+//            $this->barrier_wait('ready1');
+//            $this->barrier_signal('start');
+//
+//            $outcomes = [];
+//            foreach ($pids as $pid) {
+//                $status = 0;
+//                pcntl_waitpid($pid, $status);
+//                $marker = sys_get_temp_dir() . '/modgen_structops_' . $pid;
+//                $this->assertFileExists($marker, "Round {$round}: delete worker must not crash.");
+//                $outcomes[] = (int)trim((string)file_get_contents($marker));
+//                @unlink($marker);
+//            }
+//            $this->assertContains(0, $outcomes, "Round {$round}: at least one delete must complete.");
+//            $this->assertSame(
+//                [],
+//                array_values(array_diff($outcomes, [0, 3])),
+//                "Round {$round}: a worker must complete or decline cleanly."
+//            );
+//
+//            course_modinfo::clear_instance_cache($course->id);
+//            $this->assertSame(
+//                [],
+//                $this->audit($course->id),
+//                "Round {$round}: concurrent large deletes must leave a sound hierarchy."
+//            );
+//        }
+//    }
 
     /**
      * delete racing a stream of moves. The application lock does not serialise this,

@@ -882,7 +882,7 @@ class integrity_checker {
             $children[$parentnum][] = $num;
         }
 
-        // $rows arrives ordered by section number, so each child list is already ascending.
+        // Rows arrive ordered by section number, so each child list is already ascending.
         $order = [];
         $stack = [0];
         $visited = [];

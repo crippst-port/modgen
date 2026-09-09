@@ -625,14 +625,14 @@ class section_creation_service {
                 if (!$sectioninfo || !$anchorinfo) {
                     continue;
                 }
-                // move_section() inserts before a SIBLING, so the anchor has to be top level
-                // too - otherwise can_move_section_to() rejects the move.
+                // The move_section() call inserts before a SIBLING, so the anchor has to be top
+                // level too - otherwise can_move_section_to() rejects the move.
                 if (!empty($anchorinfo->parent) || $sectioninfo->section == $anchorinfo->section) {
                     continue;
                 }
 
                 try {
-                    // format_flexsections::move_section($section, $parent, $before):
+                    // The format_flexsections::move_section($section, $parent, $before) signature:
                     // parent 0 = top level, $before = the sibling to insert in front of.
                     // (Not core's move_section_to($course, $section, $destination) - passing
                     // a position as the parent, or a boolean as $before, silently does

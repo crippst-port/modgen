@@ -173,7 +173,13 @@ final class section_order_test extends advanced_testcase {
         // The shape append-then-reparent produces: A1 is numbered after B, not after A.
         $a = theme_builder::create_section_with_parent($this->course->id, $format, 0, 'A', '', FORMAT_PLAIN);
         $b = theme_builder::create_section_with_parent(
-            $this->course->id, \course_get_format($this->course->id), 0, 'B', '', FORMAT_PLAIN);
+            $this->course->id,
+            \course_get_format($this->course->id),
+            0,
+            'B',
+            '',
+            FORMAT_PLAIN
+        );
         $a1 = theme_builder::create_section_with_parent(
             $this->course->id,
             \course_get_format($this->course->id),
@@ -222,11 +228,29 @@ final class section_order_test extends advanced_testcase {
 
         // Built in reverse, so the chain A -> A1 -> A2 runs downwards in section number.
         $a2 = theme_builder::create_section_with_parent(
-            $this->course->id, \course_get_format($this->course->id), 0, 'A2', '', FORMAT_PLAIN);
+            $this->course->id,
+            \course_get_format($this->course->id),
+            0,
+            'A2',
+            '',
+            FORMAT_PLAIN
+        );
         $a1 = theme_builder::create_section_with_parent(
-            $this->course->id, \course_get_format($this->course->id), 0, 'A1', '', FORMAT_PLAIN);
+            $this->course->id,
+            \course_get_format($this->course->id),
+            0,
+            'A1',
+            '',
+            FORMAT_PLAIN
+        );
         $a = theme_builder::create_section_with_parent(
-            $this->course->id, \course_get_format($this->course->id), 0, 'A', '', FORMAT_PLAIN);
+            $this->course->id,
+            \course_get_format($this->course->id),
+            0,
+            'A',
+            '',
+            FORMAT_PLAIN
+        );
 
         $anum = (int) $DB->get_field('course_sections', 'section', ['id' => $a->id]);
         $a1num = (int) $DB->get_field('course_sections', 'section', ['id' => $a1->id]);

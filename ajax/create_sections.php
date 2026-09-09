@@ -70,8 +70,11 @@ $parentsection = optional_param('parentsection', 0, PARAM_INT); // Current secti
 // the task convert it back at execution time.
 $parentsectionid = null;
 if ($parentsection > 0) {
-    $parentsectionid = $DB->get_field('course_sections', 'id',
-        ['course' => $courseid, 'section' => $parentsection]) ?: null;
+    $parentsectionid = $DB->get_field(
+        'course_sections',
+        'id',
+        ['course' => $courseid, 'section' => $parentsection]
+    ) ?: null;
 }
 // Whether to create the learningactivity "section summary" placeholder modules.
 // The Quick Add forms always submit this (advcheckbox, default off); this fallback

@@ -265,7 +265,7 @@ class theme_builder {
                         $themetitle,
                         $themesummary,
                         $options,
-                        false,  // Defer cache rebuild.
+                        false, // Defer cache rebuild.
                         $parentnum
                     );
                     $createdcount++;
@@ -676,6 +676,18 @@ class theme_builder {
         }
     }
 
+    /**
+     * Create a theme section (top-level by default, or nested under a parent).
+     *
+     * @param int $courseid Course ID
+     * @param object $courseformat Course format object
+     * @param string $title Theme title
+     * @param string $summary Theme summary (plain text)
+     * @param array $options Optional settings (e.g., ['collapsed' => 1])
+     * @param bool $rebuildcache Whether to rebuild course cache after creation (default true)
+     * @param int $parent Parent section number (0 for top-level)
+     * @return int Section number of created theme
+     */
     public static function create_theme_section(
         $courseid,
         $courseformat,

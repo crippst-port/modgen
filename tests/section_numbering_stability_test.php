@@ -35,10 +35,11 @@ use aiplacement_modgen\local\theme_builder;
 defined('MOODLE_INTERNAL') || die();
 
 /**
+ * Tests for section numbering stability across flexsections structural writes.
+ *
  * @covers \aiplacement_modgen\local\theme_builder
  */
 final class section_numbering_stability_test extends advanced_testcase {
-
     /**
      * Parent of each named section, as {name => parent name}: independent of numbering.
      *
@@ -68,6 +69,8 @@ final class section_numbering_stability_test extends advanced_testcase {
     }
 
     /**
+     * Create a flexsections course with the given number of top-level sections.
+     *
      * @return \stdClass
      */
     private function make_course(int $numsections = 6): \stdClass {
@@ -90,18 +93,24 @@ final class section_numbering_stability_test extends advanced_testcase {
 
         // A container to add the themes inside.
         $containernum = theme_builder::create_theme_section(
-            $course->id, $courseformat, 'Container', '');
+            $course->id,
+            $courseformat,
+            'Container',
+            ''
+        );
         $containerid = theme_builder::section_id_from_number($course->id, $containernum);
 
         theme_builder::create_themes($course->id, 2, 1, $containernum, false);
 
         $containernow = theme_builder::current_section_number($course->id, $containerid);
-        $themes = $DB->get_records_sql("SELECT cs.id, cs.name, cfo.value AS parent
+        $themes = $DB->get_records_sql(
+            "SELECT cs.id, cs.name, cfo.value AS parent
               FROM {course_sections} cs
               JOIN {course_format_options} cfo
                 ON cfo.sectionid = cs.id AND cfo.name = 'parent' AND cfo.courseid = cs.course
              WHERE cs.course = :courseid AND " . $DB->sql_like('cs.name', ':n'),
-            ['courseid' => $course->id, 'n' => 'Theme %']);
+            ['courseid' => $course->id, 'n' => 'Theme %']
+        );
 
         // Only the themes themselves - not the weeks nested inside them, whose names also
         // begin "Theme " (e.g. "Theme 1 - Week 1") and which correctly point at their theme.
@@ -109,8 +118,11 @@ final class section_numbering_stability_test extends advanced_testcase {
 
         $this->assertNotEmpty($toplevelthemes, 'Themes should have been created.');
         foreach ($toplevelthemes as $theme) {
-            $this->assertSame((int) $containernow, (int) $theme->parent,
-                "Theme '{$theme->name}' should be nested inside the requested section.");
+            $this->assertSame(
+                (int) $containernow,
+                (int) $theme->parent,
+                "Theme '{$theme->name}' should be nested inside the requested section."
+            );
         }
 
         // And the weeks should hang off their theme, not off the container.
@@ -119,8 +131,11 @@ final class section_numbering_stability_test extends advanced_testcase {
             $themenums[] = (int) $DB->get_field('course_sections', 'section', ['id' => $t->id]);
         }
         foreach (array_diff_key($themes, $toplevelthemes) as $week) {
-            $this->assertContains((int) $week->parent, $themenums,
-                "Week '{$week->name}' should be nested under one of the themes.");
+            $this->assertContains(
+                (int) $week->parent,
+                $themenums,
+                "Week '{$week->name}' should be nested under one of the themes."
+            );
         }
     }
 
@@ -141,8 +156,10 @@ final class section_numbering_stability_test extends advanced_testcase {
         $si = course_get_format($course)->get_modinfo()->get_section_info($doomednum);
         course_get_format($course)->delete_section_with_children($si);
 
-        $this->assertNull(theme_builder::current_section_number($course->id, $doomedid),
-            'Sanity check: the pinned section really is gone.');
+        $this->assertNull(
+            theme_builder::current_section_number($course->id, $doomedid),
+            'Sanity check: the pinned section really is gone.'
+        );
 
         // Building with the now-dead id must not attach to the number's new occupant.
         $result = theme_builder::create_weeks($course->id, 1, 0, false);
@@ -165,8 +182,11 @@ final class section_numbering_stability_test extends advanced_testcase {
         $weeks = array_filter($shape, fn($p, $n) => strpos($n, 'Week') !== false, ARRAY_FILTER_USE_BOTH);
         $this->assertNotEmpty($weeks, 'Weeks should have been created.');
         foreach ($weeks as $name => $parent) {
-            $this->assertStringContainsString('Theme', $parent,
-                "Week '$name' should be nested under a theme, found '$parent'.");
+            $this->assertStringContainsString(
+                'Theme',
+                $parent,
+                "Week '$name' should be nested under a theme, found '$parent'."
+            );
         }
     }
 
@@ -186,13 +206,18 @@ final class section_numbering_stability_test extends advanced_testcase {
         course_get_format($course)->move_section($targetnum, 0, 1);
 
         $nownum = theme_builder::current_section_number($course->id, $targetid);
-        $this->assertNotSame($targetnum, $nownum,
-            'This test is only meaningful if the move actually renumbered the section.');
+        $this->assertNotSame(
+            $targetnum,
+            $nownum,
+            'This test is only meaningful if the move actually renumbered the section.'
+        );
 
         global $DB;
-        $this->assertSame('Target',
+        $this->assertSame(
+            'Target',
             $DB->get_field('course_sections', 'name', ['course' => $course->id, 'section' => $nownum]),
-            'The id must still resolve to the same section after the renumber.');
+            'The id must still resolve to the same section after the renumber.'
+        );
     }
 
     /**
@@ -225,9 +250,11 @@ final class section_numbering_stability_test extends advanced_testcase {
         $bid = theme_builder::section_id_from_number($course->id, $bnum);
 
         $assessnumbefore = (int) $DB->get_field('course_sections', 'section', ['id' => $assessments->id]);
-        $this->assertGreaterThan($assessnumbefore,
+        $this->assertGreaterThan(
+            $assessnumbefore,
             theme_builder::current_section_number($course->id, $aid),
-            'Sanity: the new sections start after Assessments.');
+            'Sanity: the new sections start after Assessments.'
+        );
 
         // Drive the private reorder step the import uses.
         $service = new local\section_creation_service();
@@ -277,12 +304,21 @@ final class section_numbering_stability_test extends advanced_testcase {
         course_get_format($course)->move_section($other, 0, 1);
 
         $containernow = theme_builder::current_section_number($course->id, $containerid);
-        $this->assertNotSame($containernum, $containernow,
-            'This test is only meaningful if the container actually moved.');
-        $occupant = $DB->get_field('course_sections', 'name',
-            ['course' => $course->id, 'section' => $containernum]);
-        $this->assertNotSame('Container', $occupant,
-            'A different section should now hold the captured number.');
+        $this->assertNotSame(
+            $containernum,
+            $containernow,
+            'This test is only meaningful if the container actually moved.'
+        );
+        $occupant = $DB->get_field(
+            'course_sections',
+            'name',
+            ['course' => $course->id, 'section' => $containernum]
+        );
+        $this->assertNotSame(
+            'Container',
+            $occupant,
+            'A different section should now hold the captured number.'
+        );
 
         $task = new \aiplacement_modgen\task\create_sections_task();
         $task->set_custom_data((object) [
@@ -301,12 +337,14 @@ final class section_numbering_stability_test extends advanced_testcase {
         ob_end_clean();
 
         // The week must be inside the Container, not inside whatever took its old number.
-        $week = $DB->get_record_sql("SELECT cs.id, cfo.value AS parent
+        $week = $DB->get_record_sql(
+            "SELECT cs.id, cfo.value AS parent
               FROM {course_sections} cs
               JOIN {course_format_options} cfo
                 ON cfo.sectionid = cs.id AND cfo.name = 'parent' AND cfo.courseid = cs.course
              WHERE cs.course = :courseid AND " . $DB->sql_like('cs.name', ':n'),
-            ['courseid' => $course->id, 'n' => 'Week %']);
+            ['courseid' => $course->id, 'n' => 'Week %']
+        );
 
         $this->assertNotEmpty($week, 'A week should have been created.');
         $this->assertSame(

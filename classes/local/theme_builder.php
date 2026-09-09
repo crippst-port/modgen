@@ -368,7 +368,7 @@ class theme_builder {
                 // Numbering tidy-up, after the commit but still under the structure locks:
                 // see renumber_into_hierarchy_order(). Deliberately outside the transaction
                 // so its own transaction and cache rebuild are not nested inside this one.
-                self::renumber_into_hierarchy_order($courseid);
+                self::renumber_into_hierarchy_order($courseid, true);
             } catch (\Exception $e) {
                 // Transaction automatically rolls back on exception.
                 // Log technical details for administrators only.
@@ -514,7 +514,7 @@ class theme_builder {
 
                 // Numbering tidy-up, after the commit but still under the structure locks:
                 // see renumber_into_hierarchy_order().
-                self::renumber_into_hierarchy_order($courseid);
+                self::renumber_into_hierarchy_order($courseid, true);
             } catch (\Exception $e) {
                 // Transaction automatically rolls back on exception.
                 // Log technical details for administrators only.
@@ -531,20 +531,6 @@ class theme_builder {
         ];
     }
 
-    /**
-     * Create a single theme section (for CSV/AI workflows).
-     *
-     * Creates top-level theme section with custom title and summary.
-     * Does NOT create weeks - caller is responsible for creating child weeks.
-     *
-     * @param int $courseid Course ID
-     * @param object $courseformat Course format object
-     * @param string $title Theme title
-     * @param string $summary Theme summary (HTML)
-     * @param array $options Optional settings (e.g., ['collapsed' => 1])
-     * @param bool $rebuildcache Whether to rebuild course cache after creation (default true)
-     * @return int Section number of created theme
-     */
     /**
      * Put the course's section numbers back into flexsections' hierarchy order after a build.
      *
@@ -576,10 +562,12 @@ class theme_builder {
      * fact.
      *
      * @param int $courseid Course ID
+     * @param bool $locksheld True when the caller already holds the structure locks, so
+     *   fix_section_order() must not try to acquire them again.
      */
-    public static function renumber_into_hierarchy_order($courseid) {
+    public static function renumber_into_hierarchy_order($courseid, $locksheld = false) {
         try {
-            integrity_checker::fix_section_order($courseid);
+            integrity_checker::fix_section_order($courseid, $locksheld);
         } catch (\Exception $e) {
             debugging('Section renumber after build failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
         }
@@ -639,12 +627,22 @@ class theme_builder {
      * Both flexsections key forms are taken so this works against any build of the plugin:
      * upstream uses the fixed string, a per-course key is the sane variant.
      *
+     * KNOWN TRADEOFF - 'course_modification_lock' has no course id in it, so holding it for
+     * the duration of a build blocks section deletion in EVERY course on the site, not just
+     * this one (format_flexsections::delete_section_with_children() waits only 10s on it and
+     * then throws 'locktimeout'). This is deliberate and cannot be fixed from here: upstream
+     * flexsections guards a per-course operation with a global key, and dropping the key is
+     * what would actually remove the exclusion, since the per-course key below is one nothing
+     * else takes. Narrowing the hold does not help either - the whole locked region is the
+     * structural section creation the lock exists to protect. The real fix is upstream: give
+     * delete_section_with_children() a per-course key, then drop the global one here.
+     *
      * @param int $courseid Course ID
      * @param int $timeout Seconds to wait per lock
      * @return array Held locks (release with release_structure_locks())
      * @throws \moodle_exception if any lock cannot be obtained
      */
-    protected static function acquire_structure_locks($courseid, $timeout = 60) {
+    public static function acquire_structure_locks($courseid, $timeout = 60) {
         $locks = [];
         $wanted = [
             ['core_course_edit', 'course_edit_' . $courseid],
@@ -670,7 +668,7 @@ class theme_builder {
      *
      * @param array $locks
      */
-    protected static function release_structure_locks(array $locks) {
+    public static function release_structure_locks(array $locks) {
         foreach ($locks as $lock) {
             $lock->release();
         }

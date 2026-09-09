@@ -757,13 +757,39 @@ class integrity_checker {
      * unlike a real move there is no visibility cascade to apply.
      *
      * @param int $courseid Course ID
+     * @param bool $locksheld True when the caller already holds the structure locks (the
+     *   post-build tidy-up in theme_builder does), so they must not be acquired again.
      * @return array {
      *   fixed: int           number of sections given a new number (0 if already in order)
      *   checkable: bool      false if the ordering could not be determined; nothing was written
      *   blockedby: string|null  'notflexsections' or 'brokenhierarchy' when not checkable
      * }
      */
-    public static function fix_section_order(int $courseid): array {
+    public static function fix_section_order(int $courseid, bool $locksheld = false): array {
+        // check_section_order() snapshots every section's number and the whole write below
+        // is derived from that snapshot. A concurrent format_flexsections delete or move
+        // renumbers the same rows, so snapshot and write have to happen under the same
+        // structure locks a build holds - otherwise this commits a stale numbering over
+        // whatever the other operation just did. Callers already inside those locks
+        // (theme_builder's post-build tidy-up) pass $locksheld and must not re-acquire.
+        $locks = $locksheld ? [] : theme_builder::acquire_structure_locks($courseid);
+
+        try {
+            return self::apply_section_order($courseid);
+        } finally {
+            if (!$locksheld) {
+                theme_builder::release_structure_locks($locks);
+            }
+        }
+    }
+
+    /**
+     * Renumber the course into hierarchy order. Caller guarantees the structure locks are held.
+     *
+     * @param int $courseid Course ID
+     * @return array Same shape as fix_section_order()
+     */
+    private static function apply_section_order(int $courseid): array {
         global $DB;
 
         $check = self::check_section_order($courseid);

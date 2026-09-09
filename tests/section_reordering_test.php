@@ -469,6 +469,61 @@ final class section_reordering_test extends advanced_testcase {
     }
 
     /**
+     * Test that multiple new top-level sections keep their generated order.
+     *
+     * hide_and_reorder_sections() moves each new section in front of a fixed anchor, so the
+     * last one moved ends up nearest that anchor. Iterating the list in reverse therefore
+     * emits them backwards. Nothing else in this file asserts sequence - only visibility -
+     * which is why that inversion went unnoticed.
+     *
+     * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
+     */
+    public function test_multiple_new_themes_keep_their_order(): void {
+        global $DB;
+        $this->resetAfterTest(true);
+        $this->setAdminUser();
+
+        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
+        theme_builder::ensure_flexsections_format($course->id);
+
+        // An existing top-level section, so the hide-and-reorder path has something to move past.
+        $this->create_existing_top_level_section($course->id, 'Old Section');
+
+        $structure = [
+            'themes' => [
+                ['title' => 'Theme 1', 'summary' => 'Summary 1', 'weeks' => []],
+                ['title' => 'Theme 2', 'summary' => 'Summary 2', 'weeks' => []],
+                ['title' => 'Theme 3', 'summary' => 'Summary 3', 'weeks' => []],
+            ],
+        ];
+
+        $service = new section_creation_service();
+        $service->create_sections_from_json(
+            $structure,
+            $course->id,
+            'connected_theme',
+            false,
+            false,
+            true // Hideexistingsections = TRUE - this is the only path that reorders.
+        );
+
+        // Read the three themes back in course order and compare against the order requested.
+        $names = [];
+        $sections = $DB->get_records('course_sections', ['course' => $course->id], 'section ASC');
+        foreach ($sections as $section) {
+            if (in_array($section->name, ['Theme 1', 'Theme 2', 'Theme 3'], true)) {
+                $names[] = $section->name;
+            }
+        }
+
+        $this->assertSame(
+            ['Theme 1', 'Theme 2', 'Theme 3'],
+            $names,
+            'New top-level sections must appear in the order they were generated, not reversed'
+        );
+    }
+
+    /**
      * Test hiding sections multiple times is idempotent.
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json

@@ -82,6 +82,13 @@ class section_creation_service {
             constants::GENERATION_LOCK_TIMEOUT
         );
 
+        // get_lock() returns false on timeout. Report that here, before any work: the release
+        // in the finally below is reached on every path, and a false lock there would fatal on
+        // false->release() rather than surfacing the timeout.
+        if (!$lock) {
+            throw new \moodle_exception('erroracquiringlock', 'aiplacement_modgen');
+        }
+
         try {
             // Track existing sections if hiding is enabled.
             $existingsectionids = [];
@@ -197,7 +204,7 @@ class section_creation_service {
                     debugging(get_string('cacherebuildfailed', 'aiplacement_modgen', $e->getMessage()), DEBUG_DEVELOPER);
                 }
             }
-            if (isset($lock)) {
+            if ($lock) {
                 $lock->release();
             }
         }
@@ -610,9 +617,12 @@ class section_creation_service {
                 $anchorid = $DB->get_field('course_sections', 'id', ['course' => $course->id, 'section' => 1]) ?: null;
             }
 
-            // Move each new section to the top (reverse order for correct final sequence)
+            // Insert each new section directly in front of the anchor, in order. Do NOT
+            // reverse: every pass inserts before the SAME fixed anchor, so the last one
+            // moved ends up nearest the anchor. Iterating forwards therefore lands them
+            // in their original order; reversing would emit them backwards.
             // No cache rebuild in loop - move_section() handles internal updates.
-            foreach (array_reverse($newtoplevelsectionids) as $newsectionid) {
+            foreach ($newtoplevelsectionids as $newsectionid) {
                 if (!method_exists($courseformat, 'move_section')) {
                     break;
                 }

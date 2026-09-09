@@ -5,9 +5,8 @@
 --
 -- To narrow to one course, add its id to the fs CTE:  AND c.id = 2
 --
--- As in the companion file: no question mark anywhere (Moodle's DML reads each one as a
--- bind parameter), and no data-modifying SQL keyword anywhere in the text, comments
--- included, since report_customsql rejects those on sight.
+-- As in the companion file, and for the same reasons set out there: no question mark, no
+-- semicolon and no data-modifying SQL keyword anywhere in the text, comments included.
 WITH RECURSIVE fs AS (
     SELECT c.id AS courseid, c.shortname
       FROM prefix_course c

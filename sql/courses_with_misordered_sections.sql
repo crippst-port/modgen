@@ -18,12 +18,18 @@
 --
 -- Fix a listed course from the URL in the last column, using "Renumber Sections".
 --
--- report_customsql rejects a query containing any data-modifying SQL keyword, and it
--- checks the whole submitted text rather than just the executable part -- so an ordinary
--- English sentence in a comment can trip it. The wording throughout this file avoids
--- every word on that list deliberately, which is why the prose below says "removing a
--- section" and "renumbers to" where the natural phrasing would not. The plugin names the
--- word it objected to, so re-check the wording after editing any comment here.
+-- Three things this file must never contain, anywhere in its text -- comments included,
+-- because both report_customsql and Moodle's DML scan the whole submission rather than
+-- just the executable part:
+--
+--   1. A data-modifying SQL keyword. report_customsql rejects those on sight, which is
+--      why the prose says "removing a section" and "renumbers to" where the natural
+--      phrasing would not. It names the word it objected to, so re-read any comment you
+--      edit here.
+--   2. A semicolon. Also rejected by report_customsql, so the prose uses full stops
+--      where it would otherwise use one.
+--   3. A question mark. Not a plugin rule but a Moodle one -- see the note further down
+--      beside chr(63).
 --
 -- PostgreSQL only: uses recursive CTEs, array ordering, the ~ regex operator and
 -- FILTER. Written for report_customsql, so table names carry the prefix_ placeholder.
@@ -34,7 +40,7 @@
 -- on sectionid alone. What does not index is the recursive step: PostgreSQL cannot index
 -- a CTE, so each iteration rescans the section list, making this roughly
 -- (sections in flexsections courses) x (deepest nesting). Fine at a few thousand
--- sections; if most of a large site uses flexsections, run it scheduled rather than
+-- sections. If most of a large site uses flexsections, run it scheduled rather than
 -- interactively, or add a course filter to the fs CTE below.
 WITH RECURSIVE fs AS (
     -- Nothing but flexsections numbers sections hierarchically, so this is both the
@@ -73,7 +79,7 @@ walk AS (
       FROM sect c
       JOIN walk w ON w.courseid = c.courseid AND w.num = c.parentnum
      WHERE c.num <> 0
-       AND w.depth < 25   -- Guard only; flexsections caps real depth far below this.
+       AND w.depth < 25   -- Guard only. flexsections caps real depth far below this.
 ),
 expected AS (
     SELECT courseid, sectionid, num,

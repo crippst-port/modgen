@@ -57,14 +57,22 @@ WITH RECURSIVE fs AS (
 ),
 sect AS (
     -- One row per section with its parent resolved to an integer. A missing, empty or
-    -- non-numeric 'parent' means top level, matching how both format_flexsections and
+    -- unparseable 'parent' means top level, matching how both format_flexsections and
     -- the modgen integrity checker read it.
     -- The format_options join names courseid, format, sectionid and name so it matches
     -- the full 'formatoption' unique index rather than scanning on sectionid alone.
     SELECT cs.course   AS courseid,
            cs.id       AS sectionid,
            cs.section  AS num,
-           CASE WHEN cfo.value ~ '^[0-9]+$' THEN cfo.value::int ELSE 0 END AS parentnum
+           -- Parsed the way PHP casts a string to an integer, which is what
+           -- format_flexsections and the plugin's integrity checker both effectively do:
+           -- leading whitespace and a sign are tolerated. A stricter test such as
+           -- '^[0-9]+$' rejects a value of "5 " outright and silently treats the section
+           -- as top level, which changes the shape of the tree everything below is
+           -- derived from. The {0,1} is the long form of a quantifier whose usual
+           -- one-character spelling is not allowed anywhere in this file.
+           COALESCE((substring(cfo.value from '^\s*([+-]{0,1}[0-9]{1,})'))::int, 0)
+               AS parentnum
       FROM prefix_course_sections cs
       JOIN fs ON fs.courseid = cs.course
       LEFT JOIN prefix_course_format_options cfo

@@ -34,6 +34,10 @@ $context = context_course::instance($courseid);
 
 // Require login and capability.
 require_login($course);
+
+// Master switch: Site admin > AI > AI placements.
+\aiplacement_modgen\local\settings_helper::require_placement_enabled();
+
 $cangenerate = has_capability('aiplacement/modgen:generatewithprompt', $context) ||
                has_capability('aiplacement/modgen:generatefromtemplate', $context);
 if (!$cangenerate) {

@@ -37,6 +37,10 @@ $context = context_course::instance($course->id);
 
 // Require login and capability.
 require_login($course);
+
+// Master switch: Site admin > AI > AI placements.
+\aiplacement_modgen\local\settings_helper::require_placement_enabled();
+
 require_sesskey();
 require_capability('moodle/course:activityvisibility', $context);
 

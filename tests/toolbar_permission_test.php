@@ -59,6 +59,12 @@ final class toolbar_permission_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
+        // These tests exercise entry points behind the placement master switch, which reads
+        // as disabled when the config key is absent. Switch it on so they test what they are
+        // about - capability gating - rather than the switch. See the placement_switch_test
+        // for the switch's own behaviour.
+        set_config('enabled', 1, 'aiplacement_modgen');
+
         $generator = $this->getDataGenerator();
         $this->course = $generator->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($this->course->id);

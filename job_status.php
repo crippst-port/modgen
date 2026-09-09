@@ -28,6 +28,9 @@ $jobid = required_param('jobid', PARAM_INT);
 
 require_login();
 
+// Master switch: Site admin > AI > AI placements.
+\aiplacement_modgen\local\settings_helper::require_placement_enabled();
+
 // Get job and verify access.
 $job = $DB->get_record('aiplacement_modgen_jobs', ['id' => $jobid], '*', MUST_EXIST);
 $course = $DB->get_record('course', ['id' => $job->courseid], '*', MUST_EXIST);

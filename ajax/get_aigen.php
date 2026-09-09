@@ -37,6 +37,10 @@ $context = context_course::instance($courseid);
 
 // Check user is logged in and can view the course.
 require_login($course);
+
+// Master switch: Site admin > AI > AI placements.
+\aiplacement_modgen\local\settings_helper::require_placement_enabled();
+
 require_capability('moodle/course:view', $context);
 
 header('Content-Type: application/json');

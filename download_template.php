@@ -28,6 +28,10 @@ use aiplacement_modgen\local\template_manager;
 
 require_login();
 
+// Master switch: Site admin > AI > AI placements.
+\aiplacement_modgen\local\settings_helper::require_placement_enabled();
+\aiplacement_modgen\local\settings_helper::require_structurefromfile_enabled();
+
 $templateid = required_param('id', PARAM_INT);
 $courseid = optional_param('courseid', 0, PARAM_INT);
 

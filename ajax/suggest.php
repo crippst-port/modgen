@@ -56,6 +56,9 @@ try {
 
     require_login();
 
+    // Master switch: Site admin > AI > AI placements.
+    \aiplacement_modgen\local\settings_helper::require_placement_enabled();
+
     $courseid = required_param('courseid', PARAM_INT);
     $section = optional_param('section', 0, PARAM_INT);
     $sesskey = optional_param('sesskey', '', PARAM_ALPHANUM);

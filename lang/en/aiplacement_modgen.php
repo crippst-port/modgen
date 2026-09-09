@@ -433,6 +433,7 @@ $string['themescreated'] = '{$a} theme(s) successfully created';
 $string['weekscreated'] = '{$a} week(s) successfully created';
 $string['seedetails'] = 'See details';
 $string['returntocourseview'] = 'Return to course';
+$string['placementdisabled'] = 'The Module Assistant is currently disabled. An administrator can enable it in Site administration > General > AI > AI placements.';
 $string['erroracquiringlock'] = 'Could not acquire course lock. Another user may be editing this course.';
 $string['errorconvertingformat'] = 'Could not convert course to flexsections format.';
 $string['introductionsectionname'] = 'Introduction & General Information';
@@ -498,6 +499,14 @@ $string['helplinkurl_desc'] = 'Full URL for the help resource (must start with h
 // Section Creation Limits.
 $string['sectionlimitsheading'] = 'Section Creation Limits';
 $string['sectionlimitsheading_desc'] = 'Configure maximum number of sections that can be created at once through quick-add forms and CSV file uploads. These limits help prevent accidental creation of excessive course structure.';
+$string['featuretoggleheading'] = 'Feature availability';
+$string['featuretoggleheading_desc'] = 'Turn individual Module Assistant features on or off for the whole site. Capabilities still apply on top of these: a feature switched off here is unavailable to everyone, regardless of role.';
+$string['enablequickadd'] = 'Enable Quick add';
+$string['enablequickadd_desc'] = 'Show the "New theme" and "New week" options in the Quick add menu, which create single sections directly without going through the generator. Turning this off removes both options and closes the forms behind them. The rest of the Quick add menu is unaffected.';
+$string['enablestructurefromfile'] = 'Enable Structure from file';
+$string['enablestructurefromfile_desc'] = 'Allow module structures to be built from a CSV file - the "Structure from file" option, the CSV template chooser and the file upload on the generator form. Turning this off leaves AI generation from a prompt available, which is controlled separately by the AI generation setting above.';
+$string['quickadddisabled'] = 'Quick add is currently disabled. An administrator can enable it in the Module Assistant plugin settings.';
+$string['structurefromfiledisabled'] = 'Building a structure from a file is currently disabled. An administrator can enable it in the Module Assistant plugin settings.';
 $string['maxquicksections'] = 'Maximum themes or weeks';
 $string['maxquicksections_desc'] = 'Maximum number of themes OR weeks that can be created at once using the quick-add forms. This applies when creating standalone themes or standalone weeks. Default: 30';
 $string['maxweeksperTheme'] = 'Maximum weeks per theme';
@@ -506,7 +515,7 @@ $string['maxcsvsections'] = 'Maximum CSV sections';
 $string['maxcsvsections_desc'] = 'Maximum total number of sections (themes + weeks) that can be created from a CSV file upload. Set to 0 for unlimited (not recommended). Default: 50';
 $string['csvlimitexceeded'] = 'CSV file contains {$a->count} sections, which exceeds the maximum allowed limit of {$a->max}. Please reduce the number of sections in your CSV file.';
 $string['maxtotalsections'] = 'Maximum total sections per course';
-$string['maxtotalsections_desc'] = 'Hard safety limit on the total number of sections a course may contain (existing sections plus those a generation would add). The flexsections format renumbers and rebuilds the whole course on every section insert, so creation slows down quadratically as a course grows and very large courses can exhaust memory. Generation is refused before it starts if it would push the course past this limit. Raise it only if your server has ample memory and you accept slower generation. Default: 300';
+$string['maxtotalsections_desc'] = 'Hard safety limit on the total number of sections a course may contain (existing sections plus those a generation would add). The flexsections format renumbers and rebuilds the whole course on every section insert, so creation slows down quadratically as a course grows and very large courses can exhaust memory. Generation is refused before it starts if it would push the course past this limit. Raise it only if your server has ample memory and you accept slower generation. Default: 400';
 $string['sectionlimitexceeded'] = 'That\'s too many sections to create at once. This would take the course to {$a->total} sections, but the limit is {$a->max} (it already has {$a->existing}). Please try again with fewer themes or weeks.';
 
 // Loading indicator strings.

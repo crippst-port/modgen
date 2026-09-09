@@ -32,6 +32,9 @@ if (!defined('AJAX_SCRIPT') && !empty($_REQUEST['ajax'])) {
 require_once(__DIR__ . '/../../../config.php');
 require_login();
 
+// Master switch: Site admin > AI > AI placements.
+\aiplacement_modgen\local\settings_helper::require_placement_enabled();
+
 /**
  * Emit a JSON response and terminate execution.
  *

@@ -104,6 +104,27 @@ if ($hassiteconfig) {
                 "\n\nNote: AI generation must be enabled for this feature to work.",
             1
         ));
+        // Quick add and Structure-from-file feature controls.
+        $settings->add(new admin_setting_heading(
+            'aiplacement_modgen/featuretoggleheading',
+            new lang_string('featuretoggleheading', 'aiplacement_modgen'),
+            new lang_string('featuretoggleheading_desc', 'aiplacement_modgen')
+        ));
+
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_quickadd',
+            new lang_string('enablequickadd', 'aiplacement_modgen'),
+            new lang_string('enablequickadd_desc', 'aiplacement_modgen'),
+            1
+        ));
+
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_structurefromfile',
+            new lang_string('enablestructurefromfile', 'aiplacement_modgen'),
+            new lang_string('enablestructurefromfile_desc', 'aiplacement_modgen'),
+            1
+        ));
+
         // Suggest toolbar button control.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/suggestheading',

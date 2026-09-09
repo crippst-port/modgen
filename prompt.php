@@ -31,6 +31,9 @@ require_once(__DIR__ . '/../../../config.php');
 require_once($CFG->libdir . '/formslib.php');
 require_login();
 
+// Master switch: Site admin > AI > AI placements.
+\aiplacement_modgen\local\settings_helper::require_placement_enabled();
+
 // Get course ID early for authentication.
 $courseid = optional_param('id', 0, PARAM_INT);
 if (!$courseid) {

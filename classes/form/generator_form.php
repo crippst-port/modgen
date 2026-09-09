@@ -53,9 +53,14 @@ class aiplacement_modgen_generator_form extends moodleform
         // Check if AI is enabled early so we can control visibility.
         $aienabled = get_config('aiplacement_modgen', 'enable_ai');
 
-        // Select or upload template file section.
-        $templates = $this->get_available_templates();
-        if (count($templates) > 1) { // Only show select if templates exist (more than just "None selected").
+        // Select or upload template file section. The whole CSV route - template chooser,
+        // download button and the upload field further down - is behind the
+        // 'enable_structurefromfile' setting. validation() reads both fields with !empty(),
+        // so their absence simply means "no file supplied" rather than an error.
+        $structurefromfile = \aiplacement_modgen\local\settings_helper::is_structurefromfile_enabled();
+
+        $templates = $structurefromfile ? $this->get_available_templates() : [];
+        if ($structurefromfile && count($templates) > 1) { // Only show select if templates exist.
             $mform->addElement(
                 'header',
                 'selectoruploadtemplateheader',
@@ -80,7 +85,7 @@ class aiplacement_modgen_generator_form extends moodleform
                 </div>
             </div>';
             $mform->addElement('html', $buttonhtml);
-        } else {
+        } else if ($structurefromfile) {
             // If no templates available, still create the header for file upload.
             $mform->addElement(
                 'header',
@@ -110,14 +115,16 @@ class aiplacement_modgen_generator_form extends moodleform
 
         // File upload for CSV structure file (optional) - using filemanager for standalone pages
         // Note: The modal version uses a simple HTML input instead.
-        $mform->addElement(
-            'filemanager',
-            'supportingfiles',
-            get_string('supportingfiles', 'aiplacement_modgen'),
-            null,
-            ['subdirs' => 0, 'maxbytes' => 10485760, 'maxfiles' => 1, 'accepted_types' => ['.csv']]
-        );
-        $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
+        if ($structurefromfile) {
+            $mform->addElement(
+                'filemanager',
+                'supportingfiles',
+                get_string('supportingfiles', 'aiplacement_modgen'),
+                null,
+                ['subdirs' => 0, 'maxbytes' => 10485760, 'maxfiles' => 1, 'accepted_types' => ['.csv']]
+            );
+            $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
+        }
 
         // Suggested content section (only if AI enabled AND user has usesuggest capability).
         if ($aienabled && $canusesuggest) {

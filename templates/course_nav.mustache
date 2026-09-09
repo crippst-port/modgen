@@ -29,12 +29,14 @@
         
         <div class="dropdown-menu">
          
+          {{#showquickadd}}
           <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="add_theme" data-title="{{#str}}newtheme, aiplacement_modgen{{/str}}">
                     <i class="fas fa-book"></i> {{#str}}newtheme, aiplacement_modgen{{/str}}
                 </a>
                 <a href="#" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="add_week" data-title="{{#str}}newweek, aiplacement_modgen{{/str}}">
                     <i class="fas fa-calendar"></i> {{#str}}newweek, aiplacement_modgen{{/str}}
                 </a>
+          {{/showquickadd}}
                
                 {{! "Structure from file" opens the generator form (CSV/template upload).
                     It needs the generate-from-template capability, NOT AI, so it is

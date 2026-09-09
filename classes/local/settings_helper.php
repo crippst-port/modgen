@@ -32,12 +32,89 @@ class settings_helper {
     private static $cache = [];
 
     /**
+     * Check whether this placement is switched on in Site admin > AI > AI placements.
+     *
+     * This is core's master switch for the plugin, stored by
+     * \core\plugininfo\aiplacement::enable_plugin() as the 'enabled' config key. It is
+     * distinct from is_ai_enabled() below, which is one of this plugin's own feature
+     * settings: the placement switch decides whether modgen appears at all, enable_ai
+     * decides whether the AI-backed features within it are offered.
+     *
+     * Core does not enforce this for us - get_plugins_with_function() filters only for
+     * deprecated hook migration, not for plugin enablement - so every entry point has to
+     * consult it. Note that an unset key reads as disabled, which is core's own convention
+     * (enable_plugin() unsets the key rather than writing 0).
+     *
+     * @return bool True if the placement is enabled
+     */
+    public static function is_placement_enabled(): bool {
+        return \core\plugininfo\aiplacement::is_plugin_enabled('modgen');
+    }
+
+    /**
+     * Stop with a "disabled" error unless this placement is switched on.
+     *
+     * For entry points reachable by URL, so that switching the placement off actually closes
+     * them rather than just hiding the links that point at them.
+     *
+     * @throws \moodle_exception if the placement is disabled
+     */
+    public static function require_placement_enabled(): void {
+        if (!self::is_placement_enabled()) {
+            throw new \moodle_exception('placementdisabled', 'aiplacement_modgen');
+        }
+    }
+
+    /**
      * Check if AI generation is enabled.
      *
      * @return bool True if AI generation is enabled
      */
     public static function is_ai_enabled(): bool {
         return self::get_bool('enable_ai');
+    }
+
+    /**
+     * Check whether the Quick add options ("New theme" / "New week") are enabled.
+     *
+     * @return bool True if quick add is enabled
+     */
+    public static function is_quickadd_enabled(): bool {
+        return self::get_bool('enable_quickadd');
+    }
+
+    /**
+     * Stop with a "disabled" error unless Quick add is enabled.
+     *
+     * @throws \moodle_exception if quick add is disabled
+     */
+    public static function require_quickadd_enabled(): void {
+        if (!self::is_quickadd_enabled()) {
+            throw new \moodle_exception('quickadddisabled', 'aiplacement_modgen');
+        }
+    }
+
+    /**
+     * Check whether building a structure from a CSV file is enabled.
+     *
+     * Independent of is_ai_enabled(): this path is the non-AI one, so a site can offer
+     * CSV-driven structures with AI off, or the reverse.
+     *
+     * @return bool True if structure-from-file is enabled
+     */
+    public static function is_structurefromfile_enabled(): bool {
+        return self::get_bool('enable_structurefromfile');
+    }
+
+    /**
+     * Stop with a "disabled" error unless structure-from-file is enabled.
+     *
+     * @throws \moodle_exception if structure-from-file is disabled
+     */
+    public static function require_structurefromfile_enabled(): void {
+        if (!self::is_structurefromfile_enabled()) {
+            throw new \moodle_exception('structurefromfiledisabled', 'aiplacement_modgen');
+        }
     }
 
     /**

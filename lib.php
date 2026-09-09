@@ -40,6 +40,12 @@ function aiplacement_modgen_extend_navigation_course(
 ): void {
     global $PAGE;
 
+    // Master switch: Site admin > AI > AI placements. Nothing of this plugin's UI is
+    // injected while it is off.
+    if (!\aiplacement_modgen\local\settings_helper::is_placement_enabled()) {
+        return;
+    }
+
     // Check if user has any modgen capabilities.
     $canmanagestructure = has_capability('aiplacement/modgen:managestructure', $context);
     $canmanagedates = has_capability('aiplacement/modgen:managedates', $context);
@@ -88,7 +94,9 @@ function aiplacement_modgen_extend_navigation_course(
             'showsuggest' => $showsuggest,
             'showmanagestructure' => $canmanagestructure,
             'showmanagedates' => $canmanagedates,
-            'showtemplatefromfile' => $cangeneratetemplate,
+            'showquickadd' => \aiplacement_modgen\local\settings_helper::is_quickadd_enabled(),
+            'showtemplatefromfile' => $cangeneratetemplate
+                && \aiplacement_modgen\local\settings_helper::is_structurefromfile_enabled(),
             'showtemplatefromptompt' => $cangenerateprompt && $aienabled,
             'showcheckstructure' => $cancheckstructure,
             'currentsection' => $currentsection,
@@ -116,6 +124,9 @@ function aiplacement_modgen_extend_navigation_course(
  */
 function aiplacement_modgen_output_fragment_course_toolbar(array $args): string {
     global $PAGE;
+
+    // Fragments are reachable directly, so they enforce the placement switch too.
+    \aiplacement_modgen\local\settings_helper::require_placement_enabled();
 
     // Validate and clean parameters.
     $courseid = clean_param($args['courseid'], PARAM_INT);
@@ -158,7 +169,8 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     $showsuggest = $canusesuggest && \aiplacement_modgen\local\settings_helper::is_suggest_enabled();
     $showmanagestructure = $canmanagestructure;
     $showmanagedates = $canmanagedates;
-    $showtemplatefromfile = $cangeneratetemplate;
+    $showtemplatefromfile = $cangeneratetemplate && \aiplacement_modgen\local\settings_helper::is_structurefromfile_enabled();
+    $showquickadd = \aiplacement_modgen\local\settings_helper::is_quickadd_enabled();
     $showcheckstructure = $cancheckstructure;
 
     // Create the toolbar renderable with all capability flags.
@@ -170,7 +182,8 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
         $showmanagedates,
         $showtemplatefromfile,
         $showtemplatefromptompt,
-        $showcheckstructure
+        $showcheckstructure,
+        $showquickadd
     );
 
     // Get the plugin renderer and render the toolbar.
@@ -188,6 +201,9 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
  */
 function aiplacement_modgen_output_fragment_generator_form(array $args): string {
     global $PAGE, $USER, $CFG;
+
+    // Fragments are reachable directly, so they enforce the placement switch too.
+    \aiplacement_modgen\local\settings_helper::require_placement_enabled();
 
     // Ensure required libraries are loaded.
     require_once($CFG->libdir . '/formslib.php');
@@ -257,6 +273,9 @@ function aiplacement_modgen_output_fragment_generator_form(array $args): string 
 function aiplacement_modgen_output_fragment_form_suggest(array $args): string {
     global $PAGE, $CFG;
 
+    // Fragments are reachable directly, so they enforce the placement switch too.
+    \aiplacement_modgen\local\settings_helper::require_placement_enabled();
+
     // Validate parameters and permissions.
     $courseid = clean_param($args['courseid'], PARAM_INT);
     $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
@@ -313,6 +332,10 @@ function aiplacement_modgen_output_fragment_form_suggest(array $args): string {
 function aiplacement_modgen_output_fragment_form_add_theme(array $args): string {
     global $PAGE, $CFG;
 
+    // Fragments are reachable directly, so they enforce the placement switch too.
+    \aiplacement_modgen\local\settings_helper::require_placement_enabled();
+    \aiplacement_modgen\local\settings_helper::require_quickadd_enabled();
+
     // Ensure required libraries are loaded.
     require_once($CFG->libdir . '/formslib.php');
 
@@ -358,6 +381,10 @@ function aiplacement_modgen_output_fragment_form_add_theme(array $args): string 
 function aiplacement_modgen_output_fragment_form_add_week(array $args): string {
     global $PAGE, $CFG;
 
+    // Fragments are reachable directly, so they enforce the placement switch too.
+    \aiplacement_modgen\local\settings_helper::require_placement_enabled();
+    \aiplacement_modgen\local\settings_helper::require_quickadd_enabled();
+
     // Ensure required libraries are loaded.
     require_once($CFG->libdir . '/formslib.php');
 
@@ -399,6 +426,9 @@ function aiplacement_modgen_output_fragment_form_add_week(array $args): string {
  */
 function aiplacement_modgen_output_fragment_form_template_from_prompt(array $args): string {
     global $PAGE, $CFG;
+
+    // Fragments are reachable directly, so they enforce the placement switch too.
+    \aiplacement_modgen\local\settings_helper::require_placement_enabled();
 
     // Ensure required libraries are loaded.
     require_once($CFG->libdir . '/formslib.php');
@@ -442,6 +472,9 @@ function aiplacement_modgen_output_fragment_form_template_from_prompt(array $arg
  */
 function aiplacement_modgen_output_fragment_form_dates_for_sections(array $args): string {
     global $PAGE, $CFG, $DB;
+
+    // Fragments are reachable directly, so they enforce the placement switch too.
+    \aiplacement_modgen\local\settings_helper::require_placement_enabled();
 
     // Ensure required libraries are loaded.
     require_once($CFG->libdir . '/formslib.php');

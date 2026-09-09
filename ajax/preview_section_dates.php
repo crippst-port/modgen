@@ -31,6 +31,10 @@ use aiplacement_modgen\local\date_calculator;
 
 // Require login and valid session.
 require_login();
+
+// Master switch: Site admin > AI > AI placements.
+\aiplacement_modgen\local\settings_helper::require_placement_enabled();
+
 require_sesskey();
 
 // Get parameters.

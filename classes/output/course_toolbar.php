@@ -52,6 +52,9 @@ class course_toolbar implements renderable, templatable {
     /** @var bool Whether to show template from file button */
     private $showtemplatefromfile;
 
+    /** @var bool Whether to show the Quick add options (New theme / New week) */
+    private $showquickadd;
+
     /** @var bool Whether to show template from prompt button */
     private $showtemplatefromptompt;
 
@@ -69,6 +72,7 @@ class course_toolbar implements renderable, templatable {
      * @param bool $showtemplatefromfile Whether to show template from file button
      * @param bool $showtemplatefromptompt Whether to show template from prompt button
      * @param bool $showcheckstructure Whether to show check structure button
+     * @param bool $showquickadd Whether to show the Quick add options
      */
     public function __construct(
         int $courseid,
@@ -78,7 +82,8 @@ class course_toolbar implements renderable, templatable {
         bool $showmanagedates = false,
         bool $showtemplatefromfile = false,
         bool $showtemplatefromptompt = false,
-        bool $showcheckstructure = false
+        bool $showcheckstructure = false,
+        bool $showquickadd = false
     ) {
         $this->courseid = $courseid;
         $this->showgenerator = $showgenerator || $showtemplatefromptompt; // Legacy support.
@@ -88,6 +93,7 @@ class course_toolbar implements renderable, templatable {
         $this->showtemplatefromfile = $showtemplatefromfile;
         $this->showtemplatefromptompt = $showtemplatefromptompt;
         $this->showcheckstructure = $showcheckstructure;
+        $this->showquickadd = $showquickadd;
     }
 
     /**
@@ -107,6 +113,7 @@ class course_toolbar implements renderable, templatable {
         $data->showtemplatefromfile = $this->showtemplatefromfile;
         $data->showtemplatefromptompt = $this->showtemplatefromptompt;
         $data->showcheckstructure = $this->showcheckstructure;
+        $data->showquickadd = $this->showquickadd;
         if ($this->showcheckstructure) {
             $checkstructureurl = new moodle_url(
                 '/ai/placement/modgen/check_structure.php',

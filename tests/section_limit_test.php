@@ -149,7 +149,7 @@ final class section_limit_test extends advanced_testcase {
     public function test_invalid_config_falls_back_to_default(): void {
         set_config('maxtotalsections', 0, 'aiplacement_modgen');
 
-        // Default is constants::MAX_TOTAL_SECTIONS (300); projecting beyond it must throw.
+        // Default is constants::MAX_TOTAL_SECTIONS; projecting far beyond it must throw.
         $this->expectException(\moodle_exception::class);
         theme_builder::enforce_section_limit($this->course->id, 100000);
     }

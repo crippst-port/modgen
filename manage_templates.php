@@ -29,6 +29,9 @@ use aiplacement_modgen\local\template_manager;
 
 require_login();
 
+// Master switch: Site admin > AI > AI placements.
+\aiplacement_modgen\local\settings_helper::require_placement_enabled();
+
 $action = optional_param('action', '', PARAM_ALPHA);
 $templateid = optional_param('id', 0, PARAM_INT);
 

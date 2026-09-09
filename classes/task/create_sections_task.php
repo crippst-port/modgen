@@ -132,20 +132,37 @@ class create_sections_task extends \core\task\adhoc_task {
 
             $result = null;
 
+            // Resolve the target parent from the section ID pinned when the job was queued.
+            // The section NUMBER captured then is not reliable now: format_flexsections
+            // renumbers the whole course on every create/move/delete, and this task can run
+            // minutes later. Fall back to the stored number only for jobs queued before the
+            // id was recorded, and to top level if the section has since been deleted.
+            $parentsection = (int) ($data->parentsection ?? 0);
+            if (!empty($data->parentsectionid)) {
+                $resolved = \aiplacement_modgen\local\theme_builder::current_section_number(
+                    $data->courseid,
+                    (int) $data->parentsectionid
+                );
+                $parentsection = $resolved ?? 0;
+                if ($resolved === null) {
+                    mtrace('Target parent section no longer exists; creating at top level instead.');
+                }
+            }
+
             // Execute the appropriate creation method based on action.
             if ($data->action === 'create_themes') {
                 $result = \aiplacement_modgen\local\theme_builder::create_themes(
                     $data->courseid,
                     $data->themecount,
                     $data->weeksperTheme,
-                    $data->parentsection,
+                    $parentsection,
                     $data->createsummaryactivities ?? true
                 );
             } else if ($data->action === 'create_weeks') {
                 $result = \aiplacement_modgen\local\theme_builder::create_weeks(
                     $data->courseid,
                     $data->weekcount,
-                    $data->parentsection,
+                    $parentsection,
                     $data->createsummaryactivities ?? true
                 );
             } else if ($data->action === 'create_from_json') {

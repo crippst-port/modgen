@@ -305,6 +305,10 @@ class section_creation_service {
                 );
 
                 $themesectionnum = $themesection->section;
+                // Hold the theme by id: every week (and every session inside it) created
+                // below renumbers the course, so this number is only good until the next
+                // write. Re-read it before each use.
+                $themesectionid = (int) $themesection->id;
 
                 if ($hideexistingsections) {
                     $newtoplevelsectionids[] = $themesection->id;
@@ -331,10 +335,18 @@ class section_creation_service {
                     $sessions = !empty($week['sessions']) && is_array($week['sessions']) ? $week['sessions'] : [];
 
                     try {
+                        $currentthemenum = \aiplacement_modgen\local\theme_builder::current_section_number(
+                            $course->id,
+                            $themesectionid
+                        );
+                        if ($currentthemenum === null) {
+                            $activitywarnings[] = "Theme section disappeared while adding weeks; skipping remaining weeks.";
+                            break;
+                        }
                         $weeksectionnum = \aiplacement_modgen\local\theme_builder::create_week_section(
                             $course->id,
                             $courseformat,
-                            $themesectionnum,
+                            $currentthemenum,
                             $weektitle,
                             $weeksummary,
                             [
@@ -580,34 +592,47 @@ class section_creation_service {
                 }
             }
 
-            // Target: move before Assessments, or to position 1 if no Assessments.
-            $targetposition = $assessmentssection ? $assessmentssection->section : 1;
+            // Anchor to move in front of, held by ID. Every move below renumbers the whole
+            // course, so a number captured here would be stale after the first iteration.
+            $anchorid = $assessmentssection ? (int) $assessmentssection->id : null;
+            if ($anchorid === null) {
+                // No Assessments section: fall back to whatever currently sits at number 1.
+                $anchorid = $DB->get_field('course_sections', 'id', ['course' => $course->id, 'section' => 1]) ?: null;
+            }
 
             // Move each new section to the top (reverse order for correct final sequence)
             // No cache rebuild in loop - move_section() handles internal updates.
             foreach (array_reverse($newtoplevelsectionids) as $newsectionid) {
-                // Use existing modinfo (refreshed after each move by move_section()).
-                $modinfo = get_fast_modinfo($course);
-
-                // Find the section to move.
-                $sectioninfo = null;
-                foreach ($modinfo->get_section_info_all() as $s) {
-                    if ($s->id == $newsectionid) {
-                        $sectioninfo = $s;
-                        break;
-                    }
+                if (!method_exists($courseformat, 'move_section')) {
+                    break;
                 }
 
-                if ($sectioninfo && $sectioninfo->section != $targetposition && method_exists($courseformat, 'move_section')) {
-                    try {
-                        // The move_section() call may trigger an internal cache update.
-                        $courseformat->move_section($sectioninfo->section, $targetposition, true);
-                        // Force lightweight modinfo refresh (no full rebuild needed).
-                        $modinfo = get_fast_modinfo($course, $course->id, null, true);
-                    } catch (\Exception $e) {
-                        // Continue on error.
-                        debugging("Failed to move section {$sectioninfo->section}: " . $e->getMessage());
-                    }
+                // Re-read both positions from ids on every pass.
+                $modinfo = get_fast_modinfo($course);
+                $sectioninfo = $modinfo->get_section_info_by_id((int) $newsectionid);
+                $anchorinfo = $anchorid ? $modinfo->get_section_info_by_id($anchorid) : null;
+
+                if (!$sectioninfo || !$anchorinfo) {
+                    continue;
+                }
+                // move_section() inserts before a SIBLING, so the anchor has to be top level
+                // too - otherwise can_move_section_to() rejects the move.
+                if (!empty($anchorinfo->parent) || $sectioninfo->section == $anchorinfo->section) {
+                    continue;
+                }
+
+                try {
+                    // format_flexsections::move_section($section, $parent, $before):
+                    // parent 0 = top level, $before = the sibling to insert in front of.
+                    // (Not core's move_section_to($course, $section, $destination) - passing
+                    // a position as the parent, or a boolean as $before, silently does
+                    // nothing because can_move_section_to() rejects it.)
+                    $courseformat->move_section($sectioninfo->section, 0, $anchorinfo->section);
+                    // Force lightweight modinfo refresh (no full rebuild needed).
+                    $modinfo = get_fast_modinfo($course, $course->id, null, true);
+                } catch (\Exception $e) {
+                    // Continue on error.
+                    debugging("Failed to move section {$sectioninfo->section}: " . $e->getMessage());
                 }
             }
         }

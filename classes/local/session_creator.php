@@ -64,16 +64,14 @@ class session_creator {
             throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
         }
 
-        // Get the parent section ID from the section number.
-        // Flexsections create_new_section() expects the parent SECTION ID, not the section number.
-        $parentsectionid = null;
-        if ($parentsectionnum > 0) {
-            $parentsectionid = $DB->get_field(
-                'course_sections',
-                'id',
-                ['course' => $courseid, 'section' => $parentsectionnum]
-            );
-        }
+        // Pin the parent to its section ID. format_flexsections addresses sections by
+        // NUMBER, and numbers are positional: creating each session subsection below
+        // renumbers the course, so the number passed in is only valid until the first
+        // write. Hold the id and re-read the number before each use.
+        $parentsectionid = \aiplacement_modgen\local\theme_builder::section_id_from_number(
+            $courseid,
+            $parentsectionnum
+        );
 
         // Define session types with language strings.
         $sessiontypes = [
@@ -95,10 +93,14 @@ class session_creator {
             }
 
             // Create session section using centralized helper.
+            $currentparentnum = \aiplacement_modgen\local\theme_builder::current_section_number(
+                $courseid,
+                $parentsectionid
+            ) ?? $parentsectionnum;
             $sessionsection = \aiplacement_modgen\local\theme_builder::create_section_with_parent(
                 $courseid,
                 $courseformat,
-                $parentsectionnum,
+                $currentparentnum,
                 $sessionlabel,
                 $sessionsummary,
                 FORMAT_PLAIN,

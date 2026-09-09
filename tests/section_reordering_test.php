@@ -264,12 +264,16 @@ final class section_reordering_test extends advanced_testcase {
     }
 
     /**
-     * Test that new sections appear in the course (reordering may not work in flexsections).
+     * Test that new sections appear in the course and are moved to the top.
      *
-     * NOTE: The move_section() method in flexsections format doesn't actually reorder sections.
-     * Section numbers are permanent identifiers, and visual ordering is controlled by other
-     * mechanisms. This test verifies that new sections are created and visible, but doesn't
-     * check their position since move_section() is a no-op in flexsections.
+     * NOTE: an earlier version of this docblock claimed section numbers were permanent
+     * identifiers and that move_section() was a no-op in flexsections. Both are wrong.
+     * Section numbers are positional and format_flexsections rewrites them across the whole
+     * course on every create/move/delete; move_section() is the only thing that reorders.
+     * It appeared to be a no-op because it was being called with core's
+     * move_section_to($course, $section, $destination) argument shape, which
+     * can_move_section_to() silently rejects. Called as
+     * move_section($section, $parent, $before) it works.
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json
      */

@@ -763,3 +763,6 @@ $string['unsupportedfiletype'] = 'Unsupported file type: {$a}';
 $string['conversionfailed'] = 'Could not convert file "{$a}" to HTML';
 $string['fallbacktoplaintext'] = 'HTML conversion failed; content extracted as plain text';
 $string['couldnotextractcontent'] = 'Could not extract content from file "{$a}"';
+
+// Section numbering safety.
+$string['parentsectiongone'] = 'The section these were to be added inside no longer exists, so they have been created at the top level instead.';

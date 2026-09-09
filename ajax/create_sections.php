@@ -64,6 +64,15 @@ require_sesskey();
 $courseid = required_param('courseid', PARAM_INT);
 $action = required_param('action', PARAM_ALPHAEXT); // Action name: 'create_themes' or 'create_weeks' (ALPHAEXT allows underscores).
 $parentsection = optional_param('parentsection', 0, PARAM_INT); // Current section to add content within.
+// Section NUMBERS are positional in format_flexsections and are rewritten whenever anyone
+// creates, moves, deletes or merges a section. This job runs later, from cron, so a number
+// captured now may name a different section by then. Pin it to a stable section id and let
+// the task convert it back at execution time.
+$parentsectionid = null;
+if ($parentsection > 0) {
+    $parentsectionid = $DB->get_field('course_sections', 'id',
+        ['course' => $courseid, 'section' => $parentsection]) ?: null;
+}
 // Whether to create the learningactivity "section summary" placeholder modules.
 // The Quick Add forms always submit this (advcheckbox, default off); this fallback
 // only applies to callers that omit the field entirely.
@@ -121,6 +130,7 @@ try {
             'themecount' => $themecount,
             'weeksperTheme' => $weeksperthemecount,
             'parentsection' => $parentsection,
+            'parentsectionid' => $parentsectionid,
             'createsummaryactivities' => $createsummaryactivities,
         ]);
         $job->timecreated = time();
@@ -135,6 +145,7 @@ try {
             'themecount' => $themecount,
             'weeksperTheme' => $weeksperthemecount,
             'parentsection' => $parentsection,
+            'parentsectionid' => $parentsectionid,
             'createsummaryactivities' => $createsummaryactivities,
         ]);
         $task->set_userid($USER->id);
@@ -169,6 +180,7 @@ try {
         $job->parameters = json_encode([
             'weekcount' => $weekcount,
             'parentsection' => $parentsection,
+            'parentsectionid' => $parentsectionid,
             'createsummaryactivities' => $createsummaryactivities,
         ]);
         $job->timecreated = time();
@@ -182,6 +194,7 @@ try {
             'action' => 'create_weeks',
             'weekcount' => $weekcount,
             'parentsection' => $parentsection,
+            'parentsectionid' => $parentsectionid,
             'createsummaryactivities' => $createsummaryactivities,
         ]);
         $task->set_userid($USER->id);

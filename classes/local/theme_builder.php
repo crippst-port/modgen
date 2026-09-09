@@ -205,15 +205,22 @@ class theme_builder {
         // limit. Each theme is 1 section; each week is 1 + 3 session subsections.
         self::enforce_section_limit($courseid, $themecount + ($themecount * $weeksperthemecount * 4));
 
-        // Acquire lock before any course modifications to prevent nested lock conflicts.
-        $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');
-        $lock = $lockfactory->get_lock('course_edit_' . $courseid, 60);
-
-        if (!$lock) {
-            throw new \moodle_exception('erroracquiringlock', 'aiplacement_modgen');
-        }
+        // Acquire every lock guarding this course's structure - including the one
+        // format_flexsections uses, which the modgen lock alone does not exclude.
+        $locks = self::acquire_structure_locks($courseid);
 
         try {
+            // Pin the caller's parent to a section ID before ANYTHING renumbers the course.
+            // The number arrives from a form or an adhoc task and is only valid at this
+            // instant; ensure_flexsections_format() below creates the Assessments section
+            // and moves it to position 1, which shifts every number after it. Resolving the
+            // number later would resolve it against the new numbering and attach the new
+            // content to whatever had slid into that position.
+            $parentsectionid = self::section_id_from_number($courseid, $parent);
+            if ($parent > 0 && $parentsectionid === null) {
+                $messages[] = get_string('parentsectiongone', 'aiplacement_modgen');
+            }
+
             // Ensure flexsections format (must be inside try block to ensure lock release).
             self::ensure_flexsections_format($courseid);
 
@@ -244,10 +251,13 @@ class theme_builder {
                 $createdcount = 0; // Track sections created for cache rebuild.
 
                 for ($i = 1; $i <= $themecount; $i++) {
+                    // Re-read on every iteration: the previous theme renumbered the course.
+                    $parentnum = self::current_section_number($courseid, $parentsectionid) ?? 0;
                     $themetitle = get_string('defaultthemename', 'aiplacement_modgen', $i);
                     $themesummary = get_string('defaultthemesummary', 'aiplacement_modgen');
 
-                    // Create theme section at top level (themes are always top-level).
+                    // Create the theme. $parent is honoured: Quick Add can target an
+                    // existing section, and 0 (the default) means top level.
                     $options = ['collapsed' => 1]; // Theme appears as link.
                     $themesectionnum = self::create_theme_section(
                         $courseid,
@@ -255,9 +265,14 @@ class theme_builder {
                         $themetitle,
                         $themesummary,
                         $options,
-                        false  // Defer cache rebuild.
+                        false,  // Defer cache rebuild.
+                        $parentnum
                     );
                     $createdcount++;
+
+                    // Hold the theme by id, not by number: each week created below renumbers
+                    // the course, so $themesectionnum is only valid until the next write.
+                    $themesectionid = self::section_id_from_number($courseid, $themesectionnum);
 
                     $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $themetitle);
 
@@ -273,10 +288,15 @@ class theme_builder {
                             'collapsed' => 1, // Week appears as link.
                             'createsummaryactivities' => $createsummaryactivities,
                         ];
+                        // Re-read the theme's number: previous weeks have renumbered.
+                        $currentthemenum = self::current_section_number($courseid, $themesectionid);
+                        if ($currentthemenum === null) {
+                            throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen');
+                        }
                         $weeksectionnum = self::create_week_section(
                             $courseid,
                             $courseformat,
-                            $themesectionnum,
+                            $currentthemenum,
                             $weektitle,
                             $weeksummary,
                             $weekoptions,
@@ -349,7 +369,7 @@ class theme_builder {
                 throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen');
             }
         } finally {
-            $lock->release();
+            self::release_structure_locks($locks);
         }
 
         return [
@@ -377,15 +397,22 @@ class theme_builder {
         // limit. Each week is 1 section + 3 session subsections.
         self::enforce_section_limit($courseid, $weekcount * 4);
 
-        // Acquire lock before any course modifications to prevent nested lock conflicts.
-        $lockfactory = \core\lock\lock_config::get_lock_factory('core_course_edit');
-        $lock = $lockfactory->get_lock('course_edit_' . $courseid, 60);
-
-        if (!$lock) {
-            throw new \moodle_exception('erroracquiringlock', 'aiplacement_modgen');
-        }
+        // Acquire every lock guarding this course's structure - including the one
+        // format_flexsections uses, which the modgen lock alone does not exclude.
+        $locks = self::acquire_structure_locks($courseid);
 
         try {
+            // Pin the caller's parent to a section ID before ANYTHING renumbers the course.
+            // The number arrives from a form or an adhoc task and is only valid at this
+            // instant; ensure_flexsections_format() below creates the Assessments section
+            // and moves it to position 1, which shifts every number after it. Resolving the
+            // number later would resolve it against the new numbering and attach the new
+            // content to whatever had slid into that position.
+            $parentsectionid = self::section_id_from_number($courseid, $parent);
+            if ($parent > 0 && $parentsectionid === null) {
+                $messages[] = get_string('parentsectiongone', 'aiplacement_modgen');
+            }
+
             // Ensure flexsections format (must be inside try block to ensure lock release).
             self::ensure_flexsections_format($courseid);
 
@@ -425,10 +452,14 @@ class theme_builder {
                         'collapsed' => 1, // Week appears as link.
                         'createsummaryactivities' => $createsummaryactivities,
                     ];
+                    // Re-read the parent's number each time: the previous week renumbered
+                    // the course, so the number captured before the loop may now be someone
+                    // else's. A deleted parent falls back to top level.
+                    $parentnum = self::current_section_number($courseid, $parentsectionid) ?? 0;
                     $weeksectionnum = self::create_week_section(
                         $courseid,
                         $courseformat,
-                        $parent, // Use provided parent section.
+                        $parentnum,
                         $weektitle,
                         $weeksummary,
                         $weekoptions,
@@ -480,7 +511,7 @@ class theme_builder {
                 throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen');
             }
         } finally {
-            $lock->release();
+            self::release_structure_locks($locks);
         }
 
         return [
@@ -503,7 +534,104 @@ class theme_builder {
      * @param bool $rebuildcache Whether to rebuild course cache after creation (default true)
      * @return int Section number of created theme
      */
-    public static function create_theme_section($courseid, $courseformat, $title, $summary, $options = [], $rebuildcache = true) {
+    /**
+     * Re-read a section's CURRENT number from its id.
+     *
+     * Section numbers in format_flexsections are positional, not identities: creating,
+     * moving, deleting or merging any section renumbers the whole course (see
+     * format_flexsections::move_section()). A number captured before a write may therefore
+     * name a different section afterwards. Anything that has to survive a write must be
+     * held as a section id and converted back through this method at the point of use.
+     *
+     * Reads the database directly rather than modinfo: this is called from inside bulk
+     * creation transactions where the cached modinfo can lag the rows just written.
+     *
+     * @param int $courseid Course ID
+     * @param int|null $sectionid Section id, or null
+     * @return int|null Current section number, or null if the section no longer exists
+     */
+    public static function current_section_number($courseid, $sectionid) {
+        global $DB;
+        if (empty($sectionid)) {
+            return null;
+        }
+        $num = $DB->get_field('course_sections', 'section', ['course' => $courseid, 'id' => $sectionid]);
+        return ($num === false) ? null : (int) $num;
+    }
+
+    /**
+     * Resolve a section id from its current number, for holding across writes.
+     *
+     * @param int $courseid Course ID
+     * @param int $sectionnum Section number, 0 for top level
+     * @return int|null Section id, or null for top level / not found
+     */
+    public static function section_id_from_number($courseid, $sectionnum) {
+        global $DB;
+        if ((int) $sectionnum <= 0) {
+            return null;
+        }
+        $id = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => (int) $sectionnum]);
+        return ($id === false) ? null : (int) $id;
+    }
+
+    /**
+     * Acquire every lock that guards this course's section structure.
+     *
+     * The modgen lock only serialises modgen against itself. format_flexsections guards
+     * its own delete path with a different factory and key, so without also holding that
+     * one a bulk build can interleave with a teacher deleting a section - and every
+     * section number this code is holding would shift underneath it.
+     *
+     * Both flexsections key forms are taken so this works against any build of the plugin:
+     * upstream uses the fixed string, a per-course key is the sane variant.
+     *
+     * @param int $courseid Course ID
+     * @param int $timeout Seconds to wait per lock
+     * @return array Held locks (release with release_structure_locks())
+     * @throws \moodle_exception if any lock cannot be obtained
+     */
+    protected static function acquire_structure_locks($courseid, $timeout = 60) {
+        $locks = [];
+        $wanted = [
+            ['core_course_edit', 'course_edit_' . $courseid],
+            ['format_flexsections_delete_section', 'course_modification_lock'],
+            ['format_flexsections_delete_section', 'course_' . $courseid],
+        ];
+        foreach ($wanted as [$type, $key]) {
+            $factory = \core\lock\lock_config::get_lock_factory($type);
+            $lock = $factory->get_lock($key, $timeout);
+            if (!$lock) {
+                foreach ($locks as $held) {
+                    $held->release();
+                }
+                throw new \moodle_exception('erroracquiringlock', 'aiplacement_modgen');
+            }
+            $locks[] = $lock;
+        }
+        return $locks;
+    }
+
+    /**
+     * Release locks obtained from acquire_structure_locks().
+     *
+     * @param array $locks
+     */
+    protected static function release_structure_locks(array $locks) {
+        foreach ($locks as $lock) {
+            $lock->release();
+        }
+    }
+
+    public static function create_theme_section(
+        $courseid,
+        $courseformat,
+        $title,
+        $summary,
+        $options = [],
+        $rebuildcache = true,
+        $parent = 0
+    ) {
         global $DB;
 
         $context = \context_course::instance($courseid);
@@ -522,12 +650,12 @@ class theme_builder {
         $themetitle = format_string($title, true, ['context' => $context]);
         $sectionhtml = trim($summary) !== '' ? format_text($summary, FORMAT_PLAIN, ['context' => $context]) : '';
 
-        // Create section at top level (parent=0) - themes are always top-level sections.
+        // Themes are top-level by default, but Quick Add can target an existing section.
         $collapsed = $options['collapsed'] ?? 1;
         $themesection = self::create_section_with_parent(
             $courseid,
             $courseformat,
-            0, // Themes are always top-level.
+            (int) $parent,
             $themetitle,
             $sectionhtml,
             FORMAT_PLAIN,
@@ -605,6 +733,9 @@ class theme_builder {
         );
 
         $weeksectionnum = $weeksection->section;
+        // Hold the week by id: creating the metadata module and the three session
+        // subsections below each renumber the course.
+        $weeksectionid = (int) $weeksection->id;
 
         // Whether to create the learningactivity "section summary" placeholder modules.
         // Quick Add can switch these off (they hold no metadata there and are pure
@@ -618,7 +749,7 @@ class theme_builder {
 
             $weekcmid = self::create_learningactivity_metadata(
                 $courseid,
-                $weeksectionnum,
+                self::current_section_number($courseid, $weeksectionid) ?? $weeksectionnum,
                 'section',
                 $weekactivityname,
                 $weekmetadata
@@ -629,7 +760,7 @@ class theme_builder {
         $sessiondata = $options['sessiondata'] ?? null;
         session_creator::create_session_subsections(
             $courseformat,
-            $weeksectionnum,
+            self::current_section_number($courseid, $weeksectionid) ?? $weeksectionnum,
             $courseid,
             $sessiondata,
             $createsummaryactivities
@@ -638,7 +769,9 @@ class theme_builder {
         // Note: flexsections already rebuilds cache after each section creation.
         // $rebuildcache parameter kept for interface consistency but not used.
 
-        return $weeksectionnum;
+        // Return the week's number as it stands NOW: the sessions just created renumbered
+        // the course, so the number captured at creation time may be out of date.
+        return self::current_section_number($courseid, $weeksectionid) ?? $weeksectionnum;
     }
 
     /**

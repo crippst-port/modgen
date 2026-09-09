@@ -1,4 +1,4 @@
-define(["exports", "core/notification", "core/config", "jquery", "core/templates", "aiplacement_modgen/loading_indicator", "core/str"], function (_exports, _notification, _config, _jquery, _templates, LoadingIndicator, _str) {
+define("aiplacement_modgen/suggest", ["exports", "core/notification", "core/config", "jquery", "core/templates", "aiplacement_modgen/loading_indicator", "core/str"], function (_exports, _notification, _config, _jquery, _templates, LoadingIndicator, _str) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -84,8 +84,7 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
     }
   };
   var _default = _exports.default = {
-    init(modal, courseid) {
-      let currentsection = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
+    init(modal, courseid, currentsection = 0) {
       const SUGGEST_AJAX = _config.default.wwwroot + '/ai/placement/modgen/ajax/suggest.php';
       const CREATE_AJAX = _config.default.wwwroot + '/ai/placement/modgen/ajax/suggest_create.php';
       const root = modal.getRoot();
@@ -111,8 +110,7 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
       } catch (e) {}
       const $select = root.find('#suggest-section-select');
       const $results = root.find('#suggest-results');
-      const showLoading = async function (show) {
-        let message = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : '';
+      const showLoading = async (show, message = '') => {
         const resultsContainer = $results.get(0);
         if (show && resultsContainer) {
           const loadingMessage = message || (await (0, _str.get_string)('generatingsuggestions', 'aiplacement_modgen'));
@@ -122,8 +120,7 @@ define(["exports", "core/notification", "core/config", "jquery", "core/templates
           LoadingIndicator.hide(resultsContainer);
         }
       };
-      const updateFooterForStep = function (step) {
-        let createEnabled = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : false;
+      const updateFooterForStep = (step, createEnabled = false) => {
         let footerHtml = '';
         if (step === SUGGEST_STEPS.SELECT) {
           const scanLabel = M.util.get_string('suggestactivities', 'aiplacement_modgen') || 'Scan for suggestions';

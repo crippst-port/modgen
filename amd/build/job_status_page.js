@@ -1,4 +1,4 @@
-define(["exports", "core/ajax", "core/notification", "core/str"], function (_exports, _ajax, _notification, _str) {
+define("aiplacement_modgen/job_status_page", ["exports", "core/ajax", "core/notification", "core/str"], function (_exports, _ajax, _notification, _str) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -19,6 +19,11 @@ define(["exports", "core/ajax", "core/notification", "core/str"], function (_exp
   const REDIRECT_DELAY = 3000;
   let pollInterval = null;
   let config = {};
+  const escapeHtml = value => {
+    const div = document.createElement('div');
+    div.textContent = String(value === null || value === undefined ? '' : value);
+    return div.innerHTML;
+  };
   const updateStatusDisplay = job => {
     const container = document.getElementById('job-status-container');
     const statusBadge = document.getElementById('status-badge');
@@ -68,7 +73,7 @@ define(["exports", "core/ajax", "core/notification", "core/str"], function (_exp
       const messages = result.messages || [];
       let messagesList = '';
       messages.forEach(msg => {
-        messagesList += `<p class="mb-1"><i class="fa fa-check text-success"></i> ${msg}</p>`;
+        messagesList += `<p class="mb-1"><i class="fa fa-check text-success"></i> ${escapeHtml(msg)}</p>`;
       });
       html = `
             <div class="alert alert-success">
@@ -120,7 +125,7 @@ define(["exports", "core/ajax", "core/notification", "core/str"], function (_exp
                     <i class="fa fa-exclamation-triangle"></i>
                     Job failed
                 </h4>
-                <p><strong>Error:</strong> ${error}</p>
+                <p><strong>Error:</strong> ${escapeHtml(error)}</p>
                 ${retryHtml}
             </div>
         `;

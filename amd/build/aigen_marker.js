@@ -1,4 +1,4 @@
-define(["exports", "core/config"], function (_exports, _config) {
+define("aiplacement_modgen/aigen_marker", ["exports", "core/config"], function (_exports, _config) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {

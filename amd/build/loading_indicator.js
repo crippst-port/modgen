@@ -1,4 +1,4 @@
-define(["exports", "core/templates", "core/str"], function (_exports, _templates, _str) {
+define("aiplacement_modgen/loading_indicator", ["exports", "core/templates", "core/str"], function (_exports, _templates, _str) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -18,8 +18,7 @@ define(["exports", "core/templates", "core/str"], function (_exports, _templates
    * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
    */
   const loadingStates = new WeakMap();
-  const show = async function (container, message) {
-    let options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+  const show = async (container, message, options = {}) => {
     if (!container) {
       return;
     }
@@ -92,9 +91,7 @@ define(["exports", "core/templates", "core/str"], function (_exports, _templates
     }
   };
   _exports.show = show;
-  const update = function (container) {
-    let message = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
-    let progress = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
+  const update = (container, message = null, progress = null) => {
     if (!container) {
       return;
     }
@@ -150,8 +147,7 @@ define(["exports", "core/templates", "core/str"], function (_exports, _templates
     }
   };
   _exports.hide = hide;
-  const showInModal = async function (modal, message) {
-    let options = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : {};
+  const showInModal = async (modal, message, options = {}) => {
     if (!modal || !modal.getBody) {
       return;
     }
@@ -175,9 +171,7 @@ define(["exports", "core/templates", "core/str"], function (_exports, _templates
     }
   };
   _exports.hideFromModal = hideFromModal;
-  const updateInModal = function (modal) {
-    let message = arguments.length > 1 && arguments[1] !== undefined ? arguments[1] : null;
-    let progress = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : null;
+  const updateInModal = (modal, message = null, progress = null) => {
     if (!modal || !modal.getBody) {
       return;
     }

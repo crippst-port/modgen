@@ -1,4 +1,4 @@
-define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "aiplacement_modgen/modal", "core/notification", "core/modal_events", "core/templates", "core/str", "aiplacement_modgen/loading_indicator"], function (_exports, _reactive, _event_dispatcher, _fragment, _modal, _notification, _modal_events, _templates, _str, LoadingIndicator) {
+define("aiplacement_modgen/modal_generator_reactive", ["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "aiplacement_modgen/modal", "core/notification", "core/modal_events", "core/templates", "core/str", "aiplacement_modgen/loading_indicator"], function (_exports, _reactive, _event_dispatcher, _fragment, _modal, _notification, _modal_events, _templates, _str, LoadingIndicator) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {
@@ -177,10 +177,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         handler: this.handleLoadingChange
       }];
     }
-    handleModalStateChange(_ref) {
-      let {
-        state
-      } = _ref;
+    handleModalStateChange({
+      state
+    }) {
       if (state.modal.isOpen && !this.modal) {
         this.createModal();
       } else if (!state.modal.isOpen && this.modal) {
@@ -190,10 +189,9 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         this.modal.show();
       }
     }
-    async handleLoadingChange(_ref2) {
-      let {
-        state
-      } = _ref2;
+    async handleLoadingChange({
+      state
+    }) {
       if (this.modal && state.modal.isLoading) {
         const message = state.modal.loadingMessage || (await (0, _str.get_string)('loadingform', 'aiplacement_modgen'));
         await LoadingIndicator.showInModal(this.modal, message);
@@ -392,8 +390,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
         });
       });
     }
-    async renderFooterButtons(modal, buttons) {
-      let useLanguageStrings = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : false;
+    async renderFooterButtons(modal, buttons, useLanguageStrings = false) {
       const buttonsWithLabels = await Promise.all(buttons.map(async (btn, index) => {
         let label = btn.label;
         if (useLanguageStrings) {
@@ -463,8 +460,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
           }
       }
     }
-    async showSuccess(modal, message) {
-      let details = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : [];
+    async showSuccess(modal, message, details = []) {
       const courseUrl = M.cfg.wwwroot + '/course/view.php?id=' + this.courseid;
       const {
         html: bodyHtml
@@ -829,8 +825,7 @@ define(["exports", "core/reactive", "core/event_dispatcher", "core/fragment", "a
       this.reactive.dispatch('closeModal');
     }
   }
-  const init = function (courseid, contextid) {
-    let currentsection = arguments.length > 2 && arguments[2] !== undefined ? arguments[2] : 0;
+  const init = (courseid, contextid, currentsection = 0) => {
     const component = new ModalGeneratorComponent({
       element: document.body,
       reactive: reactiveInstance,

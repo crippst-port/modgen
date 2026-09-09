@@ -1,4 +1,4 @@
-define(["exports", "core/modal"], function (_exports, _modal) {
+define("aiplacement_modgen/modal", ["exports", "core/modal"], function (_exports, _modal) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {

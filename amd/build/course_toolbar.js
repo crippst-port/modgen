@@ -1,4 +1,4 @@
-define(["exports", "core/fragment", "core/notification", "aiplacement_modgen/modal_generator_reactive", "core/str"], function (_exports, _fragment, _notification, _modal_generator_reactive, _str) {
+define("aiplacement_modgen/course_toolbar", ["exports", "core/fragment", "core/notification", "aiplacement_modgen/modal_generator_reactive", "core/str"], function (_exports, _fragment, _notification, _modal_generator_reactive, _str) {
   "use strict";
 
   Object.defineProperty(_exports, "__esModule", {

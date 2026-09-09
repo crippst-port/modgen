@@ -50,6 +50,22 @@ let pollInterval = null;
 let config = {};
 
 /**
+ * Escape a value for safe interpolation into an HTML string.
+ *
+ * Job result text originates from section and activity names, which are cleaned
+ * with PARAM_TEXT server-side. PARAM_TEXT decodes entities, so raw angle brackets
+ * can survive into the payload and must be escaped again at the point of output.
+ *
+ * @param {*} value Untrusted value
+ * @returns {string} HTML-escaped string
+ */
+const escapeHtml = (value) => {
+    const div = document.createElement('div');
+    div.textContent = String(value === null || value === undefined ? '' : value);
+    return div.innerHTML;
+};
+
+/**
  * Update the status display based on job data.
  *
  * @param {Object} job Job data from server
@@ -114,7 +130,7 @@ const updateStatusDisplay = (job) => {
         
         let messagesList = '';
         messages.forEach(msg => {
-            messagesList += `<p class="mb-1"><i class="fa fa-check text-success"></i> ${msg}</p>`;
+            messagesList += `<p class="mb-1"><i class="fa fa-check text-success"></i> ${escapeHtml(msg)}</p>`;
         });
         
         html = `
@@ -178,7 +194,7 @@ const updateStatusDisplay = (job) => {
                     <i class="fa fa-exclamation-triangle"></i>
                     Job failed
                 </h4>
-                <p><strong>Error:</strong> ${error}</p>
+                <p><strong>Error:</strong> ${escapeHtml(error)}</p>
                 ${retryHtml}
             </div>
         `;

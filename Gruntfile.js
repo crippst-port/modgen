@@ -1,6 +1,57 @@
 module.exports = function(grunt) {
     'use strict';
 
+    // Moodle loads AMD modules by name: requirejs.php concatenates several modules
+    // into a single response when $CFG->cachejs is on, and anonymous define() calls
+    // fail there with "Mismatched anonymous define()". Babel therefore has to stamp
+    // each module with its Moodle module id, e.g. aiplacement_modgen/job_status_page.
+    const COMPONENT = 'aiplacement_modgen';
+
+    /**
+     * Map a source path to its Moodle AMD module id.
+     *
+     * @param {String} moduleName Babel's default id, derived from the source path
+     *                            (e.g. "amd/src/job_status_page").
+     * @returns {String} Moodle module id (e.g. "aiplacement_modgen/job_status_page").
+     */
+    const getModuleId = function(moduleName) {
+        return COMPONENT + '/' + moduleName.replace(/^.*amd\/src\//, '').replace(/\.js$/, '');
+    };
+
+    /**
+     * Babel plugin: stamp the Moodle module id onto a hand-written define().
+     *
+     * Sources in amd/src come in two shapes. ES6 modules are wrapped in a define()
+     * by @babel/preset-env, and `moduleIds` names that wrapper. Sources that already
+     * call define() themselves are left alone by babel (see sourceType: 'unambiguous'
+     * below, which stops them being wrapped a second time), so their define() has to
+     * be named here instead. This mirrors what Moodle core's grunt does.
+     *
+     * @param {Object} babel Babel instance, used for its type builders.
+     * @returns {Object} Babel plugin definition.
+     */
+    const addModuleToDefine = function(babel) {
+        const t = babel.types;
+        return {
+            visitor: {
+                CallExpression: function(path, state) {
+                    if (path.node.callee.name !== 'define') {
+                        return;
+                    }
+                    // Already named - nothing to do.
+                    if (path.node.arguments.length && t.isStringLiteral(path.node.arguments[0])) {
+                        return;
+                    }
+                    const filename = (state.file.opts.filename || '').replace(/\\/g, '/');
+                    if (!filename) {
+                        return;
+                    }
+                    path.node.arguments.unshift(t.stringLiteral(getModuleId(filename)));
+                }
+            }
+        };
+    };
+
     // Project configuration
     grunt.initConfig({
         pkg: grunt.file.readJSON('package.json'),
@@ -10,6 +61,11 @@ module.exports = function(grunt) {
             options: {
                 sourceMaps: false,
                 comments: false,
+                // 'unambiguous' keeps files that already call define() from being
+                // wrapped in a second, nested define() by the AMD transform.
+                sourceType: 'unambiguous',
+                moduleIds: true,
+                getModuleId: getModuleId,
                 presets: [['@babel/preset-env', {
                     targets: {
                         browsers: [
@@ -25,6 +81,7 @@ module.exports = function(grunt) {
                     useBuiltIns: false
                 }]],
                 plugins: [
+                    addModuleToDefine,
                     '@babel/plugin-syntax-dynamic-import',
                     '@babel/plugin-syntax-import-meta',
                     ['@babel/plugin-proposal-class-properties', {'loose': false}],
@@ -44,7 +101,9 @@ module.exports = function(grunt) {
                     'amd/build/aigen_marker.js': 'amd/src/aigen_marker.js',
                     'amd/build/aigen_list.js': 'amd/src/aigen_list.js',
                     'amd/build/loading_indicator.js': 'amd/src/loading_indicator.js',
-                    'amd/build/job_status_page.js': 'amd/src/job_status_page.js'
+                    'amd/build/job_status_page.js': 'amd/src/job_status_page.js',
+                    'amd/build/json_handler.js': 'amd/src/json_handler.js',
+                    'amd/build/policy_acceptance.js': 'amd/src/policy_acceptance.js'
                 }
             }
         },
@@ -83,7 +142,9 @@ module.exports = function(grunt) {
                     'amd/build/aigen_list.min.js': ['amd/build/aigen_list.js'],
                     'amd/build/template_selector.min.js': ['amd/build/template_selector.js'],
                     'amd/build/loading_indicator.min.js': ['amd/build/loading_indicator.js'],
-                    'amd/build/job_status_page.min.js': ['amd/build/job_status_page.js']
+                    'amd/build/job_status_page.min.js': ['amd/build/job_status_page.js'],
+                    'amd/build/json_handler.min.js': ['amd/build/json_handler.js'],
+                    'amd/build/policy_acceptance.min.js': ['amd/build/policy_acceptance.js']
                 }
             }
         },

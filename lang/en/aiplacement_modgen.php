@@ -614,6 +614,7 @@ $string['checkstructure_issuesfound'] = '{$a} issue type(s) detected. Review the
 $string['checkstructure_backtocourse'] = 'Back to Course';
 $string['checkstructure_circularwarning'] = 'Circular reference(s) found: some sections\' parent links loop back on themselves (e.g. A is B\'s parent, and B is A\'s parent). Moodle cannot resolve this. Reparent the affected sections manually below, or use the automatic fix button.';
 $string['checkstructure_orphanwarning'] = 'Orphaned section(s) found: hidden, empty sections disconnected from the course structure. They don\'t appear on the course page but can still block actions like deleting or duplicating the course. Removing them clears the blockage.';
+$string['checkstructure_orderwarning'] = 'Section numbering is out of order: the stored section numbers no longer match the order the sections appear in the hierarchy. This is not only cosmetic. Deleting a section while the course is in this state can remove the wrong content — either taking unrelated sections with it, or leaving a deleted section\'s subsections behind, attached to whatever later occupies that number. Moodle reports neither case as an error. The usual cause is reparenting sections with the dropdowns above, which does not renumber them. Use "Renumber Sections" below before deleting or reorganising anything further on this course.';
 $string['checkstructure_wipewarning'] = 'Every section is missing its parent record — a sign this course was switched away from Flexsections and back. Moodle deletes Flexsections\' section data on switch-away and does not restore it, so the original nesting is genuinely gone, not just unset. "Repair Structure Data" below will set every section to top-level, the only safe automatic fix; to recover the original hierarchy, restore a course backup taken before the format was changed.';
 
 // Fix action labels and descriptions.
@@ -641,6 +642,20 @@ $string['fixcircular_desc'] = 'Breaks parent-reference loops by resetting all af
 $string['fixcircular_confirm'] = 'Fix circular parent references in this course? Left unresolved, these loops can prevent the course from loading correctly. Sections in a loop will be reset to top-level (parent=0), appearing directly under the course homepage — you\'ll need to move or delete them afterwards as required. This cannot be undone.';
 $string['fixcircular_done'] = '{$a} circular reference(s) fixed.';
 $string['fixcircular_none'] = 'No circular references found.';
+$string['fixsectionorder_label'] = 'Renumber Sections';
+$string['fixsectionorder_label_help'] = 'Flexsections numbers sections by their position in the hierarchy: section 0 first, then each section followed immediately by its own subsections. Moving a section in the course normally keeps that numbering in step, but reparenting a section with the dropdowns on this page only changes who its parent is — the numbers stay where they were.
+
+This matters because deleting a section relies on that numbering. Moodle deletes the chosen section and everything numbered after it, on the assumption that what follows a section is its own subsections. When the numbering is out of order that assumption is wrong, and the delete either removes unrelated sections or leaves the chosen section\'s subsections behind. Neither is reported as an error.
+
+This button renumbers every section back into hierarchy order. Nothing moves and no section changes parent: only the numbers change, along with the parent references that point at them.
+
+Section numbers appear in section links, so any bookmark or link that names a section number may point somewhere different afterwards.';
+$string['fixsectionorder_desc'] = 'Renumbers sections so each one is followed by its own subsections, matching the hierarchy. No section changes parent or position. Run this before deleting sections on this course.';
+$string['fixsectionorder_confirm'] = 'Renumber this course\'s sections into hierarchy order? Sections keep their parents, their contents and their position on the course page — only the section numbers change. Doing this makes section deletion behave correctly again. Links that reference a section by number may point elsewhere afterwards. This cannot be undone.';
+$string['fixsectionorder_done'] = '{$a} section(s) renumbered.';
+$string['fixsectionorder_none'] = 'Section numbering is already in hierarchy order.';
+$string['fixsectionorder_blocked_brokenhierarchy'] = 'Sections were not renumbered: the course hierarchy has to be sound before there is a correct order to renumber into. Fix the parent reference problems reported above first, then run this again.';
+$string['fixsectionorder_blocked_notflexsections'] = 'Sections were not renumbered: this course does not use the Flexsections format, so hierarchy-based section numbering does not apply.';
 
 // Diagnostic issue labels for results table.
 $string['diag_section0_with_parent'] = 'Section 0 with parent';
@@ -651,6 +666,7 @@ $string['diag_missing_parents'] = 'Missing parent records';
 $string['diag_duplicate_sections'] = 'Duplicate section numbers';
 $string['diag_circular_refs'] = 'Circular references';
 $string['diag_orphaned_sections'] = 'Orphaned empty sections';
+$string['diag_section_order'] = 'Section numbering out of order';
 
 // Check Structure page table column headers and markers.
 $string['checkstructure_col_check'] = 'Check';
@@ -670,6 +686,7 @@ $string['row_invalidparent'] = 'Invalid parent: {$a}';
 $string['row_nullparent'] = 'Null/empty parent value';
 $string['row_missingparent'] = 'Missing parent option';
 $string['row_circularref'] = 'Circular reference';
+$string['row_wrongorder'] = 'Out of order (expected number: {$a})';
 $string['row_orphaned'] = 'Orphaned (hidden, no activities)';
 $string['detail_removedsection0parent'] = 'Removed parent from section 0';
 $string['detail_removedorphanedoptions'] = 'Removed {$a} orphaned format options';

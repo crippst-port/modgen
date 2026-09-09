@@ -165,6 +165,15 @@ class section_creation_service {
 
                 // Commit all changes - all sections and activities created successfully.
                 $transaction->allow_commit();
+
+                // Put section numbers back into hierarchy order now the content is committed.
+                // Sections are appended at top level and reparented afterwards, which never
+                // renumbers; building into an existing course therefore leaves the numbering
+                // out of step with the tree. Done once here rather than per section, and a
+                // no-op when the order is already correct. Cannot fail the build: the helper
+                // swallows its own errors, leaving the "Renumber Sections" repair in
+                // check_structure.php as the fallback.
+                \aiplacement_modgen\local\theme_builder::renumber_into_hierarchy_order($courseid);
             } catch (\Exception $e) {
                 // Transaction automatically rolls back on exception.
                 // No partial data will remain in database.
@@ -305,9 +314,10 @@ class section_creation_service {
                 );
 
                 $themesectionnum = $themesection->section;
-                // Hold the theme by id: every week (and every session inside it) created
-                // below renumbers the course, so this number is only good until the next
-                // write. Re-read it before each use.
+                // Hold the theme by id. Section creation does not itself renumber, but the
+                // tidy-up at the end of this method does, and so does anything else touching
+                // the course structure concurrently, so this number is only good until the
+                // next write. Re-read it before each use.
                 $themesectionid = (int) $themesection->id;
 
                 if ($hideexistingsections) {

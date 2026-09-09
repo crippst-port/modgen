@@ -270,8 +270,10 @@ class theme_builder {
                     );
                     $createdcount++;
 
-                    // Hold the theme by id, not by number: each week created below renumbers
-                    // the course, so $themesectionnum is only valid until the next write.
+                    // Hold the theme by id, not by number. Section creation does not itself
+                    // renumber (see renumber_into_hierarchy_order()), but the tidy-up at the
+                    // end of this method does, and so does anything else touching the course
+                    // structure concurrently, so a number is only safe until the next write.
                     $themesectionid = self::section_id_from_number($courseid, $themesectionnum);
 
                     $messages[] = get_string('sectioncreated', 'aiplacement_modgen', $themetitle);
@@ -288,7 +290,7 @@ class theme_builder {
                             'collapsed' => 1, // Week appears as link.
                             'createsummaryactivities' => $createsummaryactivities,
                         ];
-                        // Re-read the theme's number: previous weeks have renumbered.
+                        // Re-read the theme's number rather than trusting the captured one.
                         $currentthemenum = self::current_section_number($courseid, $themesectionid);
                         if ($currentthemenum === null) {
                             throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen');
@@ -362,6 +364,11 @@ class theme_builder {
 
                 // Commit all changes - all themes and weeks created successfully.
                 $transaction->allow_commit();
+
+                // Numbering tidy-up, after the commit but still under the structure locks:
+                // see renumber_into_hierarchy_order(). Deliberately outside the transaction
+                // so its own transaction and cache rebuild are not nested inside this one.
+                self::renumber_into_hierarchy_order($courseid);
             } catch (\Exception $e) {
                 // Transaction automatically rolls back on exception.
                 // Log technical details for administrators only.
@@ -504,6 +511,10 @@ class theme_builder {
 
                 // Commit all changes - all weeks created successfully.
                 $transaction->allow_commit();
+
+                // Numbering tidy-up, after the commit but still under the structure locks:
+                // see renumber_into_hierarchy_order().
+                self::renumber_into_hierarchy_order($courseid);
             } catch (\Exception $e) {
                 // Transaction automatically rolls back on exception.
                 // Log technical details for administrators only.
@@ -535,13 +546,55 @@ class theme_builder {
      * @return int Section number of created theme
      */
     /**
+     * Put the course's section numbers back into flexsections' hierarchy order after a build.
+     *
+     * Every section this class creates is appended at top level by create_new_section(0, null)
+     * and then reparented by writing the 'parent' format option directly (see
+     * create_section_with_parent()). That append is a positional no-op, which
+     * can_move_section_to() rejects, so format_flexsections::move_section() returns without
+     * renumbering anything: nothing in a modgen build ever renumbers the course.
+     *
+     * A straight build gets away with it, because themes, their weeks and each week's sessions
+     * are created depth-first, which is the order flexsections would have numbered them in
+     * anyway. Adding content under a section that is not currently last does not: the new
+     * subtree lands at the end of the course instead of immediately after its parent, so the
+     * numbering stops matching the hierarchy even though every parent reference is correct.
+     * That is worth repairing rather than tolerating, because format_flexsections deletes a
+     * section by removing everything numbered after it: on a course in that state, deleting a
+     * section silently removes unrelated content, or strands the descendants of the section
+     * it did delete. See integrity_checker::check_section_order().
+     *
+     * Renumbering per section via move_section() would fix that but reintroduces the ~O(n^2)
+     * reorder cost enforce_section_limit() exists to bound. This runs once per build instead,
+     * and is a no-op when the numbering already agrees with the hierarchy — which is the
+     * common case, so the ordinary paths pay only for the check.
+     *
+     * Never fails the build: the content is already committed by the time this runs, so
+     * losing the tidy-up is strictly better than losing the build. It does need to be
+     * noticed, though, given what an un-renumbered course does to section deletion, so a
+     * failure is logged and check_structure.php's "Renumber Sections" repairs it after the
+     * fact.
+     *
+     * @param int $courseid Course ID
+     */
+    public static function renumber_into_hierarchy_order($courseid) {
+        try {
+            integrity_checker::fix_section_order($courseid);
+        } catch (\Exception $e) {
+            debugging('Section renumber after build failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
+    }
+
+    /**
      * Re-read a section's CURRENT number from its id.
      *
-     * Section numbers in format_flexsections are positional, not identities: creating,
-     * moving, deleting or merging any section renumbers the whole course (see
-     * format_flexsections::move_section()). A number captured before a write may therefore
-     * name a different section afterwards. Anything that has to survive a write must be
-     * held as a section id and converted back through this method at the point of use.
+     * Section numbers in format_flexsections are positional, not identities: moving, deleting
+     * or merging any section renumbers the whole course (see
+     * format_flexsections::move_section()), as does this plugin's own post-build renumber.
+     * Plain section creation does not, but relying on that distinction is not worth it: a
+     * number captured before any write may name a different section afterwards. Anything
+     * that has to survive a write must be held as a section id and converted back through
+     * this method at the point of use.
      *
      * Reads the database directly rather than modinfo: this is called from inside bulk
      * creation transactions where the cached modinfo can lag the rows just written.

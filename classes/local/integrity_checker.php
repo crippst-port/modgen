@@ -63,6 +63,7 @@ class integrity_checker {
                 'duplicate_sections'   => 0,
                 'circular_refs'        => 0,
                 'orphaned_sections'    => 0,
+                'section_order'        => 0,
             ],
             'issues'     => [
                 'section0_with_parent' => [],
@@ -73,6 +74,7 @@ class integrity_checker {
                 'duplicate_sections'   => [],
                 'circular_refs'        => [],
                 'orphaned_sections'    => [],
+                'section_order'        => [],
             ],
             'sections'   => [],
         ];
@@ -273,6 +275,17 @@ class integrity_checker {
             $result['has_issues'] = true;
         }
 
+        // Check 9: Section numbering order (see check_section_order() for what "order" means
+        // here and why it can only be judged on an otherwise-sound hierarchy). Runs last
+        // because it is the one check that is meaningless while any of the checks above are
+        // reporting — it declines to judge in exactly those cases.
+        $ordercheck = self::check_section_order($courseid);
+        if (!empty($ordercheck['misordered'])) {
+            $result['issues']['section_order'] = $ordercheck['misordered'];
+            $result['counts']['section_order'] = count($ordercheck['misordered']);
+            $result['has_issues'] = true;
+        }
+
         // Section detail table data.
         $sectionssql = "SELECT cs.id, cs.course, cs.section, cs.name, cs.visible, cs.sequence,
                                cfo.value AS parent
@@ -300,6 +313,7 @@ class integrity_checker {
         $nulls     = array_column($result['issues']['null_parents'], null, 'id');
         $missing   = array_column($result['issues']['missing_parents'], null, 'id');
         $orphsects = array_column($result['issues']['orphaned_sections'], null, 'id');
+        $misordered = array_column($result['issues']['section_order'], null, 'id');
 
         // Build set of circular root sections.
         $circularsections = [];
@@ -331,6 +345,9 @@ class integrity_checker {
             }
             if (isset($orphsects[$s->id])) {
                 $rowissues[] = get_string('row_orphaned', 'aiplacement_modgen');
+            }
+            if (isset($misordered[$s->id])) {
+                $rowissues[] = get_string('row_wrongorder', 'aiplacement_modgen', $misordered[$s->id]->expected);
             }
 
             $s->depth = $depthcache[$s->section] ?? 0;
@@ -639,6 +656,259 @@ class integrity_checker {
     }
 
     /**
+     * Check whether section numbers follow the depth-first order format_flexsections expects.
+     *
+     * flexsections treats section numbers as positional, not as identities: after any move it
+     * renumbers every section so that a pre-order depth-first walk of the tree (starting at
+     * section 0, visiting each node's children in ascending section-number order) yields
+     * 0, 1, 2, 3... with no gaps — i.e. a section's children always immediately follow it.
+     * That invariant is maintained only inside format_flexsections::move_section(), which
+     * set_parent() deliberately does not call (see its docblock). Repeated manual reparenting
+     * therefore leaves the parent references correct but the numbering scrambled. That is not
+     * a display problem: delete_section_with_children() deletes the chosen section and every
+     * section numbered after it, on the assumption that what follows a section is its own
+     * subtree. Out of order, that assumption is false in both directions — the delete either
+     * takes unrelated sections with it, or leaves the doomed section's descendants behind
+     * pointing at a number that a later section will quietly reoccupy — and neither outcome
+     * is reported as an error. section_has_parent() makes the same assumption, refusing to
+     * recognise an ancestor whose number is higher than its descendant's, which lets
+     * can_move_section_to() approve a move of a section into its own subtree.
+     *
+     * Refuses to judge ordering on a course whose hierarchy is not sound in the first place:
+     * a duplicate number, an unresolvable parent, a cycle or a section unreachable from
+     * section 0 all mean there is no single correct traversal to compare against, and
+     * renumbering such a course would shuffle sections on the basis of a broken tree. Those
+     * problems have their own checks and fixes, which must be applied first.
+     *
+     * @param int $courseid Course ID
+     * @return array {
+     *   checkable: bool,     whether an expected order could be determined at all
+     *   blockedby: string|null  'notflexsections' or 'brokenhierarchy' when not checkable
+     *   misordered: array    rows {id, section, name, expected} for sections whose number
+     *                        differs from its position in the expected traversal
+     *   expected: array<int,int>  section id => expected section number (empty if unchecked)
+     * }
+     */
+    public static function check_section_order(int $courseid): array {
+        global $DB;
+
+        $result = ['checkable' => false, 'blockedby' => null, 'misordered' => [], 'expected' => []];
+
+        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+        if ($course->format !== 'flexsections') {
+            $result['blockedby'] = 'notflexsections';
+            return $result;
+        }
+
+        $rows = $DB->get_records_sql(
+            "SELECT cs.id, cs.section, cs.name, cfo.value AS parent
+               FROM {course_sections} cs
+               LEFT JOIN {course_format_options} cfo
+                 ON cfo.sectionid = cs.id AND cfo.name = 'parent'
+              WHERE cs.course = ?
+              ORDER BY cs.section ASC",
+            [$courseid]
+        );
+
+        $expected = self::build_canonical_order($rows);
+        if ($expected === null) {
+            $result['blockedby'] = 'brokenhierarchy';
+            return $result;
+        }
+
+        $result['checkable'] = true;
+        $result['expected'] = $expected;
+
+        foreach ($rows as $row) {
+            $target = $expected[(int) $row->id];
+            if ((int) $row->section !== $target) {
+                $result['misordered'][] = (object) [
+                    'id'       => (int) $row->id,
+                    'section'  => (int) $row->section,
+                    'name'     => $row->name,
+                    'expected' => $target,
+                ];
+            }
+        }
+
+        return $result;
+    }
+
+    /**
+     * Renumber a course's sections into the depth-first order format_flexsections expects.
+     *
+     * Reproduces exactly what format_flexsections::move_section() does after a move — the
+     * traversal of reorder_sections() to derive the new numbers, the two-pass write through
+     * negative section values to stay inside the (course, section) unique index, the rewrite
+     * of every 'parent' option that pointed at a renumbered section, and the marker fix-up —
+     * but with no section actually changing place, which is the one thing move_section()
+     * cannot express: can_move_section_to() rejects every positional no-op ("do not insert
+     * section directly before or after itself"), so there is no argument combination that
+     * makes it renumber while leaving the tree alone. Driving it into doing so anyway would
+     * mean a real move followed by a move back — two rebuilds, and a genuinely relocated
+     * section left behind if the second leg fails.
+     *
+     * Calling the format's own methods is avoided here for the same reason set_parent() avoids
+     * them: move_section(), can_move_section_to() and reorder_sections() all recurse over the
+     * section tree with no cycle protection, and this runs on courses that may be broken.
+     * check_section_order() has already established the tree is sound before we get here.
+     *
+     * Only parent references and section numbers are touched — no section changes parent, so
+     * unlike a real move there is no visibility cascade to apply.
+     *
+     * @param int $courseid Course ID
+     * @return array {
+     *   fixed: int           number of sections given a new number (0 if already in order)
+     *   checkable: bool      false if the ordering could not be determined; nothing was written
+     *   blockedby: string|null  'notflexsections' or 'brokenhierarchy' when not checkable
+     * }
+     */
+    public static function fix_section_order(int $courseid): array {
+        global $DB;
+
+        $check = self::check_section_order($courseid);
+        if (!$check['checkable']) {
+            return ['fixed' => 0, 'checkable' => false, 'blockedby' => $check['blockedby']];
+        }
+        if (empty($check['misordered'])) {
+            return ['fixed' => 0, 'checkable' => true, 'blockedby' => null];
+        }
+
+        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+        $format = \course_get_format($courseid);
+
+        // Old number => new number, for every section that moves. Also drives the parent
+        // rewrite below: a parent option stores a section *number*, so every option pointing
+        // at a renumbered section has to follow it.
+        $renumber = [];
+        foreach ($check['misordered'] as $row) {
+            $renumber[$row->section] = $row->expected;
+        }
+
+        // Sections whose stored parent number is about to change meaning. Read before the
+        // renumbering writes so the old values are still in place.
+        $sections = $DB->get_records_sql(
+            "SELECT cs.id, cs.section, cfo.value AS parent
+               FROM {course_sections} cs
+               LEFT JOIN {course_format_options} cfo
+                 ON cfo.sectionid = cs.id AND cfo.name = 'parent'
+              WHERE cs.course = ?",
+            [$courseid]
+        );
+        $changeparent = [];
+        foreach ($sections as $s) {
+            $parentnum = ($s->parent === null || $s->parent === '') ? 0 : (int) $s->parent;
+            if (isset($renumber[$parentnum])) {
+                $changeparent[(int) $s->id] = $renumber[$parentnum];
+            }
+        }
+
+        $changemarker = null;
+        if ($course->marker && isset($renumber[(int) $course->marker])) {
+            $changemarker = $renumber[(int) $course->marker];
+        }
+
+        $transaction = $DB->start_delegated_transaction();
+        try {
+            // Two passes via negative numbers: the target number is almost always already
+            // taken by another section that is itself about to move, so a single pass would
+            // violate the (course, section) unique index part-way through.
+            foreach ($check['misordered'] as $row) {
+                $DB->set_field('course_sections', 'section', -$row->expected, ['id' => $row->id]);
+            }
+            foreach ($check['misordered'] as $row) {
+                $DB->set_field('course_sections', 'section', $row->expected, ['id' => $row->id]);
+            }
+            foreach ($changeparent as $sectionid => $newparentnum) {
+                $format->update_section_format_options(['id' => $sectionid, 'parent' => $newparentnum]);
+            }
+            $transaction->allow_commit();
+        } catch (\Exception $e) {
+            $transaction->rollback($e);
+            throw $e;
+        }
+
+        // Outside the transaction: allow_commit() disposes it, so a failure from here on must
+        // not attempt a rollback, which would throw its own "already disposed" exception and
+        // mask the real error.
+        rebuild_course_cache($courseid, true);
+        if ($changemarker !== null) {
+            \course_set_marker($courseid, $changemarker);
+        }
+
+        return ['fixed' => count($check['misordered']), 'checkable' => true, 'blockedby' => null];
+    }
+
+    /**
+     * Derive the section number each section should have, by the traversal flexsections uses.
+     *
+     * Pre-order depth-first from section 0, children visited in ascending current section
+     * number — the ordering format_flexsections::get_subsections() imposes, since it filters
+     * get_sections(), which is keyed by section number ascending.
+     *
+     * @param array $rows course_sections rows with an added 'parent' column, ordered by
+     *   section number ascending
+     * @return array<int,int>|null section id => expected section number, or null when the
+     *   hierarchy cannot be traversed (no section 0, duplicate numbers, a parent that doesn't
+     *   resolve, a cycle, or a section unreachable from section 0)
+     */
+    private static function build_canonical_order(array $rows): ?array {
+        $bynum = [];
+        $children = [];
+
+        foreach ($rows as $row) {
+            $num = (int) $row->section;
+            if (isset($bynum[$num])) {
+                // Duplicate section number: the tree has no single well-defined traversal.
+                return null;
+            }
+            $bynum[$num] = $row;
+        }
+        if (!isset($bynum[0])) {
+            return null;
+        }
+
+        foreach ($rows as $row) {
+            $num = (int) $row->section;
+            if ($num === 0) {
+                continue;
+            }
+            // A missing or empty parent option means top-level everywhere else in this class,
+            // and means the same here.
+            $parentnum = ($row->parent === null || $row->parent === '') ? 0 : (int) $row->parent;
+            if (!isset($bynum[$parentnum]) || $parentnum === $num) {
+                return null;
+            }
+            $children[$parentnum][] = $num;
+        }
+
+        // $rows arrives ordered by section number, so each child list is already ascending.
+        $order = [];
+        $stack = [0];
+        $visited = [];
+        while ($stack) {
+            $num = array_pop($stack);
+            if (isset($visited[$num])) {
+                // Reached twice: a cycle, or two parents claiming the same child.
+                return null;
+            }
+            $visited[$num] = true;
+            $order[(int) $bynum[$num]->id] = count($order);
+            // Pushed in reverse so the lowest-numbered child is popped (and so numbered) first.
+            foreach (array_reverse($children[$num] ?? []) as $childnum) {
+                $stack[] = $childnum;
+            }
+        }
+
+        if (count($order) !== count($bynum)) {
+            // Sections not reachable from section 0 — a detached subtree hanging off a cycle.
+            return null;
+        }
+
+        return $order;
+    }
+
+    /**
      * Build a map of section number => raw 'parent' format option value for a course.
      *
      * @param int $courseid Course ID
@@ -813,13 +1083,14 @@ class integrity_checker {
      *
      * Writes the 'parent' format option directly via update_section_format_options(), the same
      * primitive theme_builder::create_section_with_parent() already uses elsewhere in this
-     * plugin, deliberately NOT format_flexsections::move_section(), despite that being what a
-     * native drag-and-drop move would call. That method is unreachable from the real UI
-     * (flexsections' own JS disables the drag handles: "it does not really work yet"), skips
-     * the core course_update_section() sync path, and, critically for a tool whose whole job
-     * is repairing courses that may have other unrelated broken parent chains at the moment it
-     * runs, both it and can_move_section_to() recurse over the section tree with no cycle
-     * protection at all, risking an unrecoverable stack overflow rather than a clean error.
+     * plugin, deliberately NOT format_flexsections::move_section(), which is what the section
+     * control menu's own Move dialog calls (only drag-and-drop is disabled there: "it does not
+     * really work yet"). That method skips the core course_update_section() sync path, and,
+     * critically for a tool whose whole job is repairing courses that may have other unrelated
+     * broken parent chains at the moment it runs, both it and can_move_section_to() recurse
+     * over the section tree with no cycle protection, and move_section() answers a hierarchy
+     * it cannot traverse with a bare die('Error in sections hierarchy') mid-request rather
+     * than an exception this tool could catch and report.
      *
      * Still refuses moves that would themselves be invalid (unknown section, section 0,
      * self-parent, a move that would create a new cycle, or one that would nest too deep),
@@ -832,11 +1103,13 @@ class integrity_checker {
      * descendants: recursing through an arbitrary subtree here would reintroduce the same
      * unbounded-walk hazard this method exists to avoid.
      *
-     * Does not attempt to keep sibling numbering contiguous the way flexsections' own
-     * reorder_sections() does: that logic lives only inside move_section() and isn't safely
-     * reusable standalone, so repeated manual reparenting can leave section numbers out of the
-     * tidy "children immediately follow their parent" order flexsections otherwise maintains.
-     * Structurally harmless (parent references stay correct either way), just cosmetic.
+     * Does not renumber, so repeated reparenting leaves section numbers out of the tidy
+     * "children immediately follow their parent" order flexsections otherwise maintains. The
+     * parent references stay correct, but the numbering does not merely look untidy: section
+     * deletion is unsafe until it is repaired (see check_section_order()). That is the
+     * deliberate split rather than an accepted cost — reparent freely here, then renumber
+     * once via fix_section_order(), which is what check_structure.php's "Renumber Sections"
+     * does and what theme_builder runs at the end of every build.
      *
      * @param int $courseid Course ID
      * @param int $sectionnum Section number to update

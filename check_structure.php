@@ -188,6 +188,29 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
                 \core\output\notification::NOTIFY_SUCCESS
             );
             break;
+
+        case 'fixsectionorder':
+            $result = integrity_checker::fix_section_order($courseid);
+            if (!$result['checkable']) {
+                // The hierarchy itself is unsound, so there is no correct order to renumber
+                // into and nothing was written — point at the checks that have to be cleared
+                // first rather than reporting a fix that did not happen.
+                $msg = get_string('fixsectionorder_blocked_' . $result['blockedby'], 'aiplacement_modgen');
+                $type = \core\output\notification::NOTIFY_ERROR;
+            } else if ($result['fixed'] > 0) {
+                $msg = get_string('fixsectionorder_done', 'aiplacement_modgen', $result['fixed']);
+                $type = \core\output\notification::NOTIFY_SUCCESS;
+            } else {
+                $msg = get_string('fixsectionorder_none', 'aiplacement_modgen');
+                $type = \core\output\notification::NOTIFY_SUCCESS;
+            }
+            redirect(
+                new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $courseid, 'check' => 1]),
+                $msg,
+                null,
+                $type
+            );
+            break;
     }
 }
 
@@ -199,6 +222,7 @@ if ($action && !$confirm) {
         'fixintegrity' => 'fixintegrity_confirm',
         'fixcleanup'   => 'fixcleanup_confirm',
         'fixcircular'  => 'fixcircular_confirm',
+        'fixsectionorder' => 'fixsectionorder_confirm',
     ];
 
     if (isset($confirmstrings[$action])) {
@@ -438,6 +462,7 @@ if ($diag !== null) {
             'duplicate_sections',
             'circular_refs',
             'orphaned_sections',
+            'section_order',
         ];
         foreach ($checkkeys as $key) {
             $count = $diag['counts'][$key];
@@ -465,6 +490,9 @@ if ($diag !== null) {
     }
     if ($diag['counts']['orphaned_sections'] > 0) {
         echo $OUTPUT->notification(get_string('checkstructure_orphanwarning', 'aiplacement_modgen'), 'warning');
+    }
+    if ($diag['counts']['section_order'] > 0) {
+        echo $OUTPUT->notification(get_string('checkstructure_orderwarning', 'aiplacement_modgen'), 'error');
     }
 
     // Section detail table — filterable: defaults to issues-only (full listing is noisy on
@@ -675,6 +703,22 @@ if ($diag !== null) {
             ]),
             get_string('fixcircular_label', 'aiplacement_modgen'),
             ['class' => 'btn btn-danger mb-4']
+        );
+    }
+
+    if ($diag['counts']['section_order'] > 0) {
+        $fixorderheading = get_string('fixsectionorder_label', 'aiplacement_modgen')
+            . ' ' . $OUTPUT->help_icon('fixsectionorder_label', 'aiplacement_modgen');
+        echo $OUTPUT->heading($fixorderheading, 4);
+        echo html_writer::tag('p', get_string('fixsectionorder_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
+        echo html_writer::link(
+            new moodle_url('/ai/placement/modgen/check_structure.php', [
+                'id'      => $courseid,
+                'action'  => 'fixsectionorder',
+                'sesskey' => sesskey(),
+            ]),
+            get_string('fixsectionorder_label', 'aiplacement_modgen'),
+            ['class' => 'btn btn-warning mb-4']
         );
     }
 }

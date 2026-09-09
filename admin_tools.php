@@ -528,6 +528,7 @@ function render_integrity_results(array $diag): void {
         'duplicate_sections',
         'circular_refs',
         'orphaned_sections',
+        'section_order',
     ];
 
     echo html_writer::start_div('table-responsive mb-3');

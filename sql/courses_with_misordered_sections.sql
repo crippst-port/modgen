@@ -97,9 +97,11 @@ SELECT fs.courseid                                                          AS "
        -- chr(63) is a question mark. Moodle's DML counts every question mark in a
        -- query as a positional placeholder (moodle_database::fix_sql_params() just calls
        -- substr_count, so string literals and even comments count), and report_customsql
-       -- runs queries through it. Writing this URL the obvious way therefore fails with
+       -- runs queries through it. Writing these URLs the obvious way therefore fails with
        -- "Incorrect number of query parameters". Do not reintroduce the character
        -- anywhere in this file, comments included.
+       '%%WWWROOT%%/course/view.php'
+           || chr(63) || 'id=' || fs.courseid                               AS "Course",
        '%%WWWROOT%%/ai/placement/modgen/check_structure.php'
            || chr(63) || 'id=' || fs.courseid || '&check=1'                 AS "Check structure"
   FROM sect s

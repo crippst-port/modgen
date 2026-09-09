@@ -4,17 +4,26 @@
 -- first, then every section followed immediately by its own subsections. Only
 -- move_section() maintains that. Reparenting a section without moving it -- which is
 -- what aiplacement_modgen's builder did before it renumbered, and what the parent
--- dropdowns in its Check Structure tool still do -- leaves the parent references correct
+-- pickers in its Check Structure tool still do -- leaves the parent references correct
 -- but the numbering scrambled.
 --
 -- That is not cosmetic and it is invisible on the course page (the renderer walks the
 -- parent tree, and only uses numbers to order siblings within one level). It matters
--- because delete_section_with_children() deletes the chosen section and everything
--- numbered after it, on the assumption that what follows a section is its own subtree.
--- Out of order, that assumption fails in both directions: the delete either takes
--- unrelated sections with it, or leaves the doomed section's descendants stranded.
+-- because removing a section removes it and every section numbered after it, on the
+-- assumption that what follows a section is its own subtree. Out of order, that
+-- assumption fails in both directions: the removal either takes unrelated sections with
+-- it, or strands the descendants of the section that was removed. See
+-- format_flexsections' section-removal routine, and check_section_order() in
+-- aiplacement_modgen's integrity checker.
 --
 -- Fix a listed course from the URL in the last column, using "Renumber Sections".
+--
+-- report_customsql rejects a query containing any data-modifying SQL keyword, and it
+-- checks the whole submitted text rather than just the executable part -- so an ordinary
+-- English sentence in a comment can trip it. The wording throughout this file avoids
+-- every word on that list deliberately, which is why the prose below says "removing a
+-- section" and "renumbers to" where the natural phrasing would not. The plugin names the
+-- word it objected to, so re-check the wording after editing any comment here.
 --
 -- PostgreSQL only: uses recursive CTEs, array ordering, the ~ regex operator and
 -- FILTER. Written for report_customsql, so table names carry the prefix_ placeholder.
@@ -55,7 +64,7 @@ sect AS (
 walk AS (
     -- Depth-first from section 0, children visited in ascending section number. Sorting
     -- by the accumulated path array reproduces exactly the pre-order that
-    -- format_flexsections::reorder_sections() renumbers into.
+    -- format_flexsections::reorder_sections() renumbers to.
     SELECT courseid, sectionid, num, ARRAY[num] AS path, 1 AS depth
       FROM sect
      WHERE num = 0

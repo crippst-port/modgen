@@ -4,6 +4,10 @@
 -- why it matters. Same PostgreSQL and report_customsql assumptions.
 --
 -- To narrow to one course, add its id to the fs CTE:  AND c.id = 2
+--
+-- As in the companion file: no question mark anywhere (Moodle's DML reads each one as a
+-- bind parameter), and no data-modifying SQL keyword anywhere in the text, comments
+-- included, since report_customsql rejects those on sight.
 WITH RECURSIVE fs AS (
     SELECT c.id AS courseid, c.shortname
       FROM prefix_course c

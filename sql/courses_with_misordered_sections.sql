@@ -16,7 +16,13 @@
 -- format_flexsections' section-removal routine, and check_section_order() in
 -- aiplacement_modgen's integrity checker.
 --
--- Fix a listed course from the URL in the last column, using "Renumber Sections".
+-- The last column links to the plugin's structure tools for each listed course. Note
+-- that the numbering check and its "Renumber Sections" repair only exist in the plugin
+-- from the section-numbering work onwards. This query needs none of that -- it reads the
+-- tables directly, so it finds affected courses whatever version is installed -- but on
+-- an older build the linked tool will not report or repair the numbering, and moving any
+-- one section in such a course is the workaround, since that makes format_flexsections
+-- renumber the whole course itself.
 --
 -- Three things this file must never contain, anywhere in its text -- comments included,
 -- because both report_customsql and Moodle's DML scan the whole submission rather than
@@ -102,8 +108,13 @@ SELECT fs.courseid                                                          AS "
        -- anywhere in this file, comments included.
        '%%WWWROOT%%/course/view.php'
            || chr(63) || 'id=' || fs.courseid                               AS "Course",
-       '%%WWWROOT%%/ai/placement/modgen/check_structure.php'
-           || chr(63) || 'id=' || fs.courseid || '&check=1'                 AS "Check structure"
+       -- admin_tools.php rather than check_structure.php: the former is what the plugin
+       -- version currently in production exposes. It takes courseid (not id) and
+       -- prefills its course box from the URL, but every action there needs a sesskey,
+       -- so this link lands on the tools page with the course filled in and the check is
+       -- one click away. Site admins only, same as this report.
+       '%%WWWROOT%%/ai/placement/modgen/admin_tools.php'
+           || chr(63) || 'courseid=' || fs.courseid                         AS "Structure tools"
   FROM sect s
   JOIN fs ON fs.courseid = s.courseid
   LEFT JOIN expected e ON e.sectionid = s.sectionid

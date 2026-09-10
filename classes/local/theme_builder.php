@@ -558,8 +558,14 @@ class theme_builder {
      * Never fails the build: the content is already committed by the time this runs, so
      * losing the tidy-up is strictly better than losing the build. It does need to be
      * noticed, though, given what an un-renumbered course does to section deletion, so a
-     * failure is logged and check_structure.php's "Renumber Sections" repairs it after the
-     * fact.
+     * failure raises \aiplacement_modgen\event\section_renumber_failed and
+     * check_structure.php's "Renumber Sections" repairs it after the fact.
+     *
+     * Catches \Throwable, not \Exception: an Error raised below (a TypeError from a format
+     * plugin, an exhausted recursion limit on a pathological tree) would otherwise escape
+     * past the commit and fail a build whose content is already saved - the one outcome this
+     * method exists to prevent - and would do so without logging the course that needs
+     * repairing.
      *
      * @param int $courseid Course ID
      * @param bool $locksheld True when the caller already holds the structure locks, so
@@ -568,8 +574,43 @@ class theme_builder {
     public static function renumber_into_hierarchy_order($courseid, $locksheld = false) {
         try {
             integrity_checker::fix_section_order($courseid, $locksheld);
-        } catch (\Exception $e) {
-            debugging('Section renumber after build failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        } catch (\Throwable $e) {
+            self::report_renumber_failure((int) $courseid, $e);
+        }
+    }
+
+    /**
+     * Record an abandoned renumber where an administrator will find it.
+     *
+     * debugging() alone is not enough here: it is silent on any site that is not in developer
+     * mode, which is every production site, and this is precisely the failure that must not
+     * pass unnoticed - the course is left in a state where deleting a section can remove
+     * unrelated content with no error shown to the teacher who does it. The event lands in
+     * the standard log store, so it survives the request and is reportable site-wide.
+     *
+     * Reporting a failure must not itself become one, so every step is guarded: the event
+     * cannot be built if the course has been removed underneath the build, and triggering it
+     * touches a log store that may be misconfigured or full. A lost log line is bad; an
+     * exception thrown out of the error handler, past a commit, would be worse.
+     *
+     * @param int $courseid Course whose numbering was left out of order
+     * @param \Throwable $e What stopped the renumber
+     */
+    private static function report_renumber_failure(int $courseid, \Throwable $e) {
+        debugging('Section renumber after build failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+
+        try {
+            $event = \aiplacement_modgen\event\section_renumber_failed::build($courseid, $e);
+            if ($event !== null) {
+                $event->trigger();
+            }
+        } catch (\Throwable $ignored) {
+            // Deliberately swallowed - see the docblock above.
+            debugging(
+                'Could not log the section renumber failure for course ' . $courseid . ': '
+                    . $ignored->getMessage(),
+                DEBUG_DEVELOPER
+            );
         }
     }
 

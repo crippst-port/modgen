@@ -150,11 +150,19 @@ class aiplacement_modgen_generator_form extends moodleform
         $mform->addElement('header', 'contentplacementheader', get_string('contentplacement', 'aiplacement_modgen'));
         $mform->setExpanded('contentplacementheader', true);
 
-        // Checkbox to hide existing sections and place new content at top.
-        $mform->addElement('advcheckbox', 'hideexistingsections', get_string('hideexistingsections', 'aiplacement_modgen'));
-        $mform->addHelpButton('hideexistingsections', 'hideexistingsections', 'aiplacement_modgen');
-        $mform->setType('hideexistingsections', PARAM_BOOL);
-        $mform->setDefault('hideexistingsections', 0);
+        // Checkbox to hide existing sections and place new content at top. Offered only
+        // where the site has switched the option on; the field is absent otherwise, and
+        // section_creation_service ignores the flag however else it might arrive.
+        if (\aiplacement_modgen\local\settings_helper::is_hideexistingsections_enabled()) {
+            $mform->addElement(
+                'advcheckbox',
+                'hideexistingsections',
+                get_string('hideexistingsections', 'aiplacement_modgen')
+            );
+            $mform->addHelpButton('hideexistingsections', 'hideexistingsections', 'aiplacement_modgen');
+            $mform->setType('hideexistingsections', PARAM_BOOL);
+            $mform->setDefault('hideexistingsections', 0);
+        }
 
         // Checkbox to add the learningactivity "section summary" placeholder to each
         // section. The help text only mentions the AI-metadata caveat when AI is enabled.

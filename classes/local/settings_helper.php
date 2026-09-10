@@ -107,6 +107,25 @@ class settings_helper {
     }
 
     /**
+     * Check whether the "Hide existing sections" option is offered.
+     *
+     * Off unless a site turns it on, which is the opposite of the toggles either side of
+     * it. The option is the only thing in this plugin that calls
+     * format_flexsections::move_section(), and so the only thing that renumbers a course
+     * through the format; see section_creation_service::hide_and_reorder_sections(). That
+     * loop runs on the JSON build path, which holds only this plugin's own lock, so it is
+     * not excluded from a teacher deleting a section in the same course at the same time -
+     * and flexsections guards its delete with a lock nothing else here takes during a
+     * build. A site that does not need the option should not carry that exposure, so it
+     * has to be asked for.
+     *
+     * @return bool True if the option is available on this site
+     */
+    public static function is_hideexistingsections_enabled(): bool {
+        return self::get_bool('enable_hideexistingsections');
+    }
+
+    /**
      * Stop with a "disabled" error unless structure-from-file is enabled.
      *
      * @throws \moodle_exception if structure-from-file is disabled

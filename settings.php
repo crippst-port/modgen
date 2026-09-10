@@ -125,6 +125,15 @@ if ($hassiteconfig) {
             1
         ));
 
+        // Default 0, unlike the toggles above: this is the one feature that reorders
+        // existing sections, so a site opts in to it rather than out of it.
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_hideexistingsections',
+            new lang_string('enablehideexistingsections', 'aiplacement_modgen'),
+            new lang_string('enablehideexistingsections_desc', 'aiplacement_modgen'),
+            0
+        ));
+
         // Suggest toolbar button control.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/suggestheading',

@@ -33,6 +33,7 @@ namespace aiplacement_modgen;
 
 use advanced_testcase;
 use aiplacement_modgen\local\section_creation_service;
+use aiplacement_modgen\local\settings_helper;
 use aiplacement_modgen\local\theme_builder;
 
 defined('MOODLE_INTERNAL') || die();
@@ -49,6 +50,30 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class section_reordering_test extends advanced_testcase {
+    /**
+     * Turn on the site switch this whole class depends on.
+     *
+     * These tests exercise "Hide existing sections", which section_creation_service ignores
+     * unless the site has opted in - the option is off by default because it is the only
+     * path that reorders existing sections. Enabling it here keeps each test below testing
+     * the feature rather than the gate; the gate itself is covered by
+     * hideexistingsections_setting_test.
+     */
+    protected function setUp(): void {
+        parent::setUp();
+        $this->resetAfterTest(true);
+        set_config('enable_hideexistingsections', 1, 'aiplacement_modgen');
+        settings_helper::clear_cache();
+    }
+
+    /**
+     * Drop the cached switch so it cannot leak into another test class.
+     */
+    protected function tearDown(): void {
+        settings_helper::clear_cache();
+        parent::tearDown();
+    }
+
     /**
      * Create a genuine pre-existing top-level content section that is eligible to be
      * hidden by the hideexistingsections flow.

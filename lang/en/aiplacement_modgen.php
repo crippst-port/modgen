@@ -505,6 +505,8 @@ $string['enablequickadd'] = 'Enable Quick add';
 $string['enablequickadd_desc'] = 'Show the "New theme" and "New week" options in the Quick add menu, which create single sections directly without going through the generator. Turning this off removes both options and closes the forms behind them. The rest of the Quick add menu is unaffected.';
 $string['enablestructurefromfile'] = 'Enable Structure from file';
 $string['enablestructurefromfile_desc'] = 'Allow module structures to be built from a CSV file - the "Structure from file" option, the CSV template chooser and the file upload on the generator form. Turning this off leaves AI generation from a prompt available, which is controlled separately by the AI generation setting above.';
+$string['enablehideexistingsections'] = 'Enable "Hide existing sections"';
+$string['enablehideexistingsections_desc'] = 'Offer the "Hide existing sections" option on the generator form, which hides a course\'s current sections and moves the newly generated ones to the top. Off by default. This is the only Module Assistant feature that reorders existing sections rather than only adding to the end, and the reordering is not protected against someone deleting a section in the same course at the same moment, which can leave the course structure inconsistent. Turn it on only if your teachers need to replace course structures wholesale, and prefer to do so on courses that are not being edited by others at the time.';
 $string['quickadddisabled'] = 'Quick add is currently disabled. An administrator can enable it in the Module Assistant plugin settings.';
 $string['structurefromfiledisabled'] = 'Building a structure from a file is currently disabled. An administrator can enable it in the Module Assistant plugin settings.';
 $string['maxquicksections'] = 'Maximum themes or weeks';
@@ -665,6 +667,9 @@ $string['fixsectionorder_done'] = '{$a} section(s) renumbered.';
 $string['fixsectionorder_none'] = 'Section numbering is already in hierarchy order.';
 $string['fixsectionorder_blocked_brokenhierarchy'] = 'Sections were not renumbered: the course hierarchy has to be sound before there is a correct order to renumber into. Fix the parent reference problems reported above first, then run this again.';
 $string['fixsectionorder_blocked_notflexsections'] = 'Sections were not renumbered: this course does not use the Flexsections format, so hierarchy-based section numbering does not apply.';
+
+// Events.
+$string['event_sectionrenumberfailed'] = 'Section renumber after generation failed';
 
 // Diagnostic issue labels for results table.
 $string['diag_section0_with_parent'] = 'Section 0 with parent';

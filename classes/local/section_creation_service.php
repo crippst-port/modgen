@@ -67,6 +67,16 @@ class section_creation_service {
         $needscacherefresh = false;
         $newtoplevelsectionids = [];
 
+        // Authoritative gate for the site setting, not a second opinion on the form's.
+        // Removing the checkbox from generator_form does not stop the flag arriving:
+        // prompt.php reads it with optional_param() and approve_form carries it as a
+        // hidden field across the approval round-trip, so a crafted or stale request can
+        // still set it. Normalising here, once, covers every use below - the hide passes
+        // inside the builders as well as hide_and_reorder_sections().
+        if ($hideexistingsections && !settings_helper::is_hideexistingsections_enabled()) {
+            $hideexistingsections = false;
+        }
+
         // Refuse before doing any work if this structure would push the course past
         // the section limit (flexsections section creation is ~O(n^2) in total
         // sections). Fails fast and cheap, before locking or creating anything.

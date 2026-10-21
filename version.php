@@ -27,7 +27,7 @@ defined('MOODLE_INTERNAL') || die();
 $plugin->component = 'aiplacement_modgen';
 $plugin->release = '0.8.0';
 $plugin->version = 2026102101;
-$plugin->requires = 2022112800;
+$plugin->requires = 2024100700; // Moodle 4.5: needs the core AI subsystem and the aiplacement plugin type.
 $plugin->maturity = MATURITY_BETA;
 
 // This plugin only builds courses in the Flexible sections format: theme_builder refuses

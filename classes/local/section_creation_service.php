@@ -261,12 +261,12 @@ class section_creation_service {
             $summary = $theme['summary'] ?? '';
             $weeks = !empty($theme['weeks']) && is_array($theme['weeks']) ? $theme['weeks'] : [];
 
-            // Format theme title and summary.
-            $themetitle = format_string($title, true, ['context' => $context]);
+            // Titles and plain-text summaries are stored as given; Moodle escapes them when shown.
+            $themetitle = trim((string) $title);
             $sectionhtml = '';
             $aienabled = get_config('aiplacement_modgen', 'enable_ai');
-            if (!$aienabled && trim($summary) !== '') {
-                $sectionhtml = format_text($summary, FORMAT_PLAIN, ['context' => $context]);
+            if (!$aienabled && trim((string) $summary) !== '') {
+                $sectionhtml = (string) $summary;
             }
 
             try {
@@ -416,6 +416,7 @@ class section_creation_service {
                     $summaryhtml,
                     [
                         'collapsed' => $hassessions ? 1 : 0,
+                        'summaryformat' => FORMAT_HTML, // $summaryhtml is sanitised HTML with an optional outline list.
                         'sessiondata' => $weeksessiondata,
                         'metadata' => $weekmetadata,
                         'createsummaryactivities' => $createsummaryactivities,

@@ -49,28 +49,11 @@ class csv_parser {
             return 'connected_weekly';
         }
 
-        // Parse CSV content.
-        $lines = explode("\n", $content);
-
-        // Scan for "Theme:" labels (case-insensitive).
-        foreach ($lines as $line) {
-            $line = trim($line);
-
-            // Skip empty lines.
-            if (empty($line) || $line === ',') {
-                continue;
-            }
-
-            // Parse the line.
-            $parts = str_getcsv($line);
-
-            if (count($parts) >= 1) {
-                $label = trim($parts[0]);
-
-                // Check if this line contains a theme label.
-                if (stripos($label, 'Theme') === 0) {
-                    return 'connected_theme';
-                }
+        // Scan for "Theme:" labels (case-insensitive) on real CSV rows, so a quoted description
+        // that merely contains a line starting with "Theme" cannot change the detected format.
+        foreach (self::read_rows($content) as $row) {
+            if (stripos($row['label'], 'Theme') === 0) {
+                return 'connected_theme';
             }
         }
 
@@ -106,8 +89,9 @@ class csv_parser {
             throw new \Exception('CSV file is empty');
         }
 
-        // Parse CSV content.
-        $lines = explode("\n", $content);
+        // Parse CSV content into label/value rows. A real CSV reader is used so that quoted
+        // values may contain commas, quotes and line breaks (Excel's Alt+Enter).
+        $lines = self::read_rows($content);
 
         if (empty($lines)) {
             throw new \Exception('No data found in CSV file');
@@ -123,7 +107,9 @@ class csv_parser {
         }
 
         // Validate section count against max limit.
-        $maxsections = (int)get_config('aiplacement_modgen', 'maxcsvsections') ?: 50;
+        // An unset setting means the default of 50; an explicit 0 means unlimited.
+        $configured = get_config('aiplacement_modgen', 'maxcsvsections');
+        $maxsections = ($configured === false || $configured === '') ? 50 : (int) $configured;
 
         if ($maxsections > 0) {
             $sectioncount = self::count_sections($structure);
@@ -155,6 +141,39 @@ class csv_parser {
         return $content;
     }
 
+    /**
+     * Read the file as CSV and return its non-empty rows as label/value pairs.
+     *
+     * Reading the whole content as CSV (rather than line by line) keeps quoted values that span
+     * several lines in one piece. Rows with fewer than two columns, or an empty label or value,
+     * carry nothing to import and are skipped. A value of "0" is a real value.
+     *
+     * @param string $content CSV text (UTF-8, BOM already removed)
+     * @return array[] Each ['label' => string, 'value' => string, 'row' => int (1-based CSV record)]
+     */
+    private static function read_rows(string $content): array {
+        $stream = fopen('php://temp', 'r+');
+        fwrite($stream, $content);
+        rewind($stream);
+
+        $rows = [];
+        $recordnumber = 0;
+        while (($record = fgetcsv($stream, 0, ',', '"', '')) !== false) {
+            $recordnumber++;
+            if ($record === [null] || count($record) < 2) {
+                continue;
+            }
+            $label = trim((string) $record[0]);
+            $value = trim((string) $record[1]);
+            if ($label === '' || $value === '') {
+                continue;
+            }
+            $rows[] = ['label' => $label, 'value' => $value, 'row' => $recordnumber];
+        }
+        fclose($stream);
+
+        return $rows;
+    }
     /**
      * Count total sections in a structure (themes + weeks).
      *
@@ -200,7 +219,7 @@ class csv_parser {
      *         Week:,Week Description
      *         Description:,Week Description (optional)
      *
-     * @param array $lines CSV lines
+     * @param array $lines Label/value rows from read_rows()
      * @return array Themed structure
      */
     private static function parse_simple_theme_structure(array $lines): array {
@@ -210,32 +229,9 @@ class csv_parser {
         $moduletitle = '';
         $lastitemtype = ''; // Track what was just added (theme/week).
 
-        // Strip BOM from the first line if present.
-        if (isset($lines[0])) {
-            $lines[0] = preg_replace('/^\xEF\xBB\xBF/', '', $lines[0]);
-        }
-
-        foreach ($lines as $line) {
-            $line = trim($line);
-
-            // Skip empty lines.
-            if (empty($line) || $line === ',') {
-                continue;
-            }
-
-            // Parse the line.
-            $parts = str_getcsv($line);
-
-            if (count($parts) < 2) {
-                continue;
-            }
-
-            $label = trim($parts[0]);
-            $value = trim($parts[1] ?? '');
-
-            if (empty($value)) {
-                continue;
-            }
+        foreach ($lines as $row) {
+            $label = $row['label'];
+            $value = $row['value'];
 
             // Process based on label.
             if (stripos($label, 'Title') === 0) {
@@ -263,7 +259,14 @@ class csv_parser {
                 ];
                 $currentweek = null;
                 $lastitemtype = 'theme';
-            } else if (stripos($label, 'Week') === 0 && $currenttheme !== null) {
+            } else if (stripos($label, 'Week') === 0) {
+                if ($currenttheme === null) {
+                    // Dropping it silently would lose content the user supplied.
+                    throw new \moodle_exception('csvweekbeforetheme', 'aiplacement_modgen', '', (object) [
+                        'row' => $row['row'],
+                        'value' => s($value),
+                    ]);
+                }
                 // Add week to current theme.
                 $week = [
                     'title' => $value,
@@ -336,7 +339,7 @@ class csv_parser {
      *         Week:,Week Description
      *         Description:,Week Description (optional)
      *
-     * @param array $lines CSV lines
+     * @param array $lines Label/value rows from read_rows()
      * @return array Weekly structure
      */
     private static function parse_simple_weekly_structure(array $lines): array {
@@ -345,27 +348,9 @@ class csv_parser {
         $moduletitle = '';
         $lastitemtype = ''; // Track what was just added.
 
-        foreach ($lines as $line) {
-            $line = trim($line);
-
-            // Skip empty lines.
-            if (empty($line) || $line === ',') {
-                continue;
-            }
-
-            // Parse the line.
-            $parts = str_getcsv($line);
-
-            if (count($parts) < 2) {
-                continue;
-            }
-
-            $label = trim($parts[0]);
-            $value = trim($parts[1] ?? '');
-
-            if (empty($value)) {
-                continue;
-            }
+        foreach ($lines as $row) {
+            $label = $row['label'];
+            $value = $row['value'];
 
             // Process based on label.
             if (stripos($label, 'Title') === 0) {

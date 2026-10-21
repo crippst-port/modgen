@@ -43,3 +43,15 @@ Feature: Quick Add builds sections in the background
     And I click on "Quick Add" "link"
     Then I should not see "New Theme(s)"
     And I should not see "New Week(s)"
+
+  Scenario: A Quick Add that cannot fit is refused instead of queued
+    Given the following config values are set as admin:
+      | maxtotalsections | 10 | aiplacement_modgen |
+    And I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    When I click on "Quick Add" "link"
+    And I click on "New Week(s)" "link"
+    And I set the field "How many weeks do you want to create?" to "5"
+    And I click on "Create" "button" in the ".modal-footer" "css_element"
+    Then I should not see "Creating 5 standalone week(s)"
+    And I should see "That's too many sections to create at once"

@@ -96,7 +96,7 @@ core_php_time_limit::raise(600);
 $PAGE->set_context($context);
 
 // Get max sections from config.
-$maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 10;
+$maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 30;
 
 try {
     require_once(__DIR__ . '/../classes/local/theme_builder.php');
@@ -126,6 +126,9 @@ try {
 
         // Calculate total sections for display: themes + (themes × weeks × 4 sessions).
         $totalsections = $themecount + ($themecount * $weeksperthemecount * 4);
+
+        // Refuse now rather than queue a job that is certain to fail in the background.
+        \aiplacement_modgen\local\theme_builder::enforce_section_limit($courseid, $totalsections);
 
         // Queue as background task.
         $job = new stdClass();
@@ -177,6 +180,9 @@ try {
 
         // Calculate total sections for display: weeks + (weeks × 3 sessions).
         $totalsections = $weekcount + ($weekcount * 3);
+
+        // Refuse now rather than queue a job that is certain to fail in the background.
+        \aiplacement_modgen\local\theme_builder::enforce_section_limit($courseid, $totalsections);
 
         // Queue as background task.
         $job = new stdClass();

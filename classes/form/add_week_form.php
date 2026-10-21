@@ -86,7 +86,7 @@ class aiplacement_modgen_add_week_form extends moodleform {
         $errors = parent::validation($data, $files);
 
         // Get max sections from config.
-        $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 10;
+        $maxsections = (int)get_config('aiplacement_modgen', 'maxquicksections') ?: 30;
 
         if (empty($data['weekcount']) || $data['weekcount'] < 1 || $data['weekcount'] > $maxsections) {
             $errors['weekcount'] = get_string('invalidweekcount', 'aiplacement_modgen', $maxsections);

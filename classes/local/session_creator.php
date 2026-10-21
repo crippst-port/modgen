@@ -88,7 +88,8 @@ class session_creator {
             if (!empty($sessiondata[$sessionkey]) && is_array($sessiondata[$sessionkey])) {
                 $data = $sessiondata[$sessionkey];
                 if (!empty($data['description'])) {
-                    $sessionsummary = format_text($data['description'], FORMAT_PLAIN);
+                    // Stored as given: FORMAT_PLAIN is escaped when shown.
+                    $sessionsummary = (string) $data['description'];
                 }
             }
 

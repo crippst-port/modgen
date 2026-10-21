@@ -554,6 +554,19 @@ if ($approveform && ($adata = $approveform->get_data())) {
         $sectioncount = count($json['weeks']);
     }
 
+    // Refuse now rather than queue a job that is certain to fail in the background.
+    try {
+        \aiplacement_modgen\local\theme_builder::enforce_section_limit(
+            $courseid,
+            \aiplacement_modgen\local\theme_builder::count_projected_sections_from_json($json, $moduletype)
+        );
+    } catch (\moodle_exception $e) {
+        if ($ajax) {
+            \aiplacement_modgen\local\ajax_response::error($e->getMessage(), 'sectionlimitexceeded');
+        }
+        throw $e;
+    }
+
     // Always use background task for all creation jobs
     // Create job record.
     $job = new \stdClass();
@@ -658,38 +671,6 @@ if ($pdata = $promptform->get_data()) {
         $compositeprompt .= "\n\nIMPORTANT: Do NOT generate summaries for themes. Leave the 'summary' field EMPTY " .
             "for each theme object (empty string, not null). Only provide theme titles and the weeks array. " .
             "This keeps the theme sections as containers without descriptive text.";
-    }
-
-    // Extract and include file contents in the prompt if files are provided.
-    $filecontent = '';
-    if (!empty($uploadform) && ($filedata = $uploadform->get_data())) {
-        // Get file manager data.
-        $usercontext = context_user::instance($USER->id);
-        $files = $filedata->supportingfiles_filemanager ?? $filedata->supportingfiles ?? 0;
-
-        if (!empty($files)) {
-            $fs = get_file_storage();
-            $contextid = !empty($filedata->contextid) ? $filedata->contextid : $usercontext->id;
-            $storedfiles = $fs->get_area_files($contextid, 'aiplacement_modgen', 'supportingfiles', $files, 'sortorder', false);
-
-            if (!empty($storedfiles)) {
-                $filecontent = "UPLOADED FILE STRUCTURE:\n\n";
-                foreach ($storedfiles as $file) {
-                    if ($file->is_valid_image()) {
-                        continue; // Skip images.
-                    }
-                    $content = $file->get_content();
-                    $filecontent .= "File: {$file->get_filename()}\n";
-                    $filecontent .= "---\n";
-                    $filecontent .= $content;
-                    $filecontent .= "\n---\n\n";
-                }
-            }
-        }
-    }
-
-    if (!empty($filecontent)) {
-        $compositeprompt .= "\n\n" . $filecontent;
     }
 
     // Gather supporting files using the file processor service.

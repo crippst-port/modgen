@@ -261,18 +261,16 @@ final class removed_features_routes_test extends advanced_testcase {
     }
 
     /**
-     * The generator form (standalone and modal) renders without the removed fields.
+     * The generator forms render without the removed fields.
      */
     public function test_generator_forms_render_without_removed_fields(): void {
         global $CFG;
         set_config('enable_ai', 1, 'aiplacement_modgen');
         require_once($CFG->dirroot . '/ai/placement/modgen/classes/form/generator_form.php');
-        require_once($CFG->dirroot . '/ai/placement/modgen/classes/form/modal_generator_form.php');
         require_once($CFG->dirroot . '/ai/placement/modgen/classes/form/prompt_form.php');
 
         $forms = [
             new \aiplacement_modgen_generator_form(null, ['courseid' => $this->course->id]),
-            new \aiplacement_modgen_modal_generator_form(null, ['courseid' => $this->course->id]),
             new \aiplacement_modgen_prompt_form(null, ['courseid' => $this->course->id]),
         ];
 

@@ -774,10 +774,11 @@ class theme_builder {
             throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
         }
 
-        // Format title and summary.
-        // Use format_string for title (XSS-safe) and FORMAT_PLAIN for summary to prevent XSS from AI-generated content.
-        $themetitle = format_string($title, true, ['context' => $context]);
-        $sectionhtml = trim($summary) !== '' ? format_text($summary, FORMAT_PLAIN, ['context' => $context]) : '';
+        // Store the text as given. FORMAT_PLAIN means Moodle escapes it when the section is shown, so
+        // escaping here as well would display '&amp;' and '&lt;i&gt;' literally. Tags in the title are
+        // stripped by create_section_with_parent().
+        $themetitle = trim((string) $title);
+        $sectionhtml = trim((string) $summary) !== '' ? (string) $summary : '';
 
         // Themes are top-level by default, but Quick Add can target an existing section.
         $collapsed = $options['collapsed'] ?? 1;
@@ -805,7 +806,7 @@ class theme_builder {
      * @param object $courseformat Course format object
      * @param int $parentsectionnum Parent section number (0 for top-level, theme section number for nested)
      * @param string $title Week title
-     * @param string $summary Week summary (HTML)
+     * @param string $summary Week summary (plain text, or HTML when 'summaryformat' => FORMAT_HTML)
      * @param array $options Optional settings (e.g., ['collapsed' => 1, 'sessiondata' => [...]])
      * @param bool $rebuildcache Whether to rebuild course cache after creation (default true)
      * @return int Section number of created week
@@ -832,8 +833,8 @@ class theme_builder {
             throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
         }
 
-        // Format week title.
-        $weektitle = format_string($title, true, ['context' => $context]);
+        // Store the title as given; it is escaped when shown (see create_theme_section()).
+        $weektitle = trim((string) $title);
 
         // Prepare metadata for week-level learningactivity.
         // If metadata includes instructions, use that instead of setting summary on section.
@@ -842,10 +843,12 @@ class theme_builder {
 
         // If using metadata for intro, don't set summary on section (leave it minimal/empty).
         // Otherwise, use the provided summary on the section.
-        // Use FORMAT_PLAIN to prevent XSS from AI-generated content.
+        // Plain text is stored as given and escaped when shown. A caller that has already built
+        // sanitised HTML (the weekly import adds an outline list) says so with 'summaryformat'.
+        $weeksummaryformat = ($options['summaryformat'] ?? FORMAT_PLAIN) === FORMAT_HTML ? FORMAT_HTML : FORMAT_PLAIN;
         $weeksectionhtml = '';
-        if (!$usemetadataforintro && trim($summary) !== '') {
-            $weeksectionhtml = format_text($summary, FORMAT_PLAIN, ['context' => $context]);
+        if (!$usemetadataforintro && trim((string) $summary) !== '') {
+            $weeksectionhtml = (string) $summary;
         }
 
         // Create section with explicit parent and collapsed option using centralized helper.
@@ -856,7 +859,7 @@ class theme_builder {
             $parentsectionnum,
             $weektitle,
             $weeksectionhtml,
-            FORMAT_PLAIN,
+            $weeksummaryformat,
             ['collapsed' => $collapsed],
             false  // Don't rebuild cache yet - wait until session subsections created.
         );

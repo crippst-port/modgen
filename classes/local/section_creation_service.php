@@ -191,9 +191,9 @@ class section_creation_service {
                 // swallows its own errors, leaving the "Renumber Sections" repair in
                 // check_structure.php as the fallback.
                 \aiplacement_modgen\local\theme_builder::renumber_into_hierarchy_order($courseid);
-            } catch (\Exception $e) {
-                // Transaction automatically rolls back on exception.
-                // No partial data will remain in database.
+            } catch (\Throwable $e) {
+                // Roll back explicitly: delegated transactions do not do it on their own.
+                \aiplacement_modgen\local\theme_builder::rollback_quietly($transaction, $e);
                 throw new \moodle_exception(
                     'jsonsectionscreationfailed',
                     'aiplacement_modgen',

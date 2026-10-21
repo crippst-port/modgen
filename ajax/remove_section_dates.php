@@ -87,7 +87,12 @@ try {
     $updatedsections = [];
 
     foreach ($selectedids as $sectionid) {
-        $section = $DB->get_record('course_sections', ['id' => $sectionid], '*', MUST_EXIST);
+        $section = $DB->get_record(
+            'course_sections',
+            ['id' => $sectionid, 'course' => $courseid],
+            '*',
+            MUST_EXIST
+        );
 
         // Remove existing date from name.
         $newname = date_calculator::remove_existing_date($section->name);

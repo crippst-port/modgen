@@ -134,11 +134,7 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
 
     // Verify course exists and get context.
     $course = get_course($courseid);
-    if ($contextid) {
-        $context = context::instance_by_id($contextid);
-    } else {
-        $context = context_course::instance($courseid);
-    }
+    $context = aiplacement_modgen_fragment_context($courseid, $contextid);
 
     // This is a Fragment API callback, reachable directly over AJAX by any logged-in user -
     // the client-supplied show* args are never trusted for visibility. Each button's
@@ -280,11 +276,7 @@ function aiplacement_modgen_output_fragment_form_suggest(array $args): string {
     $courseid = clean_param($args['courseid'], PARAM_INT);
     $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
 
-    if ($contextid) {
-        $context = context::instance_by_id($contextid);
-    } else {
-        $context = context_course::instance($courseid);
-    }
+    $context = aiplacement_modgen_fragment_context($courseid, $contextid);
     require_capability('aiplacement/modgen:usesuggest', $context);
 
     // Build data for mustache template rendering.
@@ -312,6 +304,26 @@ function aiplacement_modgen_output_fragment_form_suggest(array $args): string {
     ];
 
     return $PAGE->get_renderer('core')->render_from_template('aiplacement_modgen/suggest', $data);
+}
+
+/**
+ * Resolve the context a fragment callback should authorise against.
+ *
+ * Fragment arguments are client-supplied. A caller-chosen context id must not be allowed to
+ * stand in for the course the fragment then reads from, otherwise a capability held in one
+ * course would unlock another course's data. The context must be the course's own.
+ *
+ * @param int $courseid Course the fragment reads from
+ * @param int $contextid Optional context id supplied by the caller (0 for none)
+ * @return context_course The course context to check capabilities in
+ * @throws moodle_exception If the supplied context is not that course's context
+ */
+function aiplacement_modgen_fragment_context(int $courseid, int $contextid = 0): context_course {
+    $coursecontext = context_course::instance($courseid);
+    if ($contextid && (int) $contextid !== (int) $coursecontext->id) {
+        throw new moodle_exception('invalidcontext', 'error');
+    }
+    return $coursecontext;
 }
 
 /**
@@ -343,11 +355,7 @@ function aiplacement_modgen_output_fragment_form_add_theme(array $args): string 
     $courseid = clean_param($args['courseid'], PARAM_INT);
     $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
 
-    if ($contextid) {
-        $context = context::instance_by_id($contextid);
-    } else {
-        $context = context_course::instance($courseid);
-    }
+    $context = aiplacement_modgen_fragment_context($courseid, $contextid);
 
     // Verify permission.
     require_capability('aiplacement/modgen:managestructure', $context);
@@ -392,11 +400,7 @@ function aiplacement_modgen_output_fragment_form_add_week(array $args): string {
     $courseid = clean_param($args['courseid'], PARAM_INT);
     $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
 
-    if ($contextid) {
-        $context = context::instance_by_id($contextid);
-    } else {
-        $context = context_course::instance($courseid);
-    }
+    $context = aiplacement_modgen_fragment_context($courseid, $contextid);
 
     // Verify permission.
     require_capability('aiplacement/modgen:managestructure', $context);
@@ -437,11 +441,7 @@ function aiplacement_modgen_output_fragment_form_template_from_prompt(array $arg
     $courseid = clean_param($args['courseid'], PARAM_INT);
     $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
 
-    if ($contextid) {
-        $context = context::instance_by_id($contextid);
-    } else {
-        $context = context_course::instance($courseid);
-    }
+    $context = aiplacement_modgen_fragment_context($courseid, $contextid);
 
     // Verify permission.
     require_capability('aiplacement/modgen:generatewithprompt', $context);
@@ -483,11 +483,7 @@ function aiplacement_modgen_output_fragment_form_dates_for_sections(array $args)
     $courseid = clean_param($args['courseid'], PARAM_INT);
     $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
 
-    if ($contextid) {
-        $context = context::instance_by_id($contextid);
-    } else {
-        $context = context_course::instance($courseid);
-    }
+    $context = aiplacement_modgen_fragment_context($courseid, $contextid);
 
     // Verify permission.
     require_capability('aiplacement/modgen:managestructure', $context);

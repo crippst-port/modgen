@@ -121,10 +121,20 @@ class create_sections_task extends \core\task\adhoc_task {
         try {
             $jobuser = $DB->get_record('user', ['id' => $job->userid], '*', MUST_EXIST);
             \core\session\manager::set_user($jobuser);
-        } catch (\Exception $e) {
-            // If user setup fails, log error but continue with system user.
-            // This allows task to proceed but may cause capability check failures.
-            debugging('Failed to set user context for job ' . $jobid . ': ' . $e->getMessage(), DEBUG_DEVELOPER);
+        } catch (\Throwable $e) {
+            // Never carry on as the cron user: creation would run without the job owner's
+            // identity (and with whatever the cron session happens to allow). The owner is
+            // gone, so retrying cannot help; fail the job terminally.
+            $job->status = 'failed';
+            $job->result = json_encode([
+                'success' => false,
+                'error' => $e->getMessage(),
+                'will_retry' => false,
+            ]);
+            $job->timecompleted = time();
+            $DB->update_record('aiplacement_modgen_jobs', $job);
+            mtrace('Could not switch to the owner of job ' . $jobid . ': ' . $e->getMessage());
+            return;
         }
 
         try {

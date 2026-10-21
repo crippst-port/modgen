@@ -369,8 +369,10 @@ class theme_builder {
                 // see renumber_into_hierarchy_order(). Deliberately outside the transaction
                 // so its own transaction and cache rebuild are not nested inside this one.
                 self::renumber_into_hierarchy_order($courseid, true);
-            } catch (\Exception $e) {
-                // Transaction automatically rolls back on exception.
+            } catch (\Throwable $e) {
+                // Delegated transactions do NOT roll back by themselves: left open, later writes
+                // (e.g. the task marking the job failed) would be swallowed by the eventual rollback.
+                self::rollback_quietly($transaction, $e);
                 // Log technical details for administrators only.
                 debugging('Theme creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), DEBUG_DEVELOPER);
                 throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen');
@@ -515,8 +517,10 @@ class theme_builder {
                 // Numbering tidy-up, after the commit but still under the structure locks:
                 // see renumber_into_hierarchy_order().
                 self::renumber_into_hierarchy_order($courseid, true);
-            } catch (\Exception $e) {
-                // Transaction automatically rolls back on exception.
+            } catch (\Throwable $e) {
+                // Delegated transactions do NOT roll back by themselves: left open, later writes
+                // (e.g. the task marking the job failed) would be swallowed by the eventual rollback.
+                self::rollback_quietly($transaction, $e);
                 // Log technical details for administrators only.
                 debugging('Week creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), DEBUG_DEVELOPER);
                 throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen');
@@ -655,6 +659,27 @@ class theme_builder {
         }
         $id = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => (int) $sectionnum]);
         return ($id === false) ? null : (int) $id;
+    }
+
+    /**
+     * Roll back a delegated transaction after a failure, without masking the original error.
+     *
+     * rollback() rethrows the exception it is given, and throws its own error if the
+     * transaction was already committed or disposed, so both are absorbed here.
+     *
+     * @param \moodle_transaction $transaction Transaction to roll back
+     * @param \Throwable $cause The failure that triggered the rollback
+     */
+    public static function rollback_quietly(\moodle_transaction $transaction, \Throwable $cause): void {
+        if ($transaction->is_disposed()) {
+            return;
+        }
+        try {
+            $transaction->rollback($cause);
+        } catch (\Throwable $rethrown) {
+            // Expected: rollback() rethrows the cause.
+            unset($rethrown);
+        }
     }
 
     /**
@@ -1172,8 +1197,8 @@ class theme_builder {
             // $rebuildcache parameter kept for interface consistency but not used.
 
             return $section;
-        } catch (\Exception $e) {
-            // Transaction automatically rolls back on exception.
+        } catch (\Throwable $e) {
+            self::rollback_quietly($transaction, $e);
             // Log technical details for administrators only.
             debugging('Section creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), DEBUG_DEVELOPER);
 

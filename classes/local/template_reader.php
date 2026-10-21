@@ -24,6 +24,9 @@
 
 namespace aiplacement_modgen\local;
 
+use Exception;
+use Throwable;
+
 /**
  * Template reader class for extracting curriculum module structure.
  */
@@ -123,9 +126,14 @@ class template_reader {
                 return false;
             }
 
-            // Simple check: just verify user is logged in and course exists
-            // More detailed capability checks can fail with database errors in some Moodle instances.
-            return !empty($USER->id);
+            if (empty($USER->id)) {
+                return false;
+            }
+
+            // The caller reads this course's structure and content, so it must be able to
+            // see the course: enrolled or otherwise permitted (course:view).
+            return has_capability('moodle/course:view', \context_course::instance($courseid))
+                || is_enrolled(\context_course::instance($courseid), $USER, '', true);
         } catch (Exception $e) {
             return false;
         }

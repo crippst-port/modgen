@@ -46,7 +46,6 @@
  * - `add_theme`: Create sections by theme names
  * - `add_week`: Create sections by week range
  * - `template_from_prompt`: AI-powered content generation from prompt
- * - `suggest`: AI activity suggestions for existing sections
  * - `prompt`: Legacy prompt form
  *
  * ## Usage
@@ -413,7 +412,7 @@ class ModalGeneratorComponent extends BaseComponent {
      */
     isAiWorkflowForm(formName) {
         // These forms involve AI generation and show the progress stepper
-        const aiWorkflowForms = ['template_from_prompt', 'prompt', 'suggest'];
+        const aiWorkflowForms = ['template_from_prompt', 'prompt'];
         return aiWorkflowForms.includes(formName);
     }
 
@@ -437,8 +436,8 @@ class ModalGeneratorComponent extends BaseComponent {
             contextid: this.contextid,
         })
             .then((html) => {
-                // Only show progress header for AI workflow forms (but not suggest - it has its own stepper)
-                const bodyHtml = (this.isAiWorkflowForm(formName) && formName !== 'suggest')
+                // Only show progress header for AI workflow forms.
+                const bodyHtml = this.isAiWorkflowForm(formName)
                     ? this.buildProgressHeader(STEPS.PROMPT) + html
                     : html;
                 return ModgenModal.create({
@@ -469,20 +468,6 @@ class ModalGeneratorComponent extends BaseComponent {
 
                 // Extract and display form buttons in the modal footer
                 this.updateFooterFromForm(modal);
-
-                // If this is the suggest form, initialize the suggest client module
-                if (formName === 'suggest') {
-                    try {
-                        require(['aiplacement_modgen/suggest'], (suggest) => {
-                            const mod = (suggest && typeof suggest.init === 'function') ? suggest : (suggest && suggest.default ? suggest.default : null);
-                            if (mod && typeof mod.init === 'function') {
-                                mod.init(modal, this.courseid, this.currentsection);
-                            }
-                        });
-                    } catch (e) {
-                        Notification.exception(e);
-                    }
-                }
 
                 this.modal.show();
 

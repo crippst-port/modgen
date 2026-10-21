@@ -58,14 +58,6 @@ $capabilities = [
         'archetypes' => [],
     ],
 
-    // Use AI activity suggestions.
-    'aiplacement/modgen:usesuggest' => [
-        'riskbitmask' => RISK_DATALOSS,
-        'captype' => 'write',
-        'contextlevel' => CONTEXT_COURSE,
-        'archetypes' => [],
-    ],
-
     // Manage site-wide templates (admin).
     'aiplacement/modgen:managetemplates' => [
         'riskbitmask' => RISK_CONFIG,

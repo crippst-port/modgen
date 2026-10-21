@@ -26,12 +26,6 @@ namespace aiplacement_modgen;
 
 defined('MOODLE_INTERNAL') || die();
 
-use aiplacement_modgen\activitytype\registry;
-
-require_once(__DIR__ . '/../activitytype/registry.php');
-
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Wraps the core AI subsystem to generate and validate module structures.
  */
@@ -520,20 +514,14 @@ class ai_service
      * @param string $prompt User's input requirements
      * @param array $documents Supporting documents/files
      * @param string $structure Module structure type (weekly/theme)
-     * @param array $templatedata Optional template data
      * @param int $courseid Optional course ID for week date calculations
-     * @param bool $includeactivities Whether to request activities in the response (default: true)
-     * @param bool $includesessions Whether to request session instructions (default: true)
      * @return array Module structure JSON
      */
     public static function generate_module(
         $prompt,
         $documents = [],
         $structure = 'weekly',
-        $templatedata = null,
-        $courseid = null,
-        $includeactivities = true,
-        $includesessions = true
+        $courseid = null
     ) {
         global $USER, $COURSE;
 
@@ -611,18 +599,16 @@ class ai_service
                 "generated content (e.g., 'organise' not 'organize', 'colour' not 'color', 'centre' not 'center').";
 
             // Build simplified role instruction.
-            $istemplate = !empty($templatedata);
-            $sourcelabel = $istemplate ? 'the existing module structure' : 'the curriculum file';
+            $sourcelabel = 'the curriculum file';
 
             $roleinstruction = $pedagogicalguidance . "\n\n" .
                 "CRITICAL - MUST FOLLOW:\n" .
                 "1. COMPLETE output: Generate all topics/sections. Do NOT stop early or truncate.\n" .
                 "2. Include ALL content from " . $sourcelabel . " - nothing can be omitted.\n" .
                 "3. Return ONLY valid JSON - no commentary or code blocks.\n" .
-                "4. Use ONLY supported activity types - unsupported types will FAIL.\n" .
-                "5. TEMPLATE METADATA section describes the 'template' JSON field ONLY - do NOT add this to " .
+                "4. TEMPLATE METADATA section describes the 'template' JSON field ONLY - do NOT add this to " .
                 "theme/week summaries.\n" .
-                "6. NEVER include JSON strings inside field values. All fields must contain plain text or " .
+                "5. NEVER include JSON strings inside field values. All fields must contain plain text or " .
                 "arrays, NOT JSON-encoded strings.\n\n";
 
             // Add structure-specific guidance - simplified.
@@ -651,267 +637,231 @@ class ai_service
                     "Cloud Computing Basics').\n\n";
             }
 
-            $activitymetadata = registry::get_supported_activity_metadata();
-
             // Explicit JSON format instruction with detailed structure.
             if ($structure === 'theme') {
-                if ($includesessions) {
-                    $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
-                        "Your response MUST be ONLY a valid JSON object with this exact structure:\n" .
-                        "{\n" .
-                        "  \"themes\": [\n" .
-                        "    {\n" .
-                        "      \"title\": \"Theme Title (descriptive, not generic)\",\n" .
-                        "      \"summary\": \"2-3 sentences introducing the theme topic to students\",\n" .
-                        "      \"weeks\": [\n" .
-                        "        {\n" .
-                        "          \"title\": \"Oct 18 - 24: Introduction to Cloud Computing\",\n" .
-                        "          \"summary\": \"Brief overview of the week's learning outcomes\",\n" .
-                        "          \"learningactivity_metadata\": {\n" .
-                        "            \"name\": \"Welcome to this week\",\n" .
-                        "            \"activityicon\": \"fa-graduation-cap\",\n" .
-                        "            \"instructions\": \"Week-level introduction providing context and guidance (5-8 " .
-                        "sentences)\"\n" .
+                $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
+                    "Your response MUST be ONLY a valid JSON object with this exact structure:\n" .
+                    "{\n" .
+                    "  \"themes\": [\n" .
+                    "    {\n" .
+                    "      \"title\": \"Theme Title (descriptive, not generic)\",\n" .
+                    "      \"summary\": \"2-3 sentences introducing the theme topic to students\",\n" .
+                    "      \"weeks\": [\n" .
+                    "        {\n" .
+                    "          \"title\": \"Oct 18 - 24: Introduction to Cloud Computing\",\n" .
+                    "          \"summary\": \"Brief overview of the week's learning outcomes\",\n" .
+                    "          \"learningactivity_metadata\": {\n" .
+                    "            \"name\": \"Welcome to this week\",\n" .
+                    "            \"activityicon\": \"fa-graduation-cap\",\n" .
+                    "            \"instructions\": \"Week-level introduction providing context and guidance (5-8 " .
+                    "sentences)\"\n" .
 
-                        "          },\n" .
-                        "          \"sessions\": {\n" .
-                        "            \"presession\": {\n" .
-                        "              \"description\": \"2-3 sentences describing this session phase for students\",\n" .
-                        "              \"learningactivity_metadata\": {\n" .
-                        "                \"name\": \"Pre-session Reading\",\n" .
-                        "                \"activityicon\": \"fa-book-open\",\n" .
-                        "                \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
-                        "                \"duration\": \"30\",\n" .
-                        "                \"learningmode\": \"Asynchronous\",\n" .
-                        "                \"groupactivity\": false,\n" .
-                        "                \"learningtypes\": \"Acquisition,Investigation\",\n" .
-                        "                \"learningoutcomes_weekly\": \"Identify key concepts\\nAnalyze reading " .
-                        "material\\nSynthesize information\"\n" .
+                    "          },\n" .
+                    "          \"sessions\": {\n" .
+                    "            \"presession\": {\n" .
+                    "              \"description\": \"2-3 sentences describing this session phase for students\",\n" .
+                    "              \"learningactivity_metadata\": {\n" .
+                    "                \"name\": \"Pre-session Reading\",\n" .
+                    "                \"activityicon\": \"fa-book-open\",\n" .
+                    "                \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
+                    "                \"duration\": \"30\",\n" .
+                    "                \"learningmode\": \"Asynchronous\",\n" .
+                    "                \"groupactivity\": false,\n" .
+                    "                \"learningtypes\": \"Acquisition,Investigation\",\n" .
+                    "                \"learningoutcomes_weekly\": \"Identify key concepts\\nAnalyze reading " .
+                    "material\\nSynthesize information\"\n" .
 
-                        "              },\n" .
-                        "              \"activities\": [{\"type\": \"forum\", \"name\": \"Activity Name\"}]\n" .
-                        "            },\n" .
-                        "            \"session\": {\n" .
-                        "              \"description\": \"2-3 sentences describing this session phase for students\",\n" .
-                        "              \"learningactivity_metadata\": {\n" .
-                        "                \"name\": \"Live Session Activity\",\n" .
-                        "                \"activityicon\": \"fa-chalkboard-user\",\n" .
-                        "                \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
-                        "                \"duration\": \"60\",\n" .
-                        "                \"learningmode\": \"Synchronous\",\n" .
-                        "                \"groupactivity\": false,\n" .
-                        "                \"learningtypes\": \"Discussion,Practice\",\n" .
-                        "                \"learningoutcomes_weekly\": \"Apply concepts through " .
-                        "discussion\\nDemonstrate understanding\\nCollaborate with peers\"\n" .
+                    "              }\n" .
+                    "            },\n" .
+                    "            \"session\": {\n" .
+                    "              \"description\": \"2-3 sentences describing this session phase for students\",\n" .
+                    "              \"learningactivity_metadata\": {\n" .
+                    "                \"name\": \"Live Session Activity\",\n" .
+                    "                \"activityicon\": \"fa-chalkboard-user\",\n" .
+                    "                \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
+                    "                \"duration\": \"60\",\n" .
+                    "                \"learningmode\": \"Synchronous\",\n" .
+                    "                \"groupactivity\": false,\n" .
+                    "                \"learningtypes\": \"Discussion,Practice\",\n" .
+                    "                \"learningoutcomes_weekly\": \"Apply concepts through " .
+                    "discussion\\nDemonstrate understanding\\nCollaborate with peers\"\n" .
 
-                        "              },\n" .
-                        "              \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity Name\"}]\n" .
-                        "            },\n" .
-                        "            \"postsession\": {\n" .
-                        "              \"description\": \"2-3 sentences describing this session phase for students\",\n" .
-                        "              \"learningactivity_metadata\": {\n" .
-                        "                \"name\": \"Post-session Reflection\",\n" .
-                        "                \"activityicon\": \"fa-pen-to-square\",\n" .
-                        "                \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
-                        "                \"duration\": \"45\",\n" .
-                        "                \"learningmode\": \"Asynchronous\",\n" .
-                        "                \"groupactivity\": false,\n" .
-                        "                \"learningtypes\": \"Production,Practice\",\n" .
-                        "                \"learningoutcomes_weekly\": \"Reflect on learning\\nEvaluate " .
-                        "understanding\\nCreate new insights\"\n" .
+                    "              }\n" .
+                    "            },\n" .
+                    "            \"postsession\": {\n" .
+                    "              \"description\": \"2-3 sentences describing this session phase for students\",\n" .
+                    "              \"learningactivity_metadata\": {\n" .
+                    "                \"name\": \"Post-session Reflection\",\n" .
+                    "                \"activityicon\": \"fa-pen-to-square\",\n" .
+                    "                \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
+                    "                \"duration\": \"45\",\n" .
+                    "                \"learningmode\": \"Asynchronous\",\n" .
+                    "                \"groupactivity\": false,\n" .
+                    "                \"learningtypes\": \"Production,Practice\",\n" .
+                    "                \"learningoutcomes_weekly\": \"Reflect on learning\\nEvaluate " .
+                    "understanding\\nCreate new insights\"\n" .
 
-                        "              },\n" .
-                        "              \"activities\": [{\"type\": \"assignment\", \"name\": \"Activity Name\"}]\n" .
-                        "            }\n" .
-                        "          }\n" .
-                        "        }\n" .
-                        "      ]\n" .
-                        "    }\n" .
-                        "  ]\n" .
-                        "}\n\n" .
-                        "CRITICAL REQUIREMENTS:\n" .
-                        "- Return ONLY the JSON object. No additional text before or after.\n" .
-                        "- NEVER include JSON as a string value in any field (e.g., summary must NOT contain nested JSON)\n" .
-                        "- Each theme.summary must be 2-3 plain sentences (NO JSON inside)\n" .
-                        "- Each week.title must include date range AND descriptive topic: 'date: Topic Name'\n" .
-                        "- Week-level learningactivity_metadata.name should be welcoming (e.g., 'Welcome to this " .
-                        "week', 'Week Overview')\n" .
+                    "              }\n" .
+                    "            }\n" .
+                    "          }\n" .
+                    "        }\n" .
+                    "      ]\n" .
+                    "    }\n" .
+                    "  ]\n" .
+                    "}\n\n" .
+                    "CRITICAL REQUIREMENTS:\n" .
+                    "- Return ONLY the JSON object. No additional text before or after.\n" .
+                    "- NEVER include JSON as a string value in any field (e.g., summary must NOT contain nested JSON)\n" .
+                    "- Each theme.summary must be 2-3 plain sentences (NO JSON inside)\n" .
+                    "- Each week.title must include date range AND descriptive topic: 'date: Topic Name'\n" .
+                    "- Week-level learningactivity_metadata.name should be welcoming (e.g., 'Welcome to this " .
+                    "week', 'Week Overview')\n" .
 
-                        "- Week-level learningactivity_metadata.instructions should provide week introduction and " .
-                        "context (5-8 sentences)\n" .
+                    "- Week-level learningactivity_metadata.instructions should provide week introduction and " .
+                    "context (5-8 sentences)\n" .
 
-                        "- Week-level learningactivity_metadata.activityicon should use 'fa-graduation-cap' or " .
-                        "similar welcoming icon\n" .
+                    "- Week-level learningactivity_metadata.activityicon should use 'fa-graduation-cap' or " .
+                    "similar welcoming icon\n" .
 
-                        "- Each sessions.description must be 2-3 plain sentences describing the session phase\n" .
-                        "- Session-level learningactivity_metadata.name must be a descriptive activity name (e.g., " .
-                        "'Pre-session Reading', 'Live Discussion')\n" .
+                    "- Each sessions.description must be 2-3 plain sentences describing the session phase\n" .
+                    "- Session-level learningactivity_metadata.name must be a descriptive activity name (e.g., " .
+                    "'Pre-session Reading', 'Live Discussion')\n" .
 
-                        "- learningactivity_metadata.activityicon MUST be one of: '', 'fa-book', 'fa-book-open', " .
-                        "'fa-graduation-cap', 'fa-chalkboard', 'fa-chalkboard-user', 'fa-flask', 'fa-microscope', " .
-                        "'fa-laptop-code', 'fa-pen-to-square', 'fa-comments', 'fa-users', 'fa-lightbulb', " .
-                        "'fa-puzzle-piece', 'fa-clipboard-check', 'fa-file-pen', 'fa-robot'\n" .
+                    "- learningactivity_metadata.activityicon MUST be one of: '', 'fa-book', 'fa-book-open', " .
+                    "'fa-graduation-cap', 'fa-chalkboard', 'fa-chalkboard-user', 'fa-flask', 'fa-microscope', " .
+                    "'fa-laptop-code', 'fa-pen-to-square', 'fa-comments', 'fa-users', 'fa-lightbulb', " .
+                    "'fa-puzzle-piece', 'fa-clipboard-check', 'fa-file-pen', 'fa-robot'\n" .
 
-                        "- Session-level learningactivity_metadata.instructions must be 5-8 detailed sentences for " .
-                        "activity guidance\n" .
+                    "- Session-level learningactivity_metadata.instructions must be 5-8 detailed sentences for " .
+                    "activity guidance\n" .
 
-                        "- learningactivity_metadata.learningmode MUST be one of: 'Synchronous', 'Asynchronous', " .
-                        "'Not specified'\n" .
+                    "- learningactivity_metadata.learningmode MUST be one of: 'Synchronous', 'Asynchronous', " .
+                    "'Not specified'\n" .
 
-                        "- learningactivity_metadata.learningtypes MUST be comma-separated list from ONLY these six " .
-                        "types: 'Acquisition', 'Collaboration', 'Discussion', 'Investigation', 'Practice', " .
-                        "'Production'\n" .
+                    "- learningactivity_metadata.learningtypes MUST be comma-separated list from ONLY these six " .
+                    "types: 'Acquisition', 'Collaboration', 'Discussion', 'Investigation', 'Practice', " .
+                    "'Production'\n" .
 
-                        "- CRITICAL: 'Reflection' is NOT a valid learning type - use 'Production' or 'Practice' " .
-                        "instead for reflective activities\n" .
+                    "- CRITICAL: 'Reflection' is NOT a valid learning type - use 'Production' or 'Practice' " .
+                    "instead for reflective activities\n" .
 
-                        "- learningactivity_metadata.duration MUST be a number (minutes as string)\n" .
-                        "- learningactivity_metadata.groupactivity MUST be boolean (true/false)\n" .
-                        "- All field values must be strings or arrays of objects, NEVER strings containing JSON\n" .
-                        "- Themes array MUST contain all themes\n" .
-                        "- Each theme MUST have a weeks array with complete week structures\n\n";
-                } else {
-                    $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
-                        "Your response MUST be ONLY a valid JSON object (no text before/after):\n" .
-                        "{\"themes\": [{\"title\": \"Theme Name\", \"summary\": \"2-3 sentences\", \"weeks\": " .
-                        "[{\"title\": \"Week N (Oct 18 - 24)\", \"summary\": \"Brief overview\"}]}]}\n\n";
-                }
+                    "- learningactivity_metadata.duration MUST be a number (minutes as string)\n" .
+                    "- learningactivity_metadata.groupactivity MUST be boolean (true/false)\n" .
+                    "- All field values must be strings or arrays of objects, NEVER strings containing JSON\n" .
+                    "- Themes array MUST contain all themes\n" .
+                    "- Each theme MUST have a weeks array with complete week structures\n\n";
             } else {
                 // Weekly structure with sessions.
-                if ($includesessions) {
-                    $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
-                        "Your response MUST be ONLY a valid JSON object with this exact structure:\n" .
-                        "{\n" .
-                        "  \"sections\": [\n" .
-                        "    {\n" .
-                        "      \"title\": \"Week 1 (Oct 18 - 24): Introduction to Cloud Computing\",\n" .
-                        "      \"summary\": \"Brief overview of the week's learning outcomes\",\n" .
-                        "      \"learningactivity_metadata\": {\n" .
-                        "        \"name\": \"Welcome to this week\",\n" .
-                        "        \"activityicon\": \"fa-graduation-cap\",\n" .
-                        "        \"instructions\": \"Week-level introduction providing context and guidance (5-8 sentences)\"\n" .
-                        "      },\n" .
-                        "      \"sessions\": {\n" .
-                        "        \"presession\": {\n" .
-                        "          \"description\": \"2-3 sentences describing this session phase for students\",\n" .
-                        "          \"learningactivity_metadata\": {\n" .
-                        "            \"name\": \"Pre-session Reading\",\n" .
-                        "            \"activityicon\": \"fa-book-open\",\n" .
-                        "            \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
-                        "            \"duration\": \"30\",\n" .
-                        "            \"learningmode\": \"Asynchronous\",\n" .
-                        "            \"groupactivity\": false,\n" .
-                        "            \"learningtypes\": \"Acquisition,Investigation\",\n" .
-                        "            \"learningoutcomes_weekly\": \"Identify key concepts\\nAnalyze reading " .
-                        "material\\nSynthesize information\"\n" .
+                $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
+                    "Your response MUST be ONLY a valid JSON object with this exact structure:\n" .
+                    "{\n" .
+                    "  \"sections\": [\n" .
+                    "    {\n" .
+                    "      \"title\": \"Week 1 (Oct 18 - 24): Introduction to Cloud Computing\",\n" .
+                    "      \"summary\": \"Brief overview of the week's learning outcomes\",\n" .
+                    "      \"learningactivity_metadata\": {\n" .
+                    "        \"name\": \"Welcome to this week\",\n" .
+                    "        \"activityicon\": \"fa-graduation-cap\",\n" .
+                    "        \"instructions\": \"Week-level introduction providing context and guidance (5-8 sentences)\"\n" .
+                    "      },\n" .
+                    "      \"sessions\": {\n" .
+                    "        \"presession\": {\n" .
+                    "          \"description\": \"2-3 sentences describing this session phase for students\",\n" .
+                    "          \"learningactivity_metadata\": {\n" .
+                    "            \"name\": \"Pre-session Reading\",\n" .
+                    "            \"activityicon\": \"fa-book-open\",\n" .
+                    "            \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
+                    "            \"duration\": \"30\",\n" .
+                    "            \"learningmode\": \"Asynchronous\",\n" .
+                    "            \"groupactivity\": false,\n" .
+                    "            \"learningtypes\": \"Acquisition,Investigation\",\n" .
+                    "            \"learningoutcomes_weekly\": \"Identify key concepts\\nAnalyze reading " .
+                    "material\\nSynthesize information\"\n" .
 
-                        "          },\n" .
-                        "          \"activities\": [{\"type\": \"forum\", \"name\": \"Activity Name\"}]\n" .
-                        "        },\n" .
-                        "        \"session\": {\n" .
-                        "          \"description\": \"2-3 sentences describing this session phase for students\",\n" .
-                        "          \"learningactivity_metadata\": {\n" .
-                        "            \"name\": \"Live Session Activity\",\n" .
-                        "            \"activityicon\": \"fa-chalkboard-user\",\n" .
-                        "            \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
-                        "            \"duration\": \"60\",\n" .
-                        "            \"learningmode\": \"Synchronous\",\n" .
-                        "            \"groupactivity\": false,\n" .
-                        "            \"learningtypes\": \"Discussion,Practice\",\n" .
-                        "            \"learningoutcomes_weekly\": \"Apply concepts through discussion\\nDemonstrate " .
-                        "understanding\\nCollaborate with peers\"\n" .
+                    "          }\n" .
+                    "        },\n" .
+                    "        \"session\": {\n" .
+                    "          \"description\": \"2-3 sentences describing this session phase for students\",\n" .
+                    "          \"learningactivity_metadata\": {\n" .
+                    "            \"name\": \"Live Session Activity\",\n" .
+                    "            \"activityicon\": \"fa-chalkboard-user\",\n" .
+                    "            \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
+                    "            \"duration\": \"60\",\n" .
+                    "            \"learningmode\": \"Synchronous\",\n" .
+                    "            \"groupactivity\": false,\n" .
+                    "            \"learningtypes\": \"Discussion,Practice\",\n" .
+                    "            \"learningoutcomes_weekly\": \"Apply concepts through discussion\\nDemonstrate " .
+                    "understanding\\nCollaborate with peers\"\n" .
 
-                        "          },\n" .
-                        "          \"activities\": [{\"type\": \"quiz\", \"name\": \"Activity Name\"}]\n" .
-                        "        },\n" .
-                        "        \"postsession\": {\n" .
-                        "          \"description\": \"2-3 sentences describing this session phase for students\",\n" .
-                        "          \"learningactivity_metadata\": {\n" .
-                        "            \"name\": \"Post-session Reflection\",\n" .
-                        "            \"activityicon\": \"fa-pen-to-square\",\n" .
-                        "            \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
-                        "            \"duration\": \"45\",\n" .
-                        "            \"learningmode\": \"Asynchronous\",\n" .
-                        "            \"groupactivity\": false,\n" .
-                        "            \"learningtypes\": \"Production,Practice\",\n" .
-                        "            \"learningoutcomes_weekly\": \"Reflect on learning\\nEvaluate " .
-                        "understanding\\nCreate new insights\"\n" .
+                    "          }\n" .
+                    "        },\n" .
+                    "        \"postsession\": {\n" .
+                    "          \"description\": \"2-3 sentences describing this session phase for students\",\n" .
+                    "          \"learningactivity_metadata\": {\n" .
+                    "            \"name\": \"Post-session Reflection\",\n" .
+                    "            \"activityicon\": \"fa-pen-to-square\",\n" .
+                    "            \"instructions\": \"Detailed activity instructions (5-8 sentences)\",\n" .
+                    "            \"duration\": \"45\",\n" .
+                    "            \"learningmode\": \"Asynchronous\",\n" .
+                    "            \"groupactivity\": false,\n" .
+                    "            \"learningtypes\": \"Production,Practice\",\n" .
+                    "            \"learningoutcomes_weekly\": \"Reflect on learning\\nEvaluate " .
+                    "understanding\\nCreate new insights\"\n" .
 
-                        "          },\n" .
-                        "          \"activities\": [{\"type\": \"assignment\", \"name\": \"Activity Name\"}]\n" .
-                        "        }\n" .
-                        "      }\n" .
-                        "    }\n" .
-                        "  ]\n" .
-                        "}\n\n" .
-                        "CRITICAL REQUIREMENTS:\n" .
-                        "- Return ONLY the JSON object. No additional text before or after.\n" .
-                        "- NEVER include JSON as a string value in any field\n" .
-                        "- Each section.summary must be 2-3 plain sentences (NO JSON inside)\n" .
-                        "- Each section.title must include date range AND descriptive topic: 'date: Topic Name'\n" .
-                        "- Section-level learningactivity_metadata.name should be welcoming (e.g., 'Welcome to this " .
-                        "week', 'Week Overview')\n" .
+                    "          }\n" .
+                    "        }\n" .
+                    "      }\n" .
+                    "    }\n" .
+                    "  ]\n" .
+                    "}\n\n" .
+                    "CRITICAL REQUIREMENTS:\n" .
+                    "- Return ONLY the JSON object. No additional text before or after.\n" .
+                    "- NEVER include JSON as a string value in any field\n" .
+                    "- Each section.summary must be 2-3 plain sentences (NO JSON inside)\n" .
+                    "- Each section.title must include date range AND descriptive topic: 'date: Topic Name'\n" .
+                    "- Section-level learningactivity_metadata.name should be welcoming (e.g., 'Welcome to this " .
+                    "week', 'Week Overview')\n" .
 
-                        "- Section-level learningactivity_metadata.instructions should provide week introduction and " .
-                        "context (5-8 sentences)\n" .
+                    "- Section-level learningactivity_metadata.instructions should provide week introduction and " .
+                    "context (5-8 sentences)\n" .
 
-                        "- Section-level learningactivity_metadata.activityicon should use 'fa-graduation-cap' or " .
-                        "similar welcoming icon\n" .
+                    "- Section-level learningactivity_metadata.activityicon should use 'fa-graduation-cap' or " .
+                    "similar welcoming icon\n" .
 
-                        "- Each sessions.description must be 2-3 plain sentences describing the session phase\n" .
-                        "- Session-level learningactivity_metadata.name must be a descriptive activity name (e.g., " .
-                        "'Pre-session Reading', 'Live Discussion')\n" .
+                    "- Each sessions.description must be 2-3 plain sentences describing the session phase\n" .
+                    "- Session-level learningactivity_metadata.name must be a descriptive activity name (e.g., " .
+                    "'Pre-session Reading', 'Live Discussion')\n" .
 
-                        "- learningactivity_metadata.activityicon MUST be one of: '', 'fa-book', 'fa-book-open', " .
-                        "'fa-graduation-cap', 'fa-chalkboard', 'fa-chalkboard-user', 'fa-flask', 'fa-microscope', " .
-                        "'fa-laptop-code', 'fa-pen-to-square', 'fa-comments', 'fa-users', 'fa-lightbulb', " .
-                        "'fa-puzzle-piece', 'fa-clipboard-check', 'fa-file-pen', 'fa-robot'\n" .
+                    "- learningactivity_metadata.activityicon MUST be one of: '', 'fa-book', 'fa-book-open', " .
+                    "'fa-graduation-cap', 'fa-chalkboard', 'fa-chalkboard-user', 'fa-flask', 'fa-microscope', " .
+                    "'fa-laptop-code', 'fa-pen-to-square', 'fa-comments', 'fa-users', 'fa-lightbulb', " .
+                    "'fa-puzzle-piece', 'fa-clipboard-check', 'fa-file-pen', 'fa-robot'\n" .
 
-                        "- Session-level learningactivity_metadata.instructions must be 5-8 detailed sentences for " .
-                        "activity guidance\n" .
+                    "- Session-level learningactivity_metadata.instructions must be 5-8 detailed sentences for " .
+                    "activity guidance\n" .
 
-                        "- learningactivity_metadata.learningmode MUST be one of: 'Synchronous', 'Asynchronous', " .
-                        "'Not specified'\n" .
+                    "- learningactivity_metadata.learningmode MUST be one of: 'Synchronous', 'Asynchronous', " .
+                    "'Not specified'\n" .
 
-                        "- learningactivity_metadata.learningtypes MUST be comma-separated list from ONLY these six " .
-                        "types: 'Acquisition', 'Collaboration', 'Discussion', 'Investigation', 'Practice', " .
-                        "'Production'\n" .
+                    "- learningactivity_metadata.learningtypes MUST be comma-separated list from ONLY these six " .
+                    "types: 'Acquisition', 'Collaboration', 'Discussion', 'Investigation', 'Practice', " .
+                    "'Production'\n" .
 
-                        "- CRITICAL: 'Reflection' is NOT a valid learning type - use 'Production' or 'Practice' " .
-                        "instead for reflective activities\n" .
+                    "- CRITICAL: 'Reflection' is NOT a valid learning type - use 'Production' or 'Practice' " .
+                    "instead for reflective activities\n" .
 
-                        "- learningactivity_metadata.duration MUST be a number (minutes as string)\n" .
-                        "- learningactivity_metadata.groupactivity MUST be boolean (true/false)\n" .
-                        "- learningactivity_metadata.learningoutcomes_weekly MUST be 2-3 learning objectives " .
-                        "separated by newlines (\\n)\n" .
+                    "- learningactivity_metadata.duration MUST be a number (minutes as string)\n" .
+                    "- learningactivity_metadata.groupactivity MUST be boolean (true/false)\n" .
+                    "- learningactivity_metadata.learningoutcomes_weekly MUST be 2-3 learning objectives " .
+                    "separated by newlines (\\n)\n" .
 
-                        "- All field values must be strings or arrays of objects, NEVER strings containing JSON\n" .
-                        "- Sections array MUST contain all sections\n" .
-                        "- Each section MUST have a sessions object with presession, session, and postsession\n\n";
-                } else {
-                    $formatinstruction = "*** REQUIRED JSON RETURN FORMAT ***\n" .
-                        "Your response MUST be ONLY a valid JSON object (no text before/after):\n" .
-                        "{\"sections\": [{\"title\": \"Oct 18 - 24: Topic\", \"summary\": \"Brief overview\", " .
-                        "\"activities\": [{\"type\": \"quiz\", \"name\": \"Activity\"}]}]}\n\n";
-                }
+                    "- All field values must be strings or arrays of objects, NEVER strings containing JSON\n" .
+                    "- Sections array MUST contain all sections\n" .
+                    "- Each section MUST have a sessions object with presession, session, and postsession\n\n";
             }
 
-            // Add supported activity types only.
-            if (!empty($activitymetadata) && $includeactivities) {
-                $formatinstruction .= "SUPPORTED ACTIVITY TYPES:\n";
-                foreach ($activitymetadata as $type => $metadata) {
-                    $formatinstruction .= "- {$type}: {$metadata['description']}\n";
-                }
-                $formatinstruction .= "\nACTIVITY FIELD REQUIREMENTS:\n";
-                $formatinstruction .= "- ALL activities MUST have: type (required), name (required)\n";
-                $formatinstruction .= "- ALL activities SHOULD have: intro (description text for students)\n";
-                $formatinstruction .= "- URL activities MUST ALSO have: url (the external web address)\n";
-                $formatinstruction .= "  Example URL activity: {\"type\": \"url\", \"name\": \"Course Reading\", " .
-                    "\"intro\": \"Read this article\", \"url\": \"https://example.com/article\"}\n";
-                $formatinstruction .= "- BOOK activities can have: chapters (array of chapter objects with title and content)\n";
-            } else if ($includeactivities === false) {
-                $formatinstruction .= "Do NOT include activities - only sections with titles, summaries, and outlines.\n";
-            }
+            // Activities are not requested: only sections, summaries and session metadata.
+            $formatinstruction .= "Do NOT include activities - only sections with titles, summaries, and outlines.\n";
 
             // Add week date guidance if courseid provided.
             $weekdateguidance = '';
@@ -921,12 +871,6 @@ class ai_service
             }
 
             $formatinstruction .= $weekdateguidance;
-
-            // Add template guidance if template data is provided.
-            $templateguidance = '';
-            if (!empty($templatedata) && is_array($templatedata)) {
-                $templateguidance = self::build_template_prompt_guidance($templatedata, $structure);
-            }
 
             // Incorporate supporting documents with truncation.
             $documentstext = '';
@@ -950,13 +894,11 @@ class ai_service
             }
 
             // Build final prompt using array pattern for better performance
-            // IMPORTANT: Put template guidance AFTER format instruction so it clearly describes the output.
             $promptparts = [
                 $roleinstruction,
                 $documentstext,
                 "User request: " . trim($prompt) . "\n\n",
                 $formatinstruction,
-                $templateguidance,
             ];
 
             // Add completeness enforcement at END (has most weight).
@@ -1158,548 +1100,6 @@ class ai_service
                 'activities' => [],
                 'template' => 'AI error: ' . $e->getMessage(),
             ];
-        }
-    }
-
-    /**
-     * Generate module content using a curriculum template.
-     *
-     * @param string $prompt User prompt
-     * @param array $templatedata Template data structure
-     * @param array $documents Supporting documents
-     * @param string $structure Module structure
-     * @param bool $includeactivities Whether to request activities (default: true)
-     * @param bool $includesessions Whether to request session instructions (default: true)
-     * @return array Response from AI service
-     */
-    public static function generate_module_with_template(
-        $prompt,
-        $templatedata,
-        $documents = [],
-        $structure = 'weekly',
-        $courseid = null,
-        $includeactivities = true,
-        $includesessions = true
-    ) {
-        return self::generate_module(
-            $prompt,
-            $documents,
-            $structure,
-            $templatedata,
-            $courseid,
-            $includeactivities,
-            $includesessions
-        );
-    }
-
-    /**
-     * Build guidance text about the template for the AI
-     *
-     * @param array $templatedata Template data containing structure and activities
-     * @return string Guidance about the template with simplified structure
-     */
-    /**
-     * Build template guidance for the AI based on extracted module structure.
-     *
-     * @param array $templatedata Extracted template data
-     * @param string $structure 'theme' or 'weekly'
-     * @return string Guidance text for AI prompt
-     */
-    private static function build_template_prompt_guidance($templatedata, $structure = 'weekly') {
-        $guidance = "";
-
-        // Detect multiple modules.
-        $ismultiple = !empty($templatedata['module_count']) && $templatedata['module_count'] > 1;
-
-        // Create compact structure representation.
-        $compact = self::create_compact_template_structure($templatedata);
-
-        // Mode-specific instructions.
-        if ($structure === 'theme') {
-            // Count the actual weeks in the template.
-            $templateweekcount = 0;
-            if (!empty($compact['sections']) && is_array($compact['sections'])) {
-                $templateweekcount = count($compact['sections']);
-            }
-
-            // THEME MODE: AI should analyze and reorganize into themes.
-            $guidance .= "\n*** TEMPLATE-BASED THEME GENERATION ***\n";
-            $guidance .= "You are converting content into a thematic structure based on this template:\n\n";
-            $guidance .= json_encode($compact, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n\n";
-            $guidance .= "UNDERSTANDING THE TEMPLATE:\n";
-            $guidance .= "- The 'organizational_pattern' shows how content was organized in the original (for context only)\n";
-            $guidance .= "- The 'label_sequence' shows headings like 'Learning Resources', 'Activities', 'Assessment'\n";
-            $guidance .= "- Use these labels to UNDERSTAND what type of content each activity represents\n";
-            $guidance .= "- DO NOT recreate these labels in your output\n\n";
-
-            if ($templateweekcount > 0) {
-                $guidance .= "*** MANDATORY WEEK COUNT ***\n";
-                $guidance .= "The template has EXACTLY {$templateweekcount} sections/weeks.\n";
-                $guidance .= "Your output MUST contain EXACTLY {$templateweekcount} weeks (no more, no less).\n";
-                $guidance .= "EVERY template section MUST map to EXACTLY ONE output week.\n";
-                $guidance .= "This is NON-NEGOTIABLE. Failure to include all {$templateweekcount} weeks is an error.\n\n";
-            }
-
-            $guidance .= "YOUR TASK:\n";
-            $guidance .= "1. Count the template sections: {$templateweekcount} sections = {$templateweekcount} " .
-                "output weeks required\n";
-            $guidance .= "2. Group these {$templateweekcount} weeks into natural thematic clusters (e.g., 3 themes × " .
-                "3-4 weeks each, or 5 themes × 2 weeks each)\n";
-            $guidance .= "3. Create descriptive theme titles that reflect each group's content\n";
-            $guidance .= "4. CRITICAL - DIRECT 1-to-1 WEEK MAPPING (NON-NEGOTIABLE):\n";
-            $guidance .= "   - Template section 1 → Output week 1 (within appropriate theme)\n";
-            $guidance .= "   - Template section 2 → Output week 2 (within appropriate theme)\n";
-            $guidance .= "   - Template section N → Output week N (within appropriate theme)\n";
-            $guidance .= "   - TOTAL OUTPUT WEEKS MUST EQUAL {$templateweekcount}\n";
-            $guidance .= "   - Each template week's content goes into ONE output week's pre/session/post structure\n";
-            $guidance .= "   - NEVER skip a template week, NEVER combine multiple weeks, NEVER split one week\n";
-            $guidance .= "   - Structure: Theme → Week (with date) → Pre-session/Session/Post-session\n";
-            $guidance .= "5. WEEK TITLES - Preserve original names:\n";
-            $guidance .= "   - Each output week title MUST include BOTH the date AND the original section name\n";
-            $guidance .= "   - Format: \"Week N (date range): Original Section Title\"\n";
-            $guidance .= "   - Example: If template section is \"Introduction to the course\", output title is " .
-                "\"Week 1 (Oct 18 - 24): Introduction to the course\"\n";
-            $guidance .= "   - Example: If template section is \"Fun in the sun\", output title is \"Week 2 (Oct 25 " .
-                "- 31): Fun in the sun\"\n";
-            $guidance .= "   - Use the EXACT original section title from the template - do not modify or paraphrase it\n";
-            $guidance .= "6. Map activities from EACH template week into that week's three subsections:\n";
-            $guidance .= "   - Activities under 'Learning Resources' labels → Pre-session (reading/preparation)\n";
-            $guidance .= "   - Activities under 'Activities' labels → Session (main activities)\n";
-            $guidance .= "   - Activities under 'Assessment' labels → Post-session (assignments/reflection)\n";
-            $guidance .= "7. CRITICAL - Session Metadata Structure:\n";
-            $guidance .= "   - EVERY presession, session, and postsession MUST include a learningactivity_metadata object\n";
-            $guidance .= "   - Include: name, activityicon, instructions, duration, learningmode, groupactivity, " .
-                "learningtypes, learningoutcomes_weekly\n";
-            $guidance .= "   - Generate appropriate descriptions for pre/session/post sections in the 'description' field\n";
-            $guidance .= "   - Generate metadata suitable for each session type (e.g., Pre-session = Asynchronous reading)\n\n";
-        } else {
-            // Count the actual weeks in the template.
-            $templateweekcount = 0;
-            if (!empty($compact['sections']) && is_array($compact['sections'])) {
-                $templateweekcount = count($compact['sections']);
-            }
-
-            // WEEKLY/CONNECTED MODE: AI should preserve structure.
-            $guidance .= "\n*** TEMPLATE-BASED WEEKLY GENERATION ***\n";
-            $guidance .= "You are recreating content in weekly structure based on this template:\n\n";
-            $guidance .= json_encode($compact, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES) . "\n\n";
-            $guidance .= "UNDERSTANDING THE TEMPLATE:\n";
-            $guidance .= "- The 'organizational_pattern' shows the original content organization\n";
-            $guidance .= "- The 'label_sequence' shows headings used to organize activities\n";
-            $guidance .= "- Use these to understand content structure and types\n\n";
-
-            if ($templateweekcount > 0) {
-                $guidance .= "*** MANDATORY SECTION COUNT ***\n";
-                $guidance .= "The template has EXACTLY {$templateweekcount} sections.\n";
-                $guidance .= "Your output MUST contain EXACTLY {$templateweekcount} sections (no more, no less).\n";
-                $guidance .= "EVERY template section MUST map to EXACTLY ONE output section.\n";
-                $guidance .= "This is NON-NEGOTIABLE. Failure to include all {$templateweekcount} sections is an error.\n\n";
-            }
-
-            $guidance .= "YOUR TASK:\n";
-            $guidance .= "1. Count the template sections: {$templateweekcount} sections = {$templateweekcount} " .
-                "output sections required\n";
-            $guidance .= "2. CRITICAL - DIRECT 1-to-1 SECTION MAPPING (NON-NEGOTIABLE):\n";
-            $guidance .= "   - Template section 1 → Output section 1\n";
-            $guidance .= "   - Template section 2 → Output section 2\n";
-            $guidance .= "   - Template section N → Output section N\n";
-            $guidance .= "   - TOTAL OUTPUT SECTIONS MUST EQUAL {$templateweekcount}\n";
-            $guidance .= "   - NEVER skip a template section, NEVER combine multiple sections, NEVER split one section\n";
-            $guidance .= "3. SECTION TITLES - Preserve original names:\n";
-            $guidance .= "   - Each output section title MUST include the original section name\n";
-            $guidance .= "   - Format: \"Week N (date range): Original Section Title\"\n";
-            $guidance .= "   - Example: If template section is \"Introduction to the course\", output title is " .
-                "\"Week 1 (Oct 18 - 24): Introduction to the course\"\n";
-            $guidance .= "   - Example: If template section is \"Fun in the sun\", output title is \"Week 2 (Oct 25 " .
-                "- 31): Fun in the sun\"\n";
-            $guidance .= "   - Use the EXACT original section title from the template - do not modify or paraphrase it\n";
-            $guidance .= "4. SECTION STRUCTURE - Each section has three subsections:\n";
-            $guidance .= "   - Create 'presession', 'session', and 'postsession' subsections for EACH week\n";
-            $guidance .= "   - Map template activities based on their pedagogical purpose:\n";
-            $guidance .= "     * 'Learning Resources' → Pre-session (reading/preparation)\n";
-            $guidance .= "     * 'Activities' → Session (main activities)\n";
-            $guidance .= "     * 'Assessment' → Post-session (assignments/reflection)\n";
-            $guidance .= "5. CRITICAL - Session Metadata Structure:\n";
-            $guidance .= "   - EVERY presession, session, and postsession MUST include a learningactivity_metadata object\n";
-            $guidance .= "   - Include: name, activityicon, instructions, duration, learningmode, groupactivity, " .
-                "learningtypes, learningoutcomes_weekly\n";
-            $guidance .= "   - Generate appropriate descriptions for pre/session/post sections in the 'description' field\n";
-            $guidance .= "   - Generate metadata suitable for each session type (e.g., Pre-session = Asynchronous reading)\n";
-            $guidance .= "6. Use Moodle's flexible sections format for output\n\n";
-        }
-
-        // Output field instruction.
-        $guidance .= "*** OUTPUT 'template' FIELD ***\n";
-        if ($ismultiple) {
-            $guidance .= "Set 'template' value to: \"Combining {$templatedata['module_count']} existing modules\"\n";
-        } else {
-            $guidance .= "Set 'template' value to: \"Based on existing module template\"\n";
-        }
-        $guidance .= "\nDo NOT include this template metadata in theme/section summaries.\n";
-
-        return $guidance;
-    }
-
-    /**
-     * Create compact template structure for AI consumption.
-     *
-     * @param array $templatedata Raw extracted template data
-     * @return array Compact structure with organizational patterns
-     */
-    public static function create_compact_template_structure($templatedata) {
-        $compact = [
-            'source' => !empty($templatedata['module_count']) && $templatedata['module_count'] > 1
-                ? 'multiple_modules'
-                : 'single_module',
-            'organizational_pattern' => self::extract_organizational_pattern($templatedata),
-            'sections' => [],
-        ];
-
-        // Process each section from the structure.
-        if (!empty($templatedata['structure']) && is_array($templatedata['structure'])) {
-            foreach ($templatedata['structure'] as $section) {
-                $sectiondata = [
-                    'number' => $section['id'] ?? 0,
-                    'title' => $section['name'] ?? 'Untitled',
-                    'content' => [],
-                ];
-
-                // Add section summary as initial context if present.
-                if (!empty($section['summary'])) {
-                    $sectiondata['summary'] = substr($section['summary'], 0, 200); // Truncate for tokens.
-                }
-
-                // Find activities for this section.
-                if (!empty($templatedata['activities']) && is_array($templatedata['activities'])) {
-                    foreach ($templatedata['activities'] as $activity) {
-                        // Match activities to this section by section name.
-                        if (isset($activity['section']) && $activity['section'] === $sectiondata['title']) {
-                            $activityitem = [
-                                'type' => $activity['type'] ?? 'unknown',
-                            ];
-
-                            // For labels, include the intro (these are headings).
-                            if ($activity['type'] === 'label' && !empty($activity['intro'])) {
-                                $activityitem['text'] = $activity['intro'];
-                            } else {
-                                // For other activities, just the name.
-                                $activityitem['name'] = $activity['name'] ?? 'Untitled';
-                            }
-
-                            $sectiondata['content'][] = $activityitem;
-                        }
-                    }
-                }
-
-                $compact['sections'][] = $sectiondata;
-            }
-        }
-
-        return $compact;
-    }
-
-    /**
-     * Extract organizational patterns from template data.
-     *
-     * @param array $templatedata Template data
-     * @return array Patterns (label sequence, typical activity count, etc.)
-     */
-    private static function extract_organizational_pattern($templatedata) {
-        $pattern = [
-            'label_sequence' => [],
-            'activity_types_used' => [],
-            'typical_activities_per_section' => 0,
-        ];
-
-        if (empty($templatedata['activities']) || !is_array($templatedata['activities'])) {
-            return $pattern;
-        }
-
-        $labelsequence = [];
-        $activitytypes = [];
-        $sectioncounts = [];
-        $currentsection = null;
-
-        foreach ($templatedata['activities'] as $activity) {
-            $type = $activity['type'] ?? 'unknown';
-
-            // Track section for counting.
-            $section = $activity['section'] ?? 'unknown';
-            if (!isset($sectioncounts[$section])) {
-                $sectioncounts[$section] = 0;
-            }
-            $sectioncounts[$section]++;
-
-            // Extract label sequence from first occurrence.
-            if ($type === 'label' && !empty($activity['intro'])) {
-                if (!in_array($activity['intro'], $labelsequence)) {
-                    $labelsequence[] = $activity['intro'];
-                }
-            }
-
-            // Track activity types.
-            if (!in_array($type, $activitytypes)) {
-                $activitytypes[] = $type;
-            }
-        }
-
-        $pattern['label_sequence'] = $labelsequence;
-        $pattern['activity_types_used'] = $activitytypes;
-
-        // Calculate average activities per section.
-        if (!empty($sectioncounts)) {
-            $pattern['typical_activities_per_section'] = (int) round(array_sum($sectioncounts) / count($sectioncounts));
-        }
-
-        return $pattern;
-    }
-
-    /**
-     * Analyze a module using a custom prompt.
-     *
-     * @param string $prompt The analysis prompt
-     * @return string Analysis text
-     */
-    public static function analyze_module(string $prompt): string {
-        global $USER, $COURSE;
-
-        try {
-            if (!class_exists('\\core_ai\\manager') || !class_exists('\\core_ai\\aiactions\\generate_text')) {
-                return '';
-            }
-
-            $contextid = !empty($COURSE->id)
-                ? \context_course::instance($COURSE->id)->id
-                : \context_system::instance()->id;
-
-            $aimanager = new \core_ai\manager();
-            if (!$aimanager->get_user_policy_status($USER->id)) {
-                return '';
-            }
-
-            $action = new \core_ai\aiactions\generate_text(
-                $contextid,
-                $USER->id,
-                $prompt
-            );
-
-            $response = $aimanager->process_action($action);
-            $data = $response->get_response_data();
-            $text = $data['generatedcontent'] ?? ($data['generatedtext'] ?? ($data['text'] ?? ($data['content'] ?? '')));
-
-            if (is_string($text)) {
-                return trim($text);
-            }
-            return '';
-        } catch (\Throwable $e) {
-            // AI analysis error occurred.
-            return '';
-        }
-    }
-
-    /**
-     * Generate suggestion items for a given section map.
-     *
-     * Accepts a compact map of sections and returns an array of suggestion objects:
-     * [ { id: string, activity: {type, name}, rationale: string, supported: bool }, ... ]
-     *
-     * @param array $sectionmap
-     * @param int|null $courseid
-     * @return array
-     */
-    public static function generate_suggestions_from_map(array $sectionmap, $courseid = null): array {
-        global $USER;
-
-        try {
-            if (!class_exists('\core_ai\manager') || !class_exists('\core_ai\aiactions\generate_text')) {
-                return ['success' => false, 'error' => 'AI subsystem not available'];
-            }
-
-            $contextid = !empty($courseid)
-                ? \context_course::instance($courseid)->id
-                : \context_system::instance()->id;
-
-            $aimanager = new \core_ai\manager();
-            if (!$aimanager->get_user_policy_status($USER->id)) {
-                return ['success' => false, 'error' => 'AI policy not accepted'];
-            }
-
-            // Verify user has permission to generate suggestions.
-            if (!empty($courseid)) {
-                $context = \context_course::instance($courseid);
-                require_capability('aiplacement/modgen:usesuggest', $context);
-            }
-
-            // Determine supported activity types from the registry and build a compact
-            // prompt describing the selected section and surrounding context.
-            $supported = registry::get_supported_activity_metadata();
-            $allowedtypes = array_keys($supported);
-            // Build a mapping of normalized labels to canonical type keys to help
-            // match AI-returned free-text types back to supported keys.
-            $normmap = [];
-            foreach ($allowedtypes as $t) {
-                $label = (string) ($supported[$t]['description'] ?? $t);
-                $stringid = (string) ($supported[$t]['stringid'] ?? '');
-                $normforms = [];
-                $normforms[] = preg_replace('/[^a-z0-9]+/', '', \core_text::strtolower($t));
-                if ($stringid !== '') {
-                    $normforms[] = preg_replace('/[^a-z0-9]+/', '', \core_text::strtolower($stringid));
-                }
-                if ($label !== '') {
-                    $normforms[] = preg_replace('/[^a-z0-9]+/', '', \core_text::strtolower($label));
-                }
-                foreach ($normforms as $nf) {
-                    if ($nf === '') {
-                        continue;
-                    }
-                    $normmap[$nf] = $t;
-                }
-            }
-
-            // Build a compact prompt describing the selected section and surrounding context.
-            $sectionsummary = '';
-            foreach ($sectionmap as $s) {
-                $idx = $s['section'] ?? ($s['id'] ?? '');
-                $title = $s['name'] ?? ($s['title'] ?? '');
-                $summary = isset($s['summary']) ? substr($s['summary'], 0, 1000) : '';
-                $sectionsummary .= "Section {$idx}: {$title}\n";
-                if ($summary) {
-                    $sectionsummary .= "Description: {$summary}\n";
-                }
-                $sectionsummary .= "\n";
-            }
-
-            // If section context is empty, provide generic guidance.
-            if (empty(trim($sectionsummary))) {
-                $sectionsummary = "Generic course section requiring learning activities.\n";
-            }
-
-            $prompt = "ROLE: Expert learning designer specializing in pedagogical activity design.\n\n" .
-                "TASK: Suggest 5-6 Moodle learning activities for this course section.\n\n" .
-                "CONSTRAINTS:\n" .
-                "1. Return ONLY a JSON array (no other text)\n" .
-                "2. Use ONLY these activity types: " . implode(', ', $allowedtypes) . "\n" .
-                "3. Each activity must be different\n\n" .
-                "FORMAT: Each suggestion is a JSON object with:\n" .
-                "  id (string): unique ID\n" .
-                "  activity (object): { type, name }\n" .
-                "  rationale (string): why this activity works (2-3 sentences)\n" .
-                "  laurillard_type (string): one of [Acquisition, Investigation, Practice, Discussion, " .
-                "Collaboration, Production]\n" .
-
-                "  laurillard_rationale (string): pedagogical explanation (1-2 sentences)\n\n" .
-                "SECTION CONTEXT:\n" .
-                $sectionsummary . "\n" .
-                "ACTIVITY TYPES AVAILABLE:\n";
-            foreach ($allowedtypes as $t) {
-                $prompt .= "  • {$t}: " . ($supported[$t]['description'] ?? '') . "\n";
-            }
-            // Get configurable pedagogical guidance from settings, with fallback default.
-            $defaultguidance = "- Balance learning types across the section\n" .
-                "- Prioritize activities that complement existing section content\n" .
-                "- Match activities to pedagogical intent of the section\n" .
-                "- Vary interactive and passive learning opportunities";
-            $pedagogicalguidance = get_config('aiplacement_modgen', 'suggest_pedagogical_guidance');
-            if (empty($pedagogicalguidance)) {
-                $pedagogicalguidance = $defaultguidance;
-            }
-
-            $prompt .= "\nPEDAGOGICAL GUIDANCE:\n" . $pedagogicalguidance . "\n\n" .
-                "OUTPUT: JSON array only, starting with [ and ending with ]";
-
-            $action = new \core_ai\aiactions\generate_text($contextid, $USER->id, $prompt);
-            $response = $aimanager->process_action($action);
-            $data = $response->get_response_data();
-            $text = $data['generatedcontent'] ?? ($data['generatedtext'] ?? ($data['text'] ?? ($data['content'] ?? '')));
-
-            if (empty($text) || !is_string($text)) {
-                return ['success' => false, 'error' => 'AI returned no text'];
-            }
-
-            // Try to decode JSON from the response.
-            $decoded = json_decode($text, true);
-            if (!is_array($decoded)) {
-                // Try to extract JSON block from code fences or inline.
-                // phpcs:ignore moodle.Strings.ForbiddenStrings.Found -- matches markdown code-fence backticks, not a shell command.
-                if (preg_match('/```(?:json)?\s*(\[.*\])\s*```/s', $text, $m)) {
-                    $decoded = json_decode($m[1], true);
-                } else if (preg_match('/(\[\s*\{.*\}\s*\])/s', $text, $m2)) {
-                    $decoded = json_decode($m2[1], true);
-                } else {
-                    // Try to find JSON array anywhere in the text, even with text before/after.
-                    $stripped = trim($text);
-                    $start = strpos($stripped, '[');
-                    $end = strrpos($stripped, ']');
-                    if ($start !== false && $end !== false && $end > $start) {
-                        $jsonstr = substr($stripped, $start, $end - $start + 1);
-                        $decoded = json_decode($jsonstr, true);
-                    }
-                }
-            }
-
-            if (!is_array($decoded)) {
-                return ['success' => false, 'error' => 'Unable to parse AI suggestions', 'raw' => $text];
-            }
-
-            // Normalize suggestions to expected shape and restrict to supported types.
-            $out = [];
-            foreach ($decoded as $i => $s) {
-                if (!is_array($s)) {
-                    continue;
-                }
-                $id = isset($s['id']) ? (string) $s['id'] : (string) ($i + 1);
-                $activity = $s['activity'] ?? [];
-                $rationale = $s['rationale'] ?? ($s['reason'] ?? '');
-                // Read Laurillard learning type and rationale if provided by the AI.
-                $laurillardtype = $s['laurillard_type'] ?? $s['laurillardType'] ?? $s['laurillard'] ?? '';
-                $laurillardrationale = $s['laurillard_rationale'] ?? $s['laurillardRationale'] ?? $s['laurillard_reason'] ?? '';
-                $supported = isset($s['supported']) ? (bool) $s['supported'] : true;
-                // Attempt to normalise the returned type and match it to a supported key.
-                $rawtype = (string) ($activity['type'] ?? ($activity['activity'] ?? ''));
-                $cand = preg_replace('/[^a-z0-9]+/', '', \core_text::strtolower($rawtype));
-                $matched = $normmap[$cand] ?? null;
-                if ($matched === null) {
-                    // If AI returned a human label that matches a description/stringid,
-                    // try matching by normalised content against the normmap.
-                    foreach ($normmap as $nf => $key) {
-                        if ($nf === $cand) {
-                            $matched = $key;
-                            break;
-                        }
-                    }
-                }
-
-                // If still no canonical match was found, keep the suggestion but mark it unsupported.
-                $issupported = true;
-                $typetouse = $matched;
-                if ($matched === null || $matched === '') {
-                    $issupported = false;
-                    // Preserve the raw type string so the UI can show and allow edits.
-                    $typetouse = $rawtype ?: '';
-                }
-
-                // Skip suggestions with completely empty/missing activity type.
-                if (empty($typetouse) && empty($rawtype)) {
-                    continue;
-                }
-
-                $out[] = [
-                    'id' => $id,
-                    'activity' => (object) [
-                        'type' => $typetouse,
-                        'name' => $activity['name'] ?? ($activity['title'] ?? 'Suggested Activity'),
-                    ],
-                    'rationale' => $rationale,
-                    'laurillard_type' => $laurillardtype,
-                    'laurillard_rationale' => $laurillardrationale,
-                    'supported' => $issupported,
-                    'raw_type' => $rawtype,
-                ];
-            }
-
-            return ['success' => true, 'suggestions' => $out, 'raw' => $text];
-        } catch (\Throwable $e) {
-            return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 }

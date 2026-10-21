@@ -82,37 +82,9 @@ try {
         );
     }
 
-    // Remove dates from selected sections.
-    $updatedcount = 0;
-    $updatedsections = [];
-
-    foreach ($selectedids as $sectionid) {
-        $section = $DB->get_record(
-            'course_sections',
-            ['id' => $sectionid, 'course' => $courseid],
-            '*',
-            MUST_EXIST
-        );
-
-        // Remove existing date from name.
-        $newname = date_calculator::remove_existing_date($section->name);
-
-        // Only update if the name changed.
-        if ($newname !== $section->name) {
-            $DB->update_record('course_sections', [
-                'id' => $sectionid,
-                'name' => $newname,
-                'timemodified' => time(),
-            ]);
-
-            $updatedcount++;
-            $updatedsections[] = [
-                'id' => $sectionid,
-                'section' => $section->section,
-                'name' => $newname,
-            ];
-        }
-    }
+    // Remove dates from selected sections (only sections of this course are accepted).
+    $updatedsections = date_calculator::remove_dates_from_sections($courseid, $selectedids);
+    $updatedcount = count($updatedsections);
 
     // Rebuild course cache (buffer any output).
     ob_start();

@@ -198,9 +198,6 @@ final class summary_activity_toggle_test extends advanced_testcase {
             $json,
             $this->course->id,
             'connected_theme',
-            false,
-            false,
-            false,
             false // Createsummaryactivities off.
         );
         $this->resetDebugging();
@@ -234,11 +231,7 @@ final class summary_activity_toggle_test extends advanced_testcase {
         (new section_creation_service())->create_sections_from_json(
             $json,
             $this->course->id,
-            'connected_theme',
-            false,
-            false,
-            false
-        );
+            'connected_theme');
         $this->resetDebugging();
 
         $this->assertGreaterThan(

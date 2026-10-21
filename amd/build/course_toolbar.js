@@ -62,7 +62,6 @@ define("aiplacement_modgen/course_toolbar", ["exports", "core/fragment", "core/n
       courseid: config.courseid,
       contextid: config.contextid,
       showgenerator: config.showgenerator ? 1 : 0,
-      showsuggest: config.showsuggest ? 1 : 0,
       showmanagestructure: config.showmanagestructure ? 1 : 0,
       showmanagedates: config.showmanagedates ? 1 : 0,
       showtemplatefromfile: config.showtemplatefromfile ? 1 : 0,

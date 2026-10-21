@@ -302,10 +302,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
         $results = $service->create_sections_from_json(
             $jsonstructure, // Array of structure.
             $this->course->id, // Course ID.
-            'connected_theme', // MUST be 'connected_theme' to process themes array.
-            false, // Don't generate theme introductions.
-            false, // Don't create suggested activities.
-            false  // Don't hide existing sections.
+            'connected_theme' // MUST be 'connected_theme' to process themes array.
         );
 
         // Verify method executed without errors.

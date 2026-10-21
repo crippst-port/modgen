@@ -62,15 +62,6 @@ class aiplacement_modgen_prompt_form extends moodleform {
         $mform->addRule('prompt', null, 'required', null, 'client');
         $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
 
-        // Suggested content section.
-        $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
-
-        // Generate example content option.
-        $mform->addElement('advcheckbox', 'generateexamplecontent', get_string('generateexamplecontent', 'aiplacement_modgen'));
-        $mform->addHelpButton('generateexamplecontent', 'generateexamplecontent', 'aiplacement_modgen');
-        $mform->setType('generateexamplecontent', PARAM_BOOL);
-        $mform->setDefault('generateexamplecontent', 1);
-
         $this->add_action_buttons(true, get_string('submit', 'aiplacement_modgen'));
     }
 }

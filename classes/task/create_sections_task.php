@@ -186,9 +186,6 @@ class create_sections_task extends \core\task\adhoc_task {
                     $jsonarray,
                     $data->courseid,
                     $data->moduletype,
-                    $data->generatethemeintroductions ?? false,
-                    $data->createsuggestedactivities ?? false,
-                    $data->hideexistingsections ?? false,
                     $data->createsummaryactivities ?? true
                 );
                 $result = [

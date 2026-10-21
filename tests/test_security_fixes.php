@@ -164,42 +164,6 @@ try {
 }
 echo "\n";
 
-// Test 8: Database Query Optimization - Check for enrol_get_my_courses usage.
-echo "Test 8: Verifying SQL optimization in generator_form.php...\n";
-$formpath = $CFG->dirroot . '/ai/placement/modgen/classes/form/generator_form.php';
-if (file_exists($formpath)) {
-    $content = file_get_contents($formpath);
-    if (strpos($content, 'enrol_get_my_courses') !== false) {
-        echo "  ✓ PASSED: generator_form.php uses Moodle API (enrol_get_my_courses)\n";
-        $passed++;
-    } else {
-        echo "  ✗ FAILED: generator_form.php does not use enrol_get_my_courses\n";
-        $failed++;
-    }
-} else {
-    echo "  ✗ FAILED: generator_form.php not found\n";
-    $failed++;
-}
-echo "\n";
-
-// Test 9: N+1 Query Fix - Check for batch fetching in suggest.php.
-echo "Test 9: Verifying N+1 query fix in suggest.php...\n";
-$suggestpath = $CFG->dirroot . '/ai/placement/modgen/ajax/suggest.php';
-if (file_exists($suggestpath)) {
-    $content = file_get_contents($suggestpath);
-    if (strpos($content, 'get_in_or_equal') !== false && strpos($content, 'PERFORMANCE FIX') !== false) {
-        echo "  ✓ PASSED: suggest.php uses batch fetching to avoid N+1 queries\n";
-        $passed++;
-    } else {
-        echo "  ✗ FAILED: suggest.php does not appear to use batch fetching\n";
-        $failed++;
-    }
-} else {
-    echo "  ✗ FAILED: suggest.php not found\n";
-    $failed++;
-}
-echo "\n";
-
 // Summary.
 echo "=== Test Summary ===\n";
 echo "Total tests: " . ($passed + $failed) . "\n";

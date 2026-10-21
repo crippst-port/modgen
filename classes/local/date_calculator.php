@@ -555,6 +555,55 @@ class date_calculator {
     }
 
     /**
+     * Strip a previously applied date prefix from the names of the given sections.
+     *
+     * Only sections that belong to $courseid are touched. A section id from any other
+     * course is rejected (MUST_EXIST), so a caller holding the capability in one course
+     * cannot rewrite another course's sections by supplying their ids.
+     *
+     * @param int $courseid Course the caller was authorised against
+     * @param int[] $sectionids course_sections ids
+     * @return array[] One entry (id, section, name) per section whose name changed
+     * @throws \dml_missing_record_exception If any id is not a section of $courseid (nothing is changed)
+     */
+    public static function remove_dates_from_sections(int $courseid, array $sectionids): array {
+        global $DB;
+
+        $sectionids = array_values(array_unique(array_map('intval', $sectionids)));
+        if (empty($sectionids)) {
+            return [];
+        }
+
+        // Validate every id before writing anything, so a bad id cannot leave the list half applied.
+        [$insql, $params] = $DB->get_in_or_equal($sectionids, SQL_PARAMS_NAMED);
+        $sections = $DB->get_records_select('course_sections', "course = :courseid AND id $insql", $params + ['courseid' => $courseid]);
+        foreach ($sectionids as $sectionid) {
+            if (!isset($sections[$sectionid])) {
+                throw new \dml_missing_record_exception('course_sections');
+            }
+        }
+
+        $updated = [];
+        foreach ($sectionids as $sectionid) {
+            $section = $sections[$sectionid];
+
+            $newname = self::remove_existing_date($section->name);
+            if ($newname === $section->name) {
+                continue;
+            }
+
+            $DB->update_record('course_sections', [
+                'id' => $section->id,
+                'name' => $newname,
+                'timemodified' => time(),
+            ]);
+            $updated[] = ['id' => (int) $section->id, 'section' => $section->section, 'name' => $newname];
+        }
+
+        return $updated;
+    }
+
+    /**
      * Parse holiday dates from config text with lenient format acceptance.
      *
      * @param string|null $configtext Configuration text

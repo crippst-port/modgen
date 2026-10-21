@@ -36,29 +36,25 @@ class csv_processing_service {
      *
      * Pure CSV parsing is used only if:
      * - AI is disabled in plugin settings, OR
-     * - AI is enabled AND has CSV file AND no user prompt AND no expand option AND no example generation
+     * - AI is enabled AND has CSV file AND no user prompt
      *
      * @param bool $aienabled Whether AI is enabled in plugin settings
      * @param bool $hascsvfile Whether a CSV file is present
      * @param bool $hasuserprompt Whether user provided a text prompt
-     * @param bool $expandonthemes Whether 'expand on themes' is checked
-     * @param bool $generateexamples Whether 'generate examples' is checked
      * @return bool True if pure CSV parsing should be used
      */
     public function should_use_pure_csv_mode(
         bool $aienabled,
         bool $hascsvfile,
-        bool $hasuserprompt,
-        bool $expandonthemes,
-        bool $generateexamples
+        bool $hasuserprompt
     ): bool {
         // If AI is completely disabled, always use pure CSV.
         if (!$aienabled) {
             return true;
         }
 
-        // AI is enabled - use pure CSV only if: has CSV + no prompt + no expand + no examples.
-        return $hascsvfile && !$hasuserprompt && !$expandonthemes && !$generateexamples;
+        // AI is enabled - use pure CSV only if there is a CSV and no prompt.
+        return $hascsvfile && !$hasuserprompt;
     }
 
     /**
@@ -101,74 +97,5 @@ class csv_processing_service {
 
         // If no CSV found, return first file (might be processable as CSV).
         return array_shift($files);
-    }
-
-    /**
-     * Build AI enhancement instructions for CSV-based generation.
-     *
-     * @param array $csvstructure Parsed CSV structure
-     * @param bool $expandonthemes Whether to expand theme titles
-     * @param string $moduletype Module type (theme, connected_theme, etc)
-     * @return string AI instructions to append to prompt
-     */
-    public function build_csv_enhancement_instructions(
-        array $csvstructure,
-        bool $expandonthemes,
-        string $moduletype
-    ): string {
-        // Count themes/weeks for explicit instruction.
-        $themecount = 0;
-        $weekcount = 0;
-
-        if (!empty($csvstructure['themes']) && is_array($csvstructure['themes'])) {
-            $themecount = count($csvstructure['themes']);
-            foreach ($csvstructure['themes'] as $theme) {
-                if (!empty($theme['weeks']) && is_array($theme['weeks'])) {
-                    $weekcount += count($theme['weeks']);
-                }
-            }
-        } else if (!empty($csvstructure['sections']) && is_array($csvstructure['sections'])) {
-            $weekcount = count($csvstructure['sections']);
-        }
-
-        $instructions = "\n\n*** BASE STRUCTURE FROM CSV ***\n";
-        $instructions .= json_encode($csvstructure, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
-        $instructions .= "\n\n*** CRITICAL STRUCTURAL REQUIREMENTS ***\n";
-        $instructions .= "You MUST preserve the exact structure from the CSV:\n";
-
-        if ($themecount > 0) {
-            $instructions .= "- Create EXACTLY {$themecount} themes with {$weekcount} weeks total\n";
-        } else {
-            $instructions .= "- Create EXACTLY {$weekcount} sections\n";
-        }
-
-        $instructions .= "- Do NOT add extra themes, weeks, or sessions\n";
-        $instructions .= "- Do NOT remove any themes, weeks, or sessions\n";
-        $instructions .= "- Do NOT merge or split sections\n";
-        $instructions .= "- Maintain the EXACT organizational hierarchy\n";
-        $instructions .= "- Keep the SAME session structure within each theme/week\n";
-
-        if ($themecount > 0) {
-            $instructions .= "- Your output MUST have EXACTLY {$themecount} themes (this is non-negotiable)\n";
-        }
-
-        $instructions .= "- Return ONLY the exact structure shown above - no modifications to theme/week count\n";
-        $instructions .= "- The number of sections in your output MUST match the CSV exactly\n\n";
-
-        if ($expandonthemes) {
-            $instructions .= "*** TITLE ENHANCEMENT REQUESTED ***\n";
-            $instructions .= "The user has requested 'expand on themes'. You MAY enhance titles for clarity:\n";
-            $instructions .= "- Make theme/week titles more descriptive and pedagogically clear\n";
-            $instructions .= "- Ensure titles accurately reflect the content and learning goals\n";
-            $instructions .= "- Use student-friendly language\n";
-            $instructions .= "BUT: Do NOT change the number of themes/weeks/sessions\n\n";
-        } else {
-            $instructions .= "*** PRESERVE EXACT TITLES ***\n";
-            $instructions .= "- Keep all theme, week, and activity titles EXACTLY as provided in the CSV\n";
-            $instructions .= "- Do NOT modify, expand, or enhance any titles\n";
-            $instructions .= "- Only generate descriptions/summaries if explicitly requested\n\n";
-        }
-
-        return $instructions;
     }
 }

@@ -52,21 +52,9 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->addElement('hidden', 'moduletype', $this->_customdata['moduletype']);
         $mform->setType('moduletype', PARAM_ALPHANUMEXT);
         $mform->setDefault('moduletype', $this->_customdata['moduletype']);
-        $generatethemeintroductions = !empty($this->_customdata['generatethemeintroductions'])
-            ? $this->_customdata['generatethemeintroductions']
-            : 0;
-        $mform->addElement('hidden', 'generatethemeintroductions', $generatethemeintroductions);
-        $mform->setType('generatethemeintroductions', PARAM_BOOL);
-        $mform->setDefault('generatethemeintroductions', $generatethemeintroductions);
-        $mform->addElement('hidden', 'createsuggestedactivities', $this->_customdata['createsuggestedactivities']);
-        $mform->setType('createsuggestedactivities', PARAM_BOOL);
-        $mform->setDefault('createsuggestedactivities', $this->_customdata['createsuggestedactivities']);
         $mform->addElement('hidden', 'generatedsummary', $this->_customdata['generatedsummary']);
         $mform->setType('generatedsummary', PARAM_RAW);
         $mform->setDefault('generatedsummary', $this->_customdata['generatedsummary']);
-        $mform->addElement('hidden', 'hideexistingsections', $this->_customdata['hideexistingsections'] ?? 0);
-        $mform->setType('hideexistingsections', PARAM_BOOL);
-        $mform->setDefault('hideexistingsections', $this->_customdata['hideexistingsections'] ?? 0);
         $mform->addElement('hidden', 'createsummaryactivities', $this->_customdata['createsummaryactivities'] ?? 0);
         $mform->setType('createsummaryactivities', PARAM_BOOL);
         $mform->setDefault('createsummaryactivities', $this->_customdata['createsummaryactivities'] ?? 0);

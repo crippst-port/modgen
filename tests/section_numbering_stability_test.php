@@ -221,56 +221,6 @@ final class section_numbering_stability_test extends advanced_testcase {
     }
 
     /**
-     * New top-level sections from a file import are moved above Assessments.
-     *
-     * This was calling move_section() with core's
-     * move_section_to($course, $section, $destination, $ignorenumsections) argument shape.
-     * format_flexsections' signature is move_section($section, $parent, $before), so the
-     * destination landed in $parent and the boolean in $before; can_move_section_to()
-     * rejected it and the call silently did nothing, every time.
-     */
-    public function test_new_sections_are_moved_above_assessments(): void {
-        global $DB;
-        $this->resetAfterTest(true);
-        $this->setAdminUser();
-        $course = $this->make_course(2);
-        theme_builder::initialize_core_sections($course->id);
-
-        $assessments = $DB->get_record('course_sections', [
-            'course' => $course->id,
-            'name' => get_string('assessmentssectionname', 'aiplacement_modgen'),
-        ]);
-        $this->assertNotEmpty($assessments, 'Assessments section should exist.');
-
-        // Two new top-level sections, created at the end as the import does.
-        $courseformat = course_get_format($course);
-        $anum = theme_builder::create_theme_section($course->id, $courseformat, 'New A', '');
-        $bnum = theme_builder::create_theme_section($course->id, course_get_format($course), 'New B', '');
-        $aid = theme_builder::section_id_from_number($course->id, $anum);
-        $bid = theme_builder::section_id_from_number($course->id, $bnum);
-
-        $assessnumbefore = (int) $DB->get_field('course_sections', 'section', ['id' => $assessments->id]);
-        $this->assertGreaterThan(
-            $assessnumbefore,
-            theme_builder::current_section_number($course->id, $aid),
-            'Sanity: the new sections start after Assessments.'
-        );
-
-        // Drive the private reorder step the import uses.
-        $service = new local\section_creation_service();
-        $method = new \ReflectionMethod($service, 'hide_and_reorder_sections');
-        $method->setAccessible(true);
-        $method->invoke($service, $course->id, get_course($course->id, true), [$aid, $bid]);
-
-        $assessnum = (int) $DB->get_field('course_sections', 'section', ['id' => $assessments->id]);
-        $anow = theme_builder::current_section_number($course->id, $aid);
-        $bnow = theme_builder::current_section_number($course->id, $bid);
-
-        $this->assertLessThan($assessnum, $anow, "'New A' should now sit above Assessments.");
-        $this->assertLessThan($assessnum, $bnow, "'New B' should now sit above Assessments.");
-    }
-
-    /**
      * A Quick Add job carries its target as a section ID, not a number.
      *
      * The number is captured in the browser but the job runs later from cron. Anything that

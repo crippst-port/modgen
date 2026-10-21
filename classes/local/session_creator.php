@@ -273,49 +273,4 @@ class session_creator {
 
         return $sessionsectionmap;
     }
-
-    /**
-     * Create activities in session subsections.
-     *
-     * @param array $sessiondata Session data with 'presession', 'session', 'postsession' keys
-     * @param array $sessionsectionmap Map of session type to section number
-     * @param object $course The course object
-     * @param array &$results Results array to append success messages to
-     * @param array &$warnings Warnings array to append error messages to
-     * @return void
-     */
-    public static function create_session_activities($sessiondata, $sessionsectionmap, $course, &$results, &$warnings) {
-        $sessiontypes = ['presession', 'session', 'postsession'];
-
-        foreach ($sessiontypes as $sessionkey) {
-            if (empty($sessiondata[$sessionkey]) || !is_array($sessiondata[$sessionkey])) {
-                continue;
-            }
-
-            $data = $sessiondata[$sessionkey];
-            $activities = $data['activities'] ?? [];
-
-            if (empty($activities) || !is_array($activities)) {
-                continue;
-            }
-
-            $sectionnumber = $sessionsectionmap[$sessionkey] ?? null;
-            if ($sectionnumber === null) {
-                continue;
-            }
-
-            $activityoutcome = \aiplacement_modgen\activitytype\registry::create_for_section(
-                $activities,
-                $course,
-                $sectionnumber
-            );
-
-            if (!empty($activityoutcome['created'])) {
-                $results = array_merge($results, $activityoutcome['created']);
-            }
-            if (!empty($activityoutcome['warnings'])) {
-                $warnings = array_merge($warnings, $activityoutcome['warnings']);
-            }
-        }
-    }
 }

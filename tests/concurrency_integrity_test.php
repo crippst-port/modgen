@@ -215,11 +215,7 @@ final class concurrency_integrity_test extends advanced_testcase {
         (new section_creation_service())->create_sections_from_json(
             $this->theme_payload('After release'),
             $this->course->id,
-            'connected_theme',
-            false,
-            false,
-            false
-        );
+            'connected_theme');
 
         $this->assertSame(
             1,
@@ -249,11 +245,7 @@ final class concurrency_integrity_test extends advanced_testcase {
             (new section_creation_service())->create_sections_from_json(
                 $this->theme_payload('Course B theme'),
                 $other->id,
-                'connected_theme',
-                false,
-                false,
-                false
-            );
+                'connected_theme');
         } finally {
             $heldlock->release();
         }
@@ -336,11 +328,7 @@ final class concurrency_integrity_test extends advanced_testcase {
             $service->create_sections_from_json(
                 $this->theme_payload("Theme {$i}"),
                 $this->course->id,
-                'connected_theme',
-                false,
-                false,
-                false
-            );
+                'connected_theme');
             $this->assert_structure_sound("after generation {$i}");
         }
 

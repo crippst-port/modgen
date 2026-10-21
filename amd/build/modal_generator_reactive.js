@@ -11,7 +11,8 @@ define("aiplacement_modgen/modal_generator_reactive", ["exports", "core/reactive
   _modal_events = _interopRequireDefault(_modal_events);
   _templates = _interopRequireDefault(_templates);
   LoadingIndicator = _interopRequireWildcard(LoadingIndicator);
-  function _interopRequireWildcard(e, t) { if ("function" == typeof WeakMap) var r = new WeakMap(), n = new WeakMap(); return (_interopRequireWildcard = function (e, t) { if (!t && e && e.__esModule) return e; var o, i, f = { __proto__: null, default: e }; if (null === e || "object" != typeof e && "function" != typeof e) return f; if (o = t ? n : r) { if (o.has(e)) return o.get(e); o.set(e, f); } for (const t in e) "default" !== t && {}.hasOwnProperty.call(e, t) && ((i = (o = Object.defineProperty) && Object.getOwnPropertyDescriptor(e, t)) && (i.get || i.set) ? o(f, t, i) : f[t] = e[t]); return f; })(e, t); }
+  var cache;
+  function _interopRequireWildcard(e, t) { if (!t && e && e.__esModule) return e; var r, c, a = Object.defineProperty, n = { __proto__: null, default: e }; if (Object(e) !== e) return n; if (cache || "function" != typeof WeakMap || (cache = new WeakMap()), cache) { if (cache.has(e)) return cache.get(e); cache.set(e, n); } for (c in e) "default" !== c && {}.hasOwnProperty.call(e, c) && ((r = a && Object.getOwnPropertyDescriptor(e, c)) && (r.get || r.set) ? a(n, c, r) : n[c] = e[c]); return n; }
   function _interopRequireDefault(e) { return e && e.__esModule ? e : { default: e }; }
   /**
    * Reactive modal generator component.
@@ -46,7 +47,6 @@ define("aiplacement_modgen/modal_generator_reactive", ["exports", "core/reactive
    * - `add_theme`: Create sections by theme names
    * - `add_week`: Create sections by week range
    * - `template_from_prompt`: AI-powered content generation from prompt
-   * - `suggest`: AI activity suggestions for existing sections
    * - `prompt`: Legacy prompt form
    *
    * ## Usage
@@ -207,7 +207,7 @@ define("aiplacement_modgen/modal_generator_reactive", ["exports", "core/reactive
       }
     }
     isAiWorkflowForm(formName) {
-      const aiWorkflowForms = ['template_from_prompt', 'prompt', 'suggest'];
+      const aiWorkflowForms = ['template_from_prompt', 'prompt'];
       return aiWorkflowForms.includes(formName);
     }
     loadFormInModal(formName, title) {
@@ -215,7 +215,7 @@ define("aiplacement_modgen/modal_generator_reactive", ["exports", "core/reactive
         courseid: this.courseid,
         contextid: this.contextid
       }).then(html => {
-        const bodyHtml = this.isAiWorkflowForm(formName) && formName !== 'suggest' ? this.buildProgressHeader(STEPS.PROMPT) + html : html;
+        const bodyHtml = this.isAiWorkflowForm(formName) ? this.buildProgressHeader(STEPS.PROMPT) + html : html;
         return _modal.default.create({
           title: title,
           body: bodyHtml,
@@ -233,18 +233,6 @@ define("aiplacement_modgen/modal_generator_reactive", ["exports", "core/reactive
         }
         this.reactive.dispatch('formLoaded');
         this.updateFooterFromForm(modal);
-        if (formName === 'suggest') {
-          try {
-            require(['aiplacement_modgen/suggest'], suggest => {
-              const mod = suggest && typeof suggest.init === 'function' ? suggest : suggest && suggest.default ? suggest.default : null;
-              if (mod && typeof mod.init === 'function') {
-                mod.init(modal, this.courseid, this.currentsection);
-              }
-            });
-          } catch (e) {
-            _notification.default.exception(e);
-          }
-        }
         this.modal.show();
         return modal;
       }).catch(_notification.default.exception);

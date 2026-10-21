@@ -46,10 +46,6 @@ class aiplacement_modgen_generator_form extends moodleform
             $mform->setType('embedded', PARAM_BOOL);
         }
 
-        // Get course context for capability checks.
-        $coursecontext = context_course::instance($this->_customdata['courseid']);
-        $canusesuggest = has_capability('aiplacement/modgen:usesuggest', $coursecontext);
-
         // Check if AI is enabled early so we can control visibility.
         $aienabled = get_config('aiplacement_modgen', 'enable_ai');
 
@@ -95,24 +91,6 @@ class aiplacement_modgen_generator_form extends moodleform
             $mform->setExpanded('selectoruploadtemplateheader', true);
         }
 
-        // Existing module selection - allows user to base generation on existing module structure
-        // Only show if admin has enabled this feature AND AI is enabled AND user has generatewithprompt capability.
-        $cangeneratewithprompt = has_capability('aiplacement/modgen:generatewithprompt', $coursecontext);
-        if ($aienabled && get_config('aiplacement_modgen', 'enable_existing_modules') && $cangeneratewithprompt) {
-            // Support up to 3 templates via multiselect.
-            $existingmodules = $this->get_editable_courses();
-
-            $mform->addElement(
-                'select',
-                'existing_modules',
-                get_string('existingmodule', 'aiplacement_modgen'),
-                $existingmodules,
-                ['multiple' => 'multiple', 'size' => 4]
-            );
-            $mform->setType('existing_modules', PARAM_SEQUENCE);
-            $mform->addHelpButton('existing_modules', 'existingmodule', 'aiplacement_modgen');
-        }
-
         // File upload for CSV structure file (optional) - using filemanager for standalone pages
         // Note: The modal version uses a simple HTML input instead.
         if ($structurefromfile) {
@@ -126,43 +104,9 @@ class aiplacement_modgen_generator_form extends moodleform
             $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
         }
 
-        // Suggested content section (only if AI enabled AND user has usesuggest capability).
-        if ($aienabled && $canusesuggest) {
-            $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
-            $mform->setExpanded('suggestedcontentheader', true);
-
-            // Expand on themes option - enhances section titles and descriptions.
-            $mform->addElement('advcheckbox', 'expandonthemes', get_string('expandonthemes', 'aiplacement_modgen'));
-            $mform->addHelpButton('expandonthemes', 'expandonthemes', 'aiplacement_modgen');
-            $mform->setType('expandonthemes', PARAM_BOOL);
-            $mform->setDefault('expandonthemes', 0); // Default to OFF.
-
-            // Single consolidated checkbox for all example content.
-            $mform->addElement('advcheckbox', 'generateexamplecontent', get_string('generateexamplecontent', 'aiplacement_modgen'));
-            $mform->addHelpButton('generateexamplecontent', 'generateexamplecontent', 'aiplacement_modgen');
-            $mform->setType('generateexamplecontent', PARAM_BOOL);
-            $mform->setDefault('generateexamplecontent', 0);
-
-            $mform->closeHeaderBefore('contentplacementheader');
-        } // End AI-enabled suggested content section
-
         // Content placement header (always visible).
         $mform->addElement('header', 'contentplacementheader', get_string('contentplacement', 'aiplacement_modgen'));
         $mform->setExpanded('contentplacementheader', true);
-
-        // Checkbox to hide existing sections and place new content at top. Offered only
-        // where the site has switched the option on; the field is absent otherwise, and
-        // section_creation_service ignores the flag however else it might arrive.
-        if (\aiplacement_modgen\local\settings_helper::is_hideexistingsections_enabled()) {
-            $mform->addElement(
-                'advcheckbox',
-                'hideexistingsections',
-                get_string('hideexistingsections', 'aiplacement_modgen')
-            );
-            $mform->addHelpButton('hideexistingsections', 'hideexistingsections', 'aiplacement_modgen');
-            $mform->setType('hideexistingsections', PARAM_BOOL);
-            $mform->setDefault('hideexistingsections', 0);
-        }
 
         // Checkbox to add the learningactivity "section summary" placeholder to each
         // section. The help text only mentions the AI-metadata caveat when AI is enabled.
@@ -221,7 +165,7 @@ class aiplacement_modgen_generator_form extends moodleform
         global $USER;
         $errors = parent::validation($data, $files);
 
-        // Either prompt, files, template, or existing module must be provided.
+        // Either prompt, files or template must be provided.
         $hasprompt = !empty(trim($data['prompt'] ?? ''));
         // For filemanager, check if draft area has files.
         $hasfiles = false;
@@ -232,36 +176,12 @@ class aiplacement_modgen_generator_form extends moodleform
             $hasfiles = !empty($draftfiles);
         }
         $hastemplate = !empty($data['selected_template_id']) && $data['selected_template_id'] > 0;
-        $hasexistingmodules = !empty($data['existing_modules'])
-            && is_array($data['existing_modules'])
-            && count(array_filter($data['existing_modules'])) > 0;
 
-        if (!$hasprompt && !$hasfiles && !$hastemplate && !$hasexistingmodules) {
+        if (!$hasprompt && !$hasfiles && !$hastemplate) {
             $errors['prompt'] = get_string('inputrequired', 'aiplacement_modgen');
         }
 
         return $errors;
-    }
-
-    /**
-     * Get list of courses the user can edit, formatted as options for select dropdown.
-     *
-     * @return array Array with key 0 => "Create from scratch", then courseid => fullname for editable courses
-     */
-    private function get_editable_courses() {
-        $options = [0 => get_string('createfromscratch', 'aiplacement_modgen')];
-
-        // SECURITY & PERFORMANCE FIX: Use Moodle's API instead of custom SQL.
-        $courses = enrol_get_my_courses(['id', 'fullname', 'shortname']);
-
-        foreach ($courses as $course) {
-            $context = context_course::instance($course->id);
-            if (has_capability('moodle/course:update', $context)) {
-                $options[$course->id] = $course->fullname . ' (' . $course->shortname . ')';
-            }
-        }
-
-        return $options;
     }
 
     /**

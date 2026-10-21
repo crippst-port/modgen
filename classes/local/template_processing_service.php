@@ -17,7 +17,7 @@
 /**
  * Template processing service for Module Generator.
  *
- * Handles template extraction from existing modules, CSV processing,
+ * Handles CSV template processing
  * and AI instruction building.
  *
  * @package     aiplacement_modgen
@@ -29,7 +29,12 @@ namespace aiplacement_modgen\local;
 
 defined('MOODLE_INTERNAL') || die();
 
-require_once(__DIR__ . '/template_reader.php');
+require_once(__DIR__ . '/csv_parser.php');
+require_once(__DIR__ . '/ai_service.php');
+
+require_once(__DIR__ . '/csv_parser.php');
+require_once(__DIR__ . '/ai_service.php');
+
 require_once(__DIR__ . '/csv_parser.php');
 require_once(__DIR__ . '/ai_service.php');
 
@@ -44,8 +49,6 @@ class template_processing_service {
      * @param int $courseid Course ID
      * @param string $compositeprompt The composite prompt for AI
      * @param array $supportingfiles Array of supporting files
-     * @param bool $includeactivities Whether to include activities
-     * @param bool $includesessions Whether to include sessions
      * @return array Generated JSON structure
      * @throws \Exception If template processing fails
      */
@@ -53,48 +56,30 @@ class template_processing_service {
         \stdClass $pdata,
         int $courseid,
         string $compositeprompt,
-        array $supportingfiles,
-        bool $includeactivities,
-        bool $includesessions
+        array $supportingfiles
     ): array {
-        global $USER;
-
         $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'connected_weekly';
 
-        // Initialize debug log array.
-        $debuglog = [];
-
-        // Step 1: Check if a CSV template was selected.
+        // Check if a CSV template was selected.
         $csvfile = $this->load_csv_template($pdata);
 
-        // Step 2: Extract template from existing modules (if selected).
-        $existingmodules = $this->get_existing_modules($pdata);
+        $aienabled = get_config('aiplacement_modgen', 'enable_ai');
+        $hasuserprompt = !empty($pdata->prompt) && trim($pdata->prompt) !== '';
+        $hascsvfile = !empty($pdata->supportingfiles) || !empty($csvfile);
 
-        if (!empty($existingmodules)) {
-            return $this->process_with_existing_modules(
-                $existingmodules,
-                $pdata,
-                $courseid,
-                $compositeprompt,
-                $supportingfiles,
-                $moduletype,
-                $csvfile,
-                $includeactivities,
-                $includesessions,
-                $debuglog
-            );
+        $csvservice = new csv_processing_service();
+
+        if ($csvservice->should_use_pure_csv_mode($aienabled, $hascsvfile, $hasuserprompt)) {
+            return $this->process_pure_csv_mode($csvfile, $pdata, $moduletype);
         }
 
-        // No existing module template - use CSV or generate fresh.
-        return $this->process_without_existing_modules(
+        return $this->process_with_ai_enhancement(
             $pdata,
             $courseid,
             $compositeprompt,
             $supportingfiles,
             $moduletype,
-            $csvfile,
-            $includeactivities,
-            $includesessions
+            $csvfile
         );
     }
 
@@ -161,173 +146,6 @@ class template_processing_service {
     }
 
     /**
-     * Get existing modules from form data.
-     *
-     * @param \stdClass $pdata Form data
-     * @return array Array of module IDs
-     */
-    private function get_existing_modules(\stdClass $pdata): array {
-        $existingmodules = [];
-
-        if (!empty($pdata->existing_modules)) {
-            if (is_array($pdata->existing_modules)) {
-                $existingmodules = array_map('intval', array_filter($pdata->existing_modules));
-            } else {
-                $existingmodules = [(int)$pdata->existing_modules];
-            }
-        }
-
-        return array_unique(array_filter($existingmodules));
-    }
-
-    /**
-     * Process generation with existing module templates.
-     *
-     * @param array $existingmodules Array of module IDs
-     * @param \stdClass $pdata Form data
-     * @param int $courseid Course ID
-     * @param string $compositeprompt Composite prompt
-     * @param array $supportingfiles Supporting files
-     * @param string $moduletype Module type
-     * @param \stored_file|null $csvfile CSV file if loaded
-     * @param bool $includeactivities Include activities flag
-     * @param bool $includesessions Include sessions flag
-     * @param array &$debuglog Debug log
-     * @return array Generated JSON structure
-     */
-    private function process_with_existing_modules(
-        array $existingmodules,
-        \stdClass $pdata,
-        int $courseid,
-        string $compositeprompt,
-        array $supportingfiles,
-        string $moduletype,
-        ?\stored_file $csvfile,
-        bool $includeactivities,
-        bool $includesessions,
-        array &$debuglog
-    ): array {
-        try {
-            $templatereader = new template_reader();
-            $templatedata = null;
-
-            // Extract and merge templates from all selected modules
-            // (Template extraction logic would go here - keeping original complexity).
-
-            if (!is_array($templatedata) || empty($templatedata)) {
-                throw new \Exception('Template data is empty or invalid');
-            }
-
-            // Validate template data.
-            $datasummary = [];
-            foreach ($templatedata as $key => $value) {
-                if (is_array($value)) {
-                    $datasummary[] = $key . '=' . count($value) . ' items';
-                } else if (is_string($value)) {
-                    $datasummary[] = $key . '=' . strlen($value) . ' chars';
-                } else {
-                    $datasummary[] = $key . '=' . gettype($value);
-                }
-            }
-
-            // Determine processing mode.
-            $aienabled = get_config('aiplacement_modgen', 'enable_ai');
-            $expandonthemes = !empty($pdata->expandonthemes);
-            $hasuserprompt = !empty($pdata->prompt) && trim($pdata->prompt) !== '';
-            $hascsvfile = !empty($pdata->supportingfiles) || !empty($csvfile);
-            $generateexamples = !empty($pdata->generateexamplecontent);
-
-            $csvservice = new csv_processing_service();
-
-            if (
-                $csvservice->should_use_pure_csv_mode(
-                    $aienabled,
-                    $hascsvfile,
-                    $hasuserprompt,
-                    $expandonthemes,
-                    $generateexamples
-                )
-            ) {
-                return $this->process_pure_csv_mode($csvfile, $pdata, $moduletype);
-            } else {
-                return $this->process_with_ai_enhancement(
-                    $pdata,
-                    $courseid,
-                    $compositeprompt,
-                    $supportingfiles,
-                    $moduletype,
-                    $csvfile,
-                    $includeactivities,
-                    $includesessions
-                );
-            }
-        } catch (\Exception $e) {
-            $debuglog[] = 'Template extraction failed: ' . $e->getMessage();
-
-            // Fall back to normal generation.
-            return $this->process_without_existing_modules(
-                $pdata,
-                $courseid,
-                $compositeprompt,
-                $supportingfiles,
-                $moduletype,
-                $csvfile,
-                $includeactivities,
-                $includesessions
-            );
-        }
-    }
-
-    /**
-     * Process generation without existing module templates.
-     *
-     * @param \stdClass $pdata Form data
-     * @param int $courseid Course ID
-     * @param string $compositeprompt Composite prompt
-     * @param array $supportingfiles Supporting files
-     * @param string $moduletype Module type
-     * @param \stored_file|null $csvfile CSV file if loaded
-     * @param bool $includeactivities Include activities flag
-     * @param bool $includesessions Include sessions flag
-     * @return array Generated JSON structure
-     */
-    private function process_without_existing_modules(
-        \stdClass $pdata,
-        int $courseid,
-        string $compositeprompt,
-        array $supportingfiles,
-        string $moduletype,
-        ?\stored_file $csvfile,
-        bool $includeactivities,
-        bool $includesessions
-    ): array {
-        global $USER;
-
-        $aienabled = get_config('aiplacement_modgen', 'enable_ai');
-        $expandonthemes = !empty($pdata->expandonthemes);
-        $hasuserprompt = !empty($pdata->prompt) && trim($pdata->prompt) !== '';
-        $hascsvfile = !empty($pdata->supportingfiles) || !empty($csvfile);
-        $generateexamples = !empty($pdata->generateexamplecontent);
-
-        $csvservice = new csv_processing_service();
-
-        if ($csvservice->should_use_pure_csv_mode($aienabled, $hascsvfile, $hasuserprompt, $expandonthemes, $generateexamples)) {
-            return $this->process_pure_csv_mode($csvfile, $pdata, $moduletype);
-        } else {
-            return $this->process_with_ai_enhancement(
-                $pdata,
-                $courseid,
-                $compositeprompt,
-                $supportingfiles,
-                $moduletype,
-                $csvfile,
-                $includeactivities,
-                $includesessions
-            );
-        }
-    }
-
-    /**
      * Process in pure CSV mode (no AI).
      *
      * @param \stored_file|null $csvfile CSV file
@@ -375,8 +193,6 @@ class template_processing_service {
      * @param array $supportingfiles Supporting files
      * @param string $moduletype Module type
      * @param \stored_file|null $csvfile CSV file if loaded
-     * @param bool $includeactivities Include activities flag
-     * @param bool $includesessions Include sessions flag
      * @return array Generated JSON structure
      */
     private function process_with_ai_enhancement(
@@ -385,9 +201,7 @@ class template_processing_service {
         string $compositeprompt,
         array $supportingfiles,
         string $moduletype,
-        ?\stored_file $csvfile,
-        bool $includeactivities,
-        bool $includesessions
+        ?\stored_file $csvfile
     ): array {
         global $USER;
 
@@ -412,17 +226,14 @@ class template_processing_service {
         }
 
         // Build AI instructions.
-        $aiinstructions = $this->build_ai_instructions($csvstructure, $pdata);
+        $aiinstructions = $this->build_ai_instructions($csvstructure);
         $compositeprompt = $compositeprompt . $aiinstructions;
 
         $result = \aiplacement_modgen\ai_service::generate_module(
             $compositeprompt,
             $supportingfiles,
             $moduletype,
-            null,
-            $courseid,
-            $includeactivities,
-            $includesessions
+            $courseid
         );
 
         // Return structure with the detected/used module type.
@@ -432,18 +243,15 @@ class template_processing_service {
     }
 
     /**
-     * Build AI instructions based on CSV structure and options.
+     * Build AI instructions based on the CSV structure.
      *
      * @param array|null $csvstructure CSV structure if available
-     * @param \stdClass $pdata Form data
      * @return string AI instructions
      */
-    private function build_ai_instructions(?array $csvstructure, \stdClass $pdata): string {
+    private function build_ai_instructions(?array $csvstructure): string {
         if ($csvstructure === null) {
             return '';
         }
-
-        $expandonthemes = !empty($pdata->expandonthemes);
 
         // Count themes/weeks.
         $themecount = 0;
@@ -472,30 +280,10 @@ class template_processing_service {
         $instructions .= "- Return ONLY the exact structure shown above - no modifications to theme/week count\n\n";
         $instructions .= "- The number of sections in your output MUST match the CSV exactly\n\n";
 
-        if ($expandonthemes) {
-            $instructions .= "*** TITLE ENHANCEMENT INSTRUCTIONS ***\n";
-            $instructions .= "Improve the section titles with these requirements:\n";
-            $instructions .= "- Use professional, academic language suitable for UK higher education\n";
-            $instructions .= "- Make titles clear, descriptive, and informative\n";
-            $instructions .= "- Avoid marketing language or overly casual tone\n";
-            $instructions .= "- Focus on clarity and academic rigor\n";
-            $instructions .= "- Enhanced titles should be scholarly but accessible\n";
-
-            if (!empty($pdata->generateexamplecontent)) {
-                $instructions .= "\n*** ADDITIONAL CONTENT GENERATION ***\n";
-                $instructions .= "Generate example content ONLY within the existing structure:\n";
-                $instructions .= "- Do NOT create new weeks, themes, or sessions\n";
-                $instructions .= "- Add activities ONLY to the sessions that exist in the CSV structure\n";
-                $instructions .= "- Add session instructions ONLY to existing sessions\n";
-                $instructions .= "- Generate theme/week summaries ONLY where 'summary' field is empty\n";
-                $instructions .= "- Preserve any existing user-provided summaries exactly as given\n";
-            }
-        } else {
-            $instructions .= "*** NO TITLE CHANGES ***\n";
-            $instructions .= "- Do NOT modify section titles from the CSV\n";
-            $instructions .= "- Return titles exactly as provided\n";
-            $instructions .= "- Only add content if explicitly requested\n";
-        }
+        $instructions .= "*** NO TITLE CHANGES ***\n";
+        $instructions .= "- Do NOT modify section titles from the CSV\n";
+        $instructions .= "- Return titles exactly as provided\n";
+        $instructions .= "- Only add content if explicitly requested\n";
 
         return $instructions;
     }

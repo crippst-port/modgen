@@ -51,10 +51,6 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
             $mform->setType('embedded', PARAM_BOOL);
         }
 
-        // Get course context for capability checks.
-        $coursecontext = context_course::instance($this->_customdata['courseid']);
-        $canusesuggest = has_capability('aiplacement/modgen:usesuggest', $coursecontext);
-
         // Add module type selection.
         $moduletypeoptions = [];
 
@@ -92,25 +88,6 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
         // Check if AI is enabled early so we can control visibility.
         $aienabled = get_config('aiplacement_modgen', 'enable_ai');
 
-        // Existing module selection - allows user to base generation on existing module structure
-        // Only show if admin has enabled this feature AND AI is enabled AND user has generatewithprompt capability.
-        $coursecontext = context_course::instance($this->_customdata['courseid']);
-        $cangeneratewithprompt = has_capability('aiplacement/modgen:generatewithprompt', $coursecontext);
-        if ($aienabled && get_config('aiplacement_modgen', 'enable_existing_modules') && $cangeneratewithprompt) {
-            // Support up to 3 templates via multiselect.
-            $existingmodules = $this->get_editable_courses();
-
-            $mform->addElement(
-                'select',
-                'existing_modules',
-                get_string('existingmodule', 'aiplacement_modgen'),
-                $existingmodules,
-                ['multiple' => 'multiple', 'size' => 4]
-            );
-            $mform->setType('existing_modules', PARAM_SEQUENCE);
-            $mform->addHelpButton('existing_modules', 'existingmodule', 'aiplacement_modgen');
-        }
-
         // Module type selection - ONLY show if AI is enabled.
         if ($aienabled) {
             $mform->addElement('select', 'moduletype', get_string('moduletype', 'aiplacement_modgen'), $moduletypeoptions);
@@ -145,25 +122,6 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
             // Actual validation is in validation() method.
             $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
         }
-
-        // Suggested content section (only if AI enabled AND user has usesuggest capability).
-        if ($aienabled && $canusesuggest) {
-            $mform->addElement('header', 'suggestedcontentheader', get_string('suggestedcontent', 'aiplacement_modgen'));
-
-            // Expand on themes option - enhances section titles and descriptions.
-            $mform->addElement('advcheckbox', 'expandonthemes', get_string('expandonthemes', 'aiplacement_modgen'));
-            $mform->addHelpButton('expandonthemes', 'expandonthemes', 'aiplacement_modgen');
-            $mform->setType('expandonthemes', PARAM_BOOL);
-            $mform->setDefault('expandonthemes', 0); // Default to OFF.
-
-            // Single consolidated checkbox for all example content.
-            $mform->addElement('advcheckbox', 'generateexamplecontent', get_string('generateexamplecontent', 'aiplacement_modgen'));
-            $mform->addHelpButton('generateexamplecontent', 'generateexamplecontent', 'aiplacement_modgen');
-            $mform->setType('generateexamplecontent', PARAM_BOOL);
-            $mform->setDefault('generateexamplecontent', 0);
-
-            $mform->closeHeaderBefore('buttonar');
-        } // End AI-enabled section
 
         $buttonarray = [];
         $buttonarray[] = $mform->createElement('submit', 'submitbutton', get_string('submit', 'aiplacement_modgen'));
@@ -211,17 +169,14 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
             $errors['moduletype'] = 'Invalid module type selected';
         }
 
-        // Either prompt, files, template, or existing module must be provided.
+        // Either prompt, files or template must be provided.
         $hasprompt = !empty(trim($data['prompt'] ?? ''));
         // Check for uploaded files via standard HTML file input.
         $hasfiles = !empty($_FILES['supportingfiles_files']['tmp_name'][0]) &&
                     is_uploaded_file($_FILES['supportingfiles_files']['tmp_name'][0]);
         $hastemplate = !empty($data['selected_template_id']) && $data['selected_template_id'] > 0;
-        $hasexistingmodules = !empty($data['existing_modules'])
-            && is_array($data['existing_modules'])
-            && count(array_filter($data['existing_modules'])) > 0;
 
-        if (!$hasprompt && !$hasfiles && !$hastemplate && !$hasexistingmodules) {
+        if (!$hasprompt && !$hasfiles && !$hastemplate) {
             $errors['prompt'] = get_string('inputrequired', 'aiplacement_modgen');
         }
 
@@ -253,36 +208,6 @@ class aiplacement_modgen_modal_generator_form extends moodleform {
         // }.
 
         return $data;
-    }
-
-    /**
-     * Get list of courses the user can edit, formatted as options for select dropdown.
-     *
-     * @return array Array with key 0 => "Create from scratch", then courseid => fullname for editable courses
-     */
-    private function get_editable_courses() {
-        global $DB, $USER;
-
-        $options = [0 => get_string('createfromscratch', 'aiplacement_modgen')];
-
-        // Get courses where user has course update capability (can edit course).
-        $sql = "SELECT c.id, c.fullname, c.shortname
-                FROM {course} c
-                JOIN {role_assignments} ra ON ra.contextid = (
-                    SELECT id FROM {context} WHERE contextlevel = ? AND instanceid = c.id
-                )
-                WHERE ra.userid = ? AND ra.roleid IN (
-                    SELECT id FROM {role} WHERE archetype IN ('editingteacher', 'teacher', 'manager')
-                )
-                ORDER BY c.fullname ASC";
-
-        $courses = $DB->get_records_sql($sql, [CONTEXT_COURSE, $USER->id]);
-
-        foreach ($courses as $course) {
-            $options[$course->id] = $course->fullname . ' (' . $course->shortname . ')';
-        }
-
-        return $options;
     }
 
     /**

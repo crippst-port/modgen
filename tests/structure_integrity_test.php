@@ -302,11 +302,7 @@ final class structure_integrity_test extends advanced_testcase {
         (new section_creation_service())->create_sections_from_json(
             $json,
             $this->course->id,
-            'connected_theme',
-            false,
-            false,
-            false
-        );
+            'connected_theme');
 
         $this->assert_structure_sound($this->course->id, 'theme structure');
         $this->assert_course_state_renders($this->course->id);
@@ -329,48 +325,9 @@ final class structure_integrity_test extends advanced_testcase {
         (new section_creation_service())->create_sections_from_json(
             $json,
             $this->course->id,
-            'connected_weekly',
-            false,
-            false,
-            false
-        );
+            'connected_weekly');
 
         $this->assert_structure_sound($this->course->id, 'weekly structure');
-        $this->assert_course_state_renders($this->course->id);
-    }
-
-    /**
-     * Hiding + reordering existing sections must not corrupt the structure.
-     *
-     * The reorder path (hide_and_reorder_sections) moves sections around, which is
-     * exactly where section-number gaps or broken parents historically appeared.
-     *
-     * @covers ::create_sections_from_json
-     */
-    public function test_hide_and_reorder_preserves_integrity(): void {
-        // Pre-existing top-level sections that will be hidden and shuffled past.
-        $this->getDataGenerator()->create_course_section(['course' => $this->course->id, 'section' => 1]);
-        $this->getDataGenerator()->create_course_section(['course' => $this->course->id, 'section' => 2]);
-
-        $json = [
-            'themes' => [
-                ['title' => 'New Theme 1', 'summary' => 's', 'weeks' => [
-                    ['title' => 'W1', 'summary' => 'w', 'sessions' => []],
-                ]],
-                ['title' => 'New Theme 2', 'summary' => 's', 'weeks' => []],
-            ],
-        ];
-
-        (new section_creation_service())->create_sections_from_json(
-            $json,
-            $this->course->id,
-            'connected_theme',
-            false,
-            false,
-            true // Hideexistingsections.
-        );
-
-        $this->assert_structure_sound($this->course->id, 'after hide & reorder');
         $this->assert_course_state_renders($this->course->id);
     }
 
@@ -393,11 +350,7 @@ final class structure_integrity_test extends advanced_testcase {
             $service->create_sections_from_json(
                 $json,
                 $this->course->id,
-                'connected_theme',
-                false,
-                false,
-                false
-            );
+                'connected_theme');
             $this->assert_structure_sound($this->course->id, "after cycle {$cycle}");
         }
 
@@ -422,11 +375,7 @@ final class structure_integrity_test extends advanced_testcase {
         (new section_creation_service())->create_sections_from_json(
             ['themes' => $themes],
             $this->course->id,
-            'connected_theme',
-            false,
-            false,
-            false
-        );
+            'connected_theme');
 
         $this->assert_structure_sound($this->course->id, 'large structure');
         $this->assert_course_state_renders($this->course->id);
@@ -453,11 +402,7 @@ final class structure_integrity_test extends advanced_testcase {
             (new section_creation_service())->create_sections_from_json(
                 $json,
                 $this->course->id,
-                $moduletype,
-                false,
-                false,
-                false
-            );
+                $moduletype);
         } catch (\Throwable $e) {
             // A clean rejection is an acceptable outcome — the contract is "no corruption",
             // not "always succeed". What must NOT happen is a half-written structure.

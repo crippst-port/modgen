@@ -580,9 +580,6 @@ final class adhoc_task_integrity_test extends advanced_testcase {
             'action' => 'create_from_json',
             'moduletype' => 'connected_theme',
             'json' => $json,
-            'generatethemeintroductions' => false,
-            'createsuggestedactivities' => false,
-            'hideexistingsections' => false,
         ]);
 
         $this->run_task($task);

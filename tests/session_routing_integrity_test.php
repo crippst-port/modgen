@@ -25,8 +25,6 @@
  *   - get_session_sections() later *finds* them again by fuzzy substring-matching
  *     those names back to keys (checking 'presession','postsession','session'
  *     longest-first so 'session' does not match inside 'postsession').
- *   - create_session_activities() then drops each phase's activities into
- *     $map[$phase].
  *
  * This name round trip is fragile: reordering the match list, a translated label
  * that no longer contains its key as a substring, or a teacher-renamed subsection
@@ -222,75 +220,6 @@ final class session_routing_integrity_test extends advanced_testcase {
     // ------------------------------------------------------------------
     // End-to-end activity routing through the service.
 
-    /**
-     * Activities supplied per phase must land in the matching phase subsection —
-     * the full create-subsections -> find -> place-activities pipeline must route
-     * each activity to the correct place, not merely create it somewhere.
-     *
-     * @covers ::create_session_subsections
-     * @covers ::get_session_sections
-     * @covers ::create_session_activities
-     */
-    public function test_activities_routed_to_correct_phase(): void {
-        $json = ['themes' => [
-            ['title' => 'Routing theme', 'summary' => 's', 'weeks' => [
-                ['title' => 'Routing week', 'summary' => 'w', 'sessions' => [
-                    'presession' => ['description' => 'pre', 'activities' => [
-                        ['type' => 'label', 'name' => 'PRE-ACTIVITY', 'intro' => 'x'],
-                    ]],
-                    'session' => ['description' => 'main', 'activities' => [
-                        ['type' => 'label', 'name' => 'MAIN-ACTIVITY', 'intro' => 'x'],
-                    ]],
-                    'postsession' => ['description' => 'post', 'activities' => [
-                        ['type' => 'label', 'name' => 'POST-ACTIVITY', 'intro' => 'x'],
-                    ]],
-                ]],
-            ]],
-        ]];
-
-        (new section_creation_service())->create_sections_from_json(
-            $json,
-            $this->course->id,
-            'connected_theme',
-            false,
-            true,
-            false
-        );
-        $this->resetDebugging();
-        rebuild_course_cache($this->course->id, true, true);
-
-        // Locate the week, then its three session subsections by phase.
-        global $DB;
-        $week = $DB->get_record(
-            'course_sections',
-            ['course' => $this->course->id, 'name' => 'Routing week'],
-            '*',
-            MUST_EXIST
-        );
-        $map = session_creator::get_session_sections($week->section, $this->course->id);
-
-        $this->assertContains(
-            'PRE-ACTIVITY',
-            $this->content_module_names($map['presession']),
-            'Pre-session activity must be in the pre-session subsection.'
-        );
-        $this->assertContains(
-            'MAIN-ACTIVITY',
-            $this->content_module_names($map['session']),
-            'Session activity must be in the session subsection.'
-        );
-        $this->assertContains(
-            'POST-ACTIVITY',
-            $this->content_module_names($map['postsession']),
-            'Post-session activity must be in the post-session subsection.'
-        );
-
-        // And crucially, no cross-contamination: the main activity must NOT appear
-        // in the pre- or post- subsections.
-        $this->assertNotContains('MAIN-ACTIVITY', $this->content_module_names($map['presession']));
-        $this->assertNotContains('MAIN-ACTIVITY', $this->content_module_names($map['postsession']));
-    }
-
     // ------------------------------------------------------------------
     // Collision boundary characterisation (where silent misrouting lives).
 
@@ -352,36 +281,15 @@ final class session_routing_integrity_test extends advanced_testcase {
 
     /**
      * When a week has NO session subsections at all, get_session_sections must
-     * return an empty map — and downstream activity placement must therefore route
-     * nowhere rather than guessing a wrong section.
+     * return an empty map rather than guessing a wrong section.
      *
      * @covers ::get_session_sections
-     * @covers ::create_session_activities
      */
-    public function test_no_subsections_yields_empty_map_and_no_misplacement(): void {
+    public function test_no_subsections_yields_empty_map(): void {
         $week = $this->make_week('Empty week');
         rebuild_course_cache($this->course->id, true, true);
 
         $map = session_creator::get_session_sections($week, $this->course->id);
         $this->assertSame([], $map, 'A week with no session subsections maps to nothing.');
-
-        // The create_session_activities() call must safely no-op when the map lacks the
-        // phase, never falling back to an arbitrary section.
-        $results = [];
-        $warnings = [];
-        $course = get_course($this->course->id);
-        session_creator::create_session_activities(
-            ['session' => ['activities' => [['type' => 'label', 'name' => 'Orphan', 'intro' => 'x']]]],
-            $map,
-            $course,
-            $results,
-            $warnings
-        );
-
-        $this->assertSame(
-            [],
-            $results,
-            'With no matching subsection, no activity should be placed.'
-        );
     }
 }

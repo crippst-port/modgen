@@ -90,20 +90,6 @@ if ($hassiteconfig) {
             PARAM_INT
         ));
 
-        // Base on existing module configuration.
-        $settings->add(new admin_setting_heading(
-            'aiplacement_modgen/existingmoduleheading',
-            new lang_string('existingmoduleheading', 'aiplacement_modgen'),
-            new lang_string('existingmoduleheading_desc', 'aiplacement_modgen')
-        ));
-
-        $settings->add(new admin_setting_configcheckbox(
-            'aiplacement_modgen/enable_existing_modules',
-            new lang_string('enableexistingmodules', 'aiplacement_modgen'),
-            new lang_string('enableexistingmodules_desc', 'aiplacement_modgen') .
-                "\n\nNote: AI generation must be enabled for this feature to work.",
-            1
-        ));
         // Quick add and Structure-from-file feature controls.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/featuretoggleheading',
@@ -123,44 +109,6 @@ if ($hassiteconfig) {
             new lang_string('enablestructurefromfile', 'aiplacement_modgen'),
             new lang_string('enablestructurefromfile_desc', 'aiplacement_modgen'),
             1
-        ));
-
-        // Default 0, unlike the toggles above: this is the one feature that reorders
-        // existing sections, so a site opts in to it rather than out of it.
-        $settings->add(new admin_setting_configcheckbox(
-            'aiplacement_modgen/enable_hideexistingsections',
-            new lang_string('enablehideexistingsections', 'aiplacement_modgen'),
-            new lang_string('enablehideexistingsections_desc', 'aiplacement_modgen'),
-            0
-        ));
-
-        // Suggest toolbar button control.
-        $settings->add(new admin_setting_heading(
-            'aiplacement_modgen/suggestheading',
-            new lang_string('suggestheading', 'aiplacement_modgen'),
-            new lang_string('suggestheading_desc', 'aiplacement_modgen')
-        ));
-
-        $settings->add(new admin_setting_configcheckbox(
-            'aiplacement_modgen/enable_suggest',
-            new lang_string('enablesuggest', 'aiplacement_modgen'),
-            new lang_string('enablesuggest_desc', 'aiplacement_modgen'),
-            1
-        ));
-
-        $pedagogicalguidancedefault = "- Balance learning types across the section\n" .
-            "- Prioritize activities that complement existing section content\n" .
-            "- Match activities to pedagogical intent of the section\n" .
-            "- Vary interactive and passive learning opportunities";
-
-        $settings->add(new admin_setting_configtextarea(
-            'aiplacement_modgen/suggest_pedagogical_guidance',
-            new lang_string('suggestpedagogicalguidance', 'aiplacement_modgen'),
-            new lang_string('suggestpedagogicalguidance_desc', 'aiplacement_modgen'),
-            $pedagogicalguidancedefault,
-            PARAM_TEXT,
-            60,
-            6
         ));
 
         // Help and Advice Links.

@@ -51,13 +51,12 @@ function aiplacement_modgen_extend_navigation_course(
     $canmanagedates = has_capability('aiplacement/modgen:managedates', $context);
     $cangenerateprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
     $cangeneratetemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
-    $canusesuggest = has_capability('aiplacement/modgen:usesuggest', $context);
     $cancheckstructure = has_capability('aiplacement/modgen:checkstructure', $context);
 
     // Hide toolbar if user has no modgen capabilities.
     if (
         !$canmanagestructure && !$canmanagedates && !$cangenerateprompt
-            && !$cangeneratetemplate && !$canusesuggest && !$cancheckstructure
+            && !$cangeneratetemplate && !$cancheckstructure
     ) {
         return;
     }
@@ -67,17 +66,12 @@ function aiplacement_modgen_extend_navigation_course(
         // Feature-specific visibility (combine capability + admin setting).
         $aienabled = \aiplacement_modgen\local\settings_helper::is_ai_enabled();
         $showgenerator = $cangenerateprompt && $aienabled;
-        $showsuggest = $canusesuggest && \aiplacement_modgen\local\settings_helper::is_suggest_enabled();
 
         // Load CSS.
         $PAGE->requires->css('/ai/placement/modgen/styles.css');
 
         // Load strings needed by JS modules (must be in main page context, not fragment).
         $PAGE->requires->strings_for_js([
-            'creation_warnings',
-            'suggest_noresults',
-            'unsupported_label',
-            'suggestactivities',
             'approveandcreate',
             'aigenerated',
             'aigenmarker_tooltip',
@@ -91,7 +85,6 @@ function aiplacement_modgen_extend_navigation_course(
             'courseid' => $course->id,
             'contextid' => $context->id,
             'showgenerator' => $showgenerator,
-            'showsuggest' => $showsuggest,
             'showmanagestructure' => $canmanagestructure,
             'showmanagedates' => $canmanagedates,
             'showquickadd' => \aiplacement_modgen\local\settings_helper::is_quickadd_enabled(),
@@ -103,7 +96,7 @@ function aiplacement_modgen_extend_navigation_course(
         ]]);
 
         // Initialize AI-generated activity markers (only if AI is enabled).
-        if ($showgenerator || $showsuggest) {
+        if ($showgenerator) {
             $PAGE->requires->js_call_amd('aiplacement_modgen/aigen_marker', 'init', [$course->id]);
         }
     }
@@ -143,12 +136,11 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     $canmanagedates = has_capability('aiplacement/modgen:managedates', $context);
     $cangenerateprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
     $cangeneratetemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
-    $canusesuggest = has_capability('aiplacement/modgen:usesuggest', $context);
     $cancheckstructure = has_capability('aiplacement/modgen:checkstructure', $context);
 
     if (
         !$canmanagestructure && !$canmanagedates && !$cangenerateprompt
-            && !$cangeneratetemplate && !$canusesuggest && !$cancheckstructure
+            && !$cangeneratetemplate && !$cancheckstructure
     ) {
         throw new required_capability_exception(
             $context,
@@ -162,7 +154,6 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     $showtemplatefromptompt = $cangenerateprompt && $aienabled;
 
     $showgenerator = $showtemplatefromptompt; // Legacy support.
-    $showsuggest = $canusesuggest && \aiplacement_modgen\local\settings_helper::is_suggest_enabled();
     $showmanagestructure = $canmanagestructure;
     $showmanagedates = $canmanagedates;
     $showtemplatefromfile = $cangeneratetemplate && \aiplacement_modgen\local\settings_helper::is_structurefromfile_enabled();
@@ -173,7 +164,6 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     $toolbar = new \aiplacement_modgen\output\course_toolbar(
         $courseid,
         $showgenerator,
-        $showsuggest,
         $showmanagestructure,
         $showmanagedates,
         $showtemplatefromfile,
@@ -258,52 +248,6 @@ function aiplacement_modgen_output_fragment_generator_form(array $args): string 
     // Return rendered form.
     // Fragment API automatically handles JavaScript initialization.
     return $form->render();
-}
-
-/**
- * Fragment callback to render a simple Suggest placeholder form in a modal.
- *
- * @param array $args Fragment arguments containing courseid
- * @return string Rendered HTML
- */
-function aiplacement_modgen_output_fragment_form_suggest(array $args): string {
-    global $PAGE, $CFG;
-
-    // Fragments are reachable directly, so they enforce the placement switch too.
-    \aiplacement_modgen\local\settings_helper::require_placement_enabled();
-
-    // Validate parameters and permissions.
-    $courseid = clean_param($args['courseid'], PARAM_INT);
-    $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
-
-    $context = aiplacement_modgen_fragment_context($courseid, $contextid);
-    require_capability('aiplacement/modgen:usesuggest', $context);
-
-    // Build data for mustache template rendering.
-    $modinfo = get_fast_modinfo($courseid);
-    $sections = $modinfo->get_section_info_all();
-
-    $tplsections = [];
-    foreach ($sections as $s) {
-        $name = !empty($s->name) ? s($s->name) : get_string('sectionname', 'moodle', $s->section);
-        $tplsections[] = [
-            'value' => (int)$s->section,
-            'name' => $name,
-            'selected' => ($s->section == ($args['currentsection'] ?? 0)),
-        ];
-    }
-
-    $data = [
-        'suggest_label' => get_string('suggestactivities', 'aiplacement_modgen'),
-        'suggest_description' => get_string('suggestheading_desc', 'aiplacement_modgen'),
-        'section_label' => get_string('section'),
-        'sections' => $tplsections,
-        'suggestactivities' => get_string('suggestactivities', 'aiplacement_modgen'),
-        'loadingthinking' => get_string('loadingthinking', 'aiplacement_modgen'),
-        'approveandcreate' => get_string('approveandcreate', 'aiplacement_modgen'),
-    ];
-
-    return $PAGE->get_renderer('core')->render_from_template('aiplacement_modgen/suggest', $data);
 }
 
 /**
@@ -550,7 +494,7 @@ function aiplacement_modgen_output_fragment_form_dates_for_sections(array $args)
             'Section ' . ($section->section + 1),
             'Week ' . ($section->section + 1),
         ];
-        $name = trim($section->name);
+        $name = trim($section->name ?? '');
         if (in_array($name, $defaultnames, true)) {
             $name = get_string('sectionplaceholder', 'aiplacement_modgen', $section->section);
         }

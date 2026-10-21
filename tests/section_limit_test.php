@@ -243,11 +243,7 @@ final class section_limit_test extends advanced_testcase {
             (new section_creation_service())->create_sections_from_json(
                 ['themes' => $themes],
                 $this->course->id,
-                'connected_theme',
-                false,
-                false,
-                false
-            );
+                'connected_theme');
             $this->fail('Over-limit JSON generation should throw.');
         } catch (\moodle_exception $e) {
             $this->assertNotEmpty($e->getMessage());
@@ -275,11 +271,7 @@ final class section_limit_test extends advanced_testcase {
                 ['title' => 'OK Week', 'summary' => 'w', 'sessions' => []],
             ]]]],
             $this->course->id,
-            'connected_theme',
-            false,
-            false,
-            false
-        );
+            'connected_theme');
         $this->resetDebugging();
 
         $this->assertGreaterThan(

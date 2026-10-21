@@ -9,7 +9,6 @@ The Module Generator (aiplacement_modgen) plugin streamlines course design by:
 - **AI-Powered Section Creation**: Generate themes, weeks, or sessions with AI assistance
 - **Flexible Course Structures**: Support for hierarchical sections using format_flexsections
 - **Curriculum Templates**: Import from JSON or create from scratch
-- **Activity Suggestions**: AI recommends appropriate learning activities
 - **Date Management**: Automatically schedule sections with holiday support
 - **Background Processing**: Handle large operations via Moodle's task queue
 
@@ -21,15 +20,12 @@ The Module Generator (aiplacement_modgen) plugin streamlines course design by:
 - **Week-based Structure**: Generate weekly sections with configurable start dates
 - **Session Builder**: Create structured sessions within themes
 - **JSON Import**: Bulk import pre-defined curriculum structures
-- **Activity Explorer**: Visualize learning types (Acquisition, Discussion, Production, etc.)
 
 ### AI Integration
 
 Uses Moodle's core AI subsystem (Moodle 4.5+) to:
 - Generate contextually appropriate section titles
 - Create engaging descriptions
-- Suggest relevant learning activities
-- Maintain pedagogical balance across learning types
 
 ### GDPR Compliance
 
@@ -91,7 +87,7 @@ Site administration > Plugins > AI Placement Tools > Module Generator:
 2. Access: Course administration > AI Tools > Module Generator
 3. Select structure type (Themes, Weeks, Sessions, or JSON)
 4. Configure parameters and click "Generate"
-5. Review and apply suggestions
+5. Review the generated structure and approve it
 
 ### Date Management
 
@@ -101,19 +97,11 @@ Site administration > Plugins > AI Placement Tools > Module Generator:
 4. Optionally add holiday dates
 5. Click "Apply Dates"
 
-### Activity Suggestions
-
-1. Open Module Generator interface
-2. Click "Suggest Activities" for any section
-3. Review AI-recommended activities
-4. Add selected activities to your course
-
 ## Permissions
 
 | Capability | Description | Default Roles |
 |------------|-------------|---------------|
 | `aiplacement/modgen:use` | Use the module generator | Teacher, Manager |
-| `aiplacement/modgen:usesuggest` | Get AI activity suggestions | Teacher, Manager |
 | `aiplacement/modgen:managedates` | Manage section dates | Teacher, Manager |
 | `aiplacement/modgen:manage` | Full administrative access | Manager |
 

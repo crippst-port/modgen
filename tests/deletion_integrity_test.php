@@ -157,28 +157,6 @@ final class deletion_integrity_test extends advanced_testcase {
         }
     }
 
-    /**
-     * Build a theme payload with activities so tracker rows get created.
-     *
-     * @return array
-     */
-    private function payload_with_activities(): array {
-        // Sessions must be phase-keyed ('session' => [...]), not a positional list,
-        // for create_session_activities() to place and track the activities.
-        return ['themes' => [
-            ['title' => 'Theme', 'summary' => 's', 'weeks' => [
-                ['title' => 'Week', 'summary' => 'w', 'sessions' => [
-                    'session' => [
-                        'description' => 'd',
-                        'activities' => [
-                            ['type' => 'label', 'name' => 'Intro label', 'intro' => 'hello'],
-                        ],
-                    ],
-                ]],
-            ]],
-        ]];
-    }
-
     // ------------------------------------------------------------------
     // Observer-driven tracker cleanup.
 
@@ -227,48 +205,6 @@ final class deletion_integrity_test extends advanced_testcase {
         );
     }
 
-    /**
-     * After deleting a generated module, the tracker must hold no row referencing
-     * its cmid — no dangling references survive a real generate-then-delete flow.
-     *
-     * @covers ::course_module_deleted
-     */
-    public function test_generated_then_deleted_leaves_no_stale_tracker_rows(): void {
-        global $DB;
-
-        (new section_creation_service())->create_sections_from_json(
-            $this->payload_with_activities(),
-            $this->course->id,
-            'connected_theme',
-            true,
-            true,
-            false
-        );
-        $this->resetDebugging();
-
-        $trackedcmids = aigen_tracker::get_aigenerated_cmids($this->course->id);
-        $this->assertNotEmpty(
-            $trackedcmids,
-            'Pre-condition: generation with activities should produce tracked cmids '
-            . '(otherwise this test is vacuous).'
-        );
-
-        // Delete every tracked module and confirm the observer cleans up each row.
-        foreach ($trackedcmids as $cmid) {
-            if ($DB->record_exists('course_modules', ['id' => $cmid])) {
-                course_delete_module($cmid);
-            }
-        }
-
-        $remaining = aigen_tracker::get_aigenerated_cmids($this->course->id);
-        foreach ($remaining as $cmid) {
-            $this->assertTrue(
-                $DB->record_exists('course_modules', ['id' => $cmid]),
-                "Tracker row for cmid {$cmid} survives but its module was deleted (stale reference)."
-            );
-        }
-    }
-
     // ------------------------------------------------------------------
     // Structural integrity after section deletion.
 
@@ -290,11 +226,7 @@ final class deletion_integrity_test extends advanced_testcase {
                 ]],
             ]],
             $this->course->id,
-            'connected_theme',
-            false,
-            false,
-            false
-        );
+            'connected_theme');
         $this->resetDebugging();
 
         // Find the theme (top-level) section and its child week.
@@ -342,11 +274,7 @@ final class deletion_integrity_test extends advanced_testcase {
                     ]],
                 ]],
                 $this->course->id,
-                'connected_theme',
-                false,
-                false,
-                false
-            );
+                'connected_theme');
             $this->resetDebugging();
 
             // Delete every generated top-level theme section.

@@ -69,12 +69,9 @@ $string['jobid'] = 'Job ID';
 $string['timecreated'] = 'Created';
 $string['unknownerror'] = 'An unknown error occurred';
 
-$string['existingmodule'] = 'Base on existing module';
-$string['inputrequired'] = 'You must provide at least one of the following: a text prompt, upload a CSV file, select a structure, or choose an existing module to base this on.';
+$string['inputrequired'] = 'You must provide at least one of the following: a text prompt, upload a CSV file, or select a structure.';
 $string['templatefromprompt'] = 'Structure from prompt';
 $string['addtemplate'] = 'Add another template';
-$string['createfromscratch'] = 'Create from scratch';
-$string['existingmodule_help'] = 'Optionally select one or more existing modules to use as templates for AI generation. The AI will analyse the structure, activities, and content of the selected modules to create similar content for your prompt. Choose "Create from scratch" to generate content without using any existing template. You can add up to 3 templates, and the AI will merge their structures.';
 
 $string['prompt'] = 'Additional context or requests for the Assistant';
 $string['submit'] = 'Preview Structure';
@@ -96,15 +93,11 @@ $string['sectioncreated'] = 'Section created: {$a}';
 $string['nosectionscreated'] = 'No sections were created from the AI response.';
 $string['approveandcreate'] = 'Create';
 $string['reenterprompt'] = 'Re-enter prompt';
-$string['loadingthinking'] = 'Thinking... generating your request.';
 $string['activitytypeunsupported'] = 'The generated activity type "{$a}" is not available on this site.';
 $string['activitytypecreationfailed'] = 'Unable to create the "{$a}" activity automatically. Please review the course.';
 $string['activity_created_coursemodule'] = 'Activity created (coursemodule id: {$a})';
 $string['activity_created_instance'] = 'Activity created (instance id: {$a})';
 $string['activity_created_cmid'] = 'Activity created (cmid: {$a})';
-$string['unsupported_label'] = 'Unsupported';
-$string['suggest_noresults'] = 'No suggestions were generated for this section.';
-$string['creation_warnings'] = 'Creation warnings';
 $string['url_created_placeholder'] = 'URL activity "{$a}" created with placeholder URL - please edit to set the correct link';
 $string['aigenlabel'] = 'AI Generated Label';
 $string['aigenquiz'] = 'AI Generated Quiz';
@@ -262,7 +255,6 @@ $string['selecttemplate'] = 'Select Structure';
 $string['uploadtemplatefile'] = 'Upload Structure File';
 $string['selectoruploadtemplate'] = 'Select or Upload Structure File';
 $string['templatesettings'] = 'Structure Setup';
-$string['suggestedcontent'] = 'Suggest Content';
 
 // CSV Template Library.
 $string['csvtemplatelibrary'] = 'CSV Structure Library';
@@ -295,76 +287,18 @@ $string['templatename_help'] = 'Give this structure a descriptive name that user
 $string['templatedescription_help'] = 'Optionally provide a brief description of what this structure contains or when it should be used.';
 
 // Generator introduction.
-$string['generatorintroduction'] = 'This page allows you to create your course structure in several ways. You can upload a CSV structure file to define sections, weeks, or themes, or optionally select a pre-made structure from the library. When you upload a structure file, the form will read its contents and create your course layout. You can edit titles and descriptions after the strucure has been created on your module. Choose whether to place the new structure at the top of your course or after existing content.';
+$string['generatorintroduction'] = 'This page allows you to create your course structure in several ways. You can upload a CSV structure file to define sections, weeks, or themes, or optionally select a pre-made structure from the library. When you upload a structure file, the form will read its contents and create your course layout. You can edit titles and descriptions after the strucure has been created on your module.';
 
-// Base on existing module settings.
-$string['existingmoduleheading'] = 'Base on Existing Module';
-$string['existingmoduleheading_desc'] = 'Allow users to select existing modules as the basis for AI generation.';
-$string['enableexistingmodules'] = 'Enable base on existing module';
-$string['enableexistingmodules_desc'] = 'When enabled, users can select one or more existing modules to base their AI generation on. The AI will analyse the structure and activities of the selected modules and use them as a template for the new content.';
-
-// Activity creation toggle.
-$string['expandonthemes'] = 'Expand on themes';
-$string['expandonthemes_help'] = 'When enabled, AI will enhance section titles and descriptions. Titles will be made clear, descriptive, and informative while maintaining the exact structure (same number of themes/weeks/sessions) from your CSV file. When disabled, section names remain exactly as specified in the CSV file.';
-$string['generateexamplecontent'] = 'Generate example content';
-$string['generateexamplecontent_help'] = 'When enabled, AI will generate example activities, session instructions, and theme introductions. This creates placeholder content to help you visualize the course structure. When disabled, only the section structure is created without example content.';
-$string['createsuggestedactivities'] = 'Create suggested activities';
-$string['createsuggestedactivities_help'] = 'When enabled, the generator will create activity shells as suggestions for your content. These are empty placeholder activities without content, ready for you to fill in with your own materials. When disabled, only section headings and descriptions will be created.';
-$string['generatethemeintroductions'] = 'Generate theme introductions';
-$string['generatethemeintroductions_help'] = 'When enabled, the AI will generate an introductory paragraph for each theme section to introduce students to that theme. These introductions will be placed in the summary/overview of each themed section.';
-$string['generatesessioninstructions'] = 'Generate session instructions';
-$string['generatesessioninstructions_help'] = 'When enabled, the AI will generate a paragraph for each session/week aimed at students. This explains what the session covers and lists the activities included. Helps students understand their learning path and what to focus on.';
-$string['activityguidanceinstructions'] = 'ACTIVITY GUIDANCE - CORE REQUIREMENTS:
-
-AUDIENCE: Write for UK university students with academic, mature language.
-
-ACTIVITY LIMITS:
-- Each week: minimum 1 activity, maximum 5 Moodle activities
-- External links (URLs) and face-to-face do NOT count toward limit
-- Activity selection should match topic complexity and learning outcomes
-
-WEEKLY SUMMARY (REQUIRED):
-- Clearly describe what students will learn and do
-- Explain the LEARNING PURPOSE (what concept/skill each element develops)
-- Provide HOW TO APPROACH guidance (sequence of activities)
-- Reference activities by name naturally: "Take the [Name] quiz to check your understanding"
-- Include face-to-face activities as descriptions: "Attend the Wednesday 2pm lecture on X"
-- Link external resources to learning context: "Review the X article for background"
-
-ACTIVITY DESCRIPTIONS (REQUIRED):
-- Reinforce learning purposes from weekly summary
-- Provide specific, practical guidance
-- Link back to weekly learning objectives
-- Create coherent flow from summary to activity
-
-COHERENCE:
-- Weekly summary and activity descriptions must tell a consistent story
-- Students understand WHY they are doing activities, not just WHAT
-- Activities build progressively toward learning outcomes
-- External links support the learning narrative naturally
-
-PEDAGOGICAL QUALITY:
-- Align with learning outcomes and Bloom\'s taxonomy
-- Vary activity types to maintain engagement
-- Support diverse learning preferences
-
-CRITICAL RULES:
-- Do NOT use "label" activities - labels are display containers, not learning activities
-- All items in "activities" array must be real activities (quiz, book, forum, url, assignment)
-- Display important information in summaries or other activity types instead
-- Be specific about what students will learn (outcomes focus)';
 
 // AI enable/disable setting.
 $string['aienabledheading'] = 'AI Integration';
 $string['aienabledheading_desc'] = 'Control whether the plugin uses AI to generate module structures or processes uploaded files directly.';
 $string['enableai'] = 'Enable AI generation';
-$string['enableai_desc'] = 'When enabled, uploaded files are processed exactly as specified, and you can make additional adjustments via the prompt field or base the structure on an existing module template. When disabled, only uploaded CSV files are processed with no AI adjustments available.';
+$string['enableai_desc'] = 'When enabled, uploaded files are processed exactly as specified, and you can make additional adjustments via the prompt field When disabled, only uploaded CSV files are processed with no AI adjustments available.';
 
 // Placement options.
 $string['contentplacement'] = 'Content placement';
 $string['contentplacement_help'] = 'Choose whether to place new module content at the top of the course or after existing content.';
-$string['hideexistingsections'] = 'Hide existing sections';
-$string['hideexistingsections_help'] = 'When enabled, all existing sections in the course will be hidden (made invisible to students). The new module structure will remain visible. This is useful when replacing an existing course structure with a new one while preserving the old content in a hidden state.';
 $string['createsummaryactivities'] = 'Add a section summary activity to each section';
 $string['createsummaryactivities_help'] = 'When enabled, a Learning Activity "section summary" is added to the top of each week and session to hold learning design details (duration, learning type, instructions). Leave it off for a lighter structure of empty sections you can fill in later, which also makes large structures noticeably faster to create.';
 $string['createsummaryactivitiesai'] = 'Add a section summary activity to each section';
@@ -378,16 +312,6 @@ $string['aipromptheading_desc'] = 'Configure the pedagogical guidance and instit
 $string['baseprompt'] = 'Pedagogical Guidance';
 $string['baseprompt_desc'] = 'This guidance is sent to the AI to establish pedagogical context, institutional approach, and quality standards. Include information about your institution\'s teaching philosophy, any mandatory pedagogical frameworks, accessibility requirements, or specific learning design principles. The system automatically appends the technical JSON schema requirements to this guidance.';
 
-// Suggest toolbar.
-$string['suggestheading'] = 'Suggest toolbar';
-$string['suggestheading_desc'] = 'Analyses your existing module section content and intelligently recommends complementary Moodle activities to enhance student learning and pedagogical balance.';
-$string['enablesuggest'] = 'Enable Suggest toolbar button';
-$string['enablesuggest_desc'] = 'When enabled (and AI integration is active), a "Suggest" dropdown will be shown in the course toolbar to launch quick suggestion workflows.';
-$string['suggest'] = 'Suggest';
-$string['suggestactivities'] = 'Activities from section';
-$string['suggestlearningtypes'] = 'Section Learning Type Mix';
-$string['suggestpedagogicalguidance'] = 'Pedagogical guidance for suggestions';
-$string['suggestpedagogicalguidance_desc'] = 'Customise the pedagogical guidance included in the AI prompt when generating activity suggestions. This guidance helps the AI design appropriate learning activities. Each line should start with a dash (-).';
 
 // Validation error strings.
 $string['generationfailed'] = 'Generation Failed';
@@ -505,8 +429,6 @@ $string['enablequickadd'] = 'Enable Quick add';
 $string['enablequickadd_desc'] = 'Show the "New theme" and "New week" options in the Quick add menu, which create single sections directly without going through the generator. Turning this off removes both options and closes the forms behind them. The rest of the Quick add menu is unaffected.';
 $string['enablestructurefromfile'] = 'Enable Structure from file';
 $string['enablestructurefromfile_desc'] = 'Allow module structures to be built from a CSV file - the "Structure from file" option, the CSV template chooser and the file upload on the generator form. Turning this off leaves AI generation from a prompt available, which is controlled separately by the AI generation setting above.';
-$string['enablehideexistingsections'] = 'Enable "Hide existing sections"';
-$string['enablehideexistingsections_desc'] = 'Offer the "Hide existing sections" option on the generator form, which hides a course\'s current sections and moves the newly generated ones to the top. Off by default. This is the only Module Assistant feature that reorders existing sections rather than only adding to the end, and the reordering is not protected against someone deleting a section in the same course at the same moment, which can leave the course structure inconsistent. Turn it on only if your teachers need to replace course structures wholesale, and prefer to do so on courses that are not being edited by others at the time.';
 $string['quickadddisabled'] = 'Quick add is currently disabled. An administrator can enable it in the Module Assistant plugin settings.';
 $string['structurefromfiledisabled'] = 'Building a structure from a file is currently disabled. An administrator can enable it in the Module Assistant plugin settings.';
 $string['maxquicksections'] = 'Maximum themes or weeks';
@@ -528,7 +450,6 @@ $string['creatingweeks'] = 'Creating weeks...';
 $string['applyingdates'] = 'Applying dates to sections...';
 $string['removingdates'] = 'Removing dates from sections...';
 $string['calculatingdates'] = 'Calculating dates...';
-$string['generatingsuggestions'] = 'Generating activity suggestions...';
 $string['loadingform'] = 'Loading form...';
 $string['creatingsections'] = 'Creating sections...';
 
@@ -546,7 +467,6 @@ $string['modgen:managestructure'] = 'Manage course structure (themes, weeks)';
 $string['modgen:managedates'] = 'Manage dates to sections';
 $string['modgen:generatewithprompt'] = 'Generate content with AI prompt';
 $string['modgen:generatefromtemplate'] = 'Generate content from templates';
-$string['modgen:usesuggest'] = 'Use AI activity suggestions';
 $string['modgen:managetemplates'] = 'Manage site-wide templates';
 $string['sectionplaceholder'] = 'Section {$a}';
 

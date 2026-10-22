@@ -747,3 +747,4 @@ $string['eventtemplate_updated'] = 'Structure template updated';
 $string['sessionactivityname'] = '{$a} activity';
 $string['numberhint'] = 'Enter a number between {$a->min} and {$a->max}';
 $string['templatefile'] = 'CSV structure file';
+$string['newparentfor'] = 'New parent for section {$a}';

@@ -621,6 +621,7 @@ if ($diag !== null) {
 
             $select = html_writer::start_tag('select', [
                 'name'  => 'newparent',
+                'aria-label' => get_string('newparentfor', 'aiplacement_modgen', $s->section),
                 'class' => 'form-control form-control-sm d-inline-block',
                 'style' => 'max-width: 260px;',
             ]);

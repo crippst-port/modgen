@@ -517,7 +517,7 @@ class integrity_checker {
     public static function cleanup_orphaned(int $courseid): array {
         global $DB;
 
-        $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 
         $sql = "SELECT cs.id, cs.section, cs.name
                   FROM {course_sections} cs
@@ -526,21 +526,29 @@ class integrity_checker {
                    AND cs.section > 0
                    AND NOT EXISTS (
                        SELECT 1 FROM {course_modules} cm WHERE cm.section = cs.id
-                   )";
+                   )
+              ORDER BY cs.section DESC";
         $sections = $DB->get_records_sql($sql, [$courseid]);
 
         if (empty($sections)) {
             return ['deleted' => 0];
         }
 
+        // Delete through the format rather than from the tables: it renumbers the sections that
+        // follow (a gap in the numbers breaks the course) and keeps their parent references right.
+        // A section that still has subsections is left alone, as deleting it would orphan them.
+        $format = course_get_format($course);
+        $deleted = 0;
         foreach ($sections as $section) {
-            $DB->delete_records('course_format_options', ['sectionid' => $section->id]);
-            $DB->delete_records('course_sections', ['id' => $section->id]);
+            $info = get_fast_modinfo($courseid)->get_section_info_by_id((int) $section->id);
+            if (!$info || $format->get_subsections($info)) {
+                continue;
+            }
+            [$deletedsections] = $format->delete_section_with_children($info);
+            $deleted += count($deletedsections);
         }
 
-        rebuild_course_cache($courseid, false, true);
-
-        return ['deleted' => count($sections)];
+        return ['deleted' => $deleted];
     }
 
     /**

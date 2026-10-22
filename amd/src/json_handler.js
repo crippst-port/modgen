@@ -23,7 +23,7 @@ define([], function() {
      */
     function handleDownload(e) {
         e.preventDefault();
-        
+
         const jsonData = e.target.getAttribute('data-json');
         if (!jsonData) {
             return;

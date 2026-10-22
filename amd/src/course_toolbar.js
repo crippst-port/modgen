@@ -24,7 +24,6 @@
 import Fragment from 'core/fragment';
 import Notification from 'core/notification';
 import {init as initModalComponent} from 'aiplacement_modgen/modal_generator_reactive';
-import {getString} from 'core/str';
 
 // Store modal component instance for button handlers.
 let modalComponent = null;
@@ -37,7 +36,7 @@ let modalComponent = null;
 const checkCompletedJobs = (courseid) => {
     // Get list of already-notified job IDs from sessionStorage
     const notifiedJobs = JSON.parse(sessionStorage.getItem('modgen_notified_jobs') || '[]');
-    
+
     fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/check_job_status.php?' + new URLSearchParams({
         courseid: courseid,
         recent: 1,
@@ -46,14 +45,13 @@ const checkCompletedJobs = (courseid) => {
     .then(response => response.json())
     .then(data => {
         if (data.success && data.jobs && data.jobs.length > 0) {
-            let hasNewCompletions = false;
-            
+
             data.jobs.forEach(job => {
                 // Skip if already notified
                 if (notifiedJobs.includes(job.id)) {
                     return;
                 }
-                
+
                 if (job.status === 'completed') {
                     const result = job.result || {};
                     const message = result.message || 'Background job completed successfully';
@@ -61,7 +59,6 @@ const checkCompletedJobs = (courseid) => {
                         message: message,
                         type: 'success'
                     });
-                    hasNewCompletions = true;
                     // Mark as notified
                     notifiedJobs.push(job.id);
                 } else if (job.status === 'failed') {
@@ -74,10 +71,10 @@ const checkCompletedJobs = (courseid) => {
                     notifiedJobs.push(job.id);
                 }
             });
-            
+
             // Save updated notified jobs list
             sessionStorage.setItem('modgen_notified_jobs', JSON.stringify(notifiedJobs));
-            
+
             // Note: Auto-reload removed - user can manually refresh to see new sections.
             // Notification will remain visible and user-dismissable.
         }

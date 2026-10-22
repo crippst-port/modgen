@@ -31,7 +31,7 @@ define(['jquery'], function($) {
             $("#acceptpolicy").on("change", function() {
                 $("[data-action='aiplacement-modgen-submit']").prop("disabled", !this.checked);
             });
-            
+
             // Validate checkbox on form submission
             $("#ai-policy-form").on("submit", function(e) {
                 if (!$("#acceptpolicy").is(":checked")) {

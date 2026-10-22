@@ -18,13 +18,13 @@ const toggleVisibility = async(button) => {
     const cmid = button.dataset.cmid;
     const currentlyVisible = button.dataset.visible === '1';
     const newVisible = currentlyVisible ? 0 : 1;
-    
+
     // Disable button during request.
     button.disabled = true;
     const icon = button.querySelector('i');
     const originalIconClass = icon.className;
     icon.className = 'fa fa-spinner fa-spin';
-    
+
     try {
         const response = await fetch(`${Config.wwwroot}/ai/placement/modgen/ajax/toggle_visibility.php`, {
             method: 'POST',
@@ -37,21 +37,21 @@ const toggleVisibility = async(button) => {
                 sesskey: Config.sesskey,
             }),
         });
-        
+
         const data = await response.json();
-        
+
         if (data.success) {
             // Update the UI.
             const row = button.closest('tr');
             const statusCell = row.querySelector('.visibility-status');
             const activityName = row.querySelector('.activity-name');
-            
+
             if (newVisible) {
                 // Now visible.
                 button.dataset.visible = '1';
                 button.title = await getString('aigen_hide_activity', 'aiplacement_modgen');
                 icon.className = 'fa fa-eye-slash';
-                
+
                 // Safe: set using DOM
 const badge = document.createElement('span');
 badge.className = 'badge badge-success';
@@ -64,7 +64,7 @@ statusCell.appendChild(badge);
                 button.dataset.visible = '0';
                 button.title = await getString('aigen_show_activity', 'aiplacement_modgen');
                 icon.className = 'fa fa-eye';
-                
+
                 // Safe: set using DOM
 const badge = document.createElement('span');
 badge.className = 'badge badge-secondary';

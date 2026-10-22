@@ -79,7 +79,7 @@ export const show = async(container, message, options = {}) => {
         if (!overlayElement) {
             // Render loading indicator template
             const {html} = await Templates.renderForPromise('aiplacement_modgen/loading_indicator', config);
-            
+
             // Create overlay wrapper
             overlayElement = document.createElement('div');
             overlayElement.className = 'modgen-loading-overlay';
@@ -106,7 +106,7 @@ export const show = async(container, message, options = {}) => {
         if (!loadingStates.has(container)) {
             loadingStates.set(container, {
                 isOverlay: false,
-                originalContent: container.innerHTML, // trusted, as it is from the DOM
+                originalContent: container.innerHTML, // Trusted, as it is from the DOM
                 originalAriaLive: container.getAttribute('aria-live'),
                 originalAriaBusy: container.getAttribute('aria-busy'),
             });
@@ -191,7 +191,7 @@ export const hide = (container) => {
         } else {
             // Restore original content
             // Restore original content safely
-container.innerHTML = state.originalContent; // originalContent is trusted, as it was previously set from the DOM
+container.innerHTML = state.originalContent; // OriginalContent is trusted, as it was previously set from the DOM
         }
 
         // Restore original ARIA attributes

@@ -72,14 +72,14 @@
 // IMPORTS
 // =============================================================================
 
-import { Reactive, BaseComponent } from 'core/reactive';
-import { dispatchEvent } from 'core/event_dispatcher';
+import {Reactive, BaseComponent} from 'core/reactive';
+import {dispatchEvent} from 'core/event_dispatcher';
 import Fragment from 'core/fragment';
 import ModgenModal from 'aiplacement_modgen/modal';
 import Notification from 'core/notification';
 import ModalEvents from 'core/modal_events';
 import Templates from 'core/templates';
-import { get_string as getString } from 'core/str';
+import {get_string as getString} from 'core/str';
 import * as LoadingIndicator from 'aiplacement_modgen/loading_indicator';
 
 // =============================================================================
@@ -227,10 +227,10 @@ const STEPS = {
  * Displayed in the progress header UI.
  */
 const STEP_LABELS = {
-    1: 'Enter prompt',
-    2: 'Generating',
-    3: 'Review',
-    4: 'Creating',
+    "1": 'Enter prompt',
+    "2": 'Generating',
+    "3": 'Review',
+    "4": 'Creating',
 };
 
 // =============================================================================
@@ -306,11 +306,11 @@ class ModalGeneratorComponent extends BaseComponent {
         this.modal = null;
         /** @type {number|null} Progress polling interval ID */
         this.progressInterval = null;
-        
+
         // Set up navigation warning for creation in progress
         this.setupNavigationWarning();
     }
-    
+
     /**
      * Set up beforeunload warning to prevent accidental navigation during creation.
      *
@@ -349,9 +349,9 @@ class ModalGeneratorComponent extends BaseComponent {
     getWatchers() {
         return [
             // Watch modal open/close state to create/destroy modal
-            { watch: 'modal.isOpen:updated', handler: this.handleModalStateChange },
+            {watch: 'modal.isOpen:updated', handler: this.handleModalStateChange},
             // Watch loading state to show/hide spinner
-            { watch: 'modal.isLoading:updated', handler: this.handleLoadingChange },
+            {watch: 'modal.isLoading:updated', handler: this.handleLoadingChange},
         ];
     }
 
@@ -361,7 +361,7 @@ class ModalGeneratorComponent extends BaseComponent {
      * @param {Object} args Watcher arguments
      * @param {Object} args.state Current reactive state
      */
-    handleModalStateChange({ state }) {
+    handleModalStateChange({state}) {
         if (state.modal.isOpen && !this.modal) {
             this.createModal();
         } else if (!state.modal.isOpen && this.modal) {
@@ -378,7 +378,7 @@ class ModalGeneratorComponent extends BaseComponent {
      * @param {Object} args Watcher arguments
      * @param {Object} args.state Current reactive state
      */
-    async handleLoadingChange({ state }) {
+    async handleLoadingChange({state}) {
         if (this.modal && state.modal.isLoading) {
             // Use the loading indicator component
             const message = state.modal.loadingMessage ||
@@ -571,7 +571,9 @@ class ModalGeneratorComponent extends BaseComponent {
         });
 
         // Hide common Moodle button container elements
-        const buttonContainers = form.querySelectorAll('.fitem_actionbuttons, .fitem_fgroup, [id*="fgroup_id_buttonar"], [id*="fitem_id_buttonar"]');
+        const buttonContainers = form.querySelectorAll(
+            '.fitem_actionbuttons, .fitem_fgroup, [id*="fgroup_id_buttonar"], [id*="fitem_id_buttonar"]'
+        );
         buttonContainers.forEach(container => {
             // Only hide if it only contains buttons/inputs
             const hasNonButtonContent = Array.from(container.querySelectorAll('*')).some(el => {
@@ -647,7 +649,7 @@ class ModalGeneratorComponent extends BaseComponent {
                     await this.showQueuedSuccess(modal, data.message, data.jobid);
                     return;
                 }
-                
+
                 if (data.body) {
                     // Determine which step we're at based on response
                     const step = data.refresh ? STEPS.CREATING : STEPS.PREVIEW;
@@ -745,7 +747,7 @@ class ModalGeneratorComponent extends BaseComponent {
      */
     async renderFooterButtons(modal, buttons, useLanguageStrings = false) {
         // Resolve language strings if needed
-        const buttonsWithLabels = await Promise.all(buttons.map(async (btn, index) => {
+        const buttonsWithLabels = await Promise.all(buttons.map(async(btn, index) => {
             let label = btn.label;
             if (useLanguageStrings) {
                 try {
@@ -758,15 +760,15 @@ class ModalGeneratorComponent extends BaseComponent {
             return {
                 label: label,
                 action: btn.action,
-                class: btn.class || 'btn-secondary',
+                "class": btn.class || 'btn-secondary',
                 index: index
             };
         }));
 
         // Render template
-        const { html } = await Templates.renderForPromise(
+        const {html} = await Templates.renderForPromise(
             'aiplacement_modgen/modal_footer_buttons',
-            { buttons: buttonsWithLabels }
+            {buttons: buttonsWithLabels}
         );
 
         modal.setFooter(html);
@@ -809,10 +811,10 @@ class ModalGeneratorComponent extends BaseComponent {
             case 'submit':
                 // Show creating step with loading indicator
                 this.reactive.dispatch('setStep', STEPS.CREATING);
-                
+
                 // Set flag to warn on navigation
                 window.modgenCreationInProgress = true;
-                
+
                 modal.setBody(this.buildProgressHeader(STEPS.CREATING) +
                     '<div class="text-center p-5" id="modgen-progress-container">' +
                     '<div class="spinner-border" role="status">' +
@@ -870,7 +872,7 @@ class ModalGeneratorComponent extends BaseComponent {
     async showSuccess(modal, message, details = []) {
         // Render success message body
         const courseUrl = M.cfg.wwwroot + '/course/view.php?id=' + this.courseid;
-        const { html: bodyHtml } = await Templates.renderForPromise(
+        const {html: bodyHtml} = await Templates.renderForPromise(
             'aiplacement_modgen/success_message',
             {
                 message: message,
@@ -890,7 +892,7 @@ class ModalGeneratorComponent extends BaseComponent {
                 {
                     label: 'closemodgenmodal',
                     action: 'return-to-course',
-                    class: 'btn-primary'
+                    "class": 'btn-primary'
                 }
             ],
             true // Use language strings
@@ -909,13 +911,13 @@ class ModalGeneratorComponent extends BaseComponent {
      */
     async showQueuedSuccess(modal, message, jobid) {
         const statusUrl = M.cfg.wwwroot + '/ai/placement/modgen/job_status.php?jobid=' + jobid;
-        
+
         // Clear navigation warning flag before redirecting
         window.modgenCreationInProgress = false;
-        
+
         // Close modal first
         modal.hide();
-        
+
         // Redirect to job status page
         window.location.href = statusUrl;
     }
@@ -938,7 +940,9 @@ class ModalGeneratorComponent extends BaseComponent {
         }
 
         // Hide all button containers
-        const buttonContainers = form.querySelectorAll('.form-submit, .form-buttons, .buttons, [class*="buttonar"]');
+        const buttonContainers = form.querySelectorAll(
+            '.form-submit, .form-buttons, .buttons, [class*="buttonar"]'
+        );
         buttonContainers.forEach(container => {
             container.style.display = 'none';
         });
@@ -978,10 +982,10 @@ class ModalGeneratorComponent extends BaseComponent {
      */
     buildProgressHeader(currentStep) {
         const steps = [
-            { num: STEPS.PROMPT, label: STEP_LABELS[STEPS.PROMPT], icon: 'fa-edit' },
-            { num: STEPS.GENERATING, label: STEP_LABELS[STEPS.GENERATING], icon: 'fa-cog' },
-            { num: STEPS.PREVIEW, label: STEP_LABELS[STEPS.PREVIEW], icon: 'fa-eye' },
-            { num: STEPS.CREATING, label: STEP_LABELS[STEPS.CREATING], icon: 'fa-check' },
+            {num: STEPS.PROMPT, label: STEP_LABELS[STEPS.PROMPT], icon: 'fa-edit'},
+            {num: STEPS.GENERATING, label: STEP_LABELS[STEPS.GENERATING], icon: 'fa-cog'},
+            {num: STEPS.PREVIEW, label: STEP_LABELS[STEPS.PREVIEW], icon: 'fa-eye'},
+            {num: STEPS.CREATING, label: STEP_LABELS[STEPS.CREATING], icon: 'fa-check'},
         ];
 
         let html = '<div class="modgen-progress-header mb-3">';
@@ -1060,12 +1064,13 @@ class ModalGeneratorComponent extends BaseComponent {
         let clickedButton = null;
 
         // Track clicks on original form buttons (including cancel buttons)
-        modalRoot.on('click', 'input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]', function () {
+        const submitSelector = 'input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]';
+        modalRoot.on('click', submitSelector, function() {
             clickedButton = this.getAttribute('name');
         });
 
         // Track clicks on footer buttons that proxy to form buttons
-        modalRoot.on('click', '[data-form-button-index]', function () {
+        modalRoot.on('click', '[data-form-button-index]', function() {
             // The footer button will trigger the original button, so find it
             const index = this.getAttribute('data-form-button-index');
             const body = modal.getBody();
@@ -1082,7 +1087,7 @@ class ModalGeneratorComponent extends BaseComponent {
             }
         });
 
-        modalRoot.on('submit', 'form', async (e) => {
+        modalRoot.on('submit', 'form', async(e) => {
             e.preventDefault();
 
             // Check submitter first (modern browsers), then fall back to tracked button
@@ -1146,7 +1151,7 @@ class ModalGeneratorComponent extends BaseComponent {
                 .then(async data => {
                     // Clear navigation warning flag
                     window.modgenCreationInProgress = false;
-                    
+
                     if (data.success) {
                         // Check if job was queued for background processing
                         if (data.queued && data.jobid) {
@@ -1165,7 +1170,7 @@ class ModalGeneratorComponent extends BaseComponent {
                             courseid: this.courseid,
                             contextid: this.contextid,
                         })
-                            .then(async (html) => {
+                            .then(async(html) => {
                                 modal.setBody(html);
 
                                 // Insert error at the top of the form
@@ -1194,7 +1199,7 @@ class ModalGeneratorComponent extends BaseComponent {
                 .catch(error => {
                     // Clear navigation warning flag on error
                     window.modgenCreationInProgress = false;
-                    
+
                     // On exception, reload the form
                     Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
                         courseid: this.courseid,

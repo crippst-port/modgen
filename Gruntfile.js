@@ -59,7 +59,7 @@ module.exports = function(grunt) {
         // Babel for ES6 transpilation
         babel: {
             options: {
-                sourceMaps: false,
+                sourceMaps: true,
                 comments: false,
                 // 'unambiguous' keeps files that already call define() from being
                 // wrapped in a second, nested define() by the AMD transform.
@@ -89,27 +89,20 @@ module.exports = function(grunt) {
                 ]
             },
             dist: {
-                files: {
-                    'amd/build/embedded_prompt.js': 'amd/src/embedded_prompt.js',
-                    'amd/build/embedded_results.js': 'amd/src/embedded_results.js',
-                    'amd/build/modal.js': 'amd/src/modal.js',
-                    'amd/build/course_toolbar.js': 'amd/src/course_toolbar.js',
-                    'amd/build/modal_generator_reactive.js': 'amd/src/modal_generator_reactive.js',
-                    'amd/build/aigen_marker.js': 'amd/src/aigen_marker.js',
-                    'amd/build/aigen_list.js': 'amd/src/aigen_list.js',
-                    'amd/build/loading_indicator.js': 'amd/src/loading_indicator.js',
-                    'amd/build/job_status_page.js': 'amd/src/job_status_page.js',
-                    'amd/build/json_handler.js': 'amd/src/json_handler.js',
-                    'amd/build/policy_acceptance.js': 'amd/src/policy_acceptance.js'
-                }
+                // Intermediate output; only the minified files and their maps ship in amd/build.
+                files: [{
+                    expand: true,
+                    cwd: 'amd/src',
+                    src: ['*.js', '!template_selector.js'],
+                    dest: '.grunt/amd'
+                }]
             }
         },
 
         // Uglify task for minifying JavaScript
         uglify: {
             options: {
-                banner: '/*! <%= pkg.name %> - v<%= pkg.version %> - ' +
-                    '<%= grunt.template.today("yyyy-mm-dd") %>\n' +
+                banner: '/*! <%= pkg.name %> - v<%= pkg.version %>\n' +
                     ' * @license <%= pkg.license %> or later\n */\n',
                 compress: {
                     sequences: true,
@@ -123,23 +116,23 @@ module.exports = function(grunt) {
                 mangle: true,
                 output: {
                     comments: false
+                },
+                sourceMap: {
+                    includeSources: true
+                },
+                sourceMapIn: function(src) {
+                    return grunt.file.exists(src + '.map') ? src + '.map' : undefined;
                 }
             },
             dist: {
-                files: {
-                    'amd/build/embedded_prompt.min.js': ['amd/build/embedded_prompt.js'],
-                    'amd/build/embedded_results.min.js': ['amd/build/embedded_results.js'],
-                    'amd/build/modal.min.js': ['amd/build/modal.js'],
-                    'amd/build/course_toolbar.min.js': ['amd/build/course_toolbar.js'],
-                    'amd/build/modal_generator_reactive.min.js': ['amd/build/modal_generator_reactive.js'],
-                    'amd/build/aigen_marker.min.js': ['amd/build/aigen_marker.js'],
-                    'amd/build/aigen_list.min.js': ['amd/build/aigen_list.js'],
-                    'amd/build/template_selector.min.js': ['amd/build/template_selector.js'],
-                    'amd/build/loading_indicator.min.js': ['amd/build/loading_indicator.js'],
-                    'amd/build/job_status_page.min.js': ['amd/build/job_status_page.js'],
-                    'amd/build/json_handler.min.js': ['amd/build/json_handler.js'],
-                    'amd/build/policy_acceptance.min.js': ['amd/build/policy_acceptance.js']
-                }
+                files: [{
+                    expand: true,
+                    cwd: '.grunt/amd',
+                    src: ['*.js'],
+                    dest: 'amd/build',
+                    ext: '.min.js',
+                    extDot: 'last'
+                }]
             }
         },
         
@@ -147,7 +140,7 @@ module.exports = function(grunt) {
         copy: {
             template_selector: {
                 src: 'amd/src/template_selector.js',
-                dest: 'amd/build/template_selector.js'
+                dest: '.grunt/amd/template_selector.js'
             }
         },
 

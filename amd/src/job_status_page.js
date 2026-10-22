@@ -21,9 +21,6 @@
  * @license    http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-import Ajax from 'core/ajax';
-import Notification from 'core/notification';
-import {get_string as getString} from 'core/str';
 
 /**
  * Poll interval in milliseconds (3 seconds).
@@ -74,20 +71,20 @@ const updateStatusDisplay = (job) => {
     const container = document.getElementById('job-status-container');
     const statusBadge = document.getElementById('status-badge');
     const returnButtonContainer = document.getElementById('return-button-container');
-    
+
     if (!container) {
         return;
     }
-    
+
     // Update badge
     if (statusBadge) {
         statusBadge.textContent = job.status;
         statusBadge.className = 'badge badge-' + getStatusColor(job.status);
     }
-    
+
     // Build new status HTML based on current state
     let html = '';
-    
+
     if (job.status === 'queued') {
         html = `
             <div class="alert alert-info d-flex align-items-center">
@@ -97,11 +94,13 @@ const updateStatusDisplay = (job) => {
                 <div>
                     <strong>Queued</strong>
                     <p class="mb-0 small">Your job is waiting to be processed...</p>
-                    <p class="mb-0 small text-muted"><em>This page will automatically redirect back to the course when creation is complete.</em></p>
+                    <p class="mb-0 small text-muted">
+                        <em>This page will automatically redirect back to the course when creation is complete.</em>
+                    </p>
                 </div>
             </div>
         `;
-        
+
         // Hide return button
         if (returnButtonContainer) {
             returnButtonContainer.style.display = 'none';
@@ -115,11 +114,13 @@ const updateStatusDisplay = (job) => {
                 <div>
                     <strong>Creating sections...</strong>
                     <p class="mb-0 small">Please wait while your course structure is being created.</p>
-                    <p class="mb-0 small text-muted"><em>This page will automatically redirect back to the course when creation is complete.</em></p>
+                    <p class="mb-0 small text-muted">
+                        <em>This page will automatically redirect back to the course when creation is complete.</em>
+                    </p>
                 </div>
             </div>
         `;
-        
+
         // Hide return button
         if (returnButtonContainer) {
             returnButtonContainer.style.display = 'none';
@@ -127,12 +128,12 @@ const updateStatusDisplay = (job) => {
     } else if (job.status === 'completed') {
         const result = job.result || {};
         const messages = result.messages || [];
-        
+
         let messagesList = '';
         messages.forEach(msg => {
             messagesList += `<p class="mb-1"><i class="fa fa-check text-success"></i> ${escapeHtml(msg)}</p>`;
         });
-        
+
         html = `
             <div class="alert alert-success">
                 <h4 class="alert-heading">
@@ -144,7 +145,7 @@ const updateStatusDisplay = (job) => {
                 <p class="mb-0">Redirecting to your course in a few seconds...</p>
             </div>
         `;
-        
+
         // Show return button if it exists, otherwise create it
         if (returnButtonContainer) {
             returnButtonContainer.style.display = 'block';
@@ -160,20 +161,20 @@ const updateStatusDisplay = (job) => {
             `;
             container.insertAdjacentHTML('afterend', buttonHtml);
         }
-        
+
         // Stop polling
         stopPolling();
-        
+
         // Auto-redirect after delay
         setTimeout(() => {
             window.location.href = config.courseurl;
         }, REDIRECT_DELAY);
-        
+
     } else if (job.status === 'failed') {
         const result = job.result || {};
         const error = result.error || 'Unknown error occurred';
         const willRetry = result.will_retry || false;
-        
+
         let retryHtml = '';
         if (willRetry) {
             retryHtml = `
@@ -187,7 +188,7 @@ const updateStatusDisplay = (job) => {
         } else {
             stopPolling();
         }
-        
+
         html = `
             <div class="alert alert-danger">
                 <h4 class="alert-heading">
@@ -198,13 +199,13 @@ const updateStatusDisplay = (job) => {
                 ${retryHtml}
             </div>
         `;
-        
+
         // Hide return button on failure
         if (returnButtonContainer) {
             returnButtonContainer.style.display = 'none';
         }
     }
-    
+
     container.innerHTML = html;
 };
 
@@ -234,9 +235,9 @@ const getStatusColor = (status) => {
  */
 const pollJobStatus = () => {
     // Direct fetch approach
-    const url = M.cfg.wwwroot + '/ai/placement/modgen/ajax/check_job_status.php?sesskey=' + 
+    const url = M.cfg.wwwroot + '/ai/placement/modgen/ajax/check_job_status.php?sesskey=' +
                 M.cfg.sesskey + '&jobid=' + config.jobid;
-    
+
     fetch(url)
         .then(response => {
             return response.json();
@@ -244,7 +245,7 @@ const pollJobStatus = () => {
         .then(data => {
             if (data.success && data.status) {
                 updateStatusDisplay(data);
-                
+
                 // If completed or failed (and not retrying), stop polling
                 if (data.status === 'completed') {
                     stopPolling();
@@ -257,7 +258,7 @@ const pollJobStatus = () => {
             }
         })
         .catch(error => {
-            console.error('[Job Status Page] Fetch error:', error);
+            window.console.error('[Job Status Page] Fetch error:', error);
             // Silently fail - will retry next interval
         });
 };
@@ -268,7 +269,7 @@ const pollJobStatus = () => {
 const startPolling = () => {
     // Initial poll
     pollJobStatus();
-    
+
     // Set up interval
     pollInterval = setInterval(pollJobStatus, POLL_INTERVAL);
 };
@@ -294,7 +295,7 @@ const stopPolling = () => {
  */
 export const init = (cfg) => {
     config = cfg;
-    
+
     // If job already completed/failed, don't poll
     if (cfg.initialstatus === 'completed') {
         // Auto-redirect after delay
@@ -311,7 +312,7 @@ export const init = (cfg) => {
         // Start polling for queued/running jobs
         startPolling();
     }
-    
+
     // Clean up on page unload
     window.addEventListener('beforeunload', stopPolling);
 };

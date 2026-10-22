@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="aiplacement_modgen">
+    <description>Moodle coding style for the Module Assistant plugin.</description>
+
+    <!-- moodle-extra adds the recommended best-practice sniffs on top of the moodle standard. -->
+    <rule ref="moodle-extra"/>
+
+    <file>.</file>
+    <arg name="extensions" value="php"/>
+
+    <!-- Generated or third-party files. -->
+    <exclude-pattern>*/node_modules/*</exclude-pattern>
+    <exclude-pattern>*/amd/build/*</exclude-pattern>
+    <exclude-pattern>*/vendor/*</exclude-pattern>
+</ruleset>

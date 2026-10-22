@@ -280,7 +280,7 @@ final class build_hardening_test extends advanced_testcase {
     public function test_dev_files_are_export_ignored(): void {
         $attributes = file_get_contents(dirname(__DIR__) . '/.gitattributes');
 
-        foreach (['/.plan', '/.github', '/sql', '/Gruntfile.js', '/package.json', '/phpunit.xml'] as $path) {
+        foreach (['/.plan', '/.github', '/sql', '/Gruntfile.js', '/package.json', '/phpunit.xml', '/phpcs.xml.dist'] as $path) {
             $this->assertStringContainsString("{$path} export-ignore", $attributes);
         }
     }

@@ -105,13 +105,13 @@ const updateStatusDisplay = (job) => {
         html = `
             <div class="alert alert-info d-flex align-items-center">
                 <div class="spinner-border text-info mr-3" role="status">
-                    <span class="sr-only">Loading...</span>
+                    <span class="sr-only">${escapeHtml(config.strings.loading)}</span>
                 </div>
                 <div>
-                    <strong>Queued</strong>
-                    <p class="mb-0 small">Your job is waiting to be processed...</p>
+                    <strong>${escapeHtml(config.strings.queued)}</strong>
+                    <p class="mb-0 small">${escapeHtml(config.strings.queueddesc)}</p>
                     <p class="mb-0 small text-muted">
-                        <em>This page will automatically redirect back to the course when creation is complete.</em>
+                        <em>${escapeHtml(config.strings.redirectnote)}</em>
                     </p>
                 </div>
             </div>
@@ -125,13 +125,13 @@ const updateStatusDisplay = (job) => {
         html = `
             <div class="alert alert-primary d-flex align-items-center">
                 <div class="spinner-border text-primary mr-3" role="status">
-                    <span class="sr-only">Loading...</span>
+                    <span class="sr-only">${escapeHtml(config.strings.loading)}</span>
                 </div>
                 <div>
-                    <strong>Creating sections...</strong>
-                    <p class="mb-0 small">Please wait while your course structure is being created.</p>
+                    <strong>${escapeHtml(config.strings.running)}</strong>
+                    <p class="mb-0 small">${escapeHtml(config.strings.runningdesc)}</p>
                     <p class="mb-0 small text-muted">
-                        <em>This page will automatically redirect back to the course when creation is complete.</em>
+                        <em>${escapeHtml(config.strings.redirectnote)}</em>
                     </p>
                 </div>
             </div>
@@ -188,8 +188,8 @@ const updateStatusDisplay = (job) => {
             const buttonHtml = `
                 <div class="mt-4" id="return-button-container">
                     <a href="${config.courseurl}" class="btn btn-primary">
-                        <i class="fa fa-arrow-left"></i>
-                        Return to course home
+                        <i class="fa fa-arrow-left" aria-hidden="true"></i>
+                        ${escapeHtml(config.strings.returncourse)}
                     </a>
                 </div>
             `;
@@ -203,7 +203,7 @@ const updateStatusDisplay = (job) => {
 
     } else if (job.status === 'failed') {
         const result = job.result || {};
-        const error = result.error || 'Unknown error occurred';
+        const error = result.error || config.strings.unknownerror;
         const willRetry = result.will_retry || false;
 
         let retryHtml = '';
@@ -211,8 +211,8 @@ const updateStatusDisplay = (job) => {
             retryHtml = `
                 <hr>
                 <p class="mb-0">
-                    <i class="fa fa-refresh"></i>
-                    This job will automatically retry in a moment...
+                    <i class="fa fa-refresh" aria-hidden="true"></i>
+                    ${escapeHtml(config.strings.willretry)}
                 </p>
             `;
             // Keep polling for retry
@@ -223,10 +223,10 @@ const updateStatusDisplay = (job) => {
         html = `
             <div class="alert alert-danger">
                 <h4 class="alert-heading">
-                    <i class="fa fa-exclamation-triangle"></i>
-                    Job failed
+                    <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+                    ${escapeHtml(config.strings.failed)}
                 </h4>
-                <p><strong>Error:</strong> ${escapeHtml(error)}</p>
+                <p><strong>${escapeHtml(config.strings.error)}:</strong> ${escapeHtml(error)}</p>
                 ${retryHtml}
             </div>
         `;

@@ -214,10 +214,7 @@ class section_creation_service {
         $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
 
         if (empty($flexsectionsplugin)) {
-            throw new \Exception(
-                'The flexsections course format plugin is required but not installed. ' .
-                'Please install the flexsections plugin before using this feature.'
-            );
+            throw new \moodle_exception('flexsectionsmissing', 'aiplacement_modgen');
         }
 
         $course = get_course($courseid, true);
@@ -242,9 +239,7 @@ class section_creation_service {
             $course = get_course($courseid, true);
 
             if ($course->format !== 'flexsections') {
-                throw new \Exception(
-                    'Failed to set course format to flexsections. Current format: ' . $course->format
-                );
+                throw new \moodle_exception('flexsectionsformatfailed', 'aiplacement_modgen', '', $course->format);
             }
         }
     }

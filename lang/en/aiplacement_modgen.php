@@ -717,3 +717,20 @@ $string['jobcompletedwarnings'] = 'Completed with problems';
 $string['jobcompletedwarnings_desc'] = 'Some items could not be created. The rest of the structure was built.';
 $string['jobwarningsnotice'] = 'The background job finished, but {$a} item(s) could not be created. Check the course structure.';
 $string['failorphanedjobs'] = 'Fail interrupted background jobs';
+
+// Job page, notifications and generator steps (text previously hardcoded in JavaScript).
+$string['jobstatus_redirect_note'] = 'This page will automatically redirect back to the course when creation is complete.';
+$string['jobcompletednotice'] = 'Background job completed successfully';
+$string['stepenterprompt'] = 'Enter prompt';
+$string['stepgenerating'] = 'Generating';
+$string['stepreview'] = 'Review';
+$string['stepcreating'] = 'Creating';
+
+// Errors raised while reading a structure file or preparing the course.
+$string['csvempty'] = 'The CSV file is empty.';
+$string['csvfilenotfound'] = 'The CSV file could not be found in file storage.';
+$string['csvnodata'] = 'No data was found in the CSV file.';
+$string['csvnodraft'] = 'No CSV file was found in the upload area.';
+$string['flexsectionsformatfailed'] = 'The course format could not be changed to Flexible sections. It is still: {$a}';
+$string['flexsectionsmissing'] = 'The Flexible sections course format plugin is required but not installed. Install it before using this feature.';
+$string['templateloaderror'] = 'The template could not be loaded: {$a}';

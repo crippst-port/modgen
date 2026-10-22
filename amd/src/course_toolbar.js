@@ -61,9 +61,8 @@ const checkCompletedJobs = (courseid) => {
                             type: 'warning'
                         });
                     } else {
-                        const message = result.message || 'Background job completed successfully';
                         Notification.addNotification({
-                            message: message,
+                            message: result.message || await getString('jobcompletednotice', 'aiplacement_modgen'),
                             type: 'success'
                         });
                     }
@@ -72,7 +71,11 @@ const checkCompletedJobs = (courseid) => {
                 } else if (job.status === 'failed') {
                     const result = job.result || {};
                     Notification.addNotification({
-                        message: 'Background job failed: ' + (result.error || 'Unknown error'),
+                        message: await getString(
+                            'jobfailed',
+                            'aiplacement_modgen',
+                            result.error || await getString('unknownerror', 'aiplacement_modgen')
+                        ),
                         type: 'error'
                     });
                     // Mark as notified

@@ -86,7 +86,7 @@ class csv_parser {
         $content = self::get_content($file);
 
         if (empty($content)) {
-            throw new \Exception('CSV file is empty');
+            throw new \moodle_exception('csvempty', 'aiplacement_modgen');
         }
 
         // Parse CSV content into label/value rows. A real CSV reader is used so that quoted
@@ -94,7 +94,7 @@ class csv_parser {
         $lines = self::read_rows($content);
 
         if (empty($lines)) {
-            throw new \Exception('No data found in CSV file');
+            throw new \moodle_exception('csvnodata', 'aiplacement_modgen');
         }
 
         // Normalize module type.
@@ -115,10 +115,10 @@ class csv_parser {
             $sectioncount = self::count_sections($structure);
 
             if ($sectioncount > $maxsections) {
-                throw new \Exception(get_string('csvlimitexceeded', 'aiplacement_modgen', [
+                throw new \moodle_exception('csvlimitexceeded', 'aiplacement_modgen', '', [
                     'count' => $sectioncount,
                     'max' => $maxsections,
-                ]));
+                ]);
             }
         }
 

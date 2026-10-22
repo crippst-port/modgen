@@ -137,6 +137,17 @@ $PAGE->requires->js_call_amd('aiplacement_modgen/job_status_page', 'init', [
         'strings' => [
             'completed' => get_string('jobstatus_completed', 'aiplacement_modgen'),
             'completedwarnings' => get_string('jobcompletedwarnings', 'aiplacement_modgen'),
+            'queued' => get_string('jobstatus_queued', 'aiplacement_modgen'),
+            'queueddesc' => get_string('jobstatus_queued_desc', 'aiplacement_modgen'),
+            'running' => get_string('jobstatus_running', 'aiplacement_modgen'),
+            'runningdesc' => get_string('jobstatus_running_desc', 'aiplacement_modgen'),
+            'redirectnote' => get_string('jobstatus_redirect_note', 'aiplacement_modgen'),
+            'failed' => get_string('jobstatus_failed', 'aiplacement_modgen'),
+            'willretry' => get_string('jobstatus_will_retry', 'aiplacement_modgen'),
+            'returncourse' => get_string('returntocourse', 'aiplacement_modgen'),
+            'unknownerror' => get_string('unknownerror', 'aiplacement_modgen'),
+            'error' => get_string('error'),
+            'loading' => get_string('loading'),
         ],
     ],
 ]);

@@ -130,12 +130,12 @@ class template_processing_service {
                 $csvfile = $fs->get_file_by_id($template->fileid);
 
                 if (!$csvfile) {
-                    throw new \Exception('CSV file not found in file storage');
+                    throw new \moodle_exception('csvfilenotfound', 'aiplacement_modgen');
                 }
 
                 return $csvfile;
             } catch (\Exception $e) {
-                throw new \Exception('Error loading template: ' . $e->getMessage());
+                throw new \moodle_exception('templateloaderror', 'aiplacement_modgen', '', $e->getMessage());
             }
         }
 
@@ -161,7 +161,7 @@ class template_processing_service {
             $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
 
             if (empty($files)) {
-                throw new \Exception('No CSV file found in draft area');
+                throw new \moodle_exception('csvnodraft', 'aiplacement_modgen');
             }
 
             $csvfile = array_shift($files);

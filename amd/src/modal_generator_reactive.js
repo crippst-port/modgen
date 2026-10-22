@@ -79,7 +79,7 @@ import ModgenModal from 'aiplacement_modgen/modal';
 import Notification from 'core/notification';
 import ModalEvents from 'core/modal_events';
 import Templates from 'core/templates';
-import {get_string as getString} from 'core/str';
+import {get_string as getString, get_strings as getStrings} from 'core/str';
 import * as LoadingIndicator from 'aiplacement_modgen/loading_indicator';
 
 // =============================================================================
@@ -226,12 +226,27 @@ const STEPS = {
  * Human-readable labels for each step.
  * Displayed in the progress header UI.
  */
-const STEP_LABELS = {
-    "1": 'Enter prompt',
-    "2": 'Generating',
-    "3": 'Review',
-    "4": 'Creating',
-};
+const STEP_LABELS = {};
+
+/**
+ * Load the step labels from the language files.
+ *
+ * Called once when the component is created; the labels are only needed when the modal opens.
+ *
+ * @returns {Promise} Resolves once STEP_LABELS is filled in
+ */
+const loadStepLabels = () => getStrings([
+    {key: 'stepenterprompt', component: 'aiplacement_modgen'},
+    {key: 'stepgenerating', component: 'aiplacement_modgen'},
+    {key: 'stepreview', component: 'aiplacement_modgen'},
+    {key: 'stepcreating', component: 'aiplacement_modgen'},
+]).then(([enterprompt, generating, review, creating]) => {
+    STEP_LABELS[STEPS.PROMPT] = enterprompt;
+    STEP_LABELS[STEPS.GENERATING] = generating;
+    STEP_LABELS[STEPS.PREVIEW] = review;
+    STEP_LABELS[STEPS.CREATING] = creating;
+    return STEP_LABELS;
+});
 
 // =============================================================================
 // REACTIVE INSTANCE
@@ -802,7 +817,7 @@ class ModalGeneratorComponent extends BaseComponent {
      * @param {Object} modal The modal instance
      * @param {string} action The button action identifier
      */
-    handleFooterButtonAction(modal, action) {
+    async handleFooterButtonAction(modal, action) {
         const body = modal.getBody();
         const bodyNode = body && body.length ? body.get(0) : null;
         const form = bodyNode ? bodyNode.querySelector('form') : null;
@@ -834,7 +849,11 @@ class ModalGeneratorComponent extends BaseComponent {
             case 'regenerate':
                 // Reset step and reload the prompt form
                 this.reactive.dispatch('setStep', STEPS.PROMPT);
-                this.reactive.dispatch('openModalWithForm', 'template_from_prompt', 'Template from prompt');
+                this.reactive.dispatch(
+                    'openModalWithForm',
+                    'template_from_prompt',
+                    await getString('templatefromprompt', 'aiplacement_modgen')
+                );
                 break;
 
             case 'return-to-course':
@@ -1317,6 +1336,8 @@ class ModalGeneratorComponent extends BaseComponent {
  * });
  */
 export const init = (courseid, contextid, currentsection = 0) => {
+    loadStepLabels().catch(Notification.exception);
+
     const component = new ModalGeneratorComponent({
         element: document.body,
         reactive: reactiveInstance,

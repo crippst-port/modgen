@@ -275,6 +275,19 @@ final class build_hardening_test extends advanced_testcase {
     }
 
     /**
+     * An empty structure file is refused with a translated error, not a bare exception.
+     */
+    public function test_empty_csv_is_rejected_with_a_language_string(): void {
+        try {
+            csv_parser::parse_csv_to_structure($this->csv(''), 'connected_theme');
+            $this->fail('An empty CSV must be rejected.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('csvempty', $e->errorcode);
+            $this->assertSame(get_string('csvempty', 'aiplacement_modgen'), $e->getMessage());
+        }
+    }
+
+    /**
      * Development files are kept out of release archives.
      */
     public function test_dev_files_are_export_ignored(): void {

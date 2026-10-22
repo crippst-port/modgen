@@ -704,3 +704,4 @@ $string['aivalidation_noitems'] = 'Response contains no themes/sections';
 $string['aivalidation_weeknotarray'] = 'Week structure is not an array';
 $string['aivalidation_weeksnotarray'] = 'Theme "weeks" is not an array';
 $string['templateprocessorempty'] = 'The template processor did not return a usable structure.';
+$string['themetoplevelonly'] = 'New themes can only be added from the top level of the module.';

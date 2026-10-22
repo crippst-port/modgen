@@ -111,6 +111,7 @@ function aiplacement_modgen_extend_navigation_course(
  * @param array $args Fragment arguments containing:
  *                    - courseid: Course ID (required)
  *                    - showgenerator: Whether to show generator button
+ *                    - currentsection: Section number being viewed (0 at the top of the course)
  * @return string Rendered HTML
  */
 function aiplacement_modgen_output_fragment_course_toolbar(array $args): string {
@@ -156,6 +157,9 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     $showquickadd = \aiplacement_modgen\local\settings_helper::is_quickadd_enabled();
     $showcheckstructure = $cancheckstructure;
 
+    // Themes are top-level containers, so New Theme is only offered from the top of the course.
+    $showaddtheme = clean_param($args['currentsection'] ?? 0, PARAM_INT) <= 0;
+
     // Create the toolbar renderable with all capability flags.
     $toolbar = new \aiplacement_modgen\output\course_toolbar(
         $courseid,
@@ -164,7 +168,8 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
         $showtemplatefromfile,
         $showtemplatefromptompt,
         $showcheckstructure,
-        $showquickadd
+        $showquickadd,
+        $showaddtheme
     );
 
     // Get the plugin renderer and render the toolbar.

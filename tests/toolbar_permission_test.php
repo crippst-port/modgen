@@ -132,6 +132,28 @@ final class toolbar_permission_test extends advanced_testcase {
     }
 
     /**
+     * New Theme is only offered from the top of the course; inside a section only New Week remains.
+     *
+     * @covers ::aiplacement_modgen_output_fragment_course_toolbar
+     */
+    public function test_new_theme_is_only_offered_at_the_top_level(): void {
+        set_config('enable_quickadd', 1, 'aiplacement_modgen');
+        $this->setUser($this->partiallyauthorizeduser);
+        $args = [
+            'courseid' => $this->course->id,
+            'contextid' => \context_course::instance($this->course->id)->id,
+        ];
+
+        $top = \aiplacement_modgen_output_fragment_course_toolbar($args + ['currentsection' => 0]);
+        $this->assertStringContainsString('data-form="add_theme"', $top);
+        $this->assertStringContainsString('data-form="add_week"', $top);
+
+        $inside = \aiplacement_modgen_output_fragment_course_toolbar($args + ['currentsection' => 3]);
+        $this->assertStringNotContainsString('data-form="add_theme"', $inside);
+        $this->assertStringContainsString('data-form="add_week"', $inside);
+    }
+
+    /**
      * Conversely, a genuinely authorized user must still see the button even if the
      * client-side args omit or zero out showcheckstructure — visibility is server-computed.
      *

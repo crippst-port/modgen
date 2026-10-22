@@ -49,6 +49,9 @@ class course_toolbar implements renderable, templatable {
     /** @var bool Whether to show the Quick add options (New theme / New week) */
     private $showquickadd;
 
+    /** @var bool Whether to show the New Theme entry (top of the course only) */
+    private $showaddtheme;
+
     /** @var bool Whether to show template from prompt button */
     private $showtemplatefromptompt;
 
@@ -65,6 +68,7 @@ class course_toolbar implements renderable, templatable {
      * @param bool $showtemplatefromptompt Whether to show template from prompt button
      * @param bool $showcheckstructure Whether to show check structure button
      * @param bool $showquickadd Whether to show the Quick add options
+     * @param bool $showaddtheme Whether to show the New Theme entry
      */
     public function __construct(
         int $courseid,
@@ -73,7 +77,8 @@ class course_toolbar implements renderable, templatable {
         bool $showtemplatefromfile = false,
         bool $showtemplatefromptompt = false,
         bool $showcheckstructure = false,
-        bool $showquickadd = false
+        bool $showquickadd = false,
+        bool $showaddtheme = true
     ) {
         $this->courseid = $courseid;
         $this->showgenerator = $showgenerator || $showtemplatefromptompt; // Legacy support.
@@ -82,6 +87,7 @@ class course_toolbar implements renderable, templatable {
         $this->showtemplatefromptompt = $showtemplatefromptompt;
         $this->showcheckstructure = $showcheckstructure;
         $this->showquickadd = $showquickadd;
+        $this->showaddtheme = $showaddtheme;
     }
 
     /**
@@ -100,6 +106,7 @@ class course_toolbar implements renderable, templatable {
         $data->showtemplatefromptompt = $this->showtemplatefromptompt;
         $data->showcheckstructure = $this->showcheckstructure;
         $data->showquickadd = $this->showquickadd;
+        $data->showaddtheme = $this->showaddtheme;
         if ($this->showcheckstructure) {
             $checkstructureurl = new moodle_url(
                 '/ai/placement/modgen/check_structure.php',

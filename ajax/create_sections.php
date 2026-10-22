@@ -106,6 +106,11 @@ try {
     $totalsections = 0;
 
     if ($action === 'create_themes') {
+        // Themes are top-level containers: refuse them when the request comes from inside a section.
+        if ($parentsection > 0) {
+            ajax_response::error(get_string('themetoplevelonly', 'aiplacement_modgen'), 'themetoplevelonly');
+        }
+
         // Get theme parameters.
         $themecount = required_param('themecount', PARAM_INT);
         $weeksperthemecount = required_param('weeksperTheme', PARAM_INT);

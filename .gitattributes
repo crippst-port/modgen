@@ -2,9 +2,6 @@
 /.plan export-ignore
 /.github export-ignore
 /sql export-ignore
-/Gruntfile.js export-ignore
-/package.json export-ignore
-/package-lock.json export-ignore
 /phpunit.xml export-ignore
 /.gitignore export-ignore
 /.gitattributes export-ignore

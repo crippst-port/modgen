@@ -136,11 +136,28 @@ vendor/bin/phpunit ai/placement/modgen/tests/privacy_test.php
 ### Code Quality
 
 ```bash
-# Check coding standards
-phpcs --standard=moodle ai/placement/modgen/
+# Check coding standards (uses phpcs.xml.dist, which applies moodle-extra)
+cd ai/placement/modgen && phpcs
 
 # Auto-fix minor issues
-phpcbf --standard=moodle ai/placement/modgen/
+phpcbf
+```
+
+### Building JavaScript
+
+The plugin uses Moodle's own Grunt setup, so it has no Gruntfile or package.json of its own.
+From the Moodle root, use the Node version in `.nvmrc` and install the dependencies once:
+
+```bash
+nvm install && nvm use
+npm install
+```
+
+After changing anything in `amd/src`, lint and rebuild `amd/build` (commit the result):
+
+```bash
+cd ai/placement/modgen/amd
+npx grunt amd
 ```
 
 ## Troubleshooting

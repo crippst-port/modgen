@@ -44,9 +44,31 @@ $PAGE->set_title(get_string('managetemplates', 'aiplacement_modgen'));
 $PAGE->set_heading(get_string('managetemplates', 'aiplacement_modgen'));
 
 // Handle actions.
-if ($action === 'delete' && $templateid && confirm_sesskey()) {
-    template_manager::delete($templateid);
-    redirect($PAGE->url, get_string('templatedeleted', 'aiplacement_modgen'), null, \core\output\notification::NOTIFY_SUCCESS);
+if ($action === 'delete' && $templateid) {
+    // Deleting is destructive, so it needs a confirmation step that is submitted as a POST.
+    if (optional_param('confirm', 0, PARAM_BOOL) && confirm_sesskey()) {
+        template_manager::delete($templateid);
+        redirect(
+            $PAGE->url,
+            get_string('templatedeleted', 'aiplacement_modgen'),
+            null,
+            \core\output\notification::NOTIFY_SUCCESS
+        );
+    }
+
+    $template = template_manager::get_by_id($templateid);
+    echo $OUTPUT->header();
+    echo $OUTPUT->confirm(
+        get_string('confirmdeletetemplate', 'aiplacement_modgen', format_string($template->name)),
+        new single_button(
+            new moodle_url($PAGE->url, ['action' => 'delete', 'id' => $templateid, 'confirm' => 1, 'sesskey' => sesskey()]),
+            get_string('delete'),
+            'post'
+        ),
+        $PAGE->url
+    );
+    echo $OUTPUT->footer();
+    exit;
 }
 
 if ($action === 'moveup' && $templateid && confirm_sesskey()) {
@@ -127,12 +149,8 @@ if (!empty($templates)) {
         }
 
         // Delete.
-        $deleteurl = new moodle_url($PAGE->url, ['action' => 'delete', 'id' => $template->id, 'sesskey' => sesskey()]);
-        $actions[] = html_writer::link(
-            $deleteurl,
-            $OUTPUT->pix_icon('t/delete', get_string('delete')),
-            ['onclick' => 'return confirm("' . get_string('confirmdeletetemplate', 'aiplacement_modgen') . '");']
-        );
+        $deleteurl = new moodle_url($PAGE->url, ['action' => 'delete', 'id' => $template->id]);
+        $actions[] = html_writer::link($deleteurl, $OUTPUT->pix_icon('t/delete', get_string('delete')));
 
         $table->data[] = [
             format_string($template->name),

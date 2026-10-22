@@ -135,10 +135,8 @@ class course_toolbar implements renderable, templatable {
 
         $validcount = 0;
         foreach ($records as $record) {
-            if (!isset($modinfo->cms[$record->cmid])) {
-                // Activity no longer exists in modinfo, clean up the record.
-                $DB->delete_records('aiplacement_modgen_aigen', ['id' => $record->id]);
-            } else {
+            // Markers for activities that no longer exist are removed by the scheduled cleanup.
+            if (isset($modinfo->cms[$record->cmid])) {
                 $validcount++;
             }
         }

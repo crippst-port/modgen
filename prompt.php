@@ -71,8 +71,7 @@ $pluginconfig = (object)[
 ];
 
 // Increase PHP execution time for AI processing.
-set_time_limit($pluginconfig->timeout);
-ini_set('max_execution_time', $pluginconfig->timeout);
+core_php_time_limit::raise((int) $pluginconfig->timeout);
 
 $embedded = optional_param('embedded', 0, PARAM_BOOL);
 $ajax = optional_param('ajax', 0, PARAM_BOOL);
@@ -102,7 +101,7 @@ function aiplacement_modgen_send_ajax_response(string $body, string $footer = ''
         'refresh' => $refresh,
     ], $extra);
 
-    @header('Content-Type: application/json; charset=utf-8');
+    header('Content-Type: application/json; charset=utf-8');
     echo json_encode($response, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
@@ -183,73 +182,6 @@ function aiplacement_modgen_output_response(
     echo $OUTPUT->header();
     echo $bodyhtml;
     echo $OUTPUT->footer();
-}
-
-/**
- * Helper to create a subsection module and optionally populate its delegated section summary.
- *
- * @param stdClass $course Course record.
- * @param int $sectionnum Section number where the subsection should be placed.
- * @param string $name Subsection name.
- * @param string $summaryhtml Pre-formatted HTML summary to store in the delegated section.
- * @param bool $needscacherefresh Reference flag toggled when the course cache needs rebuilding.
- * @return array|null Array with 'cmid' and 'delegatedsectionid' keys, or null on failure.
- */
-function local_aiplacement_modgen_create_subsection(
-    stdClass $course,
-    int $sectionnum,
-    string $name,
-    string $summaryhtml,
-    bool &$needscacherefresh
-): ?array {
-    global $DB;
-
-    $moduleinfo = new stdClass();
-    $moduleinfo->modulename = 'subsection';
-    $moduleinfo->course = $course->id;
-    $moduleinfo->section = $sectionnum;
-    $moduleinfo->visible = 1;
-    $moduleinfo->completion = 0;
-    $moduleinfo->name = $name;
-    $moduleinfo->intro = '';
-    $moduleinfo->introformat = FORMAT_HTML;
-
-    $cm = create_module($moduleinfo);
-    $cmid = null;
-    if (is_object($cm)) {
-        $cmid = $cm->coursemodule ?? ($cm->id ?? null);
-    } else if (is_numeric($cm)) {
-        $cmid = (int)$cm;
-    }
-
-    if (empty($cmid)) {
-        return null;
-    }
-
-    $delegatedsectionid = null;
-    $cmrecord = get_coursemodule_from_id('subsection', $cmid, $course->id, false, IGNORE_MISSING);
-    if ($cmrecord) {
-        $manager = \mod_subsection\manager::create_from_coursemodule($cmrecord);
-        $delegatedsection = $manager->get_delegated_section_info();
-        if ($delegatedsection) {
-            $delegatedsectionid = $delegatedsection->id;
-            if ($summaryhtml !== '') {
-                $sectionrecord = $DB->get_record('course_sections', ['id' => $delegatedsection->id]);
-                if ($sectionrecord) {
-                    $sectionrecord->summary = $summaryhtml;
-                    $sectionrecord->summaryformat = FORMAT_HTML;
-                    $sectionrecord->timemodified = time();
-                    $DB->update_record('course_sections', $sectionrecord);
-                    $needscacherefresh = true;
-                }
-            }
-        }
-    }
-
-    return [
-        'cmid' => $cmid,
-        'delegatedsectionid' => $delegatedsectionid,
-    ];
 }
 
 /**
@@ -411,17 +343,6 @@ if ($embedded || $ajax) {
 
 // Business logic - use cached config values.
 require_once(__DIR__ . '/classes/local/ai_service.php');
-require_once(__DIR__ . '/classes/activitytype/registry.php');
-require_once(__DIR__ . '/classes/local/constants.php');
-require_once(__DIR__ . '/classes/local/csv_processing_service.php');
-require_once(__DIR__ . '/classes/local/template_processing_service.php');
-require_once(__DIR__ . '/classes/local/section_creation_service.php');
-
-// Load course libraries once (used by approval form processing).
-require_once($CFG->dirroot . '/course/lib.php');
-require_once($CFG->dirroot . '/course/format/lib.php');
-require_once($CFG->dirroot . '/course/modlib.php');
-require_once($CFG->dirroot . '/mod/subsection/classes/manager.php');
 
 // Attempt approval form first (so refreshes on approval post are handled).
 $approveform = null;

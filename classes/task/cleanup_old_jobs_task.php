@@ -63,5 +63,14 @@ class cleanup_old_jobs_task extends \core\task\scheduled_task
         } else {
             mtrace("No old job records to delete");
         }
+
+        // Drop AI-generated markers whose activity has gone (normally the observers do this on delete).
+        $orphans = $DB->delete_records_select(
+            'aiplacement_modgen_aigen',
+            'cmid NOT IN (SELECT id FROM {course_modules})'
+        );
+        if ($orphans) {
+            mtrace("Deleted stale AI-generated marker(s) from aiplacement_modgen_aigen table");
+        }
     }
 }

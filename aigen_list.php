@@ -80,12 +80,10 @@ $activities = $DB->get_records_sql($sql, ['courseid' => $courseid]);
 
 // Get activity names.
 $activitydata = [];
+$modinfo = get_fast_modinfo($course);
 foreach ($activities as $activity) {
-    $modinfo = get_fast_modinfo($course);
-
     if (!isset($modinfo->cms[$activity->cmid])) {
-        // Activity no longer exists, clean up the record.
-        $DB->delete_records('aiplacement_modgen_aigen', ['id' => $activity->id]);
+        // Activity no longer exists; the scheduled cleanup removes the stale marker.
         continue;
     }
 

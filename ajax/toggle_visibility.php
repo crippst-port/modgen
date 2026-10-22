@@ -28,29 +28,27 @@ require_once(__DIR__ . '/../../../../config.php');
 require_once($CFG->dirroot . '/course/lib.php');
 
 $cmid = required_param('cmid', PARAM_INT);
-$visible = required_param('visible', PARAM_INT);
+$visible = required_param('visible', PARAM_BOOL);
 
-// Get course module and context.
-$cm = get_coursemodule_from_id('', $cmid, 0, false, MUST_EXIST);
-$course = get_course($cm->course);
+// Be logged in with a valid session before anything is looked up.
+require_login();
+require_sesskey();
+
+// Get the course module, then check the user can access it.
+[$course, $cm] = get_course_and_cm_from_cmid($cmid);
 $context = context_course::instance($course->id);
-
-// Require login and capability.
-require_login($course);
+require_login($course, false, $cm);
 
 // Master switch: Site admin > AI > AI placements.
 \aiplacement_modgen\local\settings_helper::require_placement_enabled();
 
-require_sesskey();
 require_capability('moodle/course:activityvisibility', $context);
 
-// Set visibility.
-set_coursemodule_visible($cmid, $visible);
-
-// Rebuild course cache.
-rebuild_course_cache($course->id, true);
+// Set visibility; core rebuilds the course cache.
+set_coursemodule_visible($cmid, (int) $visible);
 
 // Return success.
+header('Content-Type: application/json; charset=utf-8');
 echo json_encode([
     'success' => true,
     'cmid' => $cmid,

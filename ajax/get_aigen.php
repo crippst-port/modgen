@@ -28,14 +28,13 @@ require_once(__DIR__ . '/../../../../config.php');
 
 $courseid = required_param('courseid', PARAM_INT);
 
-// Validate session.
+// Be logged in with a valid session before anything is looked up.
+require_login();
 require_sesskey();
 
-// Get course and context.
+// Get course and context, then check the user can access the course.
 $course = get_course($courseid);
 $context = context_course::instance($courseid);
-
-// Check user is logged in and can view the course.
 require_login($course);
 
 // Master switch: Site admin > AI > AI placements.
@@ -59,10 +58,8 @@ try {
 
     $validcmids = [];
     foreach ($records as $record) {
-        if (!isset($modinfo->cms[$record->cmid])) {
-            // Activity no longer exists in modinfo, clean up the record.
-            $DB->delete_records('aiplacement_modgen_aigen', ['id' => $record->id]);
-        } else {
+        // Markers for activities that no longer exist are removed by the scheduled cleanup.
+        if (isset($modinfo->cms[$record->cmid])) {
             $validcmids[] = (int)$record->cmid;
         }
     }

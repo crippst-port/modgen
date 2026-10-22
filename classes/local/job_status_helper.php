@@ -60,6 +60,50 @@ class job_status_helper {
     }
 
     /**
+     * Create a job record and queue its ad-hoc task as one unit.
+     *
+     * Both writes sit in a single transaction, so a failure while queuing cannot leave a
+     * `queued` job behind that no task will ever pick up, and the task cannot start before
+     * the job row is committed.
+     *
+     * @param int $courseid Course the sections are created in.
+     * @param int $userid User the job runs as.
+     * @param string $action Job action: create_themes, create_weeks or create_from_json.
+     * @param array $parameters Action parameters, stored on the job and passed to the task.
+     * @return int Job id.
+     */
+    public static function queue_creation_job(int $courseid, int $userid, string $action, array $parameters): int {
+        global $DB;
+
+        $transaction = $DB->start_delegated_transaction();
+        try {
+            $jobid = $DB->insert_record('aiplacement_modgen_jobs', (object) [
+                'courseid' => $courseid,
+                'userid' => $userid,
+                'action' => $action,
+                'status' => 'queued',
+                'parameters' => json_encode($parameters),
+                'timecreated' => time(),
+            ]);
+
+            $task = new \aiplacement_modgen\task\create_sections_task();
+            $task->set_custom_data((object) ([
+                'jobid' => $jobid,
+                'courseid' => $courseid,
+                'action' => $action,
+            ] + $parameters));
+            $task->set_userid($userid);
+            \core\task\manager::queue_adhoc_task($task);
+
+            $transaction->allow_commit();
+        } catch (\Throwable $e) {
+            $transaction->rollback($e);
+        }
+
+        return $jobid;
+    }
+
+    /**
      * Queue a minimal recovery task when a running job has lost its adhoc task.
      *
      * The recovery task intentionally carries only the job id. When it starts, the

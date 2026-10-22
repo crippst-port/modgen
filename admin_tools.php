@@ -1541,7 +1541,7 @@ function flatten_hierarchy_to_toplevel($courseid) {
 
         echo $OUTPUT->notification(get_string('hierarchyflattened', 'aiplacement_modgen'), 'success');
         rebuild_course_cache($courseid, false, true);
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
         $transaction->rollback($e);
         echo $OUTPUT->notification(get_string('flattenerror', 'aiplacement_modgen', $e->getMessage()), 'error');
     }

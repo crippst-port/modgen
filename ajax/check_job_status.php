@@ -156,6 +156,6 @@ try {
     } else {
         throw new moodle_exception('invalidparameters', 'aiplacement_modgen');
     }
-} catch (Exception $e) {
+} catch (\Throwable $e) {
     ajax_response::error($e->getMessage(), 'exception');
 }

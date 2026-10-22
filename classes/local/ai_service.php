@@ -73,45 +73,45 @@ class ai_service
 
         // Check if we have the expected top-level key.
         if ($structure === 'theme' && !isset($data['themes'])) {
-            return ['valid' => false, 'error' => 'Response missing "themes" array'];
+            return ['valid' => false, 'error' => get_string('aivalidation_missingthemes', 'aiplacement_modgen')];
         }
         if ($structure === 'weekly' && !isset($data['sections'])) {
-            return ['valid' => false, 'error' => 'Response missing "sections" array'];
+            return ['valid' => false, 'error' => get_string('aivalidation_missingsections', 'aiplacement_modgen')];
         }
 
         $items = $structure === 'theme' ? ($data['themes'] ?? []) : ($data['sections'] ?? []);
 
         // Check if array is empty.
         if (empty($items)) {
-            return ['valid' => false, 'error' => 'Response contains no themes/sections'];
+            return ['valid' => false, 'error' => get_string('aivalidation_noitems', 'aiplacement_modgen')];
         }
 
         // Check each theme/section for malformed structure.
         foreach ($items as $idx => $item) {
             if (!is_array($item)) {
-                return ['valid' => false, 'error' => 'Invalid structure: theme/section is not an array'];
+                return ['valid' => false, 'error' => get_string('aivalidation_itemnotarray', 'aiplacement_modgen')];
             }
 
             // For theme structure, check weeks.
             if ($structure === 'theme') {
                 if (!isset($item['weeks'])) {
-                    return ['valid' => false, 'error' => 'Theme missing "weeks" array'];
+                    return ['valid' => false, 'error' => get_string('aivalidation_missingweeks', 'aiplacement_modgen')];
                 }
                 if (!is_array($item['weeks'])) {
-                    return ['valid' => false, 'error' => 'Theme "weeks" is not an array'];
+                    return ['valid' => false, 'error' => get_string('aivalidation_weeksnotarray', 'aiplacement_modgen')];
                 }
 
                 // Check each week.
                 foreach ($item['weeks'] as $widx => $week) {
                     if (!is_array($week)) {
-                        return ['valid' => false, 'error' => 'Week structure is not an array'];
+                        return ['valid' => false, 'error' => get_string('aivalidation_weeknotarray', 'aiplacement_modgen')];
                     }
                 }
             }
 
             // Check if title exists and is not empty.
             if (!isset($item['title']) || trim($item['title']) === '') {
-                return ['valid' => false, 'error' => 'Theme/section missing title'];
+                return ['valid' => false, 'error' => get_string('aivalidation_missingtitle', 'aiplacement_modgen')];
             }
         }
 
@@ -271,7 +271,7 @@ class ai_service
             if (is_array($summary) && (isset($summary['themes']) || isset($summary['sections']))) {
                 // This is misplaced content already decoded!
                 // Use the extracted content as the main data, preserving template field.
-                $templatevalue = $data['template'] ?? "Generated via AI subsystem";
+                $templatevalue = $data['template'] ?? get_string('aigeneratedvia', 'aiplacement_modgen');
                 $data = $summary;
                 $data['template'] = $templatevalue;
 
@@ -293,7 +293,7 @@ class ai_service
                     if (is_array($parsed) && (isset($parsed['themes']) || isset($parsed['sections']))) {
                         // This is misplaced content!
                         // Use the extracted content as the main data, preserving template field.
-                        $templatevalue = $data['template'] ?? "Generated via AI subsystem";
+                        $templatevalue = $data['template'] ?? get_string('aigeneratedvia', 'aiplacement_modgen');
                         $data = $parsed;
                         $data['template'] = $templatevalue;
 
@@ -509,6 +509,43 @@ class ai_service
     }
 
     /**
+     * Count one AI request against the current user's hourly allowance.
+     *
+     * Uses a fixed window that starts at the first request (writing to the cache again does
+     * not move it) and a lock around the read-modify-write so parallel requests cannot all
+     * read the same count.
+     *
+     * @param int $limit Requests allowed per hour.
+     * @return bool True if the request may proceed, false if the allowance is used up.
+     */
+    private static function consume_rate_limit(int $limit): bool {
+        global $USER;
+
+        $cache = \cache::make('aiplacement_modgen', 'ai_requests');
+        $cachekey = 'user_' . $USER->id;
+
+        $lock = \core\lock\lock_config::get_lock_factory('aiplacement_modgen_ratelimit')->get_lock($cachekey, 5);
+        if (!$lock) {
+            return false;
+        }
+
+        try {
+            $window = $cache->get($cachekey);
+            if (!is_array($window) || (time() - (int) $window['start']) >= HOURSECS) {
+                $window = ['start' => time(), 'count' => 0];
+            }
+            if ($window['count'] >= $limit) {
+                return false;
+            }
+            $window['count']++;
+            $cache->set($cachekey, $window);
+            return true;
+        } finally {
+            $lock->release();
+        }
+    }
+
+    /**
      * Generate module structure and content using AI.
      *
      * @param string $prompt User's input requirements
@@ -530,33 +567,20 @@ class ai_service
         }
         $ratelimit = (int) $ratelimit;
 
-        if ($ratelimit > 0) {
-            $cache = \cache::make('aiplacement_modgen', 'ai_requests');
-            $cachekey = 'user_' . $USER->id;
-            $requests = $cache->get($cachekey);
-
-            if ($requests === false) {
-                $requests = 1;
-                $cache->set($cachekey, $requests);
-            } else {
-                if ($requests >= $ratelimit) {
-                    return [
-                        'activities' => [],
-                        'template' => 'Rate limit exceeded. You have made too many AI requests in the past hour. ' .
-                            'Please try again later.',
-                        'raw' => '',
-                        'debugprompt' => trim($prompt),
-                    ];
-                }
-                $requests++;
-                $cache->set($cachekey, $requests);
-            }
+        if ($ratelimit > 0 && !self::consume_rate_limit($ratelimit)) {
+            return [
+                'activities' => [],
+                'template' => get_string('airatelimitexceeded', 'aiplacement_modgen'),
+                'error' => true,
+                'raw' => '',
+                'debugprompt' => trim($prompt),
+            ];
         }
 
         // Integrate with Moodle AI Subsystem Manager using generate_text action.
         try {
             if (!class_exists('\\core_ai\\manager') || !class_exists('\\core_ai\\aiactions\\generate_text')) {
-                throw new \moodle_exception('AI subsystem not available');
+                throw new \moodle_exception('aierror_nosubsystem', 'aiplacement_modgen');
             }
 
             $contextid = !empty($COURSE->id)
@@ -568,7 +592,8 @@ class ai_service
             if (!$aimanager->get_user_policy_status($USER->id)) {
                 return [
                     'activities' => [],
-                    'template' => 'AI error: User has not accepted the AI User Policy.',
+                    'template' => get_string('aierror', 'aiplacement_modgen', get_string('aierror_policy', 'aiplacement_modgen')),
+                    'error' => true,
                     'raw' => '',
                     'debugprompt' => trim($prompt),
                 ];
@@ -873,7 +898,8 @@ class ai_service
             if (empty($roleinstruction) || empty($formatinstruction)) {
                 return [
                     'activities' => [],
-                    'template' => 'AI error: Prompt construction failed',
+                    'template' => get_string('aierror', 'aiplacement_modgen', get_string('aierror_prompt', 'aiplacement_modgen')),
+                    'error' => true,
                 ];
             }
 
@@ -926,8 +952,8 @@ class ai_service
             if (empty($data)) {
                 return [
                     'activities' => [],
-                    'template' => 'AI error: The AI service returned an empty response. The service may be ' .
-                        'unavailable or not configured.',
+                    'template' => get_string('aierror', 'aiplacement_modgen', get_string('aierror_empty', 'aiplacement_modgen')),
+                    'error' => true,
                 ];
             }
 
@@ -939,8 +965,12 @@ class ai_service
             if (empty($text) || !is_string($text)) {
                 return [
                     'activities' => [],
-                    'template' => 'AI error: The AI service did not return any generated text. Response keys: ' .
-                        implode(', ', array_keys($data ?? [])),
+                    'template' => get_string('aierror', 'aiplacement_modgen', get_string(
+                        'aierror_notext',
+                        'aiplacement_modgen',
+                        implode(', ', array_keys($data ?? []))
+                    )),
+                    'error' => true,
                 ];
             }
 
@@ -1031,7 +1061,8 @@ class ai_service
                     return [
                         $structure === 'theme' ? 'themes' : 'sections' => [],
                         'validation_error' => $validation['error'],
-                        'template' => 'AI error: ' . $validation['error'],
+                        'template' => get_string('aierror', 'aiplacement_modgen', $validation['error']),
+                        'error' => true,
                         'raw' => $text,
                         'debugprompt' => $finalprompt,
                         'debugresponse' => $data,
@@ -1069,7 +1100,7 @@ class ai_service
                 $arraykey => [
                     ['title' => get_string('aigensummary', 'aiplacement_modgen'), 'summary' => $text ?: ''],
                 ],
-                'template' => $revised ?: 'Generated via AI subsystem (non-JSON response)',
+                'template' => $revised ?: get_string('aigeneratedvia_nonjson', 'aiplacement_modgen'),
                 'raw' => $text,
                 'debugprompt' => $finalprompt,
                 'debugresponse' => $data,
@@ -1078,7 +1109,8 @@ class ai_service
             // Fallback: return error info in template.
             return [
                 'activities' => [],
-                'template' => 'AI error: ' . $e->getMessage(),
+                'template' => get_string('aierror', 'aiplacement_modgen', $e->getMessage()),
+                'error' => true,
             ];
         }
     }

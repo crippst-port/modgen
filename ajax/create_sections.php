@@ -55,6 +55,7 @@ require_once(__DIR__ . '/../../../../config.php');
 require_once($CFG->dirroot . '/course/lib.php');
 
 use aiplacement_modgen\local\ajax_response;
+use aiplacement_modgen\local\job_status_helper;
 
 // Require login and valid session.
 require_login();
@@ -131,35 +132,13 @@ try {
         \aiplacement_modgen\local\theme_builder::enforce_section_limit($courseid, $totalsections);
 
         // Queue as background task.
-        $job = new stdClass();
-        $job->courseid = $courseid;
-        $job->userid = $USER->id;
-        $job->action = 'create_themes';
-        $job->status = 'queued';
-        $job->parameters = json_encode([
+        $jobid = job_status_helper::queue_creation_job($courseid, (int) $USER->id, 'create_themes', [
             'themecount' => $themecount,
             'weeksperTheme' => $weeksperthemecount,
             'parentsection' => $parentsection,
             'parentsectionid' => $parentsectionid,
             'createsummaryactivities' => $createsummaryactivities,
         ]);
-        $job->timecreated = time();
-        $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
-
-        // Queue ad-hoc task.
-        $task = new \aiplacement_modgen\task\create_sections_task();
-        $task->set_custom_data((object)[
-            'jobid' => $jobid,
-            'courseid' => $courseid,
-            'action' => 'create_themes',
-            'themecount' => $themecount,
-            'weeksperTheme' => $weeksperthemecount,
-            'parentsection' => $parentsection,
-            'parentsectionid' => $parentsectionid,
-            'createsummaryactivities' => $createsummaryactivities,
-        ]);
-        $task->set_userid($USER->id);
-        \core\task\manager::queue_adhoc_task($task);
 
         ajax_response::success([
             'queued' => true,
@@ -185,33 +164,12 @@ try {
         \aiplacement_modgen\local\theme_builder::enforce_section_limit($courseid, $totalsections);
 
         // Queue as background task.
-        $job = new stdClass();
-        $job->courseid = $courseid;
-        $job->userid = $USER->id;
-        $job->action = 'create_weeks';
-        $job->status = 'queued';
-        $job->parameters = json_encode([
+        $jobid = job_status_helper::queue_creation_job($courseid, (int) $USER->id, 'create_weeks', [
             'weekcount' => $weekcount,
             'parentsection' => $parentsection,
             'parentsectionid' => $parentsectionid,
             'createsummaryactivities' => $createsummaryactivities,
         ]);
-        $job->timecreated = time();
-        $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
-
-        // Queue ad-hoc task.
-        $task = new \aiplacement_modgen\task\create_sections_task();
-        $task->set_custom_data((object)[
-            'jobid' => $jobid,
-            'courseid' => $courseid,
-            'action' => 'create_weeks',
-            'weekcount' => $weekcount,
-            'parentsection' => $parentsection,
-            'parentsectionid' => $parentsectionid,
-            'createsummaryactivities' => $createsummaryactivities,
-        ]);
-        $task->set_userid($USER->id);
-        \core\task\manager::queue_adhoc_task($task);
 
         ajax_response::success([
             'queued' => true,
@@ -219,8 +177,8 @@ try {
             'message' => get_string('jobqueued', 'aiplacement_modgen', $totalsections),
         ]);
     } else {
-        ajax_response::error('Invalid action', 'invalidaction');
+        ajax_response::error(get_string('invalidaction', 'aiplacement_modgen'), 'invalidaction');
     }
-} catch (Exception $e) {
+} catch (\Throwable $e) {
     ajax_response::error($e->getMessage(), 'exception');
 }

@@ -483,33 +483,12 @@ if ($approveform && ($adata = $approveform->get_data())) {
         throw $e;
     }
 
-    // Always use background task for all creation jobs
-    // Create job record.
-    $job = new \stdClass();
-    $job->courseid = $courseid;
-    $job->userid = $USER->id;
-    $job->action = 'create_from_json';
-    $job->status = 'queued';
-    $job->parameters = json_encode([
+    // Always use background task for all creation jobs.
+    $jobid = \aiplacement_modgen\local\job_status_helper::queue_creation_job($courseid, (int) $USER->id, 'create_from_json', [
         'json' => $json,
         'moduletype' => $moduletype,
         'createsummaryactivities' => $createsummaryactivities,
     ]);
-    $job->timecreated = time();
-    $jobid = $DB->insert_record('aiplacement_modgen_jobs', $job);
-
-    // Queue ad-hoc task - must pass all required parameters in custom_data.
-    $task = new \aiplacement_modgen\task\create_sections_task();
-    $task->set_custom_data((object)[
-        'jobid' => $jobid,
-        'courseid' => $courseid,
-        'action' => 'create_from_json',
-        'json' => $json,
-        'moduletype' => $moduletype,
-        'createsummaryactivities' => $createsummaryactivities,
-    ]);
-    $task->set_userid($USER->id);
-    \core\task\manager::queue_adhoc_task($task);
 
     // Return queued response for AJAX.
     if ($ajax) {
@@ -607,13 +586,13 @@ if ($pdata = $promptform->get_data()) {
 
         // Debug: Check what was returned.
         if (empty($json)) {
-            throw new Exception('Template processor returned empty result');
+            throw new \moodle_exception('templateprocessorempty', 'aiplacement_modgen');
         }
 
         if (!is_array($json)) {
-            throw new Exception('Template processor did not return an array');
+            throw new \moodle_exception('templateprocessorempty', 'aiplacement_modgen');
         }
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
         $errorhtml = html_writer::div(
             html_writer::tag('h4', get_string('generationfailed', 'aiplacement_modgen'), ['class' => 'text-danger']) .
             html_writer::div(s(get_string('error') . ': ' . $e->getMessage()), 'alert alert-danger'),
@@ -633,37 +612,9 @@ if ($pdata = $promptform->get_data()) {
         exit;
     }
 
-    // Check if the AI response contains validation errors.
-    if (empty($json)) {
+    if (!empty($json['error'])) {
         $errorhtml = html_writer::div(
-            html_writer::tag('h4', 'AI Error', ['class' => 'text-danger']) .
-            html_writer::div(
-                'The AI service returned no response. The API may be unavailable or returned an error. ' .
-                    'Please check the system logs and try again.',
-                'alert alert-danger'
-            ) .
-            (isset($json['template'])
-                ? html_writer::div(s($json['template']), 'alert alert-warning')
-                : ''),
-            'aiplacement-modgen__validation-error'
-        );
-
-        $bodyhtml = html_writer::div($errorhtml, 'aiplacement-modgen__content');
-
-        $footeractions = [[
-            'label' => get_string('tryagain', 'aiplacement_modgen'),
-            'classes' => 'btn btn-primary',
-            'isbutton' => true,
-            'action' => 'aiplacement-modgen-reenter',
-        ]];
-
-        aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
-        exit;
-    }
-
-    if (!empty($json['template']) && strpos($json['template'], 'AI error') === 0) {
-        $errorhtml = html_writer::div(
-            html_writer::tag('h4', 'AI Error', ['class' => 'text-danger']) .
+            html_writer::tag('h4', get_string('aierrorheading', 'aiplacement_modgen'), ['class' => 'text-danger']) .
             html_writer::div(s($json['template']), 'alert alert-danger'),
             'aiplacement-modgen__validation-error'
         );
@@ -685,7 +636,7 @@ if ($pdata = $promptform->get_data()) {
         // AI returned malformed structure - show error and don't allow approval.
         $errorhtml = html_writer::div(
             html_writer::tag('h4', get_string('generationfailed', 'aiplacement_modgen'), ['class' => 'text-danger']) .
-            html_writer::div($json['validation_error'], 'alert alert-danger') .
+            html_writer::div(s($json['validation_error']), 'alert alert-danger') .
             html_writer::tag('p', get_string('validationerrorhelp', 'aiplacement_modgen')),
             'aiplacement-modgen__validation-error'
         );
@@ -722,7 +673,7 @@ if ($pdata = $promptform->get_data()) {
     ]);
 
     $notifications = [];
-    if (!empty($json['template']) && strpos($json['template'], 'AI error:') === 0) {
+    if (!empty($json['error'])) {
         $notifications[] = [
             'message' => $json['template'],
             'classes' => 'alert alert-danger',

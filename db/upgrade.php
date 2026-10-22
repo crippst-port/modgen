@@ -193,5 +193,17 @@ function xmldb_aiplacement_modgen_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026102201, 'aiplacement', 'modgen');
     }
 
+    // Cover the course/user/status filters used when polling for a user's active jobs.
+    if ($oldversion < 2026102202) {
+        $table = new xmldb_table('aiplacement_modgen_jobs');
+        $index = new xmldb_index('courseid_userid_status', XMLDB_INDEX_NOTUNIQUE, ['courseid', 'userid', 'status']);
+        if (!$dbman->index_exists($table, $index)) {
+            $dbman->add_index($table, $index);
+        }
+
+        // Savepoint reached.
+        upgrade_plugin_savepoint(true, 2026102202, 'aiplacement', 'modgen');
+    }
+
     return true;
 }

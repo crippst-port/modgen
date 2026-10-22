@@ -532,13 +532,12 @@ final class adhoc_task_integrity_test extends advanced_testcase {
     }
 
     /**
-     * A task referencing a non-existent job id must throw cleanly (after its
-     * built-in wait/retry for the race condition) rather than proceeding to mutate
-     * the course against a phantom job.
+     * A task referencing a non-existent job id is dropped without retrying and without
+     * mutating the course against a phantom job.
      *
      * @covers ::execute
      */
-    public function test_missing_job_throws_without_side_effects(): void {
+    public function test_missing_job_is_dropped_without_side_effects(): void {
         $sectionsbefore = $this->count_generated_toplevel();
 
         // Job id that does not exist.
@@ -546,17 +545,15 @@ final class adhoc_task_integrity_test extends advanced_testcase {
             'action' => 'create_themes', 'themecount' => 1, 'weeksperTheme' => 1, 'parentsection' => 0,
         ]);
 
-        $this->expectException(\moodle_exception::class);
-        try {
-            $this->run_task($task);
-        } finally {
-            // No sections should have been created for the phantom job.
-            $this->assertSame(
-                $sectionsbefore,
-                $this->count_generated_toplevel(),
-                'A task with no job record must not mutate the course.'
-            );
-        }
+        // Job rows are committed with the task, so a missing one was cleaned up: drop the task
+        // quietly instead of retrying it for ever.
+        $this->run_task($task);
+
+        $this->assertSame(
+            $sectionsbefore,
+            $this->count_generated_toplevel(),
+            'A task with no job record must not mutate the course.'
+        );
     }
 
     // ------------------------------------------------------------------

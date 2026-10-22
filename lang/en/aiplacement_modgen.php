@@ -683,3 +683,24 @@ $string['couldnotextractcontent'] = 'Could not extract content from file "{$a}"'
 
 // Section numbering safety.
 $string['parentsectiongone'] = 'The section these were to be added inside no longer exists, so they have been created at the top level instead.';
+
+// AI service errors.
+$string['aierror'] = 'AI error: {$a}';
+$string['aierror_empty'] = 'The AI service returned an empty response. The service may be unavailable or not configured.';
+$string['aierror_nosubsystem'] = 'AI subsystem not available';
+$string['aierror_notext'] = 'The AI service did not return any generated text. Response keys: {$a}';
+$string['aierror_policy'] = 'User has not accepted the AI User Policy.';
+$string['aierror_prompt'] = 'Prompt construction failed';
+$string['aierrorheading'] = 'AI error';
+$string['aigeneratedvia'] = 'Generated via AI subsystem';
+$string['aigeneratedvia_nonjson'] = 'Generated via AI subsystem (non-JSON response)';
+$string['airatelimitexceeded'] = 'Rate limit exceeded. You have made too many AI requests in the past hour. Please try again later.';
+$string['aivalidation_itemnotarray'] = 'Invalid structure: theme/section is not an array';
+$string['aivalidation_missingsections'] = 'Response missing "sections" array';
+$string['aivalidation_missingthemes'] = 'Response missing "themes" array';
+$string['aivalidation_missingtitle'] = 'Theme/section missing title';
+$string['aivalidation_missingweeks'] = 'Theme missing "weeks" array';
+$string['aivalidation_noitems'] = 'Response contains no themes/sections';
+$string['aivalidation_weeknotarray'] = 'Week structure is not an array';
+$string['aivalidation_weeksnotarray'] = 'Theme "weeks" is not an array';
+$string['templateprocessorempty'] = 'The template processor did not return a usable structure.';

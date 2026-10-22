@@ -34,60 +34,6 @@ class registry {
     /** @var array<string, class-string<activity_type>>|null Cached map of type identifier => class FQCN. */
     private static ?array $map = null;
 
-
-    /**
-     * Process a list of AI generated activities, creating each in turn.
-     *
-     * @param array<int, stdClass> $activities
-     * @param stdClass $course
-     * @param int $sectionnumber
-     * @param array $options
-     * @return array{results: array<int, array>, warnings: array<int, string>}
-     */
-    public static function create_activities(array $activities, stdClass $course, int $sectionnumber, array $options = []): array {
-        $results = [];
-        $warnings = [];
-
-        foreach ($activities as $index => $activity) {
-            $type = self::normalise_type($activity->type ?? '');
-            $handlerclass = self::get_map()[$type] ?? null;
-
-            if ($handlerclass === null) {
-                $error = get_string('activitytypeunsupported', 'aiplacement_modgen', $type ?: '?');
-                $warnings[] = $error;
-                continue;
-            }
-
-            try {
-                $handler = new $handlerclass();
-                $result = $handler->create($activity, $course, $sectionnumber, $options);
-
-                if ($result === null) {
-                    $error = get_string('activitytypecreationfailed', 'aiplacement_modgen', $type);
-                    $warnings[] = $error;
-                    continue;
-                }
-
-                // Track AI-generated activities.
-                $cmid = $result['cmid'] ?? $result['coursemodule'] ?? null;
-                if ($cmid) {
-                    \aiplacement_modgen\aigen_tracker::mark_as_aigenerated((int)$cmid, $course->id);
-                }
-
-                $results[] = $result;
-            } catch (\Exception $e) {
-                $error = "Exception creating $type: " . $e->getMessage();
-                $warnings[] = $error;
-            }
-        }
-
-        return [
-            'results' => $results,
-            'warnings' => $warnings,
-        ];
-    }
-
-
     /**
      * Get handler class for a specific activity type.
      * Useful for programmatically creating activities that aren't AI-creatable.

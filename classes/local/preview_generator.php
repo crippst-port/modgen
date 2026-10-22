@@ -205,9 +205,9 @@ class preview_generator {
         }
 
         $sessionlabels = [
-            'presession' => 'Pre-session',
-            'session' => 'Session',
-            'postsession' => 'Post-session',
+            'presession' => get_string('presession', 'aiplacement_modgen'),
+            'session' => get_string('session', 'aiplacement_modgen'),
+            'postsession' => get_string('postsession', 'aiplacement_modgen'),
         ];
         $orderedsessiontypes = ['presession', 'session', 'postsession'];
 

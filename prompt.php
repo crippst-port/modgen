@@ -293,16 +293,8 @@ if (!$manager->get_user_policy_status($USER->id)) {
         // Render template (safe for AJAX context).
         $policyformhtml = $OUTPUT->render_from_template('aiplacement_modgen/ai_policy_acceptance', $policydata);
 
-        $footer = aiplacement_modgen_render_modal_footer([
-            [
-                'label' => get_string('accept'),
-                'classes' => 'btn btn-primary',
-                'isbutton' => true,
-                'action' => 'aiplacement-modgen-submit',
-                'disabled' => true,
-                'id' => 'accept-policy-btn',
-            ],
-        ]);
+        // The form in the body has the Accept button; the footer only offers the way out.
+        $footer = aiplacement_modgen_render_modal_footer([]);
 
         // Load AMD module for policy acceptance (SECURITY FIX: replaced inline JavaScript).
         $PAGE->requires->js_call_amd('aiplacement_modgen/policy_acceptance', 'init');

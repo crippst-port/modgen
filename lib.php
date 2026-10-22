@@ -154,7 +154,8 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     $showgenerator = $showtemplatefromptompt; // Legacy support.
     $showmanagestructure = $canmanagestructure;
     $showtemplatefromfile = $cangeneratetemplate && \aiplacement_modgen\local\settings_helper::is_structurefromfile_enabled();
-    $showquickadd = \aiplacement_modgen\local\settings_helper::is_quickadd_enabled();
+    // The New Theme and New Week entries need the structure capability, not just the admin switch.
+    $showquickadd = \aiplacement_modgen\local\settings_helper::is_quickadd_enabled() && $canmanagestructure;
     $showcheckstructure = $cancheckstructure;
 
     // Themes are top-level containers, so New Theme is only offered from the top of the course.

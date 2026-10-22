@@ -50,3 +50,19 @@ Feature: The toolbar respects permissions and the master switch
     And I turn editing mode on
     And I should see "Quick Add"
     And I should not see "Check Structure"
+
+  Scenario: A teacher who may only generate from a template does not see the structure entries
+    Given the following config values are set as admin:
+      | enabled                  | 1 | aiplacement_modgen |
+      | enable_quickadd          | 1 | aiplacement_modgen |
+      | enable_structurefromfile | 1 | aiplacement_modgen |
+    And the following "permission overrides" exist:
+      | capability                              | permission | role           | contextlevel | reference |
+      | aiplacement/modgen:managestructure      | Prevent    | editingteacher | Course       | C1        |
+      | aiplacement/modgen:generatefromtemplate | Allow      | editingteacher | Course       | C1        |
+    When I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    And I click on "Quick Add" "link"
+    Then I should see "Structure from file"
+    And I should not see "New Theme(s)"
+    And I should not see "New Week(s)"

@@ -40,8 +40,8 @@ Feature: Quick Add builds sections in the background
       | enable_quickadd | 0 | aiplacement_modgen |
     When I am on the "Course 1" "course" page logged in as "teacher1"
     And I turn editing mode on
-    And I click on "Quick Add" "link"
-    Then I should not see "New Theme(s)"
+    Then I should not see "Quick Add"
+    And I should not see "New Theme(s)"
     And I should not see "New Week(s)"
 
   Scenario: A Quick Add that cannot fit is refused instead of queued

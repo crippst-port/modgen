@@ -138,6 +138,7 @@ final class toolbar_permission_test extends advanced_testcase {
      */
     public function test_new_theme_is_only_offered_at_the_top_level(): void {
         set_config('enable_quickadd', 1, 'aiplacement_modgen');
+        \aiplacement_modgen\local\settings_helper::clear_cache();
         $this->setUser($this->partiallyauthorizeduser);
         $args = [
             'courseid' => $this->course->id,
@@ -151,6 +152,35 @@ final class toolbar_permission_test extends advanced_testcase {
         $inside = \aiplacement_modgen_output_fragment_course_toolbar($args + ['currentsection' => 3]);
         $this->assertStringNotContainsString('data-form="add_theme"', $inside);
         $this->assertStringContainsString('data-form="add_week"', $inside);
+    }
+
+    /**
+     * A user who may generate from a template but not manage structure must not be shown the
+     * New Theme and New Week entries (or the AI-generated list), only what they can use.
+     *
+     * @covers ::aiplacement_modgen_output_fragment_course_toolbar
+     */
+    public function test_generate_only_user_does_not_see_structure_buttons(): void {
+        set_config('enable_quickadd', 1, 'aiplacement_modgen');
+        set_config('enable_structurefromfile', 1, 'aiplacement_modgen');
+        \aiplacement_modgen\local\settings_helper::clear_cache();
+
+        $roleid = $this->getDataGenerator()->create_role();
+        $context = \context_course::instance($this->course->id);
+        assign_capability('aiplacement/modgen:generatefromtemplate', CAP_ALLOW, $roleid, $context->id);
+        $user = $this->getDataGenerator()->create_user();
+        role_assign($roleid, $user->id, $context->id);
+        $this->setUser($user);
+
+        $html = \aiplacement_modgen_output_fragment_course_toolbar([
+            'courseid' => $this->course->id,
+            'contextid' => $context->id,
+            'currentsection' => 0,
+        ]);
+
+        $this->assertStringNotContainsString('data-form="add_theme"', $html);
+        $this->assertStringNotContainsString('data-form="add_week"', $html);
+        $this->assertStringContainsString('data-action="open-generator"', $html);
     }
 
     /**

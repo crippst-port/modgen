@@ -107,6 +107,8 @@ class course_toolbar implements renderable, templatable {
         $data->showcheckstructure = $this->showcheckstructure;
         $data->showquickadd = $this->showquickadd;
         $data->showaddtheme = $this->showaddtheme;
+        // The Quick Add menu also holds Structure from file and the AI generator, so it shows if any entry does.
+        $data->showquickaddmenu = $this->showquickadd || $this->showtemplatefromfile || $this->showgenerator;
         if ($this->showcheckstructure) {
             $checkstructureurl = new moodle_url(
                 '/ai/placement/modgen/check_structure.php',
@@ -141,8 +143,13 @@ class course_toolbar implements renderable, templatable {
             }
         }
 
+        // The AI-generated list page needs a generate capability, so do not link to it otherwise.
+        $context = \context_course::instance($this->courseid);
+        $cangenerate = has_capability('aiplacement/modgen:generatewithprompt', $context)
+            || has_capability('aiplacement/modgen:generatefromtemplate', $context);
+
         $data->aigencount = $validcount;
-        $data->hasaigen = $validcount > 0;
+        $data->hasaigen = $validcount > 0 && $cangenerate;
 
         if ($data->hasaigen) {
             $aigenlisturl = new moodle_url('/ai/placement/modgen/aigen_list.php', ['id' => $this->courseid]);

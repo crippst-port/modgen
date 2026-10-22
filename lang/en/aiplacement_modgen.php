@@ -708,3 +708,11 @@ $string['themetoplevelonly'] = 'New themes can only be added from the top level 
 $string['modulestructureheading'] = 'Module Structure';
 $string['previewkey'] = 'Key:';
 $string['togglenav'] = 'Toggle navigation';
+
+// Creation warnings and job results.
+$string['warning_themedisappeared'] = 'The theme "{$a}" was removed while its weeks were being added, so the remaining weeks were skipped.';
+$string['warning_themefailed'] = 'The theme "{$a->title}" could not be created: {$a->error}';
+$string['warning_weekfailed'] = 'The week "{$a->title}" could not be created: {$a->error}';
+$string['jobcompletedwarnings'] = 'Completed with problems';
+$string['jobcompletedwarnings_desc'] = 'Some items could not be created. The rest of the structure was built.';
+$string['jobwarningsnotice'] = 'The background job finished, but {$a} item(s) could not be created. Check the course structure.';

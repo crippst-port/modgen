@@ -588,6 +588,12 @@ final class adhoc_task_integrity_test extends advanced_testcase {
             $this->count_generated_toplevel(),
             'create_from_json should create the single supplied theme.'
         );
+
+        // The completion messages reach the job result, and there were no warnings.
+        $result = json_decode($this->job($jobid)->result, true);
+        $this->assertNotEmpty($result['messages']);
+        $this->assertContains(get_string('sectioncreated', 'aiplacement_modgen', 'JSON Theme'), $result['messages']);
+        $this->assertSame([], $result['warnings']);
         $this->assert_structure_sound('after create_from_json task');
     }
 }

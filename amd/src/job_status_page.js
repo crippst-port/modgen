@@ -63,6 +63,22 @@ const escapeHtml = (value) => {
 };
 
 /**
+ * Send the user back to the course after a short delay.
+ *
+ * A job that finished with problems keeps the page open so the problems can be read.
+ *
+ * @param {boolean} haswarnings Whether the job reported warnings
+ */
+const redirectToCourse = (haswarnings) => {
+    if (haswarnings) {
+        return;
+    }
+    setTimeout(() => {
+        window.location.href = config.courseurl;
+    }, REDIRECT_DELAY);
+};
+
+/**
  * Update the status display based on job data.
  *
  * @param {Object} job Job data from server
@@ -128,23 +144,41 @@ const updateStatusDisplay = (job) => {
     } else if (job.status === 'completed') {
         const result = job.result || {};
         const messages = result.messages || [];
+        const warnings = result.warnings || [];
 
         let messagesList = '';
         messages.forEach(msg => {
-            messagesList += `<p class="mb-1"><i class="fa fa-check text-success"></i> ${escapeHtml(msg)}</p>`;
+            messagesList += `<p class="mb-1"><i class="fa fa-check text-success" aria-hidden="true"></i> ${escapeHtml(msg)}</p>`;
         });
 
-        html = `
-            <div class="alert alert-success">
-                <h4 class="alert-heading">
-                    <i class="fa fa-check-circle"></i>
-                    Completed successfully!
-                </h4>
-                ${messagesList}
-                <hr>
-                <p class="mb-0">Redirecting to your course in a few seconds...</p>
-            </div>
-        `;
+        if (warnings.length > 0) {
+            // Some items failed: keep the page open so the problems can be read.
+            let warningsList = '';
+            warnings.forEach(warning => {
+                warningsList += '<p class="mb-1"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> ' +
+                    `${escapeHtml(warning)}</p>`;
+            });
+            html = `
+                <div class="alert alert-warning">
+                    <h4 class="alert-heading">
+                        <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+                        ${escapeHtml(config.strings.completedwarnings)}
+                    </h4>
+                    ${warningsList}
+                    ${messagesList}
+                </div>
+            `;
+        } else {
+            html = `
+                <div class="alert alert-success">
+                    <h4 class="alert-heading">
+                        <i class="fa fa-check-circle" aria-hidden="true"></i>
+                        ${escapeHtml(config.strings.completed)}
+                    </h4>
+                    ${messagesList}
+                </div>
+            `;
+        }
 
         // Show return button if it exists, otherwise create it
         if (returnButtonContainer) {
@@ -165,10 +199,7 @@ const updateStatusDisplay = (job) => {
         // Stop polling
         stopPolling();
 
-        // Auto-redirect after delay
-        setTimeout(() => {
-            window.location.href = config.courseurl;
-        }, REDIRECT_DELAY);
+        redirectToCourse(warnings.length > 0);
 
     } else if (job.status === 'failed') {
         const result = job.result || {};
@@ -249,9 +280,6 @@ const pollJobStatus = () => {
                 // If completed or failed (and not retrying), stop polling
                 if (data.status === 'completed') {
                     stopPolling();
-                    setTimeout(() => {
-                        window.location.href = config.courseurl;
-                    }, REDIRECT_DELAY);
                 } else if (data.status === 'failed' && !data.will_retry) {
                     stopPolling();
                 }
@@ -292,16 +320,15 @@ const stopPolling = () => {
  * @param {number} cfg.courseid Course ID
  * @param {string} cfg.courseurl URL to course page
  * @param {string} cfg.initialstatus Initial job status
+ * @param {boolean} cfg.haswarnings Whether a completed job reported warnings
+ * @param {Object} cfg.strings Language strings: completed, completedwarnings
  */
 export const init = (cfg) => {
     config = cfg;
 
     // If job already completed/failed, don't poll
     if (cfg.initialstatus === 'completed') {
-        // Auto-redirect after delay
-        setTimeout(() => {
-            window.location.href = config.courseurl;
-        }, REDIRECT_DELAY);
+        redirectToCourse(Boolean(cfg.haswarnings));
     } else if (cfg.initialstatus === 'failed') {
         // Check if will retry
         const result = document.querySelector('[data-jobid]');

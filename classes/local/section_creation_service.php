@@ -186,6 +186,24 @@ class section_creation_service {
     }
 
     /**
+     * Re-throw anything that must not be turned into a warning.
+     *
+     * Creation runs inside one delegated transaction. A failed database query leaves that
+     * transaction unusable (PostgreSQL aborts it), so carrying on to the next item would only
+     * produce confusing follow-on errors and a half-built structure. Database errors therefore
+     * propagate and roll everything back; other failures are recorded as warnings and the
+     * remaining items still get created.
+     *
+     * @param \Throwable $e The exception caught around one item.
+     * @throws \Throwable The same exception when it is not recoverable.
+     */
+    private static function rethrow_unless_recoverable(\Throwable $e): void {
+        if ($e instanceof \dml_exception) {
+            throw $e;
+        }
+    }
+
+    /**
      * Ensure course format is set to flexsections.
      *
      * @param int $courseid Course ID
@@ -288,8 +306,12 @@ class section_creation_service {
                 // the course structure concurrently, so this number is only good until the
                 // next write. Re-read it before each use.
                 $themesectionid = (int) $themesection->id;
-            } catch (\Exception $e) {
-                $activitywarnings[] = "Failed to create theme section: " . $e->getMessage();
+            } catch (\Throwable $e) {
+                self::rethrow_unless_recoverable($e);
+                $activitywarnings[] = get_string('warning_themefailed', 'aiplacement_modgen', [
+                    'title' => $themetitle,
+                    'error' => $e->getMessage(),
+                ]);
                 continue;
             }
 
@@ -315,7 +337,7 @@ class section_creation_service {
                             $themesectionid
                         );
                         if ($currentthemenum === null) {
-                            $activitywarnings[] = "Theme section disappeared while adding weeks; skipping remaining weeks.";
+                            $activitywarnings[] = get_string('warning_themedisappeared', 'aiplacement_modgen', $themetitle);
                             break;
                         }
                         $weeksectionnum = \aiplacement_modgen\local\theme_builder::create_week_section(
@@ -333,8 +355,12 @@ class section_creation_service {
                         );
 
                         $results[] = get_string('subsectioncreated', 'aiplacement_modgen', $weektitle);
-                    } catch (\Exception $e) {
-                        $activitywarnings[] = "Failed to create week '{$weektitle}': " . $e->getMessage();
+                    } catch (\Throwable $e) {
+                        self::rethrow_unless_recoverable($e);
+                        $activitywarnings[] = get_string('warning_weekfailed', 'aiplacement_modgen', [
+                            'title' => $weektitle,
+                            'error' => $e->getMessage(),
+                        ]);
                     }
                 }
             }
@@ -424,8 +450,12 @@ class section_creation_service {
                 );
 
                 $results[] = get_string('sectioncreated', 'aiplacement_modgen', $title);
-            } catch (\Exception $e) {
-                $activitywarnings[] = "Failed to create week section '{$title}': " . $e->getMessage();
+            } catch (\Throwable $e) {
+                self::rethrow_unless_recoverable($e);
+                $activitywarnings[] = get_string('warning_weekfailed', 'aiplacement_modgen', [
+                    'title' => $title,
+                    'error' => $e->getMessage(),
+                ]);
             }
         }
 

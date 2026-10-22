@@ -23,6 +23,7 @@
 
 import Fragment from 'core/fragment';
 import Notification from 'core/notification';
+import {get_string as getString} from 'core/str';
 import {init as initModalComponent} from 'aiplacement_modgen/modal_generator_reactive';
 
 // Store modal component instance for button handlers.
@@ -43,22 +44,29 @@ const checkCompletedJobs = (courseid) => {
         sesskey: M.cfg.sesskey
     }))
     .then(response => response.json())
-    .then(data => {
+    .then(async data => {
         if (data.success && data.jobs && data.jobs.length > 0) {
 
-            data.jobs.forEach(job => {
+            for (const job of data.jobs) {
                 // Skip if already notified
                 if (notifiedJobs.includes(job.id)) {
-                    return;
+                    continue;
                 }
 
                 if (job.status === 'completed') {
                     const result = job.result || {};
-                    const message = result.message || 'Background job completed successfully';
-                    Notification.addNotification({
-                        message: message,
-                        type: 'success'
-                    });
+                    if (result.warnings && result.warnings.length > 0) {
+                        Notification.addNotification({
+                            message: await getString('jobwarningsnotice', 'aiplacement_modgen', result.warnings.length),
+                            type: 'warning'
+                        });
+                    } else {
+                        const message = result.message || 'Background job completed successfully';
+                        Notification.addNotification({
+                            message: message,
+                            type: 'success'
+                        });
+                    }
                     // Mark as notified
                     notifiedJobs.push(job.id);
                 } else if (job.status === 'failed') {
@@ -70,7 +78,7 @@ const checkCompletedJobs = (courseid) => {
                     // Mark as notified
                     notifiedJobs.push(job.id);
                 }
-            });
+            }
 
             // Save updated notified jobs list
             sessionStorage.setItem('modgen_notified_jobs', JSON.stringify(notifiedJobs));

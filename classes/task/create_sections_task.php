@@ -181,7 +181,8 @@ class create_sections_task extends \core\task\adhoc_task {
                 );
                 $result = [
                     'success' => true,
-                    'messages' => array_column($creationresult['results'], 'message'),
+                    'messages' => $creationresult['results'],
+                    'warnings' => $creationresult['warnings'],
                 ];
             } else {
                 throw new \moodle_exception('invalidaction', 'aiplacement_modgen');
@@ -204,6 +205,7 @@ class create_sections_task extends \core\task\adhoc_task {
             $job->result = json_encode([
                 'success' => true,
                 'messages' => $result['messages'] ?? [],
+                'warnings' => $result['warnings'] ?? [],
             ]);
             $job->timecompleted = time();
             $DB->update_record('aiplacement_modgen_jobs', $job);

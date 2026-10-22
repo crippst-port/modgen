@@ -77,6 +77,22 @@
                 {{/isrunning}}
                 
                 {{#iscompleted}}
+                {{#haswarnings}}
+                <div class="alert alert-warning">
+                    <h4 class="alert-heading">
+                        <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+                        {{#str}}jobcompletedwarnings, aiplacement_modgen{{/str}}
+                    </h4>
+                    <p>{{#str}}jobcompletedwarnings_desc, aiplacement_modgen{{/str}}</p>
+                    {{#warnings}}
+                    <p class="mb-1"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> {{text}}</p>
+                    {{/warnings}}
+                    {{#messages}}
+                    <p class="mb-1"><i class="fa fa-check text-success" aria-hidden="true"></i> {{text}}</p>
+                    {{/messages}}
+                </div>
+                {{/haswarnings}}
+                {{^haswarnings}}
                 <div class="alert alert-success">
                     <h4 class="alert-heading">
                         <i class="fa fa-check-circle" aria-hidden="true"></i>
@@ -88,6 +104,7 @@
                     <hr>
                     <p class="mb-0">{{#str}}jobstatus_completed_redirect, aiplacement_modgen{{/str}}</p>
                 </div>
+                {{/haswarnings}}
                 {{/iscompleted}}
                 
                 {{#isfailed}}

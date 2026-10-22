@@ -111,6 +111,12 @@ if ($job->status === 'completed' && $job->result) {
             return ['text' => $msg];
         }, $result['messages']);
     }
+    if (!empty($result['warnings'])) {
+        $templatedata['haswarnings'] = true;
+        $templatedata['warnings'] = array_map(function ($warning) {
+            return ['text' => $warning];
+        }, $result['warnings']);
+    }
 }
 
 // If failed, add error.
@@ -127,6 +133,11 @@ $PAGE->requires->js_call_amd('aiplacement_modgen/job_status_page', 'init', [
         'courseid' => $course->id,
         'courseurl' => $courseurl->out(false),
         'initialstatus' => $job->status,
+        'haswarnings' => !empty($templatedata['haswarnings']),
+        'strings' => [
+            'completed' => get_string('jobstatus_completed', 'aiplacement_modgen'),
+            'completedwarnings' => get_string('jobcompletedwarnings', 'aiplacement_modgen'),
+        ],
     ],
 ]);
 

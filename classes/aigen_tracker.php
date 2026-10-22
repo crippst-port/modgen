@@ -70,30 +70,4 @@ class aigen_tracker {
 
         return $DB->record_exists('aiplacement_modgen_aigen', ['cmid' => $cmid]);
     }
-
-    /**
-     * Get all AI-generated cmids for a course.
-     *
-     * @param int $courseid The course ID
-     * @return array Array of cmids
-     */
-    public static function get_aigenerated_cmids(int $courseid): array {
-        global $DB;
-
-        return $DB->get_fieldset_select(
-            'aiplacement_modgen_aigen',
-            'cmid',
-            'courseid = :courseid',
-            ['courseid' => $courseid]
-        );
-    }
-
-    /**
-     * Clean up markers for deleted course modules.
-     *
-     * @param int $cmid The deleted course module ID
-     */
-    public static function on_coursemodule_deleted(int $cmid): void {
-        self::remove_marker($cmid);
-    }
 }

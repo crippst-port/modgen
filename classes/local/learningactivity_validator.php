@@ -188,22 +188,4 @@ class learningactivity_validator {
 
         return $validated;
     }
-
-    /**
-     * Get default metadata structure for backward compatibility.
-     *
-     * @return array Default metadata with all fields set to null/empty
-     */
-    public static function get_default_metadata() {
-        return [
-            'name' => '',
-            'activityicon' => '',
-            'instructions' => '',
-            'duration' => null,
-            'learningmode' => null,
-            'groupactivity' => null,
-            'learningtypes' => null,
-            'learningoutcomes_weekly' => '',
-        ];
-    }
 }

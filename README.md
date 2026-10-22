@@ -1,145 +1,121 @@
-# AI Placement - Module Generator
+# Module Assistant (aiplacement_modgen)
 
-An AI-powered Moodle plugin that helps educators rapidly create structured course content using generative AI. Part of the AI Placement Tools suite.
+An AI placement plugin for Moodle 4.5+ that helps teachers build the structure of a module in the
+Flexible sections course format: themes, weeks and the pre-session / session / post-session
+sections inside them.
 
-## Overview
+## What it does
 
-The Module Generator (aiplacement_modgen) plugin streamlines course design by:
+All of it is reached from the **Module Assistant** toolbar, which appears at the top of a course
+page when editing is on (course pages using the Flexible sections format only).
 
-- **AI-Powered Section Creation**: Generate themes, weeks, or sessions with AI assistance
-- **Flexible Course Structures**: Support for hierarchical sections using format_flexsections
-- **Curriculum Templates**: Import from JSON or create from scratch
-- **Background Processing**: Handle large operations via Moodle's task queue
+- **Quick Add**
+  - *New Theme(s)* creates top-level themes, each with a chosen number of weeks. It is only offered
+    at the top of the course, never from inside a section.
+  - *New Week(s)* creates standalone weeks, each with its three session sections.
+- **Structure from file** builds a module from a CSV, either uploaded or chosen from a library of
+  CSV templates kept by administrators. It does not need AI. The result is always created at the
+  top level of the course.
+- **Structure from prompt** asks the site's AI provider (through Moodle's core AI subsystem) to
+  propose a structure from a prompt and optional CSV. The proposal is shown as a preview and nothing
+  is created until the teacher approves it.
+- **AI-generated activities** lists the activities the plugin created so they can be reviewed,
+  hidden or opened. A marker disappears once the activity is edited.
+- **Check Structure** diagnoses and repairs problems with the section hierarchy (parents, ordering,
+  orphans, circular references).
+- **Help and Advice** shows links an administrator configures in the plugin settings.
 
-## Features
-
-### Core Functionality
-
-- **Theme-based Structure**: Create top-level themes with AI-generated titles and descriptions
-- **Week-based Structure**: Generate weekly sections with configurable start dates
-- **Session Builder**: Create structured sessions within themes
-- **JSON Import**: Bulk import pre-defined curriculum structures
-
-### AI Integration
-
-Uses Moodle's core AI subsystem (Moodle 4.5+) to:
-- Generate contextually appropriate section titles
-- Create engaging descriptions
-
-### GDPR Compliance
-
-Full Privacy API implementation:
-- User data export
-- Right to erasure
-- Metadata transparency
-- Automatic cleanup of old operational data (30-day retention)
+Creation always runs as a background (ad-hoc) task, so large builds do not time out a web request.
+A job page shows progress, and a build that finishes with problems says so instead of reporting
+success. A build that would take the course over the section limit is refused before it is queued.
 
 ## Requirements
 
-- **Moodle**: 4.5 or higher
-- **Course Format**: format_flexsections (recommended) or topics
-- **PHP**: 8.1 or higher
-- **AI Provider**: Configured via Moodle AI subsystem
+- Moodle 4.5 or later (PHP 8.1 or later, as Moodle requires).
+- The Flexible sections course format (`format_flexsections` 4.1.4 or later, version 2024120801).
+  It is a hard dependency; the plugin only builds into courses using that format.
+- An AI provider configured in Moodle's AI subsystem, for *Structure from prompt* only.
+- Cron running, for background jobs.
 
 ## Installation
 
-### Via Moodle Plugin Directory
-
-1. Visit Site administration > Plugins > Install plugins
-2. Search for "AI Placement - Module Generator"
-3. Click Install and follow the prompts
-
-### Via Uploaded ZIP
-
-1. Download the latest release from GitHub
-2. Log in as admin and go to Site administration > Plugins > Install plugins
-3. Upload the ZIP file
-4. Complete the installation wizard
-
-### Manual Installation
-
-1. Extract the plugin to: `{moodle}/ai/placement/modgen`
-2. Run: `php admin/cli/upgrade.php`
-3. Or visit: Site administration > Notifications
-
-## Configuration
-
-### Setup AI Provider
-
-1. Navigate to: Site administration > AI > AI Providers
-2. Configure your preferred provider (OpenAI, Azure, etc.)
-3. Enable the provider and set API credentials
-
-### Plugin Settings
-
-Site administration > Plugins > AI Placement Tools > Module Generator:
-
-- **Default Section Format**: Choose default structure (themes/weeks)
-- **AI Generation Timeout**: Max time for AI operations (default: 60s)
-- **Background Job Retention**: Days to keep completed jobs (default: 30)
-
-## Usage
-
-### Creating Course Structure
-
-1. Navigate to your course
-2. Access: Course administration > AI Tools > Module Generator
-3. Select structure type (Themes, Weeks, Sessions, or JSON)
-4. Configure parameters and click "Generate"
-5. Review the generated structure and approve it
+1. Place the plugin in `{moodle}/ai/placement/modgen`, or install the ZIP through
+   Site administration > Plugins > Install plugins.
+2. Run `php admin/cli/upgrade.php`, or visit Site administration > Notifications.
+3. Enable the placement in Site administration > AI > AI placements.
 
 ## Permissions
 
-| Capability | Description | Default Roles |
-|------------|-------------|---------------|
-| `aiplacement/modgen:use` | Use the module generator | Teacher, Manager |
-| `aiplacement/modgen:manage` | Full administrative access | Manager |
+Nothing is granted by default; assign these in the course (or system) context.
 
-## Privacy & Data
+| Capability | Allows |
+|------------|--------|
+| `aiplacement/modgen:managestructure` | Quick Add: New Theme(s) and New Week(s) |
+| `aiplacement/modgen:generatefromtemplate` | Structure from file, and the AI-generated activities list |
+| `aiplacement/modgen:generatewithprompt` | Structure from prompt (needs AI enabled), and the AI-generated activities list |
+| `aiplacement/modgen:checkstructure` | Check Structure and its repair actions |
+| `aiplacement/modgen:managetemplates` (system) | Managing the CSV template library |
 
-### Data Collected
+Toolbar entries only appear for users who hold the matching capability.
 
-- User ID (who created sections)
-- Course ID (where sections were created)
-- Job parameters (may include prompts/templates)
-- Job results (AI-generated content)
-- Timestamps
+## Configuration
 
-### Data Retention
+Site administration > AI > AI placements > Module Assistant (Settings):
 
-- Job records: Auto-deleted after 30 days
-- Course content: Retained as institutional asset
-- User deletion: Removes job records, preserves course content
+- **Feature switches**: AI generation, Quick Add and Structure from file can each be turned off.
+- **AI generation**: base prompt, timeout (default 300 seconds) and a per-user hourly request limit
+  (default 10).
+- **Section limits**: maximum themes or weeks per Quick Add (30), weeks per theme (5), sections in a
+  CSV, and a total section cap per course (default 400) that protects courses from builds that
+  would make Flexible sections very slow.
+- **CSV template library** and **Help links**: manage the shared templates and up to five links
+  shown in the toolbar.
+- **Admin tools**: a link to the site-wide structure diagnostics.
 
-### Compliance
+## Logging and background tasks
 
-- ✅ GDPR Article 13 (Right to be informed)
-- ✅ GDPR Article 15 (Right of access)
-- ✅ GDPR Article 17 (Right to erasure)
-- ✅ GDPR Article 20 (Right to portability)
+The plugin writes standard Moodle events, so actions appear in the logs report:
+
+- structure job queued, completed and failed (with the action and the outcome);
+- structure repaired (Check Structure and the admin tools);
+- template added, updated, deleted and moved.
+
+Scheduled tasks:
+
+- *Clean up old job records* removes finished job records after 30 days and stale
+  AI-generated markers.
+- *Fail interrupted background jobs* (every five minutes) marks a job as failed when its task has
+  been lost, so a job cannot stay "running" for ever.
+
+## Privacy
+
+The plugin implements the Privacy API. It stores job records (user, course, the action, a summary of
+its parameters, and the result). Uploaded CSV files stay in the user's Moodle draft area, which Moodle
+cleans up, and are not kept by the plugin; only files an administrator adds to the template library
+are stored. Prompts sent to an AI provider are handled by Moodle's AI subsystem. Course content
+created by the plugin belongs to the course and is not removed when a user is deleted.
 
 ## Development
 
-### Running Tests
+### Running tests
 
 ```bash
-# Initialize PHPUnit
+# Initialise PHPUnit, then run the plugin's tests
 php admin/tool/phpunit/cli/init.php
-
-# Run plugin tests
 vendor/bin/phpunit --testsuite aiplacement_modgen_testsuite
 
-# Run specific test
-vendor/bin/phpunit ai/placement/modgen/tests/privacy_test.php
+# Behat (browser) tests, once the Behat site is initialised
+php admin/tool/behat/cli/init.php
+vendor/bin/behat --config /path/to/behatrun/behat/behat.yml --tags @aiplacement_modgen
 ```
 
-### Code Quality
+### Code quality
 
 ```bash
-# Check coding standards (uses phpcs.xml.dist, which applies moodle-extra)
+# Uses phpcs.xml.dist, which applies the moodle-extra standard
 cd ai/placement/modgen && phpcs
 
-# Auto-fix minor issues
+# Auto-fix what can be fixed mechanically
 phpcbf
 ```
 
@@ -162,32 +138,29 @@ npx grunt amd
 
 ## Troubleshooting
 
-### Common Issues
+**"Another user is currently creating content in this course"**
+- A build is running on that course. Wait for it to finish and try again.
 
-**"Could not acquire lock"**
-- Another operation is running on this course
-- Wait 60 seconds and try again
-- Check scheduled tasks aren't stuck
+**A job stays queued**
+- Check that cron is running; builds run as ad-hoc tasks.
+
+**A job finished "with problems"**
+- The job page lists each item that could not be created. The rest of the structure was built.
 
 **"AI generation failed"**
-- Verify AI provider is configured
-- Check API credentials and quota
-- Review Moodle error logs
+- Verify the AI provider is configured in Site administration > AI, and check its credentials and
+  quota.
 
-**Sections not appearing**
-- Ensure flexsections format is installed
-- Clear Moodle caches
-- Rebuild course cache
+**Sections do not appear**
+- Make sure the course uses the Flexible sections format, then purge caches.
 
-### Support
+## Changes
 
-- **Issues**: [GitHub Issues](https://github.com/yourusername/moodle-aiplacement_modgen/issues)
-- **Documentation**: [Wiki](https://github.com/yourusername/moodle-aiplacement_modgen/wiki)
-- **Email**: tom.cripps@port.ac.uk
+See `upgrade.txt` for the notes for each version.
 
-## Changelog
+## Support
 
-See [CHANGELOG.md](CHANGELOG.md) for version history.
+- Email: tom.cripps@port.ac.uk
 
 ## License
 
@@ -212,4 +185,3 @@ Developed by Tom Cripps for the University of Portsmouth.
 Built with:
 - Moodle AI Subsystem
 - format_flexsections by Marina Glancy
-- Pedagogical framework based on Laurillard's Conversational Framework

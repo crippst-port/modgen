@@ -34,30 +34,6 @@ class registry {
     /** @var array<string, class-string<activity_type>>|null Cached map of type identifier => class FQCN. */
     private static ?array $map = null;
 
-    /**
-     * Return metadata for all discoverable activity handlers indexed by type.
-     * Excludes handlers marked as AI_CREATABLE = false.
-     *
-     * @return array<string, array{stringid: string, description: string}>
-     */
-    public static function get_supported_activity_metadata(): array {
-        $handlers = [];
-
-        foreach (self::get_map() as $type => $class) {
-            // Check if handler has AI_CREATABLE constant and respect it.
-            if (defined("$class::AI_CREATABLE") && !$class::AI_CREATABLE) {
-                // Skip handlers that are not AI-creatable.
-                continue;
-            }
-
-            $handlers[$type] = [
-                'stringid' => $class::get_display_string_id(),
-                'description' => $class::get_prompt_description(),
-            ];
-        }
-
-        return $handlers;
-    }
 
     /**
      * Process a list of AI generated activities, creating each in turn.
@@ -111,54 +87,6 @@ class registry {
         ];
     }
 
-    /**
-     * Convenience wrapper for creating activities in a single course section.
-     *
-     * @param array<int, stdClass|array> $activities
-     * @param stdClass $course
-     * @param int $sectionnumber
-     * @param array $options
-     * @return array{created: array<int, string>, warnings: array<int, string>}
-     */
-    public static function create_for_section(array $activities, stdClass $course, int $sectionnumber, array $options = []): array {
-        $normalized = [];
-        foreach ($activities as $activity) {
-            if ($activity instanceof stdClass) {
-                $normalized[] = $activity;
-            } else if (is_array($activity)) {
-                $normalized[] = (object) $activity;
-            }
-        }
-
-        $outcome = self::create_activities($normalized, $course, $sectionnumber, $options);
-        $created = [];
-        foreach ($outcome['results'] as $result) {
-            if (!empty($result['message'])) {
-                $created[] = $result['message'];
-                continue;
-            }
-            // Fallbacks: many handlers return arrays with 'coursemodule', 'instance' or similar.
-            if (!empty($result['coursemodule'])) {
-                $created[] = get_string('activity_created_coursemodule', 'aiplacement_modgen', (int)$result['coursemodule']);
-                continue;
-            }
-            if (!empty($result['instance'])) {
-                $created[] = get_string('activity_created_instance', 'aiplacement_modgen', (int)$result['instance']);
-                continue;
-            }
-            if (!empty($result['cmid'])) {
-                $created[] = get_string('activity_created_cmid', 'aiplacement_modgen', (int)$result['cmid']);
-                continue;
-            }
-            // Last resort: include a JSON-encoded representation so caller can inspect.
-            $created[] = json_encode($result);
-        }
-
-        return [
-            'created' => $created,
-            'warnings' => $outcome['warnings'],
-        ];
-    }
 
     /**
      * Get handler class for a specific activity type.

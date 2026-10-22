@@ -31,17 +31,10 @@ require_login();
 // Master switch: Site admin > AI > AI placements.
 \aiplacement_modgen\local\settings_helper::require_placement_enabled();
 
-// Get job and verify access.
-$job = $DB->get_record('aiplacement_modgen_jobs', ['id' => $jobid], '*', MUST_EXIST);
+// Get the job, checking it belongs to this user and that they may still use the plugin in its course.
+$job = \aiplacement_modgen\local\job_status_helper::get_job_for_user($jobid, (int) $USER->id);
 $course = $DB->get_record('course', ['id' => $job->courseid], '*', MUST_EXIST);
 $context = context_course::instance($course->id);
-
-require_capability('aiplacement/modgen:managestructure', $context);
-
-// Verify user owns this job.
-if ($job->userid != $USER->id) {
-    throw new moodle_exception('nopermissions', 'error', '', 'view this job');
-}
 
 $PAGE->set_url('/ai/placement/modgen/job_status.php', ['jobid' => $jobid]);
 $PAGE->set_context($context);

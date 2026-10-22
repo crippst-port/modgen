@@ -97,8 +97,6 @@ class course_toolbar implements renderable, templatable {
      * @return stdClass Template data
      */
     public function export_for_template(renderer_base $output): stdClass {
-        global $DB;
-
         $data = new stdClass();
         $data->showgenerator = $this->showgenerator;
         $data->showmanagestructure = $this->showmanagestructure;
@@ -121,25 +119,8 @@ class course_toolbar implements renderable, templatable {
         $generatorurl = new moodle_url('/ai/placement/modgen/modal.php', ['id' => $this->courseid]);
         $data->generatorurl = $generatorurl->out(false);
 
-        // Get count of unedited AI-generated activities in this course.
-        // Use the same logic as aigen_list.php - check if modules exist in modinfo and clean up orphans.
-        $sql = "SELECT ag.id, ag.cmid
-                  FROM {aiplacement_modgen_aigen} ag
-                  JOIN {course_modules} cm ON cm.id = ag.cmid
-                 WHERE ag.courseid = :courseid
-                   AND cm.deletioninprogress = 0";
-
-        $records = $DB->get_records_sql($sql, ['courseid' => $this->courseid]);
-        $course = get_course($this->courseid);
-        $modinfo = get_fast_modinfo($course);
-
-        $validcount = 0;
-        foreach ($records as $record) {
-            // Markers for activities that no longer exist are removed by the scheduled cleanup.
-            if (isset($modinfo->cms[$record->cmid])) {
-                $validcount++;
-            }
-        }
+        // Count of unedited AI-generated activities in this course.
+        $validcount = count(\aiplacement_modgen\aigen_tracker::get_course_cmids($this->courseid));
 
         // The AI-generated list page needs a generate capability, so do not link to it otherwise.
         $context = \context_course::instance($this->courseid);

@@ -56,7 +56,7 @@ Nothing is granted by default; assign these in the course (or system) context.
 | `aiplacement/modgen:checkstructure` | Check Structure and its repair actions |
 | `aiplacement/modgen:managetemplates` (system) | Managing the CSV template library |
 
-Toolbar entries only appear for users who hold the matching capability.
+Toolbar entries only appear for users who hold the matching capability. Anyone who can start a build can follow their own build on the job page.
 
 ## Configuration
 

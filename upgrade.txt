@@ -2,6 +2,13 @@
 
 ## Upgrading to Version 0.8.1 (2026-10-22)
 
+### Fixed
+
+- Teachers who hold only a generate capability (aiplacement/modgen:generatefromtemplate or
+  :generatewithprompt) could build a structure but then hit a permissions error on the job status
+  page, and never saw completion notifications. Anyone who can start a build can now follow their
+  own jobs.
+
 ### Features removed
 
 - Dates to sections (add/remove dated headings on sections), its holiday dates setting and the

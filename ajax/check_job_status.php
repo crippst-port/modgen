@@ -44,98 +44,14 @@ $recent = optional_param('recent', 0, PARAM_INT);
 $active = optional_param('active', 0, PARAM_INT);
 
 try {
+    // Jobs lost with their task are failed by a schedule, so this poll never repairs anything.
     if ($jobid) {
-        // Check specific job status.
-        $job = $DB->get_record('aiplacement_modgen_jobs', ['id' => $jobid], '*', MUST_EXIST);
-
-        // Verify user has access to this course.
-        $context = context_course::instance($job->courseid);
-        require_capability('aiplacement/modgen:managestructure', $context);
-
-        if (!job_status_helper::user_can_view_job($job, (int)$USER->id)) {
-            throw new moodle_exception('nopermissions', 'error', '', 'view this job');
-        }
-
-        // Return job status. Jobs whose task was lost are failed by the fail_orphaned_jobs_task schedule,
-        // so this read-only poll never has to repair anything.
-        $response = [
-            'id' => $job->id,
-            'status' => $job->status,
-            'timecreated' => $job->timecreated,
-            'timestarted' => $job->timestarted,
-            'timecompleted' => $job->timecompleted,
-        ];
-
-        // Include result if job completed or failed.
-        if (in_array($job->status, ['completed', 'failed'])) {
-            $result = json_decode($job->result, true);
-            $response['result'] = $result;
-        }
-
-        ajax_response::success($response);
+        $job = job_status_helper::get_job_for_user($jobid, (int) $USER->id);
+        ajax_response::success(job_status_helper::describe_job($job));
     } else if ($courseid && $active) {
-        // Check for active jobs (queued or running) in this course.
-        $context = context_course::instance($courseid);
-        require_capability('aiplacement/modgen:managestructure', $context);
-
-        $jobs = $DB->get_records_select(
-            'aiplacement_modgen_jobs',
-            'courseid = :courseid AND userid = :userid AND status IN (:queued, :running)',
-            [
-                'courseid' => $courseid,
-                'userid' => $USER->id,
-                'queued' => 'queued',
-                'running' => 'running',
-            ],
-            'timecreated ASC'
-        );
-
-        $jobsarray = [];
-        foreach ($jobs as $job) {
-            $jobsarray[] = [
-                'id' => $job->id,
-                'status' => $job->status,
-                'action' => $job->action,
-                'timecreated' => $job->timecreated,
-                'timestarted' => $job->timestarted,
-            ];
-        }
-
-        ajax_response::success(['jobs' => $jobsarray]);
+        ajax_response::success(['jobs' => job_status_helper::get_active_jobs($courseid, (int) $USER->id)]);
     } else if ($courseid && $recent) {
-        // Check for recently completed jobs in this course (last 5 minutes).
-        $context = context_course::instance($courseid);
-        require_capability('aiplacement/modgen:managestructure', $context);
-
-        $fiveminutesago = time() - 300;
-        $jobs = $DB->get_records_sql(
-            "SELECT * FROM {aiplacement_modgen_jobs}
-             WHERE courseid = :courseid
-             AND userid = :userid
-             AND timecompleted > :timecompleted
-             AND status IN ('completed', 'failed')
-             ORDER BY timecompleted DESC",
-            [
-                'courseid' => $courseid,
-                'userid' => $USER->id,
-                'timecompleted' => $fiveminutesago,
-            ]
-        );
-
-        $jobsarray = [];
-        foreach ($jobs as $job) {
-            $jobdata = [
-                'id' => $job->id,
-                'status' => $job->status,
-                'timecompleted' => $job->timecompleted,
-            ];
-            if ($job->result) {
-                $jobdata['result'] = json_decode($job->result, true);
-            }
-            $jobsarray[] = $jobdata;
-        }
-
-        ajax_response::success(['jobs' => $jobsarray]);
+        ajax_response::success(['jobs' => job_status_helper::get_recent_jobs($courseid, (int) $USER->id)]);
     } else {
         throw new moodle_exception('invalidparameters', 'aiplacement_modgen');
     }

@@ -201,4 +201,145 @@ final class job_status_helper_test extends advanced_testcase {
         $this->assertSame(0, job_status_helper::fail_orphaned_running_jobs());
         $this->assertSame('running', $this->job($jobid)->status);
     }
+
+    /**
+     * The status endpoint only shows a job to the user who queued it.
+     *
+     * @covers ::get_job_for_user
+     */
+    public function test_get_job_for_user_is_owner_only(): void {
+        $jobid = $this->make_job($this->owner->id);
+
+        $this->assertEquals($jobid, job_status_helper::get_job_for_user($jobid, $this->owner->id)->id);
+
+        $this->expectException(\moodle_exception::class);
+        job_status_helper::get_job_for_user($jobid, $this->otheruser->id);
+    }
+
+    /**
+     * The owner loses access to their job when they lose the structure capability.
+     *
+     * @covers ::get_job_for_user
+     */
+    public function test_get_job_for_user_needs_the_structure_capability(): void {
+        global $DB;
+        $jobid = $this->make_job($this->owner->id);
+        $role = $DB->get_field('role', 'id', ['shortname' => 'editingteacher'], MUST_EXIST);
+        assign_capability(
+            'aiplacement/modgen:managestructure',
+            CAP_PREVENT,
+            $role,
+            \context_course::instance($this->course->id)->id,
+            true
+        );
+
+        $this->expectException(\required_capability_exception::class);
+        job_status_helper::get_job_for_user($jobid, $this->owner->id);
+    }
+
+    /**
+     * An unknown job id is an error, not an empty answer.
+     *
+     * @covers ::get_job_for_user
+     */
+    public function test_get_job_for_user_unknown_job(): void {
+        $this->expectException(\dml_missing_record_exception::class);
+        job_status_helper::get_job_for_user(987654, $this->owner->id);
+    }
+
+    /**
+     * Only finished jobs carry a result.
+     *
+     * @covers ::describe_job
+     */
+    public function test_describe_job_includes_the_result_only_when_finished(): void {
+        global $DB;
+        $queued = $this->job($this->make_job($this->owner->id));
+        $this->assertArrayNotHasKey('result', job_status_helper::describe_job($queued));
+
+        $done = $this->job($this->make_job($this->owner->id, 'completed'));
+        $done->result = json_encode(['success' => true, 'messages' => ['x'], 'warnings' => []]);
+        $DB->update_record('aiplacement_modgen_jobs', $done);
+        $described = job_status_helper::describe_job($this->job($done->id));
+        $this->assertSame('completed', $described['status']);
+        $this->assertSame(['x'], $described['result']['messages']);
+    }
+
+    /**
+     * Active jobs are the user's own queued and running ones, oldest first.
+     *
+     * @covers ::get_active_jobs
+     */
+    public function test_get_active_jobs_lists_only_own_unfinished_jobs(): void {
+        $mine = $this->make_job($this->owner->id, 'running', time() - 60);
+        $this->make_job($this->owner->id, 'completed');
+        $this->make_job($this->otheruser->id, 'queued');
+
+        $jobs = job_status_helper::get_active_jobs($this->course->id, $this->owner->id);
+
+        $this->assertCount(1, $jobs);
+        $this->assertEquals($mine, $jobs[0]['id']);
+        $this->assertSame('running', $jobs[0]['status']);
+    }
+
+    /**
+     * Recent jobs are the user's own finished ones from the last few minutes.
+     *
+     * @covers ::get_recent_jobs
+     */
+    public function test_get_recent_jobs_respects_the_window(): void {
+        global $DB;
+        $recent = $this->make_job($this->owner->id, 'completed');
+        $DB->set_field('aiplacement_modgen_jobs', 'timecompleted', time() - 30, ['id' => $recent]);
+        $old = $this->make_job($this->owner->id, 'failed');
+        $DB->set_field('aiplacement_modgen_jobs', 'timecompleted', time() - 3600, ['id' => $old]);
+        $others = $this->make_job($this->otheruser->id, 'completed');
+        $DB->set_field('aiplacement_modgen_jobs', 'timecompleted', time() - 30, ['id' => $others]);
+
+        $jobs = job_status_helper::get_recent_jobs($this->course->id, $this->owner->id);
+
+        $this->assertSame([$recent], array_map(fn($job) => (int) $job['id'], $jobs));
+    }
+
+    /**
+     * Listing a course's jobs needs the structure capability there.
+     *
+     * @covers ::get_active_jobs
+     * @covers ::get_recent_jobs
+     */
+    public function test_job_lists_need_the_structure_capability(): void {
+        $nobody = $this->getDataGenerator()->create_user();
+
+        try {
+            job_status_helper::get_active_jobs($this->course->id, $nobody->id);
+            $this->fail('A user without the capability must not list active jobs.');
+        } catch (\required_capability_exception $e) {
+            $this->assertInstanceOf(\required_capability_exception::class, $e);
+        }
+
+        $this->expectException(\required_capability_exception::class);
+        job_status_helper::get_recent_jobs($this->course->id, $nobody->id);
+    }
+
+    /**
+     * Someone who can build from a file or a prompt can follow their own build, even without the
+     * structure capability that Quick Add needs.
+     *
+     * @covers ::can_follow_jobs
+     * @covers ::get_job_for_user
+     * @covers ::get_active_jobs
+     */
+    public function test_generate_only_user_can_follow_their_own_jobs(): void {
+        $context = \context_course::instance($this->course->id);
+        $roleid = $this->getDataGenerator()->create_role();
+        assign_capability('aiplacement/modgen:generatefromtemplate', CAP_ALLOW, $roleid, $context->id);
+        $builder = $this->getDataGenerator()->create_user();
+        role_assign($roleid, $builder->id, $context->id);
+        $jobid = $this->make_job($builder->id, 'running', time() - 60);
+
+        $this->assertTrue(job_status_helper::can_follow_jobs($context, $builder->id));
+        $this->assertEquals($jobid, job_status_helper::get_job_for_user($jobid, $builder->id)->id);
+        $this->assertCount(1, job_status_helper::get_active_jobs($this->course->id, $builder->id));
+        $this->assertFalse(job_status_helper::can_follow_jobs($context, $this->getDataGenerator()->create_user()->id));
+    }
 }

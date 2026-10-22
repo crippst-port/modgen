@@ -60,6 +60,33 @@ class aigen_tracker {
     }
 
     /**
+     * Course module ids of the AI-generated activities that still exist in a course.
+     *
+     * @param int $courseid The course ID
+     * @return int[] Course module ids
+     */
+    public static function get_course_cmids(int $courseid): array {
+        global $DB;
+
+        $sql = "SELECT ag.id, ag.cmid
+                  FROM {aiplacement_modgen_aigen} ag
+                  JOIN {course_modules} cm ON cm.id = ag.cmid
+                 WHERE ag.courseid = :courseid
+                   AND cm.deletioninprogress = 0";
+        $records = $DB->get_records_sql($sql, ['courseid' => $courseid]);
+
+        // Markers for activities that no longer exist are removed by the scheduled cleanup.
+        $modinfo = get_fast_modinfo($courseid);
+        $cmids = [];
+        foreach ($records as $record) {
+            if (isset($modinfo->cms[$record->cmid])) {
+                $cmids[] = (int) $record->cmid;
+            }
+        }
+        return $cmids;
+    }
+
+    /**
      * Check if a course module is marked as AI-generated.
      *
      * @param int $cmid The course module ID

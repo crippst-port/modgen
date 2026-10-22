@@ -45,28 +45,9 @@ require_capability('moodle/course:view', $context);
 header('Content-Type: application/json');
 
 try {
-    // Get all AI-generated records for this course.
-    // Use the same modinfo validation as course_toolbar and aigen_list to ensure consistency.
-    $sql = "SELECT ag.id, ag.cmid
-              FROM {aiplacement_modgen_aigen} ag
-              JOIN {course_modules} cm ON cm.id = ag.cmid
-             WHERE ag.courseid = :courseid
-               AND cm.deletioninprogress = 0";
-
-    $records = $DB->get_records_sql($sql, ['courseid' => $courseid]);
-    $modinfo = get_fast_modinfo($course);
-
-    $validcmids = [];
-    foreach ($records as $record) {
-        // Markers for activities that no longer exist are removed by the scheduled cleanup.
-        if (isset($modinfo->cms[$record->cmid])) {
-            $validcmids[] = (int)$record->cmid;
-        }
-    }
-
     echo json_encode([
         'success' => true,
-        'cmids' => $validcmids,
+        'cmids' => \aiplacement_modgen\aigen_tracker::get_course_cmids($courseid),
     ]);
 } catch (\Throwable $e) {
     echo json_encode([

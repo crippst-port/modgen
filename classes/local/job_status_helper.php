@@ -119,6 +119,150 @@ class job_status_helper {
     }
 
     /**
+     * Whether a user may follow background jobs in a course.
+     *
+     * Anyone who can start a build can follow it: Quick Add needs the structure capability, and
+     * building from a file or a prompt needs one of the generate capabilities.
+     *
+     * @param \context $context Course context.
+     * @param int $userid User id.
+     * @return bool
+     */
+    public static function can_follow_jobs(\context $context, int $userid): bool {
+        foreach (['managestructure', 'generatewithprompt', 'generatefromtemplate'] as $capability) {
+            if (has_capability('aiplacement/modgen:' . $capability, $context, $userid)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Require that a user may follow background jobs in a course.
+     *
+     * @param \context $context Course context.
+     * @param int $userid User id.
+     * @throws \required_capability_exception If they may not.
+     */
+    public static function require_jobs_access(\context $context, int $userid): void {
+        if (!self::can_follow_jobs($context, $userid)) {
+            throw new \required_capability_exception($context, 'aiplacement/modgen:managestructure', 'nopermissions', '');
+        }
+    }
+
+    /**
+     * Load a job for a user, checking the user may see it.
+     *
+     * A job can be seen by the user who queued it, and only while they can still start builds in its
+     * course (see can_follow_jobs()).
+     *
+     * @param int $jobid Job id.
+     * @param int $userid User asking.
+     * @return \stdClass The job record.
+     * @throws \moodle_exception If the job does not exist, or is not visible to the user.
+     */
+    public static function get_job_for_user(int $jobid, int $userid): \stdClass {
+        global $DB;
+
+        $job = $DB->get_record('aiplacement_modgen_jobs', ['id' => $jobid], '*', MUST_EXIST);
+        self::require_jobs_access(\context_course::instance($job->courseid), $userid);
+        if (!self::user_can_view_job($job, $userid)) {
+            throw new \moodle_exception('nopermissions', 'error', '', 'view this job');
+        }
+
+        return $job;
+    }
+
+    /**
+     * The status of one job as returned to the browser.
+     *
+     * @param \stdClass $job Job record.
+     * @return array
+     */
+    public static function describe_job(\stdClass $job): array {
+        $response = [
+            'id' => $job->id,
+            'status' => $job->status,
+            'timecreated' => $job->timecreated,
+            'timestarted' => $job->timestarted,
+            'timecompleted' => $job->timecompleted,
+        ];
+        if (in_array($job->status, ['completed', 'failed'])) {
+            $response['result'] = json_decode($job->result, true);
+        }
+        return $response;
+    }
+
+    /**
+     * The user's queued or running jobs in a course.
+     *
+     * @param int $courseid Course id.
+     * @param int $userid User id.
+     * @return array List of job summaries, oldest first.
+     * @throws \required_capability_exception If the user may not manage structure in the course.
+     */
+    public static function get_active_jobs(int $courseid, int $userid): array {
+        global $DB;
+
+        self::require_jobs_access(\context_course::instance($courseid), $userid);
+
+        $jobs = $DB->get_records_select(
+            'aiplacement_modgen_jobs',
+            'courseid = :courseid AND userid = :userid AND status IN (:queued, :running)',
+            ['courseid' => $courseid, 'userid' => $userid, 'queued' => 'queued', 'running' => 'running'],
+            'timecreated ASC'
+        );
+
+        $summaries = [];
+        foreach ($jobs as $job) {
+            $summaries[] = [
+                'id' => $job->id,
+                'status' => $job->status,
+                'action' => $job->action,
+                'timecreated' => $job->timecreated,
+                'timestarted' => $job->timestarted,
+            ];
+        }
+        return $summaries;
+    }
+
+    /**
+     * The user's jobs in a course that finished recently.
+     *
+     * @param int $courseid Course id.
+     * @param int $userid User id.
+     * @param int $seconds How far back to look.
+     * @return array List of job summaries, newest first.
+     * @throws \required_capability_exception If the user may not manage structure in the course.
+     */
+    public static function get_recent_jobs(int $courseid, int $userid, int $seconds = 300): array {
+        global $DB;
+
+        self::require_jobs_access(\context_course::instance($courseid), $userid);
+
+        $jobs = $DB->get_records_select(
+            'aiplacement_modgen_jobs',
+            "courseid = :courseid AND userid = :userid AND timecompleted > :since AND status IN ('completed', 'failed')",
+            ['courseid' => $courseid, 'userid' => $userid, 'since' => time() - $seconds],
+            'timecompleted DESC'
+        );
+
+        $summaries = [];
+        foreach ($jobs as $job) {
+            $summary = [
+                'id' => $job->id,
+                'status' => $job->status,
+                'timecompleted' => $job->timecompleted,
+            ];
+            if ($job->result) {
+                $summary['result'] = json_decode($job->result, true);
+            }
+            $summaries[] = $summary;
+        }
+        return $summaries;
+    }
+
+    /**
      * Mark running jobs whose ad-hoc task has disappeared as failed.
      *
      * A job is only set to running by its own task, and that task is removed from the queue

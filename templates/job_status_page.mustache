@@ -52,7 +52,7 @@
                 
                 {{#isqueued}}
                 <div class="alert alert-info d-flex align-items-center">
-                    <div class="spinner-border text-info me-3" role="status">
+                    <div class="spinner-border text-info mr-3" role="status">
                         <span class="sr-only">{{#str}}loading{{/str}}</span>
                     </div>
                     <div>
@@ -65,7 +65,7 @@
                 
                 {{#isrunning}}
                 <div class="alert alert-primary d-flex align-items-center">
-                    <div class="spinner-border text-primary me-3" role="status">
+                    <div class="spinner-border text-primary mr-3" role="status">
                         <span class="sr-only">{{#str}}loading{{/str}}</span>
                     </div>
                     <div>
@@ -79,11 +79,11 @@
                 {{#iscompleted}}
                 <div class="alert alert-success">
                     <h4 class="alert-heading">
-                        <i class="fa fa-check-circle"></i>
+                        <i class="fa fa-check-circle" aria-hidden="true"></i>
                         {{#str}}jobstatus_completed, aiplacement_modgen{{/str}}
                     </h4>
                     {{#messages}}
-                    <p class="mb-1"><i class="fa fa-check text-success"></i> {{text}}</p>
+                    <p class="mb-1"><i class="fa fa-check text-success" aria-hidden="true"></i> {{text}}</p>
                     {{/messages}}
                     <hr>
                     <p class="mb-0">{{#str}}jobstatus_completed_redirect, aiplacement_modgen{{/str}}</p>
@@ -93,14 +93,14 @@
                 {{#isfailed}}
                 <div class="alert alert-danger">
                     <h4 class="alert-heading">
-                        <i class="fa fa-exclamation-triangle"></i>
+                        <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
                         {{#str}}jobstatus_failed, aiplacement_modgen{{/str}}
                     </h4>
                     <p><strong>{{#str}}error{{/str}}:</strong> {{error}}</p>
                     {{#canretry}}
                     <hr>
                     <p class="mb-0">
-                        <i class="fa fa-refresh"></i>
+                        <i class="fa fa-refresh" aria-hidden="true"></i>
                         {{#str}}jobstatus_will_retry, aiplacement_modgen{{/str}}
                     </p>
                     {{/canretry}}
@@ -113,7 +113,7 @@
             {{#iscompleted}}
             <div class="mt-4" id="return-button-container">
                 <a href="{{courseurl}}" class="btn btn-primary">
-                    <i class="fa fa-arrow-left"></i>
+                    <i class="fa fa-arrow-left" aria-hidden="true"></i>
                     {{#str}}returntocourse, aiplacement_modgen{{/str}}
                 </a>
             </div>

@@ -44,7 +44,7 @@
         {{#showProgress}}
             {{! Progress bar }}
             <div class="modgen-loading__progress" role="presentation">
-                <div class="progress" style="height: 2rem;">
+                <div class="progress modgen-loading__progress-track">
                     <div class="progress-bar progress-bar-striped progress-bar-animated modgen-loading__progress-bar"
                          role="progressbar"
                          aria-valuenow="{{progress}}"
@@ -60,7 +60,7 @@
             {{! Indeterminate spinner }}
             <div class="modgen-loading__spinner" role="presentation" aria-hidden="true">
                 <div class="spinner-border text-primary" role="presentation">
-                    <span class="sr-only">Loading</span>
+                    <span class="sr-only">{{#str}}loading{{/str}}</span>
                 </div>
             </div>
         {{/showProgress}}

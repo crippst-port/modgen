@@ -82,7 +82,7 @@ const addMarkersToActivities = (cmids) => {
 
         // Create the marker
         const marker = document.createElement('span');
-        marker.className = 'aiplacement-modgen-aigen-marker ms-1';
+        marker.className = 'aiplacement-modgen-aigen-marker ml-1';
         const tooltipText = M.util.get_string('aigenmarker_tooltip', 'aiplacement_modgen');
         marker.setAttribute('title', tooltipText);
         // Safe: create icon element directly

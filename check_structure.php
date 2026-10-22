@@ -346,7 +346,7 @@ if ($diag !== null) {
         }
 
         echo html_writer::start_div('table-responsive mb-4');
-        echo html_writer::start_tag('table', ['class' => 'table table-sm table-bordered table-warning']);
+        echo html_writer::start_tag('table', ['class' => 'generaltable table table-sm table-bordered table-warning']);
         echo html_writer::start_tag('thead');
         echo html_writer::start_tag('tr');
         echo html_writer::tag('th', get_string('checkstructure_col_secnum', 'aiplacement_modgen'));
@@ -444,7 +444,7 @@ if ($diag !== null) {
     // "no structural issues" banner above already covers the all-clear case.
     if ($diag['has_issues']) {
         echo html_writer::start_div('table-responsive mb-4');
-        echo html_writer::start_tag('table', ['class' => 'table table-sm table-bordered']);
+        echo html_writer::start_tag('table', ['class' => 'generaltable table table-sm table-bordered']);
         echo html_writer::start_tag('thead');
         echo html_writer::start_tag('tr');
         echo html_writer::tag('th', get_string('checkstructure_col_check', 'aiplacement_modgen'));
@@ -513,11 +513,15 @@ if ($diag !== null) {
     ]);
     echo html_writer::end_div();
 
-    echo html_writer::tag('div', get_string('checkstructure_nosectionissues', 'aiplacement_modgen'), [
-        'id'    => 'checkstructure-noissuesmsg',
-        'class' => 'alert alert-info',
-        'style' => 'display:none;',
-    ]);
+    echo html_writer::tag(
+        'div',
+        $OUTPUT->notification(
+            get_string('checkstructure_nosectionissues', 'aiplacement_modgen'),
+            \core\output\notification::NOTIFY_INFO,
+            false
+        ),
+        ['id' => 'checkstructure-noissuesmsg', 'style' => 'display:none;']
+    );
 
     $PAGE->requires->js_init_code(
         "var cb = document.getElementById('checkstructure-showall');
@@ -543,7 +547,7 @@ if ($diag !== null) {
     echo html_writer::start_div('table-responsive mb-4', ['id' => 'checkstructure-sectiontablewrap']);
     echo html_writer::start_tag('table', [
         'id'    => 'checkstructure-sectiontable',
-        'class' => 'table table-striped table-bordered table-sm',
+        'class' => 'generaltable table table-striped table-bordered table-sm',
     ]);
     echo html_writer::start_tag('thead');
     echo html_writer::start_tag('tr');

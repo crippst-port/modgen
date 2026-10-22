@@ -4,39 +4,43 @@
 }}
 <nav class="navbar navbar-expand-lg navbar-dark aiplacement-modgen-navbar px-3">
     <a class="navbar-brand" href="#">{{#str}}navtitle, aiplacement_modgen{{/str}}</a>
-    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#aimodgenNavbar" aria-controls="aimodgenNavbar" aria-expanded="false" aria-label="Toggle navigation">
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#aimodgenNavbar" aria-controls="aimodgenNavbar" aria-expanded="false" aria-label="{{#str}}togglenav, aiplacement_modgen{{/str}}">
         <span class="navbar-toggler-icon"></span>
     </button>
 
     <div class="collapse navbar-collapse" id="aimodgenNavbar">
         <ul class="navbar-nav ml-auto">
 
-<li class="nav-item dropdown mx-3">
+{{#showhelplinks}}
+      <li class="nav-item dropdown mx-3">
         <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-toggle="dropdown" aria-expanded="false">
-          Help and Advice
+          {{#str}}helpandadvice, aiplacement_modgen{{/str}}
         </a>
         <div class="dropdown-menu">
-          <a class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="#"><i class="fas fa-external-link-alt mr-1"></i>Building for the Connected Curriculum</a>
-          <a class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="#"><i class="fas fa-external-link-alt mr-1"></i>Creating Accessible Modules</a>
-          
+          {{#helplinks}}
+          <a class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="{{url}}" target="_blank" rel="noopener noreferrer">
+            <i class="fas fa-external-link-alt mr-1" aria-hidden="true"></i>{{text}}
+          </a>
+          {{/helplinks}}
         </div>
       </li>
+{{/showhelplinks}}
 
          <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle btn btn-secondary btn-sm" href="#" role="button" data-toggle="dropdown" aria-expanded="false">
-          <i class="fa fa-plus-circle mr-1"></i> {{#str}}quickadd, aiplacement_modgen{{/str}}
+          <i class="fa fa-plus-circle mr-1" aria-hidden="true"></i> {{#str}}quickadd, aiplacement_modgen{{/str}}
         </a>
         
         <div class="dropdown-menu">
          
           {{#showquickadd}}
           {{#showaddtheme}}
-          <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="add_theme" data-title="{{#str}}newtheme, aiplacement_modgen{{/str}}">
-                    <i class="fas fa-book"></i> {{#str}}newtheme, aiplacement_modgen{{/str}}
+          <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" role="button" data-form="add_theme" data-title="{{#str}}newtheme, aiplacement_modgen{{/str}}">
+                    <i class="fas fa-book" aria-hidden="true"></i> {{#str}}newtheme, aiplacement_modgen{{/str}}
                 </a>
           {{/showaddtheme}}
-                <a href="#" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="add_week" data-title="{{#str}}newweek, aiplacement_modgen{{/str}}">
-                    <i class="fas fa-calendar"></i> {{#str}}newweek, aiplacement_modgen{{/str}}
+                <a href="#" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" role="button" data-form="add_week" data-title="{{#str}}newweek, aiplacement_modgen{{/str}}">
+                    <i class="fas fa-calendar" aria-hidden="true"></i> {{#str}}newweek, aiplacement_modgen{{/str}}
                 </a>
           {{/showquickadd}}
                
@@ -46,14 +50,14 @@
                 {{#showtemplatefromfile}}
                 <div class="dropdown-divider"></div>
           <a href="{{generatorurl}}" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="open-generator">
-                    <i class="fa fa-plus-circle"></i> {{#str}}generatorlabel, aiplacement_modgen{{/str}}
+                    <i class="fa fa-plus-circle" aria-hidden="true"></i> {{#str}}generatorlabel, aiplacement_modgen{{/str}}
                 </a>
                 {{/showtemplatefromfile}}
                 {{#showgenerator}}
                 {{! Add a divider before the AI option only if the file option above did not already add one. }}
                 {{^showtemplatefromfile}}<div class="dropdown-divider"></div>{{/showtemplatefromfile}}
-                <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" data-form="template_from_prompt" data-title="{{#str}}templatefromprompt, aiplacement_modgen{{/str}}">
-                    <i class="fas fa-bolt"></i> {{#str}}templatefromprompt, aiplacement_modgen{{/str}}
+                <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" role="button" data-form="template_from_prompt" data-title="{{#str}}templatefromprompt, aiplacement_modgen{{/str}}">
+                    <i class="fas fa-bolt" aria-hidden="true"></i> {{#str}}templatefromprompt, aiplacement_modgen{{/str}}
                 </a>
           {{/showgenerator}}
         </div>
@@ -62,14 +66,14 @@
       {{#hasaigen}}
       <li class="nav-item ml-2">
         <a class="nav-link btn btn-secondary btn-sm" href="{{aigenlisturl}}">
-          <i class="fa fa-exclamation-circle text-warning mr-1"></i> {{#str}}aigen_view_count, aiplacement_modgen, {{aigencount}}{{/str}}
+          <i class="fa fa-exclamation-circle text-warning mr-1" aria-hidden="true"></i> {{#str}}aigen_view_count, aiplacement_modgen, {{aigencount}}{{/str}}
         </a>
       </li>
       {{/hasaigen}}
       {{#showcheckstructure}}
       <li class="nav-item ml-2">
         <a class="nav-link btn btn-secondary btn-sm" href="{{checkstructureurl}}">
-          <i class="fa fa-stethoscope mr-1"></i> {{#str}}checkstructure, aiplacement_modgen{{/str}}
+          <i class="fa fa-stethoscope mr-1" aria-hidden="true"></i> {{#str}}checkstructure, aiplacement_modgen{{/str}}
         </a>
       </li>
       {{/showcheckstructure}}

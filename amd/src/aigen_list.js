@@ -50,6 +50,7 @@ const toggleVisibility = async(button) => {
                 // Now visible.
                 button.dataset.visible = '1';
                 button.title = await getString('aigen_hide_activity', 'aiplacement_modgen');
+                button.setAttribute('aria-label', button.title);
                 icon.className = 'fa fa-eye-slash';
 
                 // Safe: set using DOM
@@ -63,6 +64,7 @@ statusCell.appendChild(badge);
                 // Now hidden.
                 button.dataset.visible = '0';
                 button.title = await getString('aigen_show_activity', 'aiplacement_modgen');
+                button.setAttribute('aria-label', button.title);
                 icon.className = 'fa fa-eye';
 
                 // Safe: set using DOM

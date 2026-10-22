@@ -1,6 +1,6 @@
 <div class="aiplacement-modgen-preview">
     {{#notifications}}
-    <div class="{{classes}}" role="alert">{{message}}</div>
+    {{{html}}}
     {{/notifications}}
 
     {{#hasprompt}}
@@ -15,17 +15,17 @@
     {{/hasprompt}}
 
     {{#modulepreview}}
-    <h2>Module Structure</h2>
+    <h2>{{#str}}modulestructureheading, aiplacement_modgen{{/str}}</h2>
     <div class="aiplacement-modgen-preview__summary mb-4">
         <p>{{modulestructureinfo}}</p>
     </div>
     <section class="aiplacement-modgen-preview__module">
         
         <p class="aiplacement-modgen-legend">
-            <strong>Key:</strong>
-            <i class="fas fa-book" style="color: #4055cc;"></i> Theme,
-            <i class="fas fa-calendar" style="color: #764ba2;"></i> Week,
-            <i class="fa fa-graduation-cap" style="color: #4055cc;"></i> Session
+            <strong>{{#str}}previewkey, aiplacement_modgen{{/str}}</strong>
+            <i class="fas fa-book aiplacement-modgen-theme-icon" aria-hidden="true"></i> {{#str}}themesection, aiplacement_modgen{{/str}},
+            <i class="fas fa-calendar aiplacement-modgen-week-icon" aria-hidden="true"></i> {{#str}}weeksection, aiplacement_modgen{{/str}},
+            <i class="fa fa-graduation-cap aiplacement-modgen-activity__session-icon" aria-hidden="true"></i> {{#str}}session, aiplacement_modgen{{/str}}
         </p>
         
         {{#hasthemes}}
@@ -33,7 +33,7 @@
             {{#themes}}
             <details class="aiplacement-modgen-theme-details" open>
                 <summary class="aiplacement-modgen-theme-summary">
-                    <i class="fas fa-book aiplacement-modgen-theme-icon"></i>
+                    <i class="fas fa-book aiplacement-modgen-theme-icon" aria-hidden="true"></i>
                     <span class="aiplacement-modgen-theme-title">{{title}}</span>
                 </summary>
                 <div class="aiplacement-modgen-theme-content">
@@ -44,7 +44,7 @@
                         {{#weeks}}
                         <details class="aiplacement-modgen-week-details">
                             <summary class="aiplacement-modgen-week-summary">
-                                <i class="fas fa-calendar aiplacement-modgen-week-icon"></i>
+                                <i class="fas fa-calendar aiplacement-modgen-week-icon" aria-hidden="true"></i>
                                 <span class="aiplacement-modgen-week-title">{{title}}</span>
                             </summary>
                             <div class="aiplacement-modgen-week-content">
@@ -55,13 +55,13 @@
                                     {{#sessions}}
                                     <div class="aiplacement-modgen-session">
                                         <div class="aiplacement-modgen-session-header">
-                                            <i class="fa fa-graduation-cap" style="color: #4055cc;"></i>
+                                            <i class="fa fa-graduation-cap aiplacement-modgen-activity__session-icon" aria-hidden="true"></i>
                                             <span>{{label}}</span>
                                         </div>
                                         <div class="aiplacement-modgen-session-content">
                                             {{#activities}}
                                             <div class="aiplacement-modgen-activity">
-                                                <i class="fa fa-pencil aiplacement-modgen-activity__icon" style="color: #4055cc;"></i>
+                                                <i class="fa fa-pencil aiplacement-modgen-activity__icon" aria-hidden="true"></i>
                                                 <div class="aiplacement-modgen-activity__content">
                                                     <span class="aiplacement-modgen-activity__name">{{name}}</span>
                                                     {{#type}}<span class="aiplacement-modgen-activity__type">({{type}})</span>{{/type}}
@@ -82,7 +82,7 @@
                                 <div class="aiplacement-modgen-week__activities">
                                     {{#activities}}
                                     <div class="aiplacement-modgen-activity">
-                                        <i class="fa fa-pencil aiplacement-modgen-activity__icon" style="color: #4055cc;"></i>
+                                        <i class="fa fa-pencil aiplacement-modgen-activity__icon" aria-hidden="true"></i>
                                         <div class="aiplacement-modgen-activity__content">
                                             <span class="aiplacement-modgen-activity__name">{{name}}</span>
                                             {{#type}}<span class="aiplacement-modgen-activity__type">({{type}})</span>{{/type}}
@@ -114,7 +114,7 @@
             {{#weeks}}
             <details class="aiplacement-modgen-week-details" open>
                 <summary class="aiplacement-modgen-week-summary">
-                    <i class="fas fa-calendar aiplacement-modgen-week-icon"></i>
+                    <i class="fas fa-calendar aiplacement-modgen-week-icon" aria-hidden="true"></i>
                     <span class="aiplacement-modgen-week-title">{{title}}</span>
                 </summary>
                 <div class="aiplacement-modgen-week-content">
@@ -125,13 +125,13 @@
                         {{#sessions}}
                         <div class="aiplacement-modgen-session">
                             <div class="aiplacement-modgen-session-header">
-                                <i class="fa fa-graduation-cap" style="color: #4055cc;"></i>
+                                <i class="fa fa-graduation-cap aiplacement-modgen-activity__session-icon" aria-hidden="true"></i>
                                 <span>{{label}}</span>
                             </div>
                             <div class="aiplacement-modgen-session-content">
                                 {{#activities}}
                                 <div class="aiplacement-modgen-activity">
-                                    <i class="fa fa-pencil aiplacement-modgen-activity__icon" style="color: #4055cc;"></i>
+                                    <i class="fa fa-pencil aiplacement-modgen-activity__icon" aria-hidden="true"></i>
                                     <div class="aiplacement-modgen-activity__content">
                                         <span class="aiplacement-modgen-activity__name">{{name}}</span>
                                         {{#type}}<span class="aiplacement-modgen-activity__type">({{type}})</span>{{/type}}
@@ -152,7 +152,7 @@
                     <div class="aiplacement-modgen-week__activities">
                         {{#activities}}
                         <div class="aiplacement-modgen-activity">
-                            <i class="fa fa-pencil aiplacement-modgen-activity__icon" style="color: #4055cc;"></i>
+                            <i class="fa fa-pencil aiplacement-modgen-activity__icon" aria-hidden="true"></i>
                             <div class="aiplacement-modgen-activity__content">
                                 <span class="aiplacement-modgen-activity__name">{{name}}</span>
                                 {{#type}}<span class="aiplacement-modgen-activity__type">({{type}})</span>{{/type}}

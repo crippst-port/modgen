@@ -40,3 +40,18 @@ Feature: The Module Assistant toolbar offers only the current features
     Then I should see "Module Assistant"
     And I should not see "Activities from section"
     And I should not see "Suggest"
+
+  Scenario: Help links configured by the administrator appear in the toolbar
+    Given the following config values are set as admin:
+      | helplink1_text | Building for the Connected Curriculum | aiplacement_modgen |
+      | helplink1_url  | https://example.com/connected         | aiplacement_modgen |
+    When I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    And I click on "Help and Advice" "link"
+    Then I should see "Building for the Connected Curriculum"
+
+  Scenario: There is no Help and Advice menu until a help link is configured
+    When I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    Then I should see "Module Assistant"
+    And I should not see "Help and Advice"

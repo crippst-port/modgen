@@ -595,7 +595,7 @@ if ($pdata = $promptform->get_data()) {
     } catch (\Throwable $e) {
         $errorhtml = html_writer::div(
             html_writer::tag('h4', get_string('generationfailed', 'aiplacement_modgen'), ['class' => 'text-danger']) .
-            html_writer::div(s(get_string('error') . ': ' . $e->getMessage()), 'alert alert-danger'),
+            $OUTPUT->notification(s(get_string('error') . ': ' . $e->getMessage()), \core\output\notification::NOTIFY_ERROR),
             'aiplacement-modgen__validation-error'
         );
 
@@ -615,7 +615,7 @@ if ($pdata = $promptform->get_data()) {
     if (!empty($json['error'])) {
         $errorhtml = html_writer::div(
             html_writer::tag('h4', get_string('aierrorheading', 'aiplacement_modgen'), ['class' => 'text-danger']) .
-            html_writer::div(s($json['template']), 'alert alert-danger'),
+            $OUTPUT->notification(s($json['template']), \core\output\notification::NOTIFY_ERROR),
             'aiplacement-modgen__validation-error'
         );
 
@@ -636,7 +636,7 @@ if ($pdata = $promptform->get_data()) {
         // AI returned malformed structure - show error and don't allow approval.
         $errorhtml = html_writer::div(
             html_writer::tag('h4', get_string('generationfailed', 'aiplacement_modgen'), ['class' => 'text-danger']) .
-            html_writer::div(s($json['validation_error']), 'alert alert-danger') .
+            $OUTPUT->notification(s($json['validation_error']), \core\output\notification::NOTIFY_ERROR) .
             html_writer::tag('p', get_string('validationerrorhelp', 'aiplacement_modgen')),
             'aiplacement-modgen__validation-error'
         );
@@ -675,8 +675,7 @@ if ($pdata = $promptform->get_data()) {
     $notifications = [];
     if (!empty($json['error'])) {
         $notifications[] = [
-            'message' => $json['template'],
-            'classes' => 'alert alert-danger',
+            'html' => $OUTPUT->notification(s($json['template']), \core\output\notification::NOTIFY_ERROR),
         ];
     }
 

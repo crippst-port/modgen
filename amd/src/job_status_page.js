@@ -88,7 +88,7 @@ const updateStatusDisplay = (job) => {
     if (job.status === 'queued') {
         html = `
             <div class="alert alert-info d-flex align-items-center">
-                <div class="spinner-border text-info me-3" role="status">
+                <div class="spinner-border text-info mr-3" role="status">
                     <span class="sr-only">Loading...</span>
                 </div>
                 <div>
@@ -108,7 +108,7 @@ const updateStatusDisplay = (job) => {
     } else if (job.status === 'running') {
         html = `
             <div class="alert alert-primary d-flex align-items-center">
-                <div class="spinner-border text-primary me-3" role="status">
+                <div class="spinner-border text-primary mr-3" role="status">
                     <span class="sr-only">Loading...</span>
                 </div>
                 <div>

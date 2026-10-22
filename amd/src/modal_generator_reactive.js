@@ -628,6 +628,11 @@ class ModalGeneratorComponent extends BaseComponent {
      * @param {FormData} formData The form data
      */
     async handlePromptSubmission(modal, formData) {
+        // Keep what was entered so it can be sent again once the AI policy has been accepted.
+        if (!formData.has('acceptpolicy')) {
+            this.pendingFormData = formData;
+        }
+
         // Update step to generating
         this.reactive.dispatch('setStep', STEPS.GENERATING);
 
@@ -658,6 +663,11 @@ class ModalGeneratorComponent extends BaseComponent {
         })
             .then(response => response.json())
             .then(async data => {
+                if (data.policyaccepted && this.pendingFormData) {
+                    await this.handlePromptSubmission(modal, this.pendingFormData);
+                    return;
+                }
+
                 // Check if job was queued for background processing (approval step)
                 if (data.queued && data.jobid) {
                     // Redirect to job status page to watch progress
@@ -667,7 +677,10 @@ class ModalGeneratorComponent extends BaseComponent {
 
                 if (data.body) {
                     // Determine which step we're at based on response
-                    const step = data.refresh ? STEPS.CREATING : STEPS.PREVIEW;
+                    let step = data.refresh ? STEPS.CREATING : STEPS.PREVIEW;
+                    if (data.invalid) {
+                        step = STEPS.PROMPT;
+                    }
                     this.reactive.dispatch('setStep', step);
 
                     // Add progress header to body

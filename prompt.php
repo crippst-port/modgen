@@ -263,11 +263,11 @@ $acceptpolicy = optional_param('acceptpolicy', 0, PARAM_BOOL);
 if ($acceptpolicy && confirm_sesskey()) {
     $manager = \core\di::get(\core_ai\manager::class);
     $manager->user_policy_accepted($USER->id, $context->id);
-    // For AJAX requests, continue to show the main form instead of stopping here.
-    // The policy check below will now pass and show the normal content.
-    if (!$ajax) {
-        redirect($PAGE->url);
+    if ($ajax) {
+        // The modal still holds what the user entered; it submits that again now the policy is accepted.
+        \aiplacement_modgen\local\ajax_response::success(['policyaccepted' => true]);
     }
+    redirect($PAGE->url);
 }
 
 
@@ -699,6 +699,10 @@ if ($pdata = $promptform->get_data()) {
 
 // If form validation failed, redisplay the form with errors.
 if ($promptform->is_submitted()) {
+    if ($ajax) {
+        // The modal shows the form again, with its messages, where the user left it.
+        aiplacement_modgen_send_ajax_response($promptform->render(), '', false, ['invalid' => true]);
+    }
     $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid]));
     $PAGE->set_title(get_string('modgenmodalheading', 'aiplacement_modgen'));
     $PAGE->set_heading(get_string('modgenmodalheading', 'aiplacement_modgen'));

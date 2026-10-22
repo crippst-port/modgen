@@ -43,7 +43,7 @@ require_once($CFG->dirroot . '/course/lib.php');
 require_once($CFG->dirroot . '/ai/placement/modgen/lib.php');
 require_once($CFG->libdir . '/formslib.php');
 require_once($CFG->libdir . '/upgradelib.php');
-// ai_service sits under classes/local but in the plugin's root namespace, so it is not autoloadable.
+// The ai_service class sits under classes/local but in the plugin's root namespace, so it is not autoloadable.
 require_once($CFG->dirroot . '/ai/placement/modgen/classes/local/ai_service.php');
 
 /**
@@ -475,7 +475,9 @@ final class removed_features_routes_test extends advanced_testcase {
             $names[] = $setting->name;
         }
 
-        foreach (['enable_suggest', 'suggest_pedagogical_guidance', 'enable_existing_modules', 'enable_hideexistingsections'] as $gone) {
+        foreach (
+            ['enable_suggest', 'suggest_pedagogical_guidance', 'enable_existing_modules', 'enable_hideexistingsections'] as $gone
+        ) {
             $this->assertNotContains($gone, $names);
         }
         foreach (['enable_quickadd', 'enable_structurefromfile', 'enable_ai'] as $kept) {
@@ -490,7 +492,9 @@ final class removed_features_routes_test extends advanced_testcase {
         global $CFG;
         require_once($CFG->dirroot . '/ai/placement/modgen/db/upgrade.php');
 
-        foreach (['enable_suggest', 'suggest_pedagogical_guidance', 'enable_existing_modules', 'enable_hideexistingsections'] as $name) {
+        foreach (
+            ['enable_suggest', 'suggest_pedagogical_guidance', 'enable_existing_modules', 'enable_hideexistingsections'] as $name
+        ) {
             set_config($name, '1', 'aiplacement_modgen');
         }
         set_config('enable_quickadd', '1', 'aiplacement_modgen');
@@ -500,7 +504,9 @@ final class removed_features_routes_test extends advanced_testcase {
 
         $this->assertTrue(xmldb_aiplacement_modgen_upgrade(2026091002));
 
-        foreach (['enable_suggest', 'suggest_pedagogical_guidance', 'enable_existing_modules', 'enable_hideexistingsections'] as $name) {
+        foreach (
+            ['enable_suggest', 'suggest_pedagogical_guidance', 'enable_existing_modules', 'enable_hideexistingsections'] as $name
+        ) {
             $this->assertFalse(get_config('aiplacement_modgen', $name), "{$name} should be deleted");
         }
         $this->assertSame('1', get_config('aiplacement_modgen', 'enable_quickadd'));

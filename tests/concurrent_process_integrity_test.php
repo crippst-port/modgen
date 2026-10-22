@@ -172,7 +172,8 @@ final class concurrent_process_integrity_test extends advanced_testcase {
                     ]],
                 ]],
                 $courseid,
-                'connected_theme');
+                'connected_theme'
+            );
         } catch (\Throwable $e) {
             // A lock-loss or contention error is an ACCEPTABLE outcome (the worker
             // declined rather than corrupting). Signal it distinctly from a crash so

@@ -36,7 +36,7 @@ namespace aiplacement_modgen\event;
  * @license     http://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  *
  * @property-read array $other {
- *      @var string $reason Exception message that caused the renumber to be abandoned.
+ * @var string $reason Exception message that caused the renumber to be abandoned.
  * }
  */
 class section_renumber_failed extends \core\event\base {
@@ -47,7 +47,7 @@ class section_renumber_failed extends \core\event\base {
      * Initialise the event data.
      */
     protected function init() {
-        // 'u' because the intent was to update section numbering; LEVEL_OTHER because this
+        // Action 'u' because the intent was to update section numbering; LEVEL_OTHER because this
         // is an administrative integrity concern, not a teaching or learning action.
         $this->data['crud'] = 'u';
         $this->data['edulevel'] = self::LEVEL_OTHER;

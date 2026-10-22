@@ -31,8 +31,6 @@ namespace aiplacement_modgen;
 
 use advanced_testcase;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Wiring tests.
  *
@@ -70,7 +68,8 @@ final class plugin_wiring_test extends advanced_testcase {
         $missing = [];
         foreach ($this->plugin_files('php') as $file) {
             $source = file_get_contents($file);
-            preg_match_all('/(?:require_once|require|include_once|include)\s*\(\s*__DIR__\s*\.\s*([\'"])([^\'"]+)\1\s*\)/', $source, $matches);
+            $pattern = '/(?:require_once|require|include_once|include)\s*\(\s*__DIR__\s*\.\s*([\'"])([^\'"]+)\1\s*\)/';
+            preg_match_all($pattern, $source, $matches);
             foreach ($matches[2] as $relative) {
                 if (strpos($relative, '$') !== false) {
                     continue;
@@ -109,7 +108,7 @@ final class plugin_wiring_test extends advanced_testcase {
      */
     public function test_referenced_classes_exist(): void {
         $missing = [];
-        // ai_service sits under classes/local but in the plugin's root namespace, so it is not
+        // The ai_service class sits under classes/local but in the plugin's root namespace, so it is not
         // autoloadable; the code require_once()s it where needed.
         require_once(dirname(__DIR__) . '/classes/local/ai_service.php');
         foreach ($this->plugin_files('php') as $file) {
@@ -142,11 +141,9 @@ final class plugin_wiring_test extends advanced_testcase {
         $sources = array_merge($this->plugin_files('php'), $this->plugin_files('js'), $this->plugin_files('mustache'));
         foreach ($sources as $file) {
             $source = file_get_contents($file);
-            preg_match_all(
-                '/(?:render_from_template|renderForPromise|renderPreSnippet)\(\s*[\'"]aiplacement_modgen\/([a-z_]+)|\{\{>\s*aiplacement_modgen\/([a-z_]+)/',
-                $source,
-                $matches
-            );
+            $pattern = '/(?:render_from_template|renderForPromise|renderPreSnippet)\(\s*[\'"]aiplacement_modgen\/([a-z_]+)|'
+                . '\{\{>\s*aiplacement_modgen\/([a-z_]+)/';
+            preg_match_all($pattern, $source, $matches);
             $names = array_unique(array_filter(array_merge($matches[1], $matches[2])));
             foreach ($names as $name) {
                 if (!file_exists("{$root}/templates/{$name}.mustache")) {

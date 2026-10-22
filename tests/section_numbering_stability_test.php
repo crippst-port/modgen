@@ -32,8 +32,6 @@ namespace aiplacement_modgen;
 use advanced_testcase;
 use aiplacement_modgen\local\theme_builder;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Tests for section numbering stability across flexsections structural writes.
  *

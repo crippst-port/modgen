@@ -75,7 +75,8 @@ final class lock_handling_test extends advanced_testcase {
         $results = $service->create_sections_from_json(
             $structure,
             $course->id,
-            'connected_theme');
+            'connected_theme'
+        );
 
         // If we get here, lock was acquired successfully.
         $this->assertIsArray($results, 'Should complete with lock acquired');
@@ -106,7 +107,8 @@ final class lock_handling_test extends advanced_testcase {
         $results1 = $service->create_sections_from_json(
             $structure,
             $course->id,
-            'connected_theme');
+            'connected_theme'
+        );
 
         // Second request should succeed (lock released from first).
         $structure2 = [
@@ -118,7 +120,8 @@ final class lock_handling_test extends advanced_testcase {
         $results2 = $service->create_sections_from_json(
             $structure2,
             $course->id,
-            'connected_theme');
+            'connected_theme'
+        );
 
         $this->assertIsArray($results1, 'First request should complete');
         $this->assertIsArray($results2, 'Second request should complete (lock released)');
@@ -148,7 +151,8 @@ final class lock_handling_test extends advanced_testcase {
         $results1 = $service->create_sections_from_json(
             $structure,
             $course->id,
-            'connected_theme');
+            'connected_theme'
+        );
 
         $this->assertIsArray($results1, 'First request should succeed');
 
@@ -156,7 +160,8 @@ final class lock_handling_test extends advanced_testcase {
         $results2 = $service->create_sections_from_json(
             ['themes' => [['title' => 'Theme 2', 'summary' => 'S', 'weeks' => []]]],
             $course->id,
-            'connected_theme');
+            'connected_theme'
+        );
 
         $this->assertIsArray(
             $results2,
@@ -191,12 +196,14 @@ final class lock_handling_test extends advanced_testcase {
         $results1 = $service->create_sections_from_json(
             $structure,
             $course1->id,
-            'connected_theme');
+            'connected_theme'
+        );
 
         $results2 = $service->create_sections_from_json(
             $structure,
             $course2->id,
-            'connected_theme');
+            'connected_theme'
+        );
 
         $this->assertIsArray($results1, 'Course 1 should complete');
         $this->assertIsArray($results2, 'Course 2 should complete (separate lock)');
@@ -229,7 +236,8 @@ final class lock_handling_test extends advanced_testcase {
         $results = $service->create_sections_from_json(
             $structure,
             $course->id,
-            'connected_theme');
+            'connected_theme'
+        );
 
         // Cache should be rebuilt (timestamp changed).
         $cacheafter = $DB->get_field('course', 'cacherev', ['id' => $course->id]);
@@ -309,12 +317,14 @@ final class lock_handling_test extends advanced_testcase {
         $results1 = $service->create_sections_from_json(
             $structure,
             $course->id,
-            'connected_theme');
+            'connected_theme'
+        );
 
         $results2 = $service->create_sections_from_json(
             ['themes' => [['title' => 'Theme 2', 'summary' => 'S', 'weeks' => []]]],
             $course->id,
-            'connected_theme');
+            'connected_theme'
+        );
 
         $this->assertIsArray($results1, 'First request should complete');
         $this->assertIsArray($results2, 'Second request should complete after lock released');

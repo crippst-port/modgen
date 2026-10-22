@@ -18,7 +18,9 @@ namespace aiplacement_modgen;
 
 use aiplacement_modgen\local\job_status_helper;
 
-// ai_service sits under classes/local but in the plugin's root namespace, so it is not autoloadable.
+defined('MOODLE_INTERNAL') || die();
+
+// The ai_service class sits under classes/local but in the plugin's root namespace, so it is not autoloadable.
 require_once(__DIR__ . '/../classes/local/ai_service.php');
 
 /**

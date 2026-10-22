@@ -159,7 +159,9 @@ final class build_hardening_test extends advanced_testcase {
      * A quoted description may span lines and contain commas and quotes.
      */
     public function test_csv_quoted_multiline_description_is_kept_whole(): void {
-        $csv = "Theme:,Foundations\r\nDescription:,\"Line one, with comma\nLine two says \"\"hi\"\"\nWeek: not a real week\"\r\nWeek:,Real week\r\n";
+        $csv = "Theme:,Foundations\r\n"
+            . "Description:,\"Line one, with comma\nLine two says \"\"hi\"\"\nWeek: not a real week\"\r\n"
+            . "Week:,Real week\r\n";
         $structure = csv_parser::parse_csv_to_structure($this->csv($csv), 'connected_theme');
 
         $this->assertCount(1, $structure['themes']);

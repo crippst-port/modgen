@@ -766,7 +766,7 @@ class integrity_checker {
      * }
      */
     public static function fix_section_order(int $courseid, bool $locksheld = false): array {
-        // check_section_order() snapshots every section's number and the whole write below
+        // The check_section_order() call snapshots every section's number and the whole write below
         // is derived from that snapshot. A concurrent format_flexsections delete or move
         // renumbers the same rows, so snapshot and write have to happen under the same
         // structure locks a build holds - otherwise this commits a stale numbering over

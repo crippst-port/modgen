@@ -302,7 +302,8 @@ final class structure_integrity_test extends advanced_testcase {
         (new section_creation_service())->create_sections_from_json(
             $json,
             $this->course->id,
-            'connected_theme');
+            'connected_theme'
+        );
 
         $this->assert_structure_sound($this->course->id, 'theme structure');
         $this->assert_course_state_renders($this->course->id);
@@ -325,7 +326,8 @@ final class structure_integrity_test extends advanced_testcase {
         (new section_creation_service())->create_sections_from_json(
             $json,
             $this->course->id,
-            'connected_weekly');
+            'connected_weekly'
+        );
 
         $this->assert_structure_sound($this->course->id, 'weekly structure');
         $this->assert_course_state_renders($this->course->id);
@@ -350,7 +352,8 @@ final class structure_integrity_test extends advanced_testcase {
             $service->create_sections_from_json(
                 $json,
                 $this->course->id,
-                'connected_theme');
+                'connected_theme'
+            );
             $this->assert_structure_sound($this->course->id, "after cycle {$cycle}");
         }
 
@@ -375,7 +378,8 @@ final class structure_integrity_test extends advanced_testcase {
         (new section_creation_service())->create_sections_from_json(
             ['themes' => $themes],
             $this->course->id,
-            'connected_theme');
+            'connected_theme'
+        );
 
         $this->assert_structure_sound($this->course->id, 'large structure');
         $this->assert_course_state_renders($this->course->id);
@@ -402,7 +406,8 @@ final class structure_integrity_test extends advanced_testcase {
             (new section_creation_service())->create_sections_from_json(
                 $json,
                 $this->course->id,
-                $moduletype);
+                $moduletype
+            );
         } catch (\Throwable $e) {
             // A clean rejection is an acceptable outcome — the contract is "no corruption",
             // not "always succeed". What must NOT happen is a half-written structure.

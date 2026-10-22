@@ -75,7 +75,7 @@ class section_creation_service {
             constants::GENERATION_LOCK_TIMEOUT
         );
 
-        // get_lock() returns false on timeout. Report that here, before any work: the release
+        // The get_lock() call returns false on timeout. Report that here, before any work: the release
         // in the finally below is reached on every path, and a false lock there would fatal on
         // false->release() rather than surfacing the timeout.
         if (!$lock) {
@@ -416,7 +416,7 @@ class section_creation_service {
                     $summaryhtml,
                     [
                         'collapsed' => $hassessions ? 1 : 0,
-                        'summaryformat' => FORMAT_HTML, // $summaryhtml is sanitised HTML with an optional outline list.
+                        'summaryformat' => FORMAT_HTML, // Content in $summaryhtml is sanitised HTML plus an optional outline list.
                         'sessiondata' => $weeksessiondata,
                         'metadata' => $weekmetadata,
                         'createsummaryactivities' => $createsummaryactivities,

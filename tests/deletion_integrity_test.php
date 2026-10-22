@@ -226,7 +226,8 @@ final class deletion_integrity_test extends advanced_testcase {
                 ]],
             ]],
             $this->course->id,
-            'connected_theme');
+            'connected_theme'
+        );
         $this->resetDebugging();
 
         // Find the theme (top-level) section and its child week.
@@ -274,7 +275,8 @@ final class deletion_integrity_test extends advanced_testcase {
                     ]],
                 ]],
                 $this->course->id,
-                'connected_theme');
+                'connected_theme'
+            );
             $this->resetDebugging();
 
             // Delete every generated top-level theme section.

@@ -177,7 +177,9 @@ function xmldb_aiplacement_modgen_upgrade($oldversion) {
     // existing module, and the Hide existing sections option. The usesuggest capability itself is
     // dropped by core when it is no longer declared in db/access.php.
     if ($oldversion < 2026102101) {
-        foreach (['enable_suggest', 'suggest_pedagogical_guidance', 'enable_existing_modules', 'enable_hideexistingsections'] as $name) {
+        foreach (
+            ['enable_suggest', 'suggest_pedagogical_guidance', 'enable_existing_modules', 'enable_hideexistingsections'] as $name
+        ) {
             unset_config($name, 'aiplacement_modgen');
         }
 

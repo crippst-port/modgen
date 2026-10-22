@@ -24,8 +24,6 @@
 
 namespace aiplacement_modgen;
 
-defined('MOODLE_INTERNAL') || die();
-
 /**
  * Wraps the core AI subsystem to generate and validate module structures.
  */
@@ -903,7 +901,7 @@ class ai_service
                 ];
             }
 
-            // Build final prompt using array pattern for better performance
+            // Build final prompt using array pattern for better performance.
             $promptparts = [
                 $roleinstruction,
                 "User request: " . trim($prompt) . "\n\n",

@@ -68,6 +68,7 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
             $newparent  = required_param('newparent', PARAM_INT);
             $result = integrity_checker::set_parent($courseid, $sectionnum, $newparent);
             if ($result['success']) {
+                \aiplacement_modgen\event\structure_repaired::for_course($courseid, 'setparent', 1)->trigger();
                 $msg = get_string('setparent_done', 'aiplacement_modgen', $sectionnum);
                 $type = \core\output\notification::NOTIFY_SUCCESS;
             } else {
@@ -104,6 +105,10 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
             $batchresult = integrity_checker::set_parents_bulk($courseid, $sections, $newparents);
             $applied = $batchresult['applied'];
             $failed = $batchresult['failed'];
+            if ($applied > 0) {
+                \aiplacement_modgen\event\structure_repaired::for_course($courseid, 'setparentall', (int) $applied)
+                    ->trigger();
+            }
 
             if ($failed > 0) {
                 $msg = get_string('setparentall_done_withfailures', 'aiplacement_modgen', (object) [
@@ -137,6 +142,10 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
             break;
         case 'fixintegrity':
             $result = integrity_checker::fix_integrity($courseid);
+            if ($result['fixed'] > 0) {
+                \aiplacement_modgen\event\structure_repaired::for_course($courseid, 'fixintegrity', (int) $result['fixed'])
+                    ->trigger();
+            }
             $msg = $result['fixed'] > 0
                 ? get_string('fixintegrity_done', 'aiplacement_modgen', $result['fixed'])
                 : get_string('fixintegrity_none', 'aiplacement_modgen');
@@ -157,6 +166,10 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
 
         case 'fixcleanup':
             $result = integrity_checker::cleanup_orphaned($courseid);
+            if ($result['deleted'] > 0) {
+                \aiplacement_modgen\event\structure_repaired::for_course($courseid, 'fixcleanup', (int) $result['deleted'])
+                    ->trigger();
+            }
             $msg = $result['deleted'] > 0
                 ? get_string('fixcleanup_done', 'aiplacement_modgen', $result['deleted'])
                 : get_string('fixcleanup_none', 'aiplacement_modgen');
@@ -170,6 +183,10 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
 
         case 'fixcircular':
             $result = integrity_checker::fix_circular($courseid);
+            if ($result['fixed'] > 0) {
+                \aiplacement_modgen\event\structure_repaired::for_course($courseid, 'fixcircular', (int) $result['fixed'])
+                    ->trigger();
+            }
             $msg = $result['fixed'] > 0
                 ? get_string('fixcircular_done', 'aiplacement_modgen', $result['fixed'])
                 : get_string('fixcircular_none', 'aiplacement_modgen');
@@ -191,6 +208,10 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
 
         case 'fixsectionorder':
             $result = integrity_checker::fix_section_order($courseid);
+            if (!empty($result['checkable']) && $result['fixed'] > 0) {
+                \aiplacement_modgen\event\structure_repaired::for_course($courseid, 'fixsectionorder', (int) $result['fixed'])
+                    ->trigger();
+            }
             if (!$result['checkable']) {
                 // The hierarchy itself is unsound, so there is no correct order to renumber
                 // into and nothing was written — point at the checks that have to be cleared

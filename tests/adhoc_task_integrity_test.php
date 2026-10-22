@@ -579,10 +579,22 @@ final class adhoc_task_integrity_test extends advanced_testcase {
             'json' => $json,
         ]);
 
+        $sink = $this->redirectEvents();
         $this->run_task($task);
         $this->resetDebugging();
 
         $this->assertSame('completed', $this->job($jobid)->status);
+
+        // The completed job is reported once in the log.
+        $completed = array_filter(
+            $sink->get_events(),
+            fn($event) => $event instanceof \aiplacement_modgen\event\structure_job_completed
+        );
+        $this->assertCount(1, $completed);
+        $event = reset($completed);
+        $this->assertEquals($jobid, $event->objectid);
+        $this->assertSame('create_from_json', $event->other['action']);
+        $this->assertGreaterThan(0, $event->other['messages']);
         $this->assertSame(
             1,
             $this->count_generated_toplevel(),

@@ -734,3 +734,13 @@ $string['csvnodraft'] = 'No CSV file was found in the upload area.';
 $string['flexsectionsformatfailed'] = 'The course format could not be changed to Flexible sections. It is still: {$a}';
 $string['flexsectionsmissing'] = 'The Flexible sections course format plugin is required but not installed. Install it before using this feature.';
 $string['templateloaderror'] = 'The template could not be loaded: {$a}';
+
+// Event names.
+$string['eventstructure_job_completed'] = 'Structure job completed';
+$string['eventstructure_job_failed'] = 'Structure job failed';
+$string['eventstructure_job_queued'] = 'Structure job queued';
+$string['eventstructure_repaired'] = 'Course structure repaired';
+$string['eventtemplate_created'] = 'Structure template added';
+$string['eventtemplate_deleted'] = 'Structure template deleted';
+$string['eventtemplate_moved'] = 'Structure template moved';
+$string['eventtemplate_updated'] = 'Structure template updated';

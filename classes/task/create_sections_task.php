@@ -45,6 +45,22 @@ class create_sections_task extends \core\task\adhoc_task {
     }
 
     /**
+     * Trigger an event without letting a failing observer change the outcome of the job.
+     *
+     * The events are reported after the job row has been updated; an exception here must not
+     * turn a committed success into a failure, which would retry and duplicate sections.
+     *
+     * @param \core\event\base $event Event to trigger.
+     */
+    private static function trigger_quietly(\core\event\base $event): void {
+        try {
+            $event->trigger();
+        } catch (\Throwable $e) {
+            debugging('Could not trigger ' . get_class($event) . ': ' . $e->getMessage(), DEBUG_DEVELOPER);
+        }
+    }
+
+    /**
      * Execute the task.
      *
      * Retrieves job data, creates sections, and updates job status.
@@ -98,6 +114,10 @@ class create_sections_task extends \core\task\adhoc_task {
             ]);
             $job->timecompleted = time();
             $DB->update_record('aiplacement_modgen_jobs', $job);
+            self::trigger_quietly(\aiplacement_modgen\event\structure_job_failed::from_job($job, [
+                'error' => get_string('jobinterrupted', 'aiplacement_modgen'),
+                'willretry' => 0,
+            ]));
             return;
         }
 
@@ -124,6 +144,10 @@ class create_sections_task extends \core\task\adhoc_task {
             ]);
             $job->timecompleted = time();
             $DB->update_record('aiplacement_modgen_jobs', $job);
+            self::trigger_quietly(\aiplacement_modgen\event\structure_job_failed::from_job($job, [
+                'error' => $e->getMessage(),
+                'willretry' => 0,
+            ]));
             mtrace('Could not switch to the owner of job ' . $jobid . ': ' . $e->getMessage());
             return;
         }
@@ -209,6 +233,10 @@ class create_sections_task extends \core\task\adhoc_task {
             ]);
             $job->timecompleted = time();
             $DB->update_record('aiplacement_modgen_jobs', $job);
+            self::trigger_quietly(\aiplacement_modgen\event\structure_job_completed::from_job($job, [
+                'messages' => count($result['messages'] ?? []),
+                'warnings' => count($result['warnings'] ?? []),
+            ]));
 
             // Best-effort: ensure all course modules have contexts (subsections create
             // course modules). The creation services already do this internally before
@@ -259,6 +287,10 @@ class create_sections_task extends \core\task\adhoc_task {
                     $job->timecompleted = time();
                 }
                 $DB->update_record('aiplacement_modgen_jobs', $job);
+                self::trigger_quietly(\aiplacement_modgen\event\structure_job_failed::from_job($job, [
+                    'error' => $e->getMessage(),
+                    'willretry' => $ispermanent ? 0 : 1,
+                ]));
             }
 
             mtrace('Section creation task failed for job ' . $jobid . ': ' . $e->getMessage());

@@ -108,6 +108,13 @@ class job_status_helper {
             $transaction->rollback($e);
         }
 
+        \aiplacement_modgen\event\structure_job_queued::from_job((object) [
+            'id' => $jobid,
+            'courseid' => $courseid,
+            'userid' => $userid,
+            'action' => $action,
+        ])->trigger();
+
         return $jobid;
     }
 
@@ -157,6 +164,10 @@ class job_status_helper {
             ]);
             $job->timecompleted = time();
             $DB->update_record('aiplacement_modgen_jobs', $job);
+            \aiplacement_modgen\event\structure_job_failed::from_job($job, [
+                'error' => get_string('jobinterrupted', 'aiplacement_modgen'),
+                'willretry' => 0,
+            ])->trigger();
             $failed++;
         }
 

@@ -73,6 +73,8 @@ class template_manager {
 
         $templateid = $DB->insert_record('aiplacement_modgen_templates', $template);
 
+        \aiplacement_modgen\event\template_created::for_template($templateid, (string) $name)->trigger();
+
         return $templateid;
     }
 
@@ -123,7 +125,10 @@ class template_manager {
         $template->description = $description;
         $template->timemodified = time();
 
-        return $DB->update_record('aiplacement_modgen_templates', $template);
+        $updated = $DB->update_record('aiplacement_modgen_templates', $template);
+        \aiplacement_modgen\event\template_updated::for_template((int) $id, (string) $name)->trigger();
+
+        return $updated;
     }
 
     /**
@@ -146,7 +151,10 @@ class template_manager {
         }
 
         // Delete template record.
-        return $DB->delete_records('aiplacement_modgen_templates', ['id' => $id]);
+        $deleted = $DB->delete_records('aiplacement_modgen_templates', ['id' => $id]);
+        \aiplacement_modgen\event\template_deleted::for_template((int) $id, (string) $template->name)->trigger();
+
+        return $deleted;
     }
 
     /**
@@ -198,6 +206,9 @@ class template_manager {
 
         $DB->update_record('aiplacement_modgen_templates', $template);
         $DB->update_record('aiplacement_modgen_templates', $swap);
+
+        \aiplacement_modgen\event\template_moved::for_template((int) $id, (string) $template->name, ['direction' => $direction])
+            ->trigger();
 
         return true;
     }

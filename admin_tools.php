@@ -485,6 +485,14 @@ function check_course_integrity($courseid, $fix = false) {
 
     if ($fix) {
         $result = integrity_checker::fix_integrity($courseid);
+        if ($result['fixed'] > 0) {
+            \aiplacement_modgen\event\structure_repaired::for_course(
+                $courseid,
+                'fixintegrity',
+                (int) $result['fixed'],
+                'admin_tools'
+            )->trigger();
+        }
         $message = $result['fixed'] > 0
             ? get_string('fixintegrity_done', 'aiplacement_modgen', $result['fixed'])
             : get_string('fixintegrity_none', 'aiplacement_modgen');
@@ -563,6 +571,14 @@ function cleanup_orphaned_sections($courseid) {
     global $OUTPUT;
 
     $result = integrity_checker::cleanup_orphaned($courseid);
+    if ($result['deleted'] > 0) {
+        \aiplacement_modgen\event\structure_repaired::for_course(
+            $courseid,
+            'fixcleanup',
+            (int) $result['deleted'],
+            'admin_tools'
+        )->trigger();
+    }
 
     if ($result['deleted'] === 0) {
         echo $OUTPUT->notification(get_string('nosectionstoclean', 'aiplacement_modgen'), 'info');

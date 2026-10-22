@@ -744,3 +744,4 @@ $string['eventtemplate_created'] = 'Structure template added';
 $string['eventtemplate_deleted'] = 'Structure template deleted';
 $string['eventtemplate_moved'] = 'Structure template moved';
 $string['eventtemplate_updated'] = 'Structure template updated';
+$string['sessionactivityname'] = '{$a} activity';

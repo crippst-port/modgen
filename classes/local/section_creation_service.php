@@ -158,7 +158,7 @@ class section_creation_service {
                     'jsonsectionscreationfailed',
                     'aiplacement_modgen',
                     '',
-                    null,
+                    $e->getMessage(),
                     'Failed to create sections from JSON: ' . $e->getMessage()
                 );
             }
@@ -276,11 +276,9 @@ class section_creation_service {
 
             // Titles and plain-text summaries are stored as given; Moodle escapes them when shown.
             $themetitle = trim((string) $title);
-            $sectionhtml = '';
-            $aienabled = get_config('aiplacement_modgen', 'enable_ai');
-            if (!$aienabled && trim((string) $summary) !== '') {
-                $sectionhtml = (string) $summary;
-            }
+            // A summary supplied for the theme (for example a CSV "Description" row) is kept. AI themes
+            // arrive with an empty summary, because ai_service blanks them: themes are only containers.
+            $sectionhtml = trim((string) $summary) !== '' ? (string) $summary : '';
 
             try {
                 // Create theme section using centralized helper.

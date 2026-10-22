@@ -118,7 +118,7 @@ class session_creator {
             if ($createsummaryactivities) {
                 // Extract metadata - new structure or backward compatible.
                 $metadata = [];
-                $activityname = $sessionlabel . ' activity'; // Default name.
+                $activityname = get_string('sessionactivityname', 'aiplacement_modgen', $sessionlabel); // Default name.
 
                 if (!empty($sessiondata[$sessionkey]) && is_array($sessiondata[$sessionkey])) {
                     $data = $sessiondata[$sessionkey];

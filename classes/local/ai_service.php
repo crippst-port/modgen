@@ -507,6 +507,25 @@ class ai_service
     }
 
     /**
+     * Empty the summary of every theme in a generated structure.
+     *
+     * Themes are containers for weeks, so generated themes get no description. Doing it here, where
+     * the AI output enters the plugin, lets the section builder keep any theme summary it is given,
+     * such as a CSV description.
+     *
+     * @param array $data Decoded structure with a 'themes' list.
+     * @return array The same structure with empty theme summaries.
+     */
+    public static function blank_theme_summaries(array $data): array {
+        foreach ($data['themes'] ?? [] as $index => $theme) {
+            if (is_array($theme)) {
+                $data['themes'][$index]['summary'] = '';
+            }
+        }
+        return $data;
+    }
+
+    /**
      * Count one AI request against the current user's hourly allowance.
      *
      * Uses a fixed window that starts at the first request (writing to the cache again does
@@ -1067,6 +1086,10 @@ class ai_service
                     ];
                 }
 
+                if ($structure === 'theme') {
+                    $jsondecoded = self::blank_theme_summaries($jsondecoded);
+                }
+
                 // Provider adhered to format. Attach raw text and prompt for visibility.
                 $jsondecoded['raw'] = $text;
                 $jsondecoded['debugprompt'] = $finalprompt;
@@ -1083,6 +1106,7 @@ class ai_service
                 // Validate the converted structure.
                 $validation = self::validate_module_structure($jsondecoded, $structure);
                 if ($validation['valid']) {
+                    $jsondecoded = self::blank_theme_summaries($jsondecoded);
                     $jsondecoded['raw'] = $text;
                     $jsondecoded['debugprompt'] = $finalprompt;
                     $jsondecoded['debugresponse'] = $data;

@@ -877,7 +877,11 @@ class theme_builder {
         // Create learningactivity metadata module at the start of the week.
         // Use custom name from metadata if provided, otherwise use the week title.
         if ($createsummaryactivities) {
-            $weekactivityname = !empty($weekmetadata['name']) ? $weekmetadata['name'] : $title;
+            $weekactivityname = \core_text::substr(
+                !empty($weekmetadata['name']) ? $weekmetadata['name'] : $title,
+                0,
+                255
+            );
 
             $weekcmid = self::create_learningactivity_metadata(
                 $courseid,
@@ -1178,7 +1182,9 @@ class theme_builder {
             self::validate_section_creation_params($courseid, $courseformat, $parentsectionnum, $sectionnum, $skipdepthcheck);
 
             // Step 3: Update section properties (name, summary) with XSS protection.
-            $section->name = clean_param($name, PARAM_TEXT); // Strip HTML/JS from names.
+            // Strip HTML/JS from names, and keep to the 255 characters the column holds: a longer title from
+            // a file would otherwise fail the whole build with a database error.
+            $section->name = \core_text::substr(clean_param($name, PARAM_TEXT), 0, 255);
             $section->summary = $summary; // Keep raw - will be sanitized on display.
             // Validate summary format - only allow safe formats.
             if (!in_array($summaryformat, [FORMAT_PLAIN, FORMAT_MARKDOWN, FORMAT_HTML, FORMAT_MOODLE])) {

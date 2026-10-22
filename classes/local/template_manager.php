@@ -40,24 +40,6 @@ class template_manager {
     public static function create($name, $description, $file) {
         global $DB;
 
-        $context = \context_system::instance();
-        $fs = get_file_storage();
-
-        // Prepare file record for permanent storage.
-        $filerecord = [
-            'contextid' => $context->id,
-            'component' => 'aiplacement_modgen',
-            'filearea' => 'csvtemplates',
-            'itemid' => 0, // Will be updated after template creation.
-            'filepath' => '/',
-            'filename' => clean_filename($file->get_filename()),
-            'timecreated' => time(),
-            'timemodified' => time(),
-        ];
-
-        // Copy file to permanent storage.
-        $storedfile = $fs->create_file_from_storedfile($filerecord, $file);
-
         // Get next sort order.
         $maxsortorder = $DB->get_field('aiplacement_modgen_templates', 'MAX(sortorder)', []);
         $sortorder = $maxsortorder !== false ? $maxsortorder + 1 : 0;
@@ -66,16 +48,46 @@ class template_manager {
         $template = new \stdClass();
         $template->name = $name;
         $template->description = $description;
-        $template->fileid = $storedfile->get_id();
+        $template->fileid = 0; // Set once the file is stored, below.
         $template->sortorder = $sortorder;
         $template->timecreated = time();
         $template->timemodified = time();
 
-        $templateid = $DB->insert_record('aiplacement_modgen_templates', $template);
+        $transaction = $DB->start_delegated_transaction();
+        try {
+            $templateid = $DB->insert_record('aiplacement_modgen_templates', $template);
+
+            // The template id is the file's item id, so two templates can be uploaded under the same file name.
+            $storedfile = self::store_file($templateid, $file);
+            $DB->set_field('aiplacement_modgen_templates', 'fileid', $storedfile->get_id(), ['id' => $templateid]);
+            $transaction->allow_commit();
+        } catch (\Throwable $e) {
+            $transaction->rollback($e);
+        }
 
         \aiplacement_modgen\event\template_created::for_template($templateid, (string) $name)->trigger();
 
         return $templateid;
+    }
+
+    /**
+     * Copy an uploaded file into the library's file area, keyed by the template it belongs to.
+     *
+     * @param int $templateid Template id, used as the file item id.
+     * @param stored_file $file Uploaded file.
+     * @return stored_file The stored copy.
+     */
+    private static function store_file(int $templateid, $file) {
+        return get_file_storage()->create_file_from_storedfile([
+            'contextid' => \context_system::instance()->id,
+            'component' => 'aiplacement_modgen',
+            'filearea' => 'csvtemplates',
+            'itemid' => $templateid,
+            'filepath' => '/',
+            'filename' => clean_filename($file->get_filename()),
+            'timecreated' => time(),
+            'timemodified' => time(),
+        ], $file);
     }
 
     /**
@@ -95,7 +107,6 @@ class template_manager {
 
         // Update file if provided.
         if ($file) {
-            $context = \context_system::instance();
             $fs = get_file_storage();
 
             // Delete old file.
@@ -105,19 +116,7 @@ class template_manager {
             }
 
             // Store new file.
-            $filerecord = [
-                'contextid' => $context->id,
-                'component' => 'aiplacement_modgen',
-                'filearea' => 'csvtemplates',
-                'itemid' => 0,
-                'filepath' => '/',
-                'filename' => clean_filename($file->get_filename()),
-                'timecreated' => time(),
-                'timemodified' => time(),
-            ];
-
-            $storedfile = $fs->create_file_from_storedfile($filerecord, $file);
-            $template->fileid = $storedfile->get_id();
+            $template->fileid = self::store_file((int) $id, $file)->get_id();
         }
 
         // Update template record.

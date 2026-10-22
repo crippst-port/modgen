@@ -106,6 +106,11 @@ class csv_parser {
             $structure = self::parse_simple_weekly_structure($lines);
         }
 
+        // Rows that were all unrecognised (or only descriptions) leave nothing to build.
+        if (self::count_sections($structure) === 0) {
+            throw new \moodle_exception('csvnodata', 'aiplacement_modgen');
+        }
+
         // Validate section count against max limit.
         // An unset setting means the default of 50; an explicit 0 means unlimited.
         $configured = get_config('aiplacement_modgen', 'maxcsvsections');
@@ -138,6 +143,9 @@ class csv_parser {
         if (!mb_check_encoding($content, 'UTF-8')) {
             $content = mb_convert_encoding($content, 'UTF-8', 'Windows-1252');
         }
+        // One line ending for every file: "CSV (Macintosh)" exports end lines with a bare carriage return,
+        // which the CSV reader would otherwise treat as part of the value.
+        $content = preg_replace('/\r\n?/', "\n", $content);
         return $content;
     }
 
@@ -194,6 +202,11 @@ class csv_parser {
 
         if (!empty($structure['weeks'])) {
             $count += count($structure['weeks']);
+        }
+
+        // The weekly layout lists its weeks and sections under 'sections'.
+        if (!empty($structure['sections'])) {
+            $count += count($structure['sections']);
         }
 
         return $count;

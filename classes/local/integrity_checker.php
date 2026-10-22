@@ -98,6 +98,7 @@ class integrity_checker {
         $orphanedsql = "SELECT cfo.*
                           FROM {course_format_options} cfo
                          WHERE cfo.courseid = ?
+                           AND cfo.sectionid <> 0 -- Course-level format options are stored with section id 0.
                            AND cfo.sectionid NOT IN (
                                SELECT id FROM {course_sections} WHERE course = ?
                            )";
@@ -402,6 +403,7 @@ class integrity_checker {
             $orphanedsql = "SELECT cfo.*
                               FROM {course_format_options} cfo
                              WHERE cfo.courseid = ?
+                               AND cfo.sectionid <> 0 -- Course-level format options are stored with section id 0.
                                AND cfo.sectionid NOT IN (
                                    SELECT id FROM {course_sections} WHERE course = ?
                                )";

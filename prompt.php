@@ -412,9 +412,7 @@ if ($embedded || $ajax) {
 // Business logic - use cached config values.
 require_once(__DIR__ . '/classes/local/ai_service.php');
 require_once(__DIR__ . '/classes/activitytype/registry.php');
-require_once(__DIR__ . '/classes/local/filehandler/file_processor.php');
 require_once(__DIR__ . '/classes/local/constants.php');
-require_once(__DIR__ . '/classes/local/file_processor_service.php');
 require_once(__DIR__ . '/classes/local/csv_processing_service.php');
 require_once(__DIR__ . '/classes/local/template_processing_service.php');
 require_once(__DIR__ . '/classes/local/section_creation_service.php');
@@ -453,90 +451,8 @@ if ($approveform && ($adata = $approveform->get_data())) {
         throw new \moodle_exception('invalidjson', 'aiplacement_modgen', '', json_last_error_msg());
     }
 
-    // Sanitize all text fields in the JSON structure to prevent XSS.
-    if (!empty($json['themes'])) {
-        foreach ($json['themes'] as &$theme) {
-            if (isset($theme['title'])) {
-                $theme['title'] = clean_param($theme['title'], PARAM_TEXT);
-            }
-            if (isset($theme['summary'])) {
-                $theme['summary'] = clean_param($theme['summary'], PARAM_CLEANHTML);
-            }
-            if (isset($theme['metadata']['icon'])) {
-                $theme['metadata']['icon'] = clean_param($theme['metadata']['icon'], PARAM_TEXT);
-            }
-            if (!empty($theme['weeks'])) {
-                foreach ($theme['weeks'] as &$week) {
-                    if (isset($week['name'])) {
-                        $week['name'] = clean_param($week['name'], PARAM_TEXT);
-                    }
-                    if (isset($week['summary'])) {
-                        $week['summary'] = clean_param($week['summary'], PARAM_CLEANHTML);
-                    }
-                    if (!empty($week['activities'])) {
-                        foreach ($week['activities'] as &$activity) {
-                            if (isset($activity['name'])) {
-                                $activity['name'] = clean_param($activity['name'], PARAM_TEXT);
-                            }
-                            if (isset($activity['description'])) {
-                                $activity['description'] = clean_param($activity['description'], PARAM_CLEANHTML);
-                            }
-                            if (isset($activity['type'])) {
-                                $activity['type'] = clean_param($activity['type'], PARAM_ALPHANUMEXT);
-                            }
-                        }
-                        unset($activity);
-                    }
-                }
-                unset($week);
-            }
-            if (!empty($theme['activities'])) {
-                foreach ($theme['activities'] as &$activity) {
-                    if (isset($activity['name'])) {
-                        $activity['name'] = clean_param($activity['name'], PARAM_TEXT);
-                    }
-                    if (isset($activity['description'])) {
-                        $activity['description'] = clean_param($activity['description'], PARAM_CLEANHTML);
-                    }
-                    if (isset($activity['type'])) {
-                        $activity['type'] = clean_param($activity['type'], PARAM_ALPHANUMEXT);
-                    }
-                }
-                unset($activity);
-            }
-        }
-        unset($theme);
-    } else if (!empty($json['weeks'])) {
-        foreach ($json['weeks'] as &$week) {
-            if (isset($week['name'])) {
-                $week['name'] = clean_param($week['name'], PARAM_TEXT);
-            }
-            if (isset($week['summary'])) {
-                $week['summary'] = clean_param($week['summary'], PARAM_CLEANHTML);
-            }
-            if (!empty($week['activities'])) {
-                foreach ($week['activities'] as &$activity) {
-                    if (isset($activity['name'])) {
-                        $activity['name'] = clean_param($activity['name'], PARAM_TEXT);
-                    }
-                    if (isset($activity['description'])) {
-                        $activity['description'] = clean_param($activity['description'], PARAM_CLEANHTML);
-                    }
-                    if (isset($activity['type'])) {
-                        $activity['type'] = clean_param($activity['type'], PARAM_ALPHANUMEXT);
-                    }
-                }
-                unset($activity);
-            }
-        }
-        unset($week);
-    }
-    if (isset($json['title'])) {
-        $json['title'] = clean_param($json['title'], PARAM_TEXT);
-    }
-    if (isset($json['summary'])) {
-        $json['summary'] = clean_param($json['summary'], PARAM_CLEANHTML);
-    }
+    // Sanitise every string in the structure: it came back from the browser, so it is untrusted.
+    $json = \aiplacement_modgen\local\json_sanitiser::clean(is_array($json) ? $json : []);
 
     $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'connected_weekly';
     $createsummaryactivities = !empty($adata->createsummaryactivities);
@@ -673,22 +589,6 @@ if ($pdata = $promptform->get_data()) {
             "This keeps the theme sections as containers without descriptive text.";
     }
 
-    // Gather supporting files using the file processor service.
-    $supportingfiles = [];
-    $fileprocessor = new \aiplacement_modgen\local\file_processor_service();
-
-    if (!empty($pdata->supportingfiles)) {
-        $draftitemid = $pdata->supportingfiles;
-        $usercontext = context_user::instance($USER->id);
-        $supportingfiles = $fileprocessor->process_draft_files($draftitemid, $usercontext->id);
-    }
-
-    // If files were actually uploaded but no user prompt, add auto-instruction to use the file.
-    if (!empty($supportingfiles) && empty($prompt)) {
-        $compositeprompt .= "\n\nUser has uploaded file(s) without providing a text prompt. " .
-            "Please use the uploaded file content to create the module structure and content.";
-    }
-
     // Generate module using template processing service.
     $templateprocessor = new \aiplacement_modgen\local\template_processing_service();
 
@@ -696,8 +596,7 @@ if ($pdata = $promptform->get_data()) {
         $json = $templateprocessor->process_and_generate(
             $pdata,
             $courseid,
-            $compositeprompt,
-            $supportingfiles
+            $compositeprompt
         );
 
         // Check if the service returned a detected module type (from CSV auto-detection).
@@ -717,7 +616,7 @@ if ($pdata = $promptform->get_data()) {
     } catch (Exception $e) {
         $errorhtml = html_writer::div(
             html_writer::tag('h4', get_string('generationfailed', 'aiplacement_modgen'), ['class' => 'text-danger']) .
-            html_writer::div('Error: ' . $e->getMessage(), 'alert alert-danger'),
+            html_writer::div(s(get_string('error') . ': ' . $e->getMessage()), 'alert alert-danger'),
             'aiplacement-modgen__validation-error'
         );
 
@@ -744,7 +643,7 @@ if ($pdata = $promptform->get_data()) {
                 'alert alert-danger'
             ) .
             (isset($json['template'])
-                ? html_writer::div('Details: ' . $json['template'], 'alert alert-warning')
+                ? html_writer::div(s($json['template']), 'alert alert-warning')
                 : ''),
             'aiplacement-modgen__validation-error'
         );
@@ -765,7 +664,7 @@ if ($pdata = $promptform->get_data()) {
     if (!empty($json['template']) && strpos($json['template'], 'AI error') === 0) {
         $errorhtml = html_writer::div(
             html_writer::tag('h4', 'AI Error', ['class' => 'text-danger']) .
-            html_writer::div($json['template'], 'alert alert-danger'),
+            html_writer::div(s($json['template']), 'alert alert-danger'),
             'aiplacement-modgen__validation-error'
         );
 

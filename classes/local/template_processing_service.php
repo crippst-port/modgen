@@ -48,15 +48,13 @@ class template_processing_service {
      * @param \stdClass $pdata Form data from the generator
      * @param int $courseid Course ID
      * @param string $compositeprompt The composite prompt for AI
-     * @param array $supportingfiles Array of supporting files
      * @return array Generated JSON structure
      * @throws \Exception If template processing fails
      */
     public function process_and_generate(
         \stdClass $pdata,
         int $courseid,
-        string $compositeprompt,
-        array $supportingfiles
+        string $compositeprompt
     ): array {
         $moduletype = !empty($pdata->moduletype) ? $pdata->moduletype : 'connected_weekly';
 
@@ -77,7 +75,6 @@ class template_processing_service {
             $pdata,
             $courseid,
             $compositeprompt,
-            $supportingfiles,
             $moduletype,
             $csvfile
         );
@@ -190,7 +187,6 @@ class template_processing_service {
      * @param \stdClass $pdata Form data
      * @param int $courseid Course ID
      * @param string $compositeprompt Composite prompt
-     * @param array $supportingfiles Supporting files
      * @param string $moduletype Module type
      * @param \stored_file|null $csvfile CSV file if loaded
      * @return array Generated JSON structure
@@ -199,7 +195,6 @@ class template_processing_service {
         \stdClass $pdata,
         int $courseid,
         string $compositeprompt,
-        array $supportingfiles,
         string $moduletype,
         ?\stored_file $csvfile
     ): array {
@@ -231,7 +226,6 @@ class template_processing_service {
 
         $result = \aiplacement_modgen\ai_service::generate_module(
             $compositeprompt,
-            $supportingfiles,
             $moduletype,
             $courseid
         );

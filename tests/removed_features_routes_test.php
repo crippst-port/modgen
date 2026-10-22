@@ -278,7 +278,7 @@ final class removed_features_routes_test extends advanced_testcase {
         $this->assertFalse(method_exists(\aiplacement_modgen\local\settings_helper::class, 'is_hideexistingsections_enabled'));
 
         $this->assertSame(
-            ['prompt', 'documents', 'structure', 'courseid'],
+            ['prompt', 'structure', 'courseid'],
             array_map(fn($p) => $p->getName(), (new \ReflectionMethod(ai_service::class, 'generate_module'))->getParameters())
         );
         $this->assertSame(
@@ -310,8 +310,7 @@ final class removed_features_routes_test extends advanced_testcase {
         $result = (new local\template_processing_service())->process_and_generate(
             (object) ['supportingfiles' => $draftid, 'moduletype' => 'connected_weekly', 'prompt' => ''],
             $this->course->id,
-            '',
-            []
+            ''
         );
 
         $this->assertIsArray($result);

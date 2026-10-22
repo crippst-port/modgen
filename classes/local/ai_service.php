@@ -512,14 +512,12 @@ class ai_service
      * Generate module structure and content using AI.
      *
      * @param string $prompt User's input requirements
-     * @param array $documents Supporting documents/files
      * @param string $structure Module structure type (weekly/theme)
      * @param int $courseid Optional course ID for week date calculations
      * @return array Module structure JSON
      */
     public static function generate_module(
         $prompt,
-        $documents = [],
         $structure = 'weekly',
         $courseid = null
     ) {
@@ -872,20 +870,6 @@ class ai_service
 
             $formatinstruction .= $weekdateguidance;
 
-            // Incorporate supporting documents with truncation.
-            $documentstext = '';
-            if (!empty($documents) && is_array($documents)) {
-                $documentstext .= "\nCONTENT:\n";
-                foreach ($documents as $doc) {
-                    $dname = isset($doc['filename']) ? $doc['filename'] : 'file';
-                    $dcontent = isset($doc['content']) ? $doc['content'] : '';
-                    if (is_string($dcontent) && strlen($dcontent) > 50000) {
-                        $dcontent = substr($dcontent, 0, 50000) . "\n[truncated]";
-                    }
-                    $documentstext .= "--- {$dname} ---\n" . trim((string) $dcontent) . "\n\n";
-                }
-            }
-
             if (empty($roleinstruction) || empty($formatinstruction)) {
                 return [
                     'activities' => [],
@@ -896,7 +880,6 @@ class ai_service
             // Build final prompt using array pattern for better performance
             $promptparts = [
                 $roleinstruction,
-                $documentstext,
                 "User request: " . trim($prompt) . "\n\n",
                 $formatinstruction,
             ];
@@ -934,9 +917,6 @@ class ai_service
                 $USER->id,
                 $finalprompt
             );
-
-            // Optionally attach documents or orgparams if your provider/action supports it.
-            // e.g., $action->set_documents($documents); // Pseudo-code, depends on API.
 
             // Process the action through the Manager.
             $response = $aimanager->process_action($action);

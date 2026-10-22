@@ -129,12 +129,7 @@ class job_status_helper {
      * @return bool
      */
     public static function can_follow_jobs(\context $context, int $userid): bool {
-        foreach (['managestructure', 'generatewithprompt', 'generatefromtemplate'] as $capability) {
-            if (has_capability('aiplacement/modgen:' . $capability, $context, $userid)) {
-                return true;
-            }
-        }
-        return false;
+        return permissions::can_build($context, $userid);
     }
 
     /**
@@ -145,9 +140,7 @@ class job_status_helper {
      * @throws \required_capability_exception If they may not.
      */
     public static function require_jobs_access(\context $context, int $userid): void {
-        if (!self::can_follow_jobs($context, $userid)) {
-            throw new \required_capability_exception($context, 'aiplacement/modgen:managestructure', 'nopermissions', '');
-        }
+        permissions::require_build($context, $userid);
     }
 
     /**

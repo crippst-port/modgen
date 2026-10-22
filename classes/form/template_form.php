@@ -66,7 +66,7 @@ class aiplacement_modgen_template_form extends moodleform {
         $mform->addElement(
             'filemanager',
             'templatefile',
-            get_string('csvtemplate', 'aiplacement_modgen'),
+            get_string('templatefile', 'aiplacement_modgen'),
             null,
             [
                 'subdirs' => 0,
@@ -129,7 +129,10 @@ class aiplacement_modgen_template_form extends moodleform {
 
                 try {
                     // Pass the file object directly, and use auto-detect for module type.
-                    $result = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure($file, 'connected_weekly');
+                    $result = \aiplacement_modgen\local\csv_parser::parse_csv_to_structure(
+                        $file,
+                        \aiplacement_modgen\local\csv_parser::detect_csv_format($file)
+                    );
 
                     if (!$result || empty($result)) {
                         $errors['templatefile'] = get_string('invalidcsvstructure', 'aiplacement_modgen', 'Empty result');

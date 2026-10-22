@@ -237,15 +237,15 @@ final class removed_features_routes_test extends advanced_testcase {
     }
 
     /**
-     * Input is required, and an existing module no longer satisfies it.
+     * Input is required (shown against the file field), and an existing module no longer satisfies it.
      */
     public function test_generator_form_validation(): void {
         global $CFG;
         require_once($CFG->dirroot . '/ai/placement/modgen/classes/form/generator_form.php');
         $form = new \aiplacement_modgen_generator_form(null, ['courseid' => $this->course->id]);
 
-        $this->assertArrayHasKey('prompt', $form->validation([], []));
-        $this->assertArrayHasKey('prompt', $form->validation(['existing_modules' => [5]], []));
+        $this->assertArrayHasKey('supportingfiles', $form->validation([], []));
+        $this->assertArrayHasKey('supportingfiles', $form->validation(['existing_modules' => [5]], []));
         $this->assertSame([], $form->validation(['prompt' => 'A module on soil science'], []));
     }
 

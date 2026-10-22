@@ -50,7 +50,7 @@ class aiplacement_modgen_add_week_form extends moodleform {
         $mform->addRule('weekcount', null, 'numeric', null, 'client');
         $mform->addHelpButton('weekcount', 'weekcount', 'aiplacement_modgen');
         // Add hint text showing the maximum.
-        $hinttext = 'Enter a number between 1 and ' . $maxsections;
+        $hinttext = get_string('numberhint', 'aiplacement_modgen', (object) ['min' => 1, 'max' => $maxsections]);
         $mform->addElement(
             'static',
             'weekcount_hint',

@@ -54,7 +54,7 @@ class aiplacement_modgen_add_theme_form extends moodleform {
         $mform->addRule('themecount', null, 'numeric', null, 'client');
         $mform->addHelpButton('themecount', 'themecount', 'aiplacement_modgen');
         // Add hint text showing the maximum.
-        $hinttext = 'Enter a number between 1 and ' . $maxsections;
+        $hinttext = get_string('numberhint', 'aiplacement_modgen', (object) ['min' => 1, 'max' => $maxsections]);
         $mform->addElement(
             'static',
             'themecount_hint',
@@ -70,7 +70,7 @@ class aiplacement_modgen_add_theme_form extends moodleform {
         $mform->addRule('weeksperTheme', null, 'numeric', null, 'client');
         $mform->addHelpButton('weeksperTheme', 'weeksperTheme', 'aiplacement_modgen');
         // Add hint text showing the maximum.
-        $hinttext = 'Enter a number between 1 and ' . $maxweeksperthemecount;
+        $hinttext = get_string('numberhint', 'aiplacement_modgen', (object) ['min' => 1, 'max' => $maxweeksperthemecount]);
         $mform->addElement(
             'static',
             'weeksperTheme_hint',

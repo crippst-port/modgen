@@ -178,7 +178,8 @@ class aiplacement_modgen_generator_form extends moodleform
         $hastemplate = !empty($data['selected_template_id']) && $data['selected_template_id'] > 0;
 
         if (!$hasprompt && !$hasfiles && !$hastemplate) {
-            $errors['prompt'] = get_string('inputrequired', 'aiplacement_modgen');
+            // Shown against the file field: it is the control on this form that can satisfy the rule.
+            $errors['supportingfiles'] = get_string('inputrequired', 'aiplacement_modgen');
         }
 
         return $errors;

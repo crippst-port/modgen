@@ -179,6 +179,16 @@ function aiplacement_modgen_output_response(
         $PAGE->navbar->add($title);
     }
 
+    // The footer buttons only exist in the modal; on a full page, offer the way back as a link.
+    foreach ($footeractions as $action) {
+        if (($action['action'] ?? '') === 'aiplacement-modgen-reenter') {
+            $bodyhtml .= html_writer::div(
+                html_writer::link($PAGE->url, $action['label'], ['class' => 'btn btn-primary']),
+                'mt-3'
+            );
+        }
+    }
+
     echo $OUTPUT->header();
     echo $bodyhtml;
     echo $OUTPUT->footer();
@@ -389,6 +399,9 @@ if ($approveform && ($adata = $approveform->get_data())) {
         }
     } else if (!empty($json['weeks'])) {
         $sectioncount = count($json['weeks']);
+    } else if (!empty($json['sections'])) {
+        // The weekly layout lists its weeks under 'sections'.
+        $sectioncount = count($json['sections']);
     }
 
     // Refuse now rather than queue a job that is certain to fail in the background.
@@ -401,7 +414,8 @@ if ($approveform && ($adata = $approveform->get_data())) {
         if ($ajax) {
             \aiplacement_modgen\local\ajax_response::error($e->getMessage(), 'sectionlimitexceeded');
         }
-        throw $e;
+        // On a full page, go back to the form with the reason rather than showing an error page.
+        redirect($PAGE->url, $e->getMessage(), null, \core\output\notification::NOTIFY_ERROR);
     }
 
     // Always use background task for all creation jobs.

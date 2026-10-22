@@ -109,6 +109,29 @@ final class csv_build_structure_test extends \advanced_testcase {
     }
 
     /**
+     * Someone who may only build from a file (not manage structure) still gets the section summary
+     * activities: creating them must not need the Quick Add capability.
+     */
+    public function test_a_template_only_user_gets_the_summary_activities(): void {
+        $context = \context_course::instance($this->course->id);
+        $roleid = $this->getDataGenerator()->create_role();
+        assign_capability('aiplacement/modgen:generatefromtemplate', CAP_ALLOW, $roleid, $context->id);
+        // What any teacher who can add activities has; it is Moodle's own check, not the plugin's.
+        assign_capability('moodle/course:manageactivities', CAP_ALLOW, $roleid, $context->id);
+        assign_capability('mod/learningactivity:addinstance', CAP_ALLOW, $roleid, $context->id);
+        $user = $this->getDataGenerator()->create_user();
+        role_assign($roleid, $user->id, $context->id);
+        $this->setUser($user);
+
+        $this->build('weeks.csv', "Week 1,Alpha\n", true);
+
+        $this->assert_structure($this->course->id, array_merge(
+            [$this->assessments_row()],
+            $this->week_rows('Alpha', '-', 1)
+        ));
+    }
+
+    /**
      * A theme file builds themes, their weeks and the sessions, with the descriptions from the file.
      */
     public function test_theme_file(): void {
@@ -165,6 +188,20 @@ final class csv_build_structure_test extends \advanced_testcase {
             $this->week_rows('Alpha', '-', 0, 'First'),
             $this->week_rows('Beta', '-', 0),
             $this->week_rows('Gamma', '-', 0)
+        ));
+        $this->assert_sound($this->course->id);
+    }
+
+    /**
+     * A weekly file with the summary option on gets an activity in every week and session.
+     */
+    public function test_weekly_file_with_summary_activities(): void {
+        $this->build('weeks.csv', "Week 1,Alpha\nWeek 2,Beta\n", true);
+
+        $this->assert_structure($this->course->id, array_merge(
+            [$this->assessments_row()],
+            $this->week_rows('Alpha', '-', 1),
+            $this->week_rows('Beta', '-', 1)
         ));
         $this->assert_sound($this->course->id);
     }

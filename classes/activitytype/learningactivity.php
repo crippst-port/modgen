@@ -82,9 +82,9 @@ class learningactivity implements activity_type {
 
         require_once($CFG->dirroot . '/course/modlib.php');
 
-        // Security: Verify user has permission to manage course structure.
-        $context = \context_course::instance($course->id);
-        require_capability('aiplacement/modgen:managestructure', $context);
+        // Security: the user must be allowed to build structure here: Quick Add needs the structure
+        // capability, building from a file or prompt needs a generate one, and all of them end up here.
+        \aiplacement_modgen\local\permissions::require_build(\context_course::instance($course->id));
 
         // Sanitize name field to prevent XSS.
         $name = isset($activitydata->name) ? clean_param(trim($activitydata->name), PARAM_TEXT) : '';

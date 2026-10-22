@@ -115,7 +115,6 @@ if ($mform->is_cancelled()) {
 }
 
 echo $OUTPUT->header();
-echo $OUTPUT->heading(get_string('managetemplates', 'aiplacement_modgen'));
 
 // Display existing templates.
 $templates = template_manager::get_all();

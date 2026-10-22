@@ -56,31 +56,14 @@ try {
             throw new moodle_exception('nopermissions', 'error', '', 'view this job');
         }
 
-        // STUCK JOB DETECTION: If job has been running for more than 5 minutes, consider it stuck.
-        // This handles cases where: PHP fatal error, server restart, task timeout, or unexpected crash.
-        $stuck = false;
-        if ($job->status === 'running' && $job->timestarted) {
-            $runningtime = time() - $job->timestarted;
-            if ($runningtime > 300) { // 5 minutes
-                $stuck = true;
-
-                // If a matching task still exists, Moodle owns the retry lifecycle.
-                // If it is missing, queue a small recovery task without changing the
-                // job back to queued. The task's interrupted-attempt guard sees the
-                // stale 'running' status and marks the job failed without re-running
-                // non-idempotent section creation.
-                job_status_helper::queue_missing_task_recovery($job);
-            }
-        }
-
-        // Return job status.
+        // Return job status. Jobs whose task was lost are failed by the fail_orphaned_jobs_task schedule,
+        // so this read-only poll never has to repair anything.
         $response = [
             'id' => $job->id,
             'status' => $job->status,
             'timecreated' => $job->timecreated,
             'timestarted' => $job->timestarted,
             'timecompleted' => $job->timecompleted,
-            'stuck' => $stuck,
         ];
 
         // Include result if job completed or failed.

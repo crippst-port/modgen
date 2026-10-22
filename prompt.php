@@ -409,6 +409,11 @@ if ($approveform && ($adata = $approveform->get_data())) {
         'json' => $json,
         'moduletype' => $moduletype,
         'createsummaryactivities' => $createsummaryactivities,
+    ], [
+        // The job row only needs enough to describe the job; the structure itself is in the task data.
+        'moduletype' => $moduletype,
+        'sectioncount' => $sectioncount,
+        'createsummaryactivities' => $createsummaryactivities,
     ]);
 
     // Return queued response for AJAX.

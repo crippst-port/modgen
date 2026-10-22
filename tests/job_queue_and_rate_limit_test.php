@@ -55,6 +55,31 @@ final class job_queue_and_rate_limit_test extends \advanced_testcase {
     }
 
     /**
+     * A large structure travels in the task data only; the job row keeps just a summary.
+     */
+    public function test_queue_creation_job_can_store_a_summary_instead_of_the_payload(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $user = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course();
+        $json = ['themes' => [['title' => 'A']]];
+
+        $jobid = job_status_helper::queue_creation_job(
+            $course->id,
+            $user->id,
+            'create_from_json',
+            ['json' => $json, 'moduletype' => 'connected_theme'],
+            ['moduletype' => 'connected_theme', 'sectioncount' => 1]
+        );
+
+        $stored = json_decode($DB->get_field('aiplacement_modgen_jobs', 'parameters', ['id' => $jobid]), true);
+        $this->assertSame(['moduletype' => 'connected_theme', 'sectioncount' => 1], $stored);
+
+        $taskdata = job_status_helper::find_section_creation_task($jobid)->get_custom_data();
+        $this->assertEquals(json_decode(json_encode($json)), $taskdata->json);
+    }
+
+    /**
      * If queuing fails the job row is rolled back rather than left queued for ever.
      */
     public function test_queue_creation_job_rolls_back_when_queuing_fails(): void {

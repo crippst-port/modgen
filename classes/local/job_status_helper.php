@@ -69,10 +69,18 @@ class job_status_helper {
      * @param int $courseid Course the sections are created in.
      * @param int $userid User the job runs as.
      * @param string $action Job action: create_themes, create_weeks or create_from_json.
-     * @param array $parameters Action parameters, stored on the job and passed to the task.
+     * @param array $parameters Action parameters, passed to the task.
+     * @param array|null $summary What to store on the job row instead of $parameters, when they are large
+     *                           (the uploaded structure) and the job page only needs a summary.
      * @return int Job id.
      */
-    public static function queue_creation_job(int $courseid, int $userid, string $action, array $parameters): int {
+    public static function queue_creation_job(
+        int $courseid,
+        int $userid,
+        string $action,
+        array $parameters,
+        ?array $summary = null
+    ): int {
         global $DB;
 
         $transaction = $DB->start_delegated_transaction();
@@ -82,7 +90,7 @@ class job_status_helper {
                 'userid' => $userid,
                 'action' => $action,
                 'status' => 'queued',
-                'parameters' => json_encode($parameters),
+                'parameters' => json_encode($summary ?? $parameters),
                 'timecreated' => time(),
             ]);
 
@@ -104,24 +112,54 @@ class job_status_helper {
     }
 
     /**
-     * Queue a minimal recovery task when a running job has lost its adhoc task.
+     * Mark running jobs whose ad-hoc task has disappeared as failed.
      *
-     * The recovery task intentionally carries only the job id. When it starts, the
-     * create_sections_task interrupted-attempt guard sees the stale 'running' job
-     * and marks it failed without re-running non-idempotent section creation.
+     * A job is only set to running by its own task, and that task is removed from the queue
+     * once it finishes. A job still running with no task left was therefore interrupted
+     * (killed process, task deleted) and will never complete. While a matching task exists
+     * Moodle owns the retry, so the job is left alone. Sections are never re-created: the
+     * job is only reported as failed, because a previous attempt may have built part of it.
      *
-     * @param \stdClass $job Job record.
-     * @return bool True if a recovery task was queued.
+     * @param int $graceseconds How long a job must have been running before it can count as lost.
+     * @return int Number of jobs marked failed.
      */
-    public static function queue_missing_task_recovery(\stdClass $job): bool {
-        if (self::find_section_creation_task((int)$job->id)) {
-            return false;
+    public static function fail_orphaned_running_jobs(int $graceseconds = 300): int {
+        global $DB;
+
+        $jobs = $DB->get_records_select(
+            'aiplacement_modgen_jobs',
+            'status = :status AND timestarted < :cutoff',
+            ['status' => 'running', 'cutoff' => time() - $graceseconds]
+        );
+        if (!$jobs) {
+            return 0;
         }
 
-        $task = new \aiplacement_modgen\task\create_sections_task();
-        $task->set_custom_data((object)['jobid' => (int)$job->id]);
-        $task->set_userid((int)$job->userid);
+        // One pass over the queue rather than a lookup per job.
+        $pending = [];
+        foreach (\core\task\manager::get_adhoc_tasks('\\aiplacement_modgen\\task\\create_sections_task') as $task) {
+            $data = $task->get_custom_data();
+            if (!empty($data->jobid)) {
+                $pending[(int) $data->jobid] = true;
+            }
+        }
 
-        return (bool)\core\task\manager::queue_adhoc_task($task, true);
+        $failed = 0;
+        foreach ($jobs as $job) {
+            if (isset($pending[(int) $job->id])) {
+                continue;
+            }
+            $job->status = 'failed';
+            $job->result = json_encode([
+                'success' => false,
+                'error' => get_string('jobinterrupted', 'aiplacement_modgen'),
+                'will_retry' => false,
+            ]);
+            $job->timecompleted = time();
+            $DB->update_record('aiplacement_modgen_jobs', $job);
+            $failed++;
+        }
+
+        return $failed;
     }
 }

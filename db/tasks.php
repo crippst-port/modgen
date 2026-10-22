@@ -27,6 +27,15 @@ defined('MOODLE_INTERNAL') || die();
 
 $tasks = [
     [
+        'classname' => 'aiplacement_modgen\task\fail_orphaned_jobs_task',
+        'blocking' => 0,
+        'minute' => '*/5',
+        'hour' => '*',
+        'day' => '*',
+        'dayofweek' => '*',
+        'month' => '*',
+    ],
+    [
         'classname' => 'aiplacement_modgen\task\cleanup_old_jobs_task',
         'blocking' => 0,
         'minute' => '15',

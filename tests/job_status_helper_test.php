@@ -130,20 +130,6 @@ final class job_status_helper_test extends advanced_testcase {
     }
 
     /**
-     * Run a task while discarding mtrace output.
-     *
-     * @param create_sections_task $task Task to execute.
-     */
-    private function run_task(create_sections_task $task): void {
-        ob_start();
-        try {
-            $task->execute();
-        } finally {
-            ob_end_clean();
-        }
-    }
-
-    /**
      * Job visibility is owner-only, even when another user has course editing rights.
      *
      * @covers ::user_can_view_job
@@ -157,17 +143,13 @@ final class job_status_helper_test extends advanced_testcase {
     }
 
     /**
-     * Existing adhoc tasks are found even when customdata contains the full payload.
-     *
-     * This catches the old bug where status polling searched for exactly
-     * {"jobid": N}, missing the real task payload and falsely requeueing.
+     * A running job whose task is still queued is left to Moodle, even when the task carries
+     * the full payload rather than just the job id.
      *
      * @covers ::find_section_creation_task
-     * @covers ::queue_missing_task_recovery
+     * @covers ::fail_orphaned_running_jobs
      */
-    public function test_existing_full_customdata_task_prevents_recovery_requeue(): void {
-        global $DB;
-
+    public function test_running_job_with_a_task_is_left_alone(): void {
         $jobid = $this->make_job($this->owner->id, 'running', time() - 600);
         $task = new create_sections_task();
         $task->set_custom_data((object)[
@@ -181,43 +163,42 @@ final class job_status_helper_test extends advanced_testcase {
         \core\task\manager::queue_adhoc_task($task);
 
         $this->assertNotNull(job_status_helper::find_section_creation_task($jobid));
-        $this->assertFalse(job_status_helper::queue_missing_task_recovery($this->job($jobid)));
-        $this->assertEquals(1, $DB->count_records('task_adhoc'));
+        $this->assertSame(0, job_status_helper::fail_orphaned_running_jobs());
         $this->assertSame('running', $this->job($jobid)->status);
     }
 
     /**
-     * Missing-task recovery must not turn a stale running job back into a creation retry.
+     * A job left running with no task is marked failed, and nothing is created for it.
      *
-     * The queued recovery task carries only jobid, so execute() marks the stale
-     * running job failed via its interrupted-attempt guard and creates no sections.
-     *
-     * @covers ::queue_missing_task_recovery
+     * @covers ::fail_orphaned_running_jobs
      */
-    public function test_missing_task_recovery_marks_stale_running_job_failed_without_creation(): void {
-        global $DB;
-
+    public function test_running_job_without_a_task_is_marked_failed(): void {
         $jobid = $this->make_job($this->owner->id, 'running', time() - 600);
 
-        $this->assertTrue(job_status_helper::queue_missing_task_recovery($this->job($jobid)));
-        $this->assertEquals(1, $DB->count_records('task_adhoc'));
-
-        $task = job_status_helper::find_section_creation_task($jobid);
-        $this->assertNotNull($task);
-        $customdata = $task->get_custom_data();
-        $this->assertEquals((object)['jobid' => $jobid], $customdata);
-
-        $this->run_task($task);
-        $this->resetDebugging();
+        $this->assertSame(1, job_status_helper::fail_orphaned_running_jobs());
 
         $job = $this->job($jobid);
         $this->assertSame('failed', $job->status);
+        $this->assertNotEmpty($job->timecompleted);
         $result = json_decode($job->result, true);
-        $this->assertFalse($result['will_retry'] ?? true);
+        $this->assertFalse($result['success']);
+        $this->assertFalse($result['will_retry']);
         $this->assertSame(
             0,
             $this->count_generated_toplevel(),
-            'Recovery must not create sections for an interrupted job.'
+            'Failing an interrupted job must not create sections.'
         );
+    }
+
+    /**
+     * A job that only just started is not treated as lost.
+     *
+     * @covers ::fail_orphaned_running_jobs
+     */
+    public function test_recently_started_job_is_not_failed(): void {
+        $jobid = $this->make_job($this->owner->id, 'running', time() - 30);
+
+        $this->assertSame(0, job_status_helper::fail_orphaned_running_jobs());
+        $this->assertSame('running', $this->job($jobid)->status);
     }
 }

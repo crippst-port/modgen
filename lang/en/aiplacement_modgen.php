@@ -716,3 +716,4 @@ $string['warning_weekfailed'] = 'The week "{$a->title}" could not be created: {$
 $string['jobcompletedwarnings'] = 'Completed with problems';
 $string['jobcompletedwarnings_desc'] = 'Some items could not be created. The rest of the structure was built.';
 $string['jobwarningsnotice'] = 'The background job finished, but {$a} item(s) could not be created. Check the course structure.';
+$string['failorphanedjobs'] = 'Fail interrupted background jobs';

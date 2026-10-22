@@ -48,14 +48,13 @@ function aiplacement_modgen_extend_navigation_course(
 
     // Check if user has any modgen capabilities.
     $canmanagestructure = has_capability('aiplacement/modgen:managestructure', $context);
-    $canmanagedates = has_capability('aiplacement/modgen:managedates', $context);
     $cangenerateprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
     $cangeneratetemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
     $cancheckstructure = has_capability('aiplacement/modgen:checkstructure', $context);
 
     // Hide toolbar if user has no modgen capabilities.
     if (
-        !$canmanagestructure && !$canmanagedates && !$cangenerateprompt
+        !$canmanagestructure && !$cangenerateprompt
             && !$cangeneratetemplate && !$cancheckstructure
     ) {
         return;
@@ -86,7 +85,6 @@ function aiplacement_modgen_extend_navigation_course(
             'contextid' => $context->id,
             'showgenerator' => $showgenerator,
             'showmanagestructure' => $canmanagestructure,
-            'showmanagedates' => $canmanagedates,
             'showquickadd' => \aiplacement_modgen\local\settings_helper::is_quickadd_enabled(),
             'showtemplatefromfile' => $cangeneratetemplate
                 && \aiplacement_modgen\local\settings_helper::is_structurefromfile_enabled(),
@@ -133,13 +131,12 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     // the client-supplied show* args are never trusted for visibility. Each button's
     // capability is re-checked here, mirroring aiplacement_modgen_extend_navigation_course().
     $canmanagestructure = has_capability('aiplacement/modgen:managestructure', $context);
-    $canmanagedates = has_capability('aiplacement/modgen:managedates', $context);
     $cangenerateprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
     $cangeneratetemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
     $cancheckstructure = has_capability('aiplacement/modgen:checkstructure', $context);
 
     if (
-        !$canmanagestructure && !$canmanagedates && !$cangenerateprompt
+        !$canmanagestructure && !$cangenerateprompt
             && !$cangeneratetemplate && !$cancheckstructure
     ) {
         throw new required_capability_exception(
@@ -155,7 +152,6 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
 
     $showgenerator = $showtemplatefromptompt; // Legacy support.
     $showmanagestructure = $canmanagestructure;
-    $showmanagedates = $canmanagedates;
     $showtemplatefromfile = $cangeneratetemplate && \aiplacement_modgen\local\settings_helper::is_structurefromfile_enabled();
     $showquickadd = \aiplacement_modgen\local\settings_helper::is_quickadd_enabled();
     $showcheckstructure = $cancheckstructure;
@@ -165,7 +161,6 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
         $courseid,
         $showgenerator,
         $showmanagestructure,
-        $showmanagedates,
         $showtemplatefromfile,
         $showtemplatefromptompt,
         $showcheckstructure,
@@ -400,125 +395,6 @@ function aiplacement_modgen_output_fragment_form_template_from_prompt(array $arg
 
     // Set default data.
     $form->set_data((object)$formdata);
-
-    // Return rendered form HTML.
-    return $form->render();
-}
-
-/**
- * Fragment callback to render the dates_for_sections form in a modal.
- *
- * This renders the form for applying dates to course sections,
- * with preview of proposed section names and date ranges.
- *
- * @param array $args Fragment arguments containing courseid
- * @return string Rendered form HTML
- */
-function aiplacement_modgen_output_fragment_form_dates_for_sections(array $args): string {
-    global $PAGE, $CFG, $DB;
-
-    // Fragments are reachable directly, so they enforce the placement switch too.
-    \aiplacement_modgen\local\settings_helper::require_placement_enabled();
-
-    // Ensure required libraries are loaded.
-    require_once($CFG->libdir . '/formslib.php');
-
-    // Validate parameters.
-    $courseid = clean_param($args['courseid'], PARAM_INT);
-    $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
-
-    $context = aiplacement_modgen_fragment_context($courseid, $contextid);
-
-    // Verify permission.
-    require_capability('aiplacement/modgen:managestructure', $context);
-
-    // Set page context for proper JS/CSS loading.
-    $PAGE->set_context($context);
-
-    // Get course info for start date.
-    $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
-
-    // Filter out section 0 and special sections.
-    $introsectionname = get_string('introductionsectionname', 'aiplacement_modgen');
-    $assessmentssectionname = get_string('assessmentssectionname', 'aiplacement_modgen');
-
-    $modinfo = get_fast_modinfo($courseid);
-    $allsections = $modinfo->get_section_info_all();
-
-    // Session names to skip.
-    $sessionnames = [
-        get_string('presession', 'aiplacement_modgen'),
-        get_string('session', 'aiplacement_modgen'),
-        get_string('postsession', 'aiplacement_modgen'),
-    ];
-
-    // Build section number to ID mapping for parent_id conversion.
-    $sectionnumtoid = [];
-    foreach ($allsections as $section) {
-        $sectionnumtoid[$section->section] = $section->id;
-    }
-
-    // Build list of all sections (no date calculation yet - user will choose start date).
-    $filteredsections = [];
-    foreach ($allsections as $section) {
-        // Skip section 0.
-        if ($section->section == 0) {
-            continue;
-        }
-
-        // Skip special sections.
-        $isspecial = ($section->name === $introsectionname || $section->name === $assessmentssectionname);
-        if ($isspecial) {
-            continue;
-        }
-
-        // Skip session subsections.
-        $issession = in_array($section->name, $sessionnames);
-        if ($issession) {
-            continue;
-        }
-
-        // Convert parent section number to parent section ID.
-        $parentid = 0;
-        if (!empty($section->parent)) {
-            $parentid = $sectionnumtoid[$section->parent] ?? 0;
-        }
-
-        // Add placeholder for empty or default names.
-        $defaultnames = [
-            '',
-            'Topic ' . $section->section,
-            'Section ' . $section->section,
-            'Week ' . $section->section,
-            'Topic ' . ($section->section + 1),
-            'Section ' . ($section->section + 1),
-            'Week ' . ($section->section + 1),
-        ];
-        $name = trim($section->name ?? '');
-        if (in_array($name, $defaultnames, true)) {
-            $name = get_string('sectionplaceholder', 'aiplacement_modgen', $section->section);
-        }
-
-        $filteredsections[] = [
-            'id' => $section->id,
-            'section' => $section->section,
-            'name' => $name,
-            'parent_id' => $parentid,
-            'course' => $section->course,
-        ];
-    }
-
-    // Create form.
-    require_once(__DIR__ . '/classes/form/dates_for_sections_form.php');
-    $formdata = [
-        'courseid' => $courseid,
-        'sections' => $filteredsections,
-        'coursestartdate' => !empty($course->startdate) ? $course->startdate : time(),
-    ];
-    $form = new \aiplacement_modgen_dates_for_sections_form(null, $formdata);
-
-    // Set default data.
-    $form->set_data((object)['courseid' => $courseid]);
 
     // Return rendered form HTML.
     return $form->render();

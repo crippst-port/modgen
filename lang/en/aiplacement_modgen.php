@@ -384,32 +384,10 @@ $string['successicon'] = 'Success';
 $string['showdetailsaria'] = 'Show creation details';
 $string['sectionscreatedsuccess'] = 'Successfully created {$a} section(s)';
 
-// Dates for sections feature.
-$string['datesforsections'] = 'Dates to sections...';
-$string['holidaydates'] = 'University Holiday Dates';
-$string['holidaydates_desc'] = 'Enter University holiday dates (one per line). When a week overlaps with a holiday, the holiday name will be appended to the section title. Format: Holiday Name: DDMMYYYY-DDMMYYYY. Examples accepted: 25122024-05012025, 25/12/2024-05/01/2025, or 25-12-2024 to 05-01-2025. Note: For best results, holiday dates should start on a Monday and end on a Sunday to align with teaching weeks.';
-$string['holidaydates_format_example'] = 'Example: Christmas Break: 25122024-05012025';
-$string['applydates'] = 'Apply Selected Dates';
-$string['removealldates'] = 'Remove Selected Dates';
-$string['currentname'] = 'Current Name';
-$string['proposedname'] = 'Proposed Name (with dates)';
 $string['sectiontype'] = 'Type';
-$string['includeparentsections'] = 'Include themed sections';
-$string['includeparentsections_help'] = 'When enabled, themed sections (top-level parents) will also receive dates based on the date range of their child weeks.';
-$string['selectsections'] = 'Select sections to apply dates';
-$string['datesappliedsuccess'] = '{$a} section(s) updated with dates';
-$string['datesremovedsuccess'] = 'Dates removed from {$a} section(s)';
-$string['datesrecalculated'] = 'Dates recalculated';
-$string['invaliddateformat'] = 'Invalid holiday date format on line {$a}. Expected format: Holiday Name: DDMMYYYY-DDMMYYYY';
-$string['nosectionsselected'] = 'Please select at least one section';
 $string['themesection'] = 'Theme';
 $string['parentsection'] = 'Parent';
 $string['weeksection'] = 'Week';
-$string['themedSections'] = 'Theme Sections';
-$string['weekSections'] = 'Week Sections';
-$string['nosectionsavailable'] = 'No sections available for date assignment';
-$string['selectallthemes'] = 'Select all top sections';
-$string['selectallweeks'] = 'Select all sub sections';
 
 // Help and Advice Links.
 $string['helpandadvice'] = 'Help and Advice';
@@ -448,24 +426,11 @@ $string['processingrequest'] = 'Processing your request...';
 $string['pleasewait'] = 'Please wait';
 $string['creatingthemes'] = 'Creating themes...';
 $string['creatingweeks'] = 'Creating weeks...';
-$string['applyingdates'] = 'Applying dates to sections...';
-$string['removingdates'] = 'Removing dates from sections...';
-$string['calculatingdates'] = 'Calculating dates...';
 $string['loadingform'] = 'Loading form...';
 $string['creatingsections'] = 'Creating sections...';
 
-// Dates form.
-$string['selectsections_hierarchical'] = 'Select sections to add dates to. New dates appear as badges <span class="badge bg-info text-white">Dec 21-27:</span> on the right in this preview, When applied, dates will be added to section titles and any existing dates will be updated. Use the toggle buttons to quickly select or deselect groups.';
-$string['sectiontitle'] = 'Section Title';
-$string['newdate'] = 'New Date';
-$string['toggleall'] = 'Toggle All';
-$string['toggletoplevel'] = 'Toggle Top-Level';
-$string['haschildren'] = 'Has subsections';
-$string['startdate'] = 'Start date for calculation';
-$string['startdate_help'] = 'Choose the date from which to start calculating week dates. This will be used as the first day of the first selected section. Dates will be calculated sequentially for each checked section, skipping any configured holidays.';
 
 $string['modgen:managestructure'] = 'Manage course structure (themes, weeks)';
-$string['modgen:managedates'] = 'Manage dates to sections';
 $string['modgen:generatewithprompt'] = 'Generate content with AI prompt';
 $string['modgen:generatefromtemplate'] = 'Generate content from templates';
 $string['modgen:managetemplates'] = 'Manage site-wide templates';

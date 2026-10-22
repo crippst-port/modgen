@@ -176,24 +176,6 @@ if ($hassiteconfig) {
             PARAM_INT
         ));
 
-        // Dates for sections - Holiday configuration.
-        $settings->add(new admin_setting_heading(
-            'aiplacement_modgen/datesforsectionsheading',
-            new lang_string('datesforsections', 'aiplacement_modgen'),
-            ''
-        ));
-
-        $settings->add(new admin_setting_configtextarea(
-            'aiplacement_modgen/holiday_dates',
-            new lang_string('holidaydates', 'aiplacement_modgen'),
-            new lang_string('holidaydates_desc', 'aiplacement_modgen') . '<br><em>' .
-            get_string('holidaydates_format_example', 'aiplacement_modgen') . '</em>',
-            '',
-            PARAM_TEXT,
-            60,
-            10
-        ));
-
         // CSV Template Library.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/csvtemplateheading',

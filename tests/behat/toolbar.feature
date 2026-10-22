@@ -21,7 +21,6 @@ Feature: The Module Assistant toolbar offers only the current features
     And the following "permission overrides" exist:
       | capability                                | permission | role           | contextlevel | reference |
       | aiplacement/modgen:managestructure        | Allow      | editingteacher | Course       | C1        |
-      | aiplacement/modgen:managedates            | Allow      | editingteacher | Course       | C1        |
       | aiplacement/modgen:generatefromtemplate   | Allow      | editingteacher | Course       | C1        |
       | aiplacement/modgen:checkstructure         | Allow      | editingteacher | Course       | C1        |
 
@@ -34,7 +33,6 @@ Feature: The Module Assistant toolbar offers only the current features
     And I should see "New Theme(s)"
     And I should see "New Week(s)"
     And I should see "Structure from file"
-    And I should see "Dates to sections..."
 
   Scenario: There is no Suggest entry
     When I am on the "Course 1" "course" page logged in as "teacher1"

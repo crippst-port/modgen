@@ -185,5 +185,13 @@ function xmldb_aiplacement_modgen_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026102101, 'aiplacement', 'modgen');
     }
 
+    // Dates to sections was removed: drop its holiday setting. Section names already carrying a date prefix are left as they are.
+    if ($oldversion < 2026102201) {
+        unset_config('holiday_dates', 'aiplacement_modgen');
+
+        // Savepoint reached.
+        upgrade_plugin_savepoint(true, 2026102201, 'aiplacement', 'modgen');
+    }
+
     return true;
 }

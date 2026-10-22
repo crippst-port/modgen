@@ -78,13 +78,13 @@ final class toolbar_permission_test extends advanced_testcase {
         assign_capability('aiplacement/modgen:checkstructure', CAP_ALLOW, $editingteacherrole, $coursecontext->id);
 
         // Partially-authorized user: a different role, granted a different modgen
-        // capability (managedates) but never checkstructure. Clears the toolbar's
+        // capability (managestructure) but never checkstructure. Clears the toolbar's
         // "has at least one modgen capability" gate without being allowed to see or
         // reach the structure diagnostics/fix tool specifically.
         $teacherrole = $DB->get_field('role', 'id', ['shortname' => 'teacher'], MUST_EXIST);
         $this->partiallyauthorizeduser = $generator->create_user();
         $generator->role_assign($teacherrole, $this->partiallyauthorizeduser->id, $coursecontext->id);
-        assign_capability('aiplacement/modgen:managedates', CAP_ALLOW, $teacherrole, $coursecontext->id);
+        assign_capability('aiplacement/modgen:managestructure', CAP_ALLOW, $teacherrole, $coursecontext->id);
     }
 
     /**
@@ -120,7 +120,6 @@ final class toolbar_permission_test extends advanced_testcase {
             'contextid'              => $contextid,
             'showcheckstructure'     => 1, // Forged: this user has no checkstructure capability.
             'showmanagestructure'    => 1,
-            'showmanagedates'        => 1,
             'showtemplatefromfile'   => 1,
             'showtemplatefromptompt' => 1,
         ]);

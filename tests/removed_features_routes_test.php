@@ -32,7 +32,6 @@ namespace aiplacement_modgen;
 
 use advanced_testcase;
 use aiplacement_modgen\local\csv_processing_service;
-use aiplacement_modgen\local\date_calculator;
 use aiplacement_modgen\local\section_creation_service;
 use aiplacement_modgen\local\theme_builder;
 use aiplacement_modgen\task\create_sections_task;
@@ -50,7 +49,6 @@ require_once($CFG->dirroot . '/ai/placement/modgen/classes/local/ai_service.php'
 /**
  * Behaviour tests for the changed routes.
  *
- * @covers \aiplacement_modgen\local\date_calculator::remove_dates_from_sections
  * @covers \aiplacement_modgen\local\theme_builder::rollback_quietly
  * @covers \aiplacement_modgen\local\csv_processing_service
  * @covers \aiplacement_modgen\task\create_sections_task
@@ -83,78 +81,14 @@ final class removed_features_routes_test extends advanced_testcase {
     }
 
     /**
-     * Create a named section in a course.
-     *
-     * @param \stdClass $course Course.
-     * @param string $name Section name.
-     * @return \stdClass Section record.
+     * The dates-to-sections feature is gone: no endpoints, no fragment, no capability.
      */
-    private function make_section(\stdClass $course, string $name): \stdClass {
-        global $DB;
-        $section = $this->getDataGenerator()->create_course_section(['course' => $course->id, 'section' => 1]);
-        $DB->set_field('course_sections', 'name', $name, ['id' => $section->id]);
-        return $DB->get_record('course_sections', ['id' => $section->id], '*', MUST_EXIST);
-    }
-
-    // ------------------------------------------------------------------
-    // ajax/remove_section_dates.php.
-
-    /**
-     * Section ids from the authorised course have their date prefix removed.
-     */
-    public function test_remove_dates_strips_prefix_in_own_course(): void {
-        $prefix = date_calculator::format_date_range_uk(strtotime('2026-01-05'), strtotime('2026-01-11'));
-        $section = $this->make_section($this->course, $prefix . ' Foundations');
-
-        $updated = date_calculator::remove_dates_from_sections($this->course->id, [$section->id]);
-
-        $this->assertCount(1, $updated);
-        $this->assertSame('Foundations', $updated[0]['name']);
-    }
-
-    /**
-     * A section id belonging to another course is refused and left untouched.
-     */
-    public function test_remove_dates_refuses_other_courses_section(): void {
-        global $DB;
-        $prefix = date_calculator::format_date_range_uk(strtotime('2026-01-05'), strtotime('2026-01-11'));
-        $foreign = $this->make_section($this->other, $prefix . ' Other course');
-
-        try {
-            date_calculator::remove_dates_from_sections($this->course->id, [$foreign->id]);
-            $this->fail('A foreign section id must be rejected.');
-        } catch (\dml_missing_record_exception $e) {
-            $this->assertInstanceOf(\dml_missing_record_exception::class, $e);
+    public function test_dates_to_sections_is_removed(): void {
+        foreach (['apply', 'preview', 'remove'] as $name) {
+            $this->assertFileDoesNotExist(__DIR__ . '/../ajax/' . $name . '_section_dates.php');
         }
-
-        $this->assertSame($prefix . ' Other course', $DB->get_field('course_sections', 'name', ['id' => $foreign->id]));
-    }
-
-    /**
-     * One foreign id in a list rejects the whole list: nothing is half applied.
-     */
-    public function test_remove_dates_is_all_or_nothing(): void {
-        global $DB;
-        $prefix = date_calculator::format_date_range_uk(strtotime('2026-01-05'), strtotime('2026-01-11'));
-        $own = $this->make_section($this->course, $prefix . ' Mine');
-        $foreign = $this->make_section($this->other, $prefix . ' Theirs');
-
-        try {
-            date_calculator::remove_dates_from_sections($this->course->id, [$own->id, $foreign->id]);
-            $this->fail('A list containing a foreign id must be rejected.');
-        } catch (\dml_missing_record_exception $e) {
-            $this->assertInstanceOf(\dml_missing_record_exception::class, $e);
-        }
-
-        $this->assertSame($prefix . ' Mine', $DB->get_field('course_sections', 'name', ['id' => $own->id]));
-        $this->assertSame($prefix . ' Theirs', $DB->get_field('course_sections', 'name', ['id' => $foreign->id]));
-    }
-
-    /**
-     * An empty selection is a harmless no-op.
-     */
-    public function test_remove_dates_empty_selection(): void {
-        $this->assertSame([], date_calculator::remove_dates_from_sections($this->course->id, []));
+        $this->assertFalse(function_exists('aiplacement_modgen_output_fragment_form_dates_for_sections'));
+        $this->assertNull(get_capability_info('aiplacement/modgen:managedates'));
     }
 
     // ------------------------------------------------------------------
@@ -197,7 +131,6 @@ final class removed_features_routes_test extends advanced_testcase {
             'add theme' => ['aiplacement_modgen_output_fragment_form_add_theme'],
             'add week' => ['aiplacement_modgen_output_fragment_form_add_week'],
             'prompt' => ['aiplacement_modgen_output_fragment_form_template_from_prompt'],
-            'dates' => ['aiplacement_modgen_output_fragment_form_dates_for_sections'],
         ];
     }
 

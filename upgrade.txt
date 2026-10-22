@@ -1,5 +1,13 @@
 === Module Assistant (aiplacement_modgen) Upgrade Notes ===
 
+## Upgrading to Version 0.8.1 (2026-10-22)
+
+### Features removed
+
+- Dates to sections (add/remove dated headings on sections), its holiday dates setting and the
+  aiplacement/modgen:managedates capability. Section names that already carry a date prefix are
+  left untouched and can be edited by hand.
+
 ## Upgrading to Version 0.8.0 (2026-10-21)
 
 ### Features removed

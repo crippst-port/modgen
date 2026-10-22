@@ -9,7 +9,6 @@ The Module Generator (aiplacement_modgen) plugin streamlines course design by:
 - **AI-Powered Section Creation**: Generate themes, weeks, or sessions with AI assistance
 - **Flexible Course Structures**: Support for hierarchical sections using format_flexsections
 - **Curriculum Templates**: Import from JSON or create from scratch
-- **Date Management**: Automatically schedule sections with holiday support
 - **Background Processing**: Handle large operations via Moodle's task queue
 
 ## Features
@@ -89,20 +88,11 @@ Site administration > Plugins > AI Placement Tools > Module Generator:
 4. Configure parameters and click "Generate"
 5. Review the generated structure and approve it
 
-### Date Management
-
-1. Go to: Course administration > AI Tools > Module Dates
-2. Select sections to schedule
-3. Set term start date
-4. Optionally add holiday dates
-5. Click "Apply Dates"
-
 ## Permissions
 
 | Capability | Description | Default Roles |
 |------------|-------------|---------------|
 | `aiplacement/modgen:use` | Use the module generator | Teacher, Manager |
-| `aiplacement/modgen:managedates` | Manage section dates | Teacher, Manager |
 | `aiplacement/modgen:manage` | Full administrative access | Manager |
 
 ## Privacy & Data

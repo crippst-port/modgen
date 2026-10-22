@@ -34,14 +34,6 @@ $capabilities = [
         'archetypes' => [],
     ],
 
-    // Manage dates to sections.
-    'aiplacement/modgen:managedates' => [
-        'riskbitmask' => RISK_DATALOSS,
-        'captype' => 'write',
-        'contextlevel' => CONTEXT_COURSE,
-        'archetypes' => [],
-    ],
-
     // Generate content with AI prompt.
     'aiplacement/modgen:generatewithprompt' => [
         'riskbitmask' => RISK_DATALOSS,

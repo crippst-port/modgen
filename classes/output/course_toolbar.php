@@ -43,9 +43,6 @@ class course_toolbar implements renderable, templatable {
     /** @var bool Whether to show manage structure buttons (themes/weeks) */
     private $showmanagestructure;
 
-    /** @var bool Whether to show manage dates button */
-    private $showmanagedates;
-
     /** @var bool Whether to show template from file button */
     private $showtemplatefromfile;
 
@@ -64,7 +61,6 @@ class course_toolbar implements renderable, templatable {
      * @param int $courseid Course ID
      * @param bool $showgenerator Whether to show generator button (legacy, use showtemplatefromptompt)
      * @param bool $showmanagestructure Whether to show structure management buttons
-     * @param bool $showmanagedates Whether to show dates to sections button
      * @param bool $showtemplatefromfile Whether to show template from file button
      * @param bool $showtemplatefromptompt Whether to show template from prompt button
      * @param bool $showcheckstructure Whether to show check structure button
@@ -74,7 +70,6 @@ class course_toolbar implements renderable, templatable {
         int $courseid,
         bool $showgenerator = false,
         bool $showmanagestructure = false,
-        bool $showmanagedates = false,
         bool $showtemplatefromfile = false,
         bool $showtemplatefromptompt = false,
         bool $showcheckstructure = false,
@@ -83,7 +78,6 @@ class course_toolbar implements renderable, templatable {
         $this->courseid = $courseid;
         $this->showgenerator = $showgenerator || $showtemplatefromptompt; // Legacy support.
         $this->showmanagestructure = $showmanagestructure;
-        $this->showmanagedates = $showmanagedates;
         $this->showtemplatefromfile = $showtemplatefromfile;
         $this->showtemplatefromptompt = $showtemplatefromptompt;
         $this->showcheckstructure = $showcheckstructure;
@@ -102,7 +96,6 @@ class course_toolbar implements renderable, templatable {
         $data = new stdClass();
         $data->showgenerator = $this->showgenerator;
         $data->showmanagestructure = $this->showmanagestructure;
-        $data->showmanagedates = $this->showmanagedates;
         $data->showtemplatefromfile = $this->showtemplatefromfile;
         $data->showtemplatefromptompt = $this->showtemplatefromptompt;
         $data->showcheckstructure = $this->showcheckstructure;

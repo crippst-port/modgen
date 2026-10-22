@@ -228,9 +228,6 @@ define("aiplacement_modgen/modal_generator_reactive", ["exports", "core/reactive
           window.location.reload();
         });
         this.setupFormSubmission(modal, formName);
-        if (formName === 'dates_for_sections') {
-          this.setupDatesPreview(modal);
-        }
         this.reactive.dispatch('formLoaded');
         this.updateFooterFromForm(modal);
         this.modal.show();
@@ -546,136 +543,6 @@ define("aiplacement_modgen/modal_generator_reactive", ["exports", "core/reactive
       html += '</div>';
       return html;
     }
-    async handleDatesForSectionsSubmission(modal, formData, buttonName) {
-      const isRemove = buttonName === 'removedates';
-      const body = modal.getBody();
-      const bodyNode = body && body.length ? body.get(0) : null;
-      const selectedSections = [];
-      if (bodyNode) {
-        const checkboxes = bodyNode.querySelectorAll('.section-checkbox:checked');
-        checkboxes.forEach(cb => {
-          selectedSections.push(cb.value);
-        });
-      }
-      if (!selectedSections || selectedSections.length === 0) {
-        const noSectionsMsg = await (0, _str.get_string)('nosectionsselected', 'aiplacement_modgen');
-        modal.setBody('<div class="alert alert-danger">' + noSectionsMsg + '</div>');
-        return;
-      }
-      let startDate = 0;
-      if (bodyNode && !isRemove) {
-        const startDateField = bodyNode.querySelector('select[name="startdate[day]"]');
-        if (startDateField) {
-          const day = bodyNode.querySelector('select[name="startdate[day]"]')?.value || 1;
-          const month = bodyNode.querySelector('select[name="startdate[month]"]')?.value || 1;
-          const year = bodyNode.querySelector('select[name="startdate[year]"]')?.value || new Date().getFullYear();
-          const dateObj = new Date(year, month - 1, day, 0, 0, 0);
-          startDate = Math.floor(dateObj.getTime() / 1000);
-        }
-      }
-      const action = isRemove ? 'Removing dates from' : 'Applying dates to';
-      const endpoint = isRemove ? '/ai/placement/modgen/ajax/remove_section_dates.php' : '/ai/placement/modgen/ajax/apply_section_dates.php';
-      const loadingMessage = await (0, _str.get_string)(isRemove ? 'removingdates' : 'applyingdates', 'aiplacement_modgen');
-      await LoadingIndicator.showInModal(modal, loadingMessage);
-      const includeparents = 1;
-      const params = new URLSearchParams();
-      params.append('courseid', this.courseid);
-      params.append('selectedsections', JSON.stringify(selectedSections));
-      if (!isRemove) {
-        params.append('includeparents', includeparents);
-        if (startDate > 0) {
-          params.append('startdate', startDate);
-        }
-      }
-      params.append('sesskey', M.cfg.sesskey);
-      fetch(M.cfg.wwwroot + endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/x-www-form-urlencoded'
-        },
-        body: params.toString()
-      }).then(response => response.json()).then(async data => {
-        if (data.success) {
-          this.showSuccess(modal, data.message);
-        } else {
-          const genericError = await (0, _str.get_string)('genericerror', 'aiplacement_modgen');
-          const errorHtml = '<div class="alert alert-danger">' + '<p>' + (data.error || genericError) + '</p>' + '</div>';
-          modal.setBody(errorHtml);
-        }
-      }).catch(async error => {
-        window.console.error('Error processing dates:', error);
-        const processingError = await (0, _str.get_string)('genericerror', 'aiplacement_modgen');
-        modal.setBody('<div class="alert alert-danger">' + processingError + '</div>');
-      });
-    }
-    setupDatesPreview(modal) {
-      const modalRoot = modal.getRoot();
-      let debounceTimer = null;
-      const previewDates = () => {
-        clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(async () => {
-          const body = modal.getBody();
-          const bodyNode = body && body.length ? body.get(0) : null;
-          if (!bodyNode) {
-            return;
-          }
-          const selected = [];
-          bodyNode.querySelectorAll('.section-checkbox:checked').forEach(cb => {
-            selected.push(parseInt(cb.value, 10));
-          });
-          let startDate = 0;
-          const dayField = bodyNode.querySelector('select[name="startdate[day]"]');
-          if (dayField) {
-            const day = bodyNode.querySelector('select[name="startdate[day]"]')?.value || 1;
-            const month = bodyNode.querySelector('select[name="startdate[month]"]')?.value || 1;
-            const year = bodyNode.querySelector('select[name="startdate[year]"]')?.value || new Date().getFullYear();
-            const dateObj = new Date(year, month - 1, day, 0, 0, 0);
-            startDate = Math.floor(dateObj.getTime() / 1000);
-          }
-          const params = new URLSearchParams({
-            courseid: this.courseid,
-            selectedsections: JSON.stringify(selected),
-            sesskey: M.cfg.sesskey
-          });
-          if (startDate > 0) {
-            params.append('startdate', startDate);
-          }
-          fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/preview_section_dates.php', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded'
-            },
-            body: params.toString()
-          }).then(response => response.json()).then(data => {
-            if (!data.success || !data.sections) {
-              return;
-            }
-            bodyNode.querySelectorAll('.date-prefix').forEach(datePrefix => {
-              datePrefix.textContent = '';
-              datePrefix.className = 'date-prefix';
-            });
-            data.sections.forEach(section => {
-              const sectionItem = bodyNode.querySelector(`[data-section-id="${section.id}"]`);
-              if (!sectionItem) {
-                return;
-              }
-              const datePrefix = sectionItem.querySelector('.date-prefix');
-              if (datePrefix && section.formatted_date) {
-                datePrefix.textContent = section.formatted_date;
-                datePrefix.className = 'date-prefix badge bg-info text-white';
-              }
-            });
-          }).catch(error => {
-            window.console.error('Error previewing dates:', error);
-          });
-        }, 250);
-      };
-      modalRoot.on('change', '.section-checkbox', previewDates);
-      modalRoot.on('change', 'select[name^="startdate["]', previewDates);
-      setTimeout(() => {
-        previewDates();
-      }, 100);
-    }
     setupFormSubmission(modal, formName) {
       const modalRoot = modal.getRoot();
       modalRoot.off('click', 'input[type="submit"], button[type="submit"], input[name="cancel"], button[name="cancel"]');
@@ -714,10 +581,6 @@ define("aiplacement_modgen/modal_generator_reactive", ["exports", "core/reactive
         const formData = new FormData(form);
         if (formName === 'template_from_prompt') {
           this.handlePromptSubmission(modal, formData);
-          return;
-        }
-        if (formName === 'dates_for_sections') {
-          this.handleDatesForSectionsSubmission(modal, formData, buttonName);
           return;
         }
         const action = formName === 'add_theme' ? 'create_themes' : 'create_weeks';

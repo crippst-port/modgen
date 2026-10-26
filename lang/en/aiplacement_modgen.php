@@ -41,14 +41,9 @@ $string['themecreationfailed'] = 'Failed to create themes. Check logs for detail
 $string['jsonsectionscreationfailed'] = 'Failed to create sections from JSON: {$a}';
 $string['cacherebuildfailed'] = 'Course cache rebuild failed: {$a}';
 $string['jobqueued'] = 'Creation queued - {$a} sections will be created in the background. This may take a few minutes.';
-$string['jobqueuedinfo'] = 'You can return to your course while this runs. Refresh the course page in a few minutes to see the new sections.';
-$string['jobrunning'] = 'Job is running...';
-$string['jobcompleted'] = 'Job completed successfully';
 $string['jobfailed'] = 'Job failed: {$a}';
 $string['jobinterrupted'] = 'A previous attempt was interrupted before completing (the course may be too large to process in one run). To avoid creating duplicate sections, the job was not retried. Please review the course and, if needed, start a smaller generation.';
-$string['checkingstatus'] = 'Checking job status...';
 $string['invalidaction'] = 'Invalid action';
-$string['creatingstructure'] = 'Creating Course Structure';
 
 // Job status page strings.
 $string['jobstatuspage_title'] = 'Job Status';
@@ -71,13 +66,10 @@ $string['unknownerror'] = 'An unknown error occurred';
 
 $string['inputrequired'] = 'You must provide at least one of the following: a text prompt, upload a CSV file, or select a structure.';
 $string['templatefromprompt'] = 'Structure from prompt';
-$string['addtemplate'] = 'Add another template';
 
 $string['prompt'] = 'Additional context or requests for the Assistant';
 $string['submit'] = 'Preview Structure';
 
-$string['reviewjson'] = 'Review the generated module JSON below. Approve to create activities.';
-$string['jsonpreview'] = 'JSON preview';
 $string['generationresultssummaryheading'] = 'What will be created';
 $string['generationresultspromptheading'] = 'Your prompt';
 $string['generationresultsprompttoggle'] = 'Show prompt details';
@@ -86,19 +78,13 @@ $string['generationresultsjsondescription'] = 'Review or share the structured JS
 $string['generationresultsjsonnote'] = 'Keep a copy if you may need to regenerate the same structure later.';
 $string['generationresultsfallbacksummary_weekly'] = 'The plan creates {$sections} weekly sections with around {$outlineitems} suggested activities and resources.';
 $string['generationresultsfallbacksummary_theme'] = 'The plan creates {$themes} themed sections spanning approximately {$weeks} delivery weeks.';
-$string['aisubsystemresponsedata'] = 'AI subsystem response data';
-$string['rawoutput'] = 'Raw output';
 $string['aigensummary'] = 'AI Generated Summary';
 $string['sectioncreated'] = 'Section created: {$a}';
-$string['nosectionscreated'] = 'No sections were created from the AI response.';
 $string['approveandcreate'] = 'Create';
-$string['reenterprompt'] = 'Re-enter prompt';
 $string['subsectioncreated'] = 'Subsection created: {$a}';
 $string['moduletype'] = 'Module format';
-$string['moduletype_weekly'] = 'Weekly format';
 $string['moduletype_connected_weekly'] = 'Connected Weekly';
 $string['moduletype_connected_theme'] = 'Connected Themed';
-$string['moduletypeinstruction_weekly'] = 'Structure the module as sequential weekly teaching sections with clear titles, summaries, and an outline array of 3-5 bullet points describing activities/resources.';
 $string['moduletypeinstruction_connected_weekly'] = 'Structure the module as sequential weekly teaching sections. Each week has THREE subsections: "Pre-session", "Session", and "Post-session".
 
 For WEEKS: Provide a generic, overarching weekly title and summary that introduces the week\'s overall learning outcomes and flow.
@@ -134,49 +120,29 @@ Structure each week object with:
 
 Important: Each week MUST include at least one activity distributed across the three session types (pre, session, post) as appropriate for the learning design. Ensure activities are logically sequenced and pedagogically sound.';
 
-$string['weeklybreakdown'] = 'Weekly breakdown';
-$string['weeklyoutline'] = 'Weekly outline';
 $string['themefallback'] = 'Theme overview';
 $string['weekfallback'] = 'Weekly focus';
 $string['presession'] = 'Pre-session';
 $string['session'] = 'Session';
 $string['postsession'] = 'Post-session';
-$string['keepweeklabels'] = 'Keep dated headings and insert the subject title as a label';
-$string['includeaboutassessments'] = 'Add "About Assessments" subsection to the first section';
-$string['includeaboutlearning'] = 'Add "About Learning Outcomes" subsection to the first section';
-$string['aboutassessments'] = 'About Assessments';
-$string['aboutlearningoutcomes'] = 'About Learning Outcomes';
 $string['returntocourse'] = 'Return to course home';
-$string['promptsentheading'] = 'Prompt sent to AI subsystem';
 $string['launchgenerator'] = 'Structure from file';
 $string['modgenmodalheading'] = 'Module Assistant';
-$string['modgenfabaria'] = 'Open Module Assistant';
 $string['navtitle'] = 'Module Assistant';
 $string['generatorbutton'] = 'Create';
 $string['generatorlabel'] = 'Structure from file';
 $string['modalintro'] = 'Click below to open the Module Creator and create module content.';
 $string['closemodgenmodal'] = 'Close and return to module';
-$string['modalinaccessible'] = 'To access the full Module Creator form, please use the "Create Module" link from the course navigation menu.';
 $string['missingcourseid'] = 'Course ID is required to use the Module Assistant.';
 
-
-// Tabbed interface.
-$string['generatetablabel'] = 'Generate from Structure';
-
+// Structure file upload.
 $string['supportingfiles'] = 'Upload structure file';
 $string['supportingfiles_help'] = 'Upload a CSV file containing your module structure. The module will be created as specified in the CSV. Maximum 5MB. Note: If you upload a file, it will be used even if you have also selected a template from the dropdown below.';
-
-$string['connectedcurriculum30'] = '30 credit module';
-$string['connectedcurriculum60'] = '60 credit module';
-$string['connectedcurriculum120'] = '120 credit module';
-$string['connectedcurriculumcredits'] = 'Module type';
-$string['connectedcurriculuminstruction'] = 'Module credit volume: {$a} credit Connected Curriculum module.';
 
 // Learning activity (metadata module).
 $string['learningactivity_created'] = 'Created learning activity metadata for {$a->name} (type: {$a->type})';
 $string['learningactivity_section'] = 'Section';
 
-$string['aipolicynotaccepted'] = 'You must accept the statement before using the Module Assistant.';
 $string['aipolicyacceptance'] = 'AI statement Acceptance Required';
 $string['acceptaipolicy'] = 'I agree to the terms of AI use in this system';
 $string['aipolicyinfo'] = 'This tool does not currently include active AI functionality. It is designated as AI-enabled to allow for potential future enhancements. Please accept to continue.';
@@ -186,10 +152,7 @@ $string['airatelimit'] = 'AI Request Rate Limit (per hour)';
 $string['airatelimit_desc'] = 'Maximum number of AI generation requests a user can make per hour. This helps prevent API quota exhaustion and abuse. Default is 10 requests per hour. Set to 0 for unlimited (not recommended).';
 $string['cachedef_ai_requests'] = 'How many AI generation requests each user has made in the current hour, for the rate limit';
 $string['processing'] = 'Processing your request, this may take several minutes...';
-$string['requesttimeout'] = 'Your request is taking longer than expected. Please try with a shorter prompt or try again later.';
-$string['aiprocessing'] = 'AI is generating your module. Please wait...';
 $string['longquery'] = 'Long queries may take up to 5 minutes to process.';
-$string['aiprocessingdetail'] = 'AI is analysing your request and generating module content. This process may take several minutes for complex requests.';
 $string['prompt_help'] = 'Describe what you want to create for your module. Be specific about the topic, learning objectives, and type of activities you want. More detailed prompts will give better results but may take longer to process.';
 $string['moduletype_help'] = 'Choose how to structure your module:
 
@@ -200,10 +163,7 @@ $string['moduletype_help'] = 'Choose how to structure your module:
 **Note**: If you upload a CSV file, the format will be automatically detected based on its contents (themes vs weekly structure). You can override the auto-detected format by selecting a specific option here.';
 
 // Form section headers.
-$string['selecttemplate'] = 'Select Structure';
-$string['uploadtemplatefile'] = 'Upload Structure File';
 $string['selectoruploadtemplate'] = 'Select or Upload Structure File';
-$string['templatesettings'] = 'Structure Setup';
 
 // CSV Template Library.
 $string['csvtemplatelibrary'] = 'CSV Structure Library';
@@ -217,19 +177,14 @@ $string['csvtemplate'] = 'Select a pre-made structure';
 $string['csvtemplate_help'] = 'Select a pre-made CSV to use as your module structure. You can either apply it directly or download it to edit offline before uploading. Note: If you upload a file below, the uploaded file will take priority over any template selected here.';
 $string['notemplateselected'] = '-- None selected --';
 $string['downloadtemplate'] = 'Download to edit';
-$string['applytemplate'] = 'Use selected structure';
 $string['addnewtemplate'] = 'Add new structure';
-$string['edittemplate'] = 'Edit structure';
-$string['deletetemplate'] = 'Delete structure';
 $string['confirmdeletetemplate'] = 'Are you sure you want to delete the structure "{$a}"? This cannot be undone.';
 $string['templatedeleted'] = 'Structure deleted successfully';
-$string['templatesaved'] = 'Structure saved successfully';
 $string['templatecreated'] = 'Structure created successfully';
 $string['templateupdated'] = 'Structure updated successfully';
 $string['notemplates'] = 'No structures available yet. Add your first structure below.';
 $string['moveup'] = 'Move up';
 $string['movedown'] = 'Move down';
-$string['csvvalidationfailed'] = 'CSV validation failed: {$a}';
 $string['invalidcsvstructure'] = 'The uploaded CSV file does not have a valid structure: {$a}';
 $string['templatefilenotfound'] = 'Structure file not found';
 $string['templatename_help'] = 'Give this structure a descriptive name that users will see when selecting structures.';
@@ -237,7 +192,6 @@ $string['templatedescription_help'] = 'Optionally provide a brief description of
 
 // Generator introduction.
 $string['generatorintroduction'] = 'This page allows you to create your course structure in several ways. You can upload a CSV structure file to define sections, weeks, or themes, or optionally select a pre-made structure from the library. When you upload a structure file, the form will read its contents and create your course layout. You can edit titles and descriptions after the strucure has been created on your module.';
-
 
 // AI enable/disable setting.
 $string['aienabledheading'] = 'AI Integration';
@@ -247,7 +201,6 @@ $string['enableai_desc'] = 'When enabled, uploaded files are processed exactly a
 
 // Placement options.
 $string['contentplacement'] = 'Content placement';
-$string['contentplacement_help'] = 'Choose whether to place new module content at the top of the course or after existing content.';
 $string['createsummaryactivities'] = 'Add a section summary activity to each section';
 $string['createsummaryactivities_help'] = 'When enabled, a Learning Activity "section summary" is added to the top of each week and session to hold learning design details (duration, learning type, instructions). Leave it off for a lighter structure of empty sections you can fill in later, which also makes large structures noticeably faster to create.';
 $string['createsummaryactivitiesai'] = 'Add a section summary activity to each section';
@@ -261,29 +214,21 @@ $string['aipromptheading_desc'] = 'Configure the pedagogical guidance and instit
 $string['baseprompt'] = 'Pedagogical Guidance';
 $string['baseprompt_desc'] = 'This guidance is sent to the AI to establish pedagogical context, institutional approach, and quality standards. Include information about your institution\'s teaching philosophy, any mandatory pedagogical frameworks, accessibility requirements, or specific learning design principles. The system automatically appends the technical JSON schema requirements to this guidance.';
 
-
 // Validation error strings.
 $string['generationfailed'] = 'Generation Failed';
 $string['validationerrorhelp'] = 'The AI response was malformed and cannot be used to create content. This sometimes happens when the AI double-encodes the response or returns an incorrect structure. Please try generating again with the same or modified prompt.';
 $string['tryagain'] = 'Try Again';
 
 // Module preview display strings.
-$string['moduleoverview'] = 'Module Overview';
 $string['themes'] = 'Themes';
 $string['weeks'] = 'Weeks';
 $string['activities'] = 'Activities';
-$string['viewjson'] = 'View JSON';
-$string['nothemes'] = 'No themes defined';
-$string['noweeks'] = 'No weeks defined';
-$string['noactivities'] = 'No activities defined';
 $string['regenerate'] = 'Regenerate';
 $string['modulestructureinfo'] = 'This preview shows the structure and organisation of the module that will be created. It is a schematic representation and does not reflect how the content will appear in Moodle. Click "Create" below to proceed with creating the module in your course.';
 
 // Quick add forms.
 $string['title'] = 'Title';
 $string['summary'] = 'Summary';
-$string['addtheme'] = 'Add Theme(s)';
-$string['addweek'] = 'Add Week(s)';
 $string['newtheme'] = 'New Theme(s)';
 $string['newweek'] = 'New Week(s)';
 $string['quickadd'] = 'Quick Add';
@@ -293,7 +238,6 @@ $string['weekcount'] = 'How many weeks do you want to create?';
 $string['weekcount_help'] = 'Enter the number of weeks to create. The maximum is set by your site administrator.';
 $string['weeksperTheme'] = 'How many weeks per theme?';
 $string['weeksperTheme_help'] = 'Enter the number of weeks to create within each theme. The maximum is set by your site administrator.';
-$string['invalidcount'] = 'Please enter a number between {$a->min} and {$a->max}';
 $string['invalidthemecount'] = 'Please enter a number between 1 and {$a}';
 $string['invalidweekcount'] = 'Please enter a number between 1 and {$a}';
 $string['invalidweeksperTheme'] = 'Please enter a number between 1 and {$a}';
@@ -302,20 +246,13 @@ $string['defaultthemesummary'] = 'This is a new empty theme. Replace this text w
 $string['defaultweekname'] = 'Theme {$a->theme} - Week {$a->week}';
 $string['defaultstandaloneweekname'] = 'Week {$a}';
 $string['defaultweeksummary'] = 'This is a new empty Week. Replace this text with a description of the content of this week.';
-$string['themescreated'] = '{$a} theme(s) successfully created';
-$string['weekscreated'] = '{$a} week(s) successfully created';
 $string['seedetails'] = 'See details';
-$string['returntocourseview'] = 'Return to course';
 $string['placementdisabled'] = 'The Module Assistant is currently disabled. An administrator can enable it in Site administration > General > AI > AI placements.';
 $string['erroracquiringlock'] = 'Could not acquire course lock. Another user may be editing this course.';
 $string['introductionsectionname'] = 'Introduction & General Information';
 $string['assessmentssectionname'] = 'Assessments';
 
 // Error messages for exceptions.
-$string['flexsectionsnotinstalled'] = 'The flexsections course format plugin is required but not installed. Please install the flexsections plugin before using this feature.';
-$string['flexsectionssetfailed'] = 'Failed to set course format to flexsections. Current format: {$a}';
-$string['flexsectionsmethodnotavailable'] = 'Flexsections create_new_section method not available';
-$string['themesectioncreatefailed'] = 'Failed to create theme section \'{$a}\'';
 $string['sectionnotfound'] = 'Section not found in course';
 $string['errorformatnotflexsections'] = 'Course format must be flexsections';
 $string['errorflexsectionsmissingmethod'] = 'Required flexsections method is not available';
@@ -330,7 +267,6 @@ $string['genericerror'] = 'An error occurred';
 // Accessibility.
 $string['successicon'] = 'Success';
 $string['showdetailsaria'] = 'Show creation details';
-$string['sectionscreatedsuccess'] = 'Successfully created {$a} section(s)';
 
 $string['sectiontype'] = 'Type';
 $string['themesection'] = 'Theme';
@@ -373,30 +309,17 @@ $string['sectionlimitexceeded'] = 'That\'s too many sections to create at once. 
 
 // Loading indicator strings.
 $string['processingrequest'] = 'Processing your request...';
-$string['pleasewait'] = 'Please wait';
-$string['creatingthemes'] = 'Creating themes...';
-$string['creatingweeks'] = 'Creating weeks...';
 $string['loadingform'] = 'Loading form...';
-$string['creatingsections'] = 'Creating sections...';
-
 
 $string['modgen:managestructure'] = 'Manage course structure (themes, weeks)';
 $string['modgen:generatewithprompt'] = 'Generate content with AI prompt';
 $string['modgen:generatefromtemplate'] = 'Generate content from templates';
 $string['modgen:managetemplates'] = 'Manage site-wide templates';
-$string['sectionplaceholder'] = 'Section {$a}';
 
 // Admin tools page.
 $string['admintools'] = 'Admin Diagnostic Tools';
 $string['admintoolsdesc'] = 'This page provides administrative tools for testing, diagnosing, and maintaining the modgen plugin. These tools help ensure database integrity and verify that security and performance improvements are working correctly.';
 $string['testing'] = 'Testing';
-$string['phpunittests'] = 'PHPUnit Tests';
-$string['phpunittestsdesc'] = 'Run the transaction handling test suite to verify that database transactions, XSS protection, error sanitization, and cache optimization are working correctly.';
-$string['runtests'] = 'Run Tests';
-$string['testresults'] = 'Test Results';
-$string['testspass'] = 'All tests passed successfully! ✓';
-$string['testsfail'] = 'Some tests failed. See details below.';
-$string['runningtests'] = 'Running PHPUnit tests... This may take a moment.';
 $string['databaseintegrity'] = 'Database Integrity';
 $string['integritychecker'] = 'Integrity Checker';
 $string['integritycheckerdesc'] = 'Check for and optionally fix orphaned sections, invalid parent references, and other database inconsistencies.';
@@ -404,7 +327,6 @@ $string['courseid'] = 'Course ID';
 $string['entercourseid'] = 'Enter course ID';
 $string['findcourseid'] = 'How do I find a course ID?';
 $string['selectcourse'] = 'Select a course';
-$string['choosecourse'] = '-- Choose a course --';
 $string['checkintegrity'] = 'Check Integrity';
 $string['fixintegrity'] = 'Repair Invalid Parents';
 $string['cleanup'] = 'Delete Hidden Empty Sections';
@@ -413,14 +335,7 @@ $string['fixingintegrity'] = 'Fixing Integrity Issues';
 $string['cleaningup'] = 'Cleaning Up Orphaned Sections';
 $string['confirmfixintegrity'] = 'Fix integrity issues in this course? This sets invalid parent sections to top-level and deletes orphaned format options.';
 $string['confirmcleanup'] = 'Clean up orphaned sections? This permanently deletes hidden sections with no activities.';
-$string['checkingcourse'] = 'Checking integrity for course: {$a}';
-$string['cleaningcourse'] = 'Cleaning orphaned sections from course: {$a}';
-$string['orphanedoptions'] = '{$a} orphaned format options (options for sections that no longer exist)';
-$string['invalidparents'] = '{$a} sections with invalid parent references';
-$string['fixedorphaned'] = 'Fixed {$a} orphaned format options';
-$string['fixedinvalid'] = 'Fixed {$a} sections with invalid parent references';
 $string['noissuesfound'] = 'No integrity issues found.';
-$string['usefixbutton'] = 'Use the "Repair Invalid Parents" button to automatically repair these problems.';
 $string['nosectionstoclean'] = 'No orphaned sections found to clean up.';
 $string['sectionsdeleted'] = '{$a} orphaned section(s) deleted.';
 $string['backtomainpage'] = 'Back to Admin Tools';
@@ -428,10 +343,6 @@ $string['statistics'] = 'Statistics';
 $string['pluginstatistics'] = 'Plugin Usage Statistics';
 $string['flexsectionscourses'] = 'Courses using flexsections';
 $string['estimatedsections'] = 'Estimated modgen-created sections';
-$string['documentation'] = 'Documentation';
-$string['resourcelinks'] = 'Resource Links';
-$string['corruptionanalysis'] = 'Corruption Analysis Report';
-$string['implementationplan'] = 'Implementation Plan';
 
 // Hierarchy analysis strings.
 $string['analyzehierarchy'] = 'Analyze Hierarchy';
@@ -446,7 +357,6 @@ $string['maxdepth'] = 'Maximum depth';
 $string['hiddensections'] = 'Hidden sections';
 $string['orphanedsections'] = 'Orphaned sections';
 $string['circularreferences'] = 'Circular references';
-$string['idnumberconfusion'] = 'ID/number confusion';
 
 // Check Structure page (course-editor diagnostic tool).
 $string['checkstructure'] = 'Check Structure';
@@ -572,8 +482,6 @@ $string['setparent_error_maxdepthexceeded'] = 'That change would nest the sectio
 // Settings page external link.
 $string['admintools_link'] = 'Admin Diagnostic Tools';
 $string['admintools_link_desc'] = 'Open the admin-level diagnostic and repair tools for the Module Generator plugin. <a href="{$a}">Admin Diagnostic Tools</a>';
-$string['depthviolations'] = 'Depth violations';
-$string['hiddensubsections'] = 'Hidden subsections (no activities)';
 
 // Export strings.
 $string['quickexport'] = 'Quick Hierarchy Export';
@@ -583,7 +491,6 @@ $string['exportoptions'] = 'Download Hierarchy Data:';
 $string['downloadjson'] = 'Download as JSON (Machine Readable)';
 $string['downloadhtml'] = 'Download as HTML (Human Readable)';
 $string['downloadtext'] = 'Download as Text (Plain Text)';
-$string['hierarchyexported'] = 'Hierarchy data exported successfully';
 
 // Repair action strings.
 $string['repairactions'] = 'Repair Actions:';
@@ -595,7 +502,6 @@ $string['confirmfixcircular'] = 'Fix circular parent references? This breaks cyc
 $string['confirmflattenhierarchy'] = 'WARNING: This will set ALL sections to top-level (parent=0), destroying the entire hierarchy structure. This is a destructive operation that cannot be undone. Are you absolutely sure you want to continue?';
 $string['fixingcircular'] = 'Fixing Circular References';
 $string['flatteninghierarchy'] = 'Flattening Hierarchy';
-$string['fixingcircularcourse'] = 'Fixing circular references in course: {$a}';
 $string['flatteningcourse'] = 'Flattening hierarchy for course: {$a}';
 $string['circularfixed'] = 'Fixed {$a} circular references';
 $string['nocircularfound'] = 'No circular references found';
@@ -619,18 +525,6 @@ $string['privacy:path:jobs'] = 'Module generation jobs';
 
 // Scheduled task strings.
 $string['cleanupoldjobs'] = 'Clean up old job records';
-
-// File upload form strings.
-$string['contentfile'] = 'Content file';
-$string['selectactivitytype'] = 'Create as activity type';
-$string['activityintro'] = 'Introduction';
-$string['uploadandcreate'] = 'Upload and create';
-
-// File processor warning strings.
-$string['unsupportedfiletype'] = 'Unsupported file type: {$a}';
-$string['conversionfailed'] = 'Could not convert file "{$a}" to HTML';
-$string['fallbacktoplaintext'] = 'HTML conversion failed; content extracted as plain text';
-$string['couldnotextractcontent'] = 'Could not extract content from file "{$a}"';
 
 // Section numbering safety.
 $string['parentsectiongone'] = 'The section these were to be added inside no longer exists, so they have been created at the top level instead.';

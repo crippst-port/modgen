@@ -268,6 +268,36 @@ final class privacy_test extends provider_testcase
     }
 
     /**
+     * A course's jobs are deleted with it: the provider finds jobs through their course, so any left
+     * behind could not be exported or deleted on request.
+     *
+     * @covers \aiplacement_modgen\local\hook_callbacks::before_course_deleted
+     */
+    public function test_jobs_are_deleted_with_their_course(): void {
+        global $DB;
+        $this->resetAfterTest();
+        $user = $this->getDataGenerator()->create_user();
+        $course = $this->getDataGenerator()->create_course();
+        $other = $this->getDataGenerator()->create_course();
+        $this->create_test_job($user->id, $course->id, 'create_weeks');
+        $kept = $this->create_test_job($user->id, $other->id, 'create_weeks');
+
+        delete_course($course, false);
+
+        $this->assertFalse($DB->record_exists('aiplacement_modgen_jobs', ['courseid' => $course->id]));
+        $this->assertTrue($DB->record_exists('aiplacement_modgen_jobs', ['id' => $kept]));
+    }
+
+    /**
+     * The metadata says that prompts go to the AI subsystem.
+     */
+    public function test_metadata_links_the_ai_subsystem(): void {
+        $items = (new provider())::get_metadata(new collection('aiplacement_modgen'))->get_collection();
+        $names = array_map(fn($item) => $item->get_name(), $items);
+        $this->assertContains('core_ai', $names);
+    }
+
+    /**
      * Helper method to create a test job record.
      *
      * @param int $userid User ID

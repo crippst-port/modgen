@@ -534,6 +534,10 @@ class theme_builder {
      * @return bool
      */
     public static function is_transient_failure(\Throwable $e): bool {
+        // A record that is missing (the course was deleted, say) stays missing.
+        if ($e instanceof \dml_missing_record_exception) {
+            return false;
+        }
         return $e instanceof \dml_exception
             || $e instanceof structure_write_failed_exception
             || ($e instanceof \moodle_exception && in_array($e->errorcode, ['erroracquiringlock', 'locktimeout'], true));
@@ -922,25 +926,17 @@ class theme_builder {
     }
 
     /**
-     * Validate parameters for section creation.
+     * Validate parameters for section creation, before anything is written.
      *
-     * PERFORMANCE: Depth validation can be skipped during bulk operations to avoid expensive
-     * get_fast_modinfo() calls. Final cache rebuild will reveal any depth violations.
+     * A new section has no children, so it cannot close a loop of parent links: only the parent,
+     * and the depth the new section would be at, need checking.
      *
      * @param int $courseid Course ID
      * @param object $courseformat Course format object
      * @param int $parentsectionnum Parent section number (0 for top-level)
-     * @param int|null $childsectionnum Child section number (for circular reference check after creation)
-     * @param bool $skipdepthcheck Skip depth validation (for bulk operations)
      * @throws \moodle_exception If validation fails
      */
-    private static function validate_section_creation_params(
-        $courseid,
-        $courseformat,
-        $parentsectionnum,
-        $childsectionnum = null,
-        $skipdepthcheck = false
-    ) {
+    private static function validate_section_creation_params($courseid, $courseformat, $parentsectionnum) {
         global $DB;
 
         // Basic parameter validation.
@@ -956,64 +952,53 @@ class theme_builder {
             throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
         }
 
-        // PROTECTION 1: Prevent section from being its own parent.
-        if ($childsectionnum !== null && $parentsectionnum === $childsectionnum) {
-            debugging("Prevented circular reference: Section {$childsectionnum} cannot be its own parent", DEBUG_DEVELOPER);
-            throw new \moodle_exception(
-                'circularsectionparent',
-                'aiplacement_modgen',
-                '',
-                ['child' => $childsectionnum, 'parent' => $parentsectionnum]
-            );
-        }
-
-        // Validate parent section exists if not top-level.
         if ($parentsectionnum > 0) {
-            $parentsection = $DB->get_record('course_sections', [
-                'course' => $courseid,
-                'section' => $parentsectionnum,
-            ]);
-
-            if (!$parentsection) {
+            if (!$DB->record_exists('course_sections', ['course' => $courseid, 'section' => $parentsectionnum])) {
                 throw new \moodle_exception('invalidparentsection', 'aiplacement_modgen', '', $parentsectionnum);
             }
 
-            // PROTECTION 2: Check for circular references in parent chain.
-            $wouldloop = $childsectionnum !== null &&
-                self::would_create_circular_reference($courseid, $parentsectionnum, $childsectionnum);
-            if ($wouldloop) {
-                debugging(
-                    "Prevented circular reference: Section {$childsectionnum} with parent " .
-                    "{$parentsectionnum} would create a loop",
-                    DEBUG_DEVELOPER
-                );
-                throw new \moodle_exception(
-                    'circularsectionchain',
-                    'aiplacement_modgen',
-                    '',
-                    ['child' => $childsectionnum, 'parent' => $parentsectionnum]
-                );
-            }
-
-            // PERFORMANCE OPTIMIZATION: Skip depth check during bulk operations.
-            // get_fast_modinfo() triggers expensive cache rebuilds (200-500 queries each).
-            // During bulk operations with deferred cache rebuilds, depth violations will be
-            // caught by the final rebuild anyway, making this check redundant and expensive.
-            if (
-                !$skipdepthcheck && method_exists($courseformat, 'get_section_depth') &&
-                method_exists($courseformat, 'get_max_section_depth')
-            ) {
-                $parentsectioninfo = get_fast_modinfo($courseid)->get_section_info($parentsectionnum);
-                $parentdepth = $courseformat->get_section_depth($parentsectioninfo);
+            // The format's depth limit. Worked out from the stored parent links rather than
+            // get_fast_modinfo(), which would rebuild the course cache for every section of a build.
+            if (method_exists($courseformat, 'get_max_section_depth')) {
                 $maxdepth = $courseformat->get_max_section_depth();
-
-                if ($parentdepth + 1 > $maxdepth) {
+                if (self::stored_section_depth($courseid, $parentsectionnum) + 1 > $maxdepth) {
                     throw new \moodle_exception('maxsectiondepthreached', 'aiplacement_modgen', '', $maxdepth);
                 }
             }
         }
     }
 
+    /**
+     * How deep a section is, counted as Flexible sections counts it: 1 at the top level.
+     *
+     * Follows the stored parent links. Like the format, a link to a section that is not before
+     * this one is treated as broken and ends the walk, so bad data cannot make this loop.
+     *
+     * @param int $courseid Course ID
+     * @param int $sectionnum Section number
+     * @return int Depth
+     */
+    private static function stored_section_depth($courseid, $sectionnum) {
+        global $DB;
+
+        $depth = 1;
+        while ($sectionnum > 0) {
+            $parent = $DB->get_field_sql(
+                "SELECT cfo.value
+                   FROM {course_sections} cs
+                   JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
+                  WHERE cs.course = ? AND cs.section = ?",
+                [$courseid, $sectionnum]
+            );
+            $parent = trim((string) $parent);
+            if (!ctype_digit($parent) || (int) $parent <= 0 || (int) $parent >= $sectionnum) {
+                break;
+            }
+            $depth++;
+            $sectionnum = (int) $parent;
+        }
+        return $depth;
+    }
     /**
      * Create a section with explicit parent relationship.
      *
@@ -1045,11 +1030,8 @@ class theme_builder {
     ) {
         global $DB;
 
-        // Basic validation (parent existence and hierarchy depth).
-        // Note: Cannot check circular refs yet as child section doesn't exist.
-        // PERFORMANCE: Skip depth check if deferring cache rebuild (bulk operation).
-        $skipdepthcheck = !$rebuildcache; // If deferring rebuild, skip expensive validation.
-        self::validate_section_creation_params($courseid, $courseformat, $parentsectionnum, null, $skipdepthcheck);
+        // Basic validation (parent existence and hierarchy depth), before anything is written.
+        self::validate_section_creation_params($courseid, $courseformat, $parentsectionnum);
 
         // Additional validation for section name.
         if (empty(trim($name))) {
@@ -1069,10 +1051,6 @@ class theme_builder {
                 'course' => $courseid,
                 'section' => $sectionnum,
             ], '*', MUST_EXIST);
-
-            // PROTECTION: Now that we have the child section number, validate no circular reference.
-            // Skip depth check here too since we already skipped it above.
-            self::validate_section_creation_params($courseid, $courseformat, $parentsectionnum, $sectionnum, $skipdepthcheck);
 
             // Step 3: Update section properties (name, summary) with XSS protection.
             // Strip HTML/JS from names, and keep to the 255 characters the column holds: a longer title from
@@ -1108,70 +1086,6 @@ class theme_builder {
             // see structure_write_failed_exception. The user-facing message has no technical details.
             throw new structure_write_failed_exception($name, $e->getMessage());
         }
-    }
-
-    /**
-     * Check if setting a parent would create a circular reference.
-     *
-     * Walks up the parent chain from the proposed parent to ensure it doesn't
-     * eventually loop back to the child section.
-     *
-     * @param int $courseid Course ID
-     * @param int $proposedparent Proposed parent section number
-     * @param int $childsection Child section number
-     * @return bool True if it would create a circular reference, false if safe
-     */
-    private static function would_create_circular_reference($courseid, $proposedparent, $childsection) {
-        global $DB;
-
-        // Build index of all section parent relationships for this course.
-        $sql = "SELECT cs.section, cfo.value as parent
-                FROM {course_sections} cs
-                LEFT JOIN {course_format_options} cfo ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                WHERE cs.course = :courseid";
-        $sections = $DB->get_records_sql($sql, ['courseid' => $courseid]);
-
-        $parentmap = [];
-        foreach ($sections as $section) {
-            $parentmap[$section->section] = $section->parent === null ? '0' : $section->parent;
-        }
-
-        // Walk up the chain from proposed parent.
-        $visited = [];
-        $current = $proposedparent;
-        $loopcount = 0;
-        $maxloop = 50; // Safety limit.
-
-        while ($current !== null && $current !== 0 && $current !== '0' && $loopcount < $maxloop) {
-            // If we encounter the child section in the parent chain, it's a loop.
-            if ((int)$current === (int)$childsection) {
-                return true; // Circular reference detected.
-            }
-
-            // Check for self-reference.
-            if (isset($visited[$current])) {
-                // Existing circular reference in the chain (not involving our child).
-                // This is also problematic but not our concern here.
-                return false;
-            }
-
-            $visited[$current] = true;
-
-            // Move to next parent.
-            if (!isset($parentmap[$current])) {
-                break; // Section not found, chain ends.
-            }
-
-            $nextparent = $parentmap[$current];
-            if ($nextparent === null || $nextparent === '0' || $nextparent === 0) {
-                break; // Reached top level.
-            }
-
-            $current = (int)$nextparent;
-            $loopcount++;
-        }
-
-        return false; // No circular reference found.
     }
 
     /**

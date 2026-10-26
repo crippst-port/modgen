@@ -127,6 +127,23 @@ final class generated_structure_build_test extends \advanced_testcase {
     }
 
     /**
+     * A weekly summary is stored as written, cleaned but not filtered: filters run when it is shown,
+     * so running them first would store their output - here losing the Welsh half of multilang text.
+     */
+    public function test_weekly_summaries_are_stored_unfiltered(): void {
+        global $DB;
+        filter_set_global_state('multilang', TEXTFILTER_ON);
+        $summary = '<span lang="en" class="multilang">Rivers</span><span lang="cy" class="multilang">Afonydd</span>';
+
+        $job = $this->build_structure($this->course->id, ['sections' => [['title' => 'Week 1', 'summary' => $summary]]], 'weekly');
+
+        $this->assertSame('completed', $job->status);
+        $stored = $DB->get_field('course_sections', 'summary', ['course' => $this->course->id, 'name' => 'Week 1']);
+        $this->assertStringContainsString('Rivers', $stored);
+        $this->assertStringContainsString('Afonydd', $stored);
+    }
+
+    /**
      * Section summary activities take their names from the metadata the structure carries.
      */
     public function test_summary_activities_use_the_supplied_names(): void {

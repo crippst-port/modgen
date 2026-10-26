@@ -79,8 +79,9 @@ class preview_generator {
             }
 
             $themeitem = [
-                'title' => !empty($theme['title']) ? s($theme['title']) : get_string('themefallback', 'aiplacement_modgen'),
-                'summary' => !empty($theme['summary']) ? s($theme['summary']) : '',
+                'title' => !empty($theme['title'])
+                    ? self::text($theme['title']) : get_string('themefallback', 'aiplacement_modgen'),
+                'summary' => !empty($theme['summary']) ? self::text($theme['summary']) : '',
                 'weeks' => [],
                 'hasweeks' => false,
             ];
@@ -142,8 +143,9 @@ class preview_generator {
      */
     private static function build_week_item(array $weekdata): array {
         $weekitem = [
-            'title' => !empty($weekdata['title']) ? s($weekdata['title']) : get_string('weekfallback', 'aiplacement_modgen'),
-            'summary' => !empty($weekdata['summary']) ? s($weekdata['summary']) : '',
+            'title' => !empty($weekdata['title'])
+                ? self::text($weekdata['title']) : get_string('weekfallback', 'aiplacement_modgen'),
+            'summary' => !empty($weekdata['summary']) ? self::text($weekdata['summary']) : '',
             'activities' => [],
             'hasactivities' => false,
             'sessions' => [],
@@ -158,7 +160,7 @@ class preview_generator {
             foreach ($weekdata['outline'] as $activity) {
                 if (is_string($activity) && trim($activity) !== '') {
                     $weekitem['activities'][] = [
-                        'name' => s($activity),
+                        'name' => self::text($activity),
                         'type' => '',
                         'session' => 'outline',
                     ];
@@ -177,6 +179,16 @@ class preview_generator {
         }
 
         return $weekitem;
+    }
+
+    /**
+     * A value from the structure as plain text. The template escapes it, so it must not be escaped here.
+     *
+     * @param mixed $value Value from the AI or the file
+     * @return string The text, or '' for anything that is not a single value
+     */
+    private static function text($value): string {
+        return is_scalar($value) ? (string) $value : '';
     }
 
     /**
@@ -268,8 +280,8 @@ class preview_generator {
             }
 
             $activities[] = [
-                'name' => !empty($activity['name']) ? s($activity['name']) : '',
-                'type' => !empty($activity['type']) ? s($activity['type']) : '',
+                'name' => !empty($activity['name']) ? self::text($activity['name']) : '',
+                'type' => !empty($activity['type']) ? self::text($activity['type']) : '',
             ];
         }
 

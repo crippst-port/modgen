@@ -1329,3 +1329,8 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
 .aiplacement-modgen-activity__session-icon {
     color: #4055cc;
 }
+
+/* The prompt is shown as entered, line breaks included. */
+.aiplacement-modgen-preview__prompt-body p {
+    white-space: pre-line;
+}

@@ -41,7 +41,7 @@ $PAGE->set_url('/ai/placement/modgen/job_status.php', ['jobid' => $jobid]);
 $PAGE->set_context($context);
 $PAGE->set_pagelayout('incourse');
 $PAGE->set_title(get_string('jobstatuspage_title', 'aiplacement_modgen'));
-$PAGE->set_heading($course->fullname);
+$PAGE->set_heading(format_string($course->fullname, true, ['context' => $context]));
 $PAGE->navbar->add(get_string('jobstatuspage_title', 'aiplacement_modgen'));
 
 // Get action type for display.
@@ -85,9 +85,9 @@ $courseurl = new moodle_url('/course/view.php', ['id' => $course->id]);
 $templatedata = [
     'jobid' => $jobid,
     'courseid' => $course->id,
-    'coursename' => $course->fullname,
+    'coursename' => format_string($course->fullname, true, ['context' => $context]),
     'courseurl' => $courseurl->out(false),
-    'status' => $job->status,
+    'status' => get_string('jobstate_' . $job->status, 'aiplacement_modgen'),
     'actiondisplay' => $actiondisplay,
     'timecreated' => userdate($job->timecreated, get_string('strftimedatetimeshort')),
     'isqueued' => ($job->status === 'queued'),
@@ -143,6 +143,12 @@ $PAGE->requires->js_call_amd('aiplacement_modgen/job_status_page', 'init', [
             'unknownerror' => get_string('unknownerror', 'aiplacement_modgen'),
             'error' => get_string('error'),
             'loading' => get_string('loading'),
+            'states' => [
+                'queued' => get_string('jobstate_queued', 'aiplacement_modgen'),
+                'running' => get_string('jobstate_running', 'aiplacement_modgen'),
+                'completed' => get_string('jobstate_completed', 'aiplacement_modgen'),
+                'failed' => get_string('jobstate_failed', 'aiplacement_modgen'),
+            ],
         ],
     ],
 ]);

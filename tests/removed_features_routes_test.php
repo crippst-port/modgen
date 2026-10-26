@@ -251,6 +251,21 @@ final class removed_features_routes_test extends advanced_testcase {
         $this->assertSame([], $form->validation(['prompt' => 'A module on soil science'], []));
     }
 
+    /**
+     * A prompt of only whitespace is refused on the server, not just by the browser.
+     *
+     * @covers \aiplacement_modgen_prompt_form::validation
+     */
+    public function test_prompt_form_refuses_a_blank_prompt(): void {
+        global $CFG;
+        require_once($CFG->dirroot . '/ai/placement/modgen/classes/form/prompt_form.php');
+        $form = new \aiplacement_modgen_prompt_form(null, ['courseid' => $this->course->id]);
+
+        $this->assertArrayHasKey('prompt', $form->validation(['prompt' => "  \n\t "], []));
+        $this->assertArrayHasKey('prompt', $form->validation([], []));
+        $this->assertSame([], $form->validation(['prompt' => 'A module on soil science'], []));
+    }
+
     // ------------------------------------------------------------------
     // Services.
 

@@ -411,14 +411,15 @@ class ai_service {
         // Strategy: Look for section titles that suggest thematic boundaries
         // Keywords that might start a new theme: "Module", "Unit", "Theme", "Section", "Part".
         $themes = [];
-        $currenttheme = null;
 
         foreach ($sections as $section) {
+            if (!is_array($section)) {
+                continue;
+            }
             $title = $section['title'] ?? 'Untitled';
 
             // Check if this section should start a new theme
             // (titles containing "Theme", "Unit", "Module" suggest a new thematic grouping).
-            $lowertitle = strtolower($title);
             $isthemestarter = preg_match('/^(theme|unit|module|part|section)\s+\d+|^(week|session)\s+\d+/i', $title);
 
             if (empty($themes) || $isthemestarter) {
@@ -427,40 +428,45 @@ class ai_service {
                     ? ucfirst($m[1]) . ' ' . $m[2]
                     : (preg_match('/^part\s+(\w+)/i', $title, $m2) ? 'Part: ' . $m2[1] : $title);
 
-                $currenttheme = [
+                $themes[] = [
                     'title' => $themename,
                     'summary' => $section['summary'] ?? '',
                     'weeks' => [],
                 ];
-                $themes[] = $currenttheme;
-                $themeidx = count($themes) - 1;
-            } else {
-                $themeidx = count($themes) - 1;
             }
+            $themeidx = count($themes) - 1;
 
-            // Convert section into week structure.
+            // The section becomes a week, keeping what the build reads from a week: its sessions
+            // and learning design metadata.
             $week = [
                 'title' => $title,
                 'summary' => $section['summary'] ?? '',
             ];
+            if (!empty($section['learningactivity_metadata']) && is_array($section['learningactivity_metadata'])) {
+                $week['learningactivity_metadata'] = $section['learningactivity_metadata'];
+            }
 
-            // If section has outline, convert to activities structure.
-            if (isset($section['outline']) && is_array($section['outline'])) {
-                $week['sessions'] = [
-                    'session' => [
-                        'title' => 'Main Session',
-                        'summary' => implode("\n", $section['outline']),
-                        'activities' => $section['activities'] ?? [],
-                    ],
-                ];
-            } else if (isset($section['activities']) && is_array($section['activities'])) {
-                $week['sessions'] = [
-                    'session' => [
-                        'title' => 'Main Session',
-                        'summary' => '',
-                        'activities' => $section['activities'],
-                    ],
-                ];
+            if (!empty($section['sessions']) && is_array($section['sessions'])) {
+                $week['sessions'] = $section['sessions'];
+            } else {
+                // No sessions of its own: an outline (lines as strings or {text: ...}) becomes the
+                // session's description, which is the field the build reads.
+                $outline = [];
+                foreach ((isset($section['outline']) && is_array($section['outline'])) ? $section['outline'] : [] as $entry) {
+                    $line = is_array($entry) ? ($entry['text'] ?? '') : $entry;
+                    if (is_scalar($line) && trim((string) $line) !== '') {
+                        $outline[] = trim((string) $line);
+                    }
+                }
+                $activities = (isset($section['activities']) && is_array($section['activities'])) ? $section['activities'] : [];
+                if ($outline || $activities) {
+                    $week['sessions'] = [
+                        'session' => [
+                            'description' => implode("\n", $outline),
+                            'activities' => $activities,
+                        ],
+                    ];
+                }
             }
 
             $themes[$themeidx]['weeks'][] = $week;

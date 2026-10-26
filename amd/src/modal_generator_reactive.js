@@ -26,7 +26,7 @@
  * 1. **State** - Centralized state object tracking modal visibility, loading status,
  *    current form, and workflow step. State changes trigger automatic UI updates.
  *
- * 2. **Mutations** - Named functions that modify state (openModal, closeModal, setStep).
+ * 2. **Mutations** - Named functions that modify state (openModalWithForm, closeModal, setStep).
  *    All state changes go through mutations to ensure consistency.
  *
  * 3. **Component** - ModalGeneratorComponent extends BaseComponent and watches for
@@ -138,19 +138,6 @@ class ModalMutations {
         stateManager.setReadOnly(true);
     }
 
-    /**
-     * Open the modal (legacy - for generator button).
-     *
-     * @param {StateManager} stateManager State manager
-     */
-    openModal(stateManager) {
-        stateManager.setReadOnly(false);
-        stateManager.state.modal.isOpen = true;
-        stateManager.state.modal.isLoading = true;
-        stateManager.state.modal.formName = null;
-        stateManager.state.modal.title = 'Module Generator';
-        stateManager.setReadOnly(true);
-    }
 
     /**
      * Close the modal.
@@ -407,14 +394,11 @@ class ModalGeneratorComponent extends BaseComponent {
      */
     createModal() {
         const formName = this.reactive.state.modal.formName;
-        const title = this.reactive.state.modal.title || 'Module Generator';
+        const title = this.reactive.state.modal.title || '';
 
-        // If formName is set, load form via Fragment API
+        // The modal is always opened with a form, loaded via the Fragment API.
         if (formName) {
             this.loadFormInModal(formName, title);
-        } else {
-            // Legacy behavior: show link to prompt.php
-            this.showGeneratorLink(title);
         }
     }
 
@@ -637,12 +621,13 @@ class ModalGeneratorComponent extends BaseComponent {
         this.reactive.dispatch('setStep', STEPS.GENERATING);
 
         const generatingMsg = await getString('generatingcontent', 'aiplacement_modgen');
+        const loadingMsg = await getString('loading', 'core');
 
         // Show loading indicator with progress header
         modal.setBody(this.buildProgressHeader(STEPS.GENERATING) +
             '<div class="text-center p-5">' +
             '<div class="spinner-border" role="status">' +
-            '<span class="sr-only">Loading...</span>' +
+            '<span class="sr-only">' + loadingMsg + '</span>' +
             '</div>' +
             '<p class="mt-2">' + generatingMsg + '</p>' +
             '</div>');
@@ -732,9 +717,10 @@ class ModalGeneratorComponent extends BaseComponent {
                 this.reloadPromptForm(modal).then(() => {
                     Notification.exception(error);
                     return null;
-                }).catch((fragmentError) => {
+                }).catch(async(fragmentError) => {
                     // If fragment reload fails, show basic error
-                    modal.setBody('<div class="alert alert-danger">An error occurred. Please try again.</div>');
+                    modal.setBody('<div class="alert alert-danger">' +
+                        await getString('erroroccurred', 'aiplacement_modgen') + '</div>');
                     window.console.error('Fragment reload failed:', fragmentError);
                     Notification.exception(error);
                 });
@@ -842,19 +828,20 @@ class ModalGeneratorComponent extends BaseComponent {
         const form = bodyNode ? bodyNode.querySelector('form') : null;
 
         switch (action) {
-            case 'submit':
+            case 'submit': {
                 // Show creating step with loading indicator
                 this.reactive.dispatch('setStep', STEPS.CREATING);
 
                 // Set flag to warn on navigation
                 window.modgenCreationInProgress = true;
 
+                const creatingMsg = await getString('creatingstructurewait', 'aiplacement_modgen');
                 modal.setBody(this.buildProgressHeader(STEPS.CREATING) +
                     '<div class="text-center p-5" id="modgen-progress-container">' +
                     '<div class="spinner-border" role="status">' +
-                    '<span class="sr-only">Creating...</span>' +
+                    '<span class="sr-only">' + creatingMsg + '</span>' +
                     '</div>' +
-                    '<p class="mt-2 modgen-progress-message">Creating activities... please wait.</p>' +
+                    '<p class="mt-2 modgen-progress-message">' + creatingMsg + '</p>' +
                     '</div>');
                 modal.setFooter('');
 
@@ -864,6 +851,7 @@ class ModalGeneratorComponent extends BaseComponent {
                     this.handlePromptSubmission(modal, formData);
                 }
                 break;
+            }
 
             case 'regenerate':
                 // Back to the prompt form in this modal. Not openModalWithForm: the modal is already
@@ -1256,58 +1244,10 @@ class ModalGeneratorComponent extends BaseComponent {
     // LEGACY GENERATOR LINK
     // =========================================================================
 
-    /**
-     * Show generator link in modal (legacy behavior).
-     *
-     * For cases where no specific form is requested, shows a simple
-     * modal with a link to open prompt.php in a new page.
-     * This is fallback behavior - most interactions use loadFormInModal.
-     *
-     * @param {string} title Modal title
-     */
-    showGeneratorLink(title) {
-        // Build the prompt.php URL
-        const promptUrl = M.cfg.wwwroot + '/ai/placement/modgen/prompt.php?id=' + this.courseid;
-
-        // Create modal with link to prompt.php
-        const body = '<div class="text-center p-4">' +
-            '<p>Click the button below to open the Module Generator form.</p>' +
-            '<a href="' + promptUrl + '" class="btn btn-primary btn-lg">' +
-            'Open Module Generator' +
-            '</a>' +
-            '</div>';
-
-        ModgenModal.create({
-            title: title,
-            body: body,
-            large: false,
-        }).then((modal) => {
-            this.modal = modal;
-
-            // Listen for modal hide/close events and update reactive state
-            this.modal.getRoot().on(ModalEvents.hidden, () => {
-                this.reactive.dispatch('closeModal');
-                // Always refresh page when modal closes to update UI
-                window.location.reload();
-            });
-
-            this.modal.show();
-
-            return modal;
-        }).catch(Notification.exception);
-    }
-
     // =========================================================================
     // PUBLIC API
     // =========================================================================
 
-    /**
-     * Public method to open the modal.
-     * Fully reactive - modal creation triggered by watcher on state.modal.isOpen.
-     */
-    open() {
-        this.reactive.dispatch('openModal');
-    }
 
     /**
      * Public method to open the modal with a specific form.

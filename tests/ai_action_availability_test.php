@@ -127,4 +127,52 @@ final class ai_action_availability_test extends advanced_testcase {
         }
         $this->assertStringNotContainsString('CONFIDENTIAL SITE GUIDANCE', json_encode($result));
     }
+
+    /**
+     * Regenerate is only offered when generating would actually be allowed: the plugin's AI setting,
+     * the capability, and Site administration > AI must all allow it.
+     *
+     * @covers \aiplacement_modgen\local\settings_helper::can_generate_with_ai
+     */
+    public function test_ai_generation_is_offered_only_when_it_would_be_allowed(): void {
+        $this->setAdminUser();
+        $context = \context_course::instance($this->getDataGenerator()->create_course()->id);
+        set_config('enable_ai', 1, 'aiplacement_modgen');
+        local\settings_helper::clear_cache();
+        $this->assertTrue(local\settings_helper::can_generate_with_ai($context));
+
+        set_config('generate_text', 0, 'aiplacement_modgen');
+        $this->assertFalse(local\settings_helper::can_generate_with_ai($context), 'Action off for the placement.');
+        set_config('generate_text', 1, 'aiplacement_modgen');
+
+        set_config('enable_ai', 0, 'aiplacement_modgen');
+        local\settings_helper::clear_cache();
+        $this->assertFalse(local\settings_helper::can_generate_with_ai($context), 'AI switched off in the plugin.');
+        set_config('enable_ai', 1, 'aiplacement_modgen');
+        local\settings_helper::clear_cache();
+
+        $this->setUser($this->getDataGenerator()->create_user());
+        $this->assertFalse(local\settings_helper::can_generate_with_ai($context), 'No capability.');
+    }
+
+    /**
+     * When the AI answers a theme request with sections, converting them to themes keeps what the
+     * build reads: each section's sessions and metadata, and outline lines as session text.
+     */
+    public function test_sections_converted_to_themes_keep_their_sessions_and_outline(): void {
+        $method = new \ReflectionMethod(ai_service::class, 'convert_sections_to_themes');
+        $method->setAccessible(true);
+        $sessions = ['session' => ['description' => 'Seminar', 'learningactivity_metadata' => ['name' => 'Seminar']]];
+
+        $result = $method->invoke(null, ['sections' => [
+            ['title' => 'Theme 1', 'sessions' => $sessions, 'learningactivity_metadata' => ['name' => 'Week summary']],
+            ['title' => 'Rivers', 'outline' => [['text' => 'Read chapter 1'], 'Field trip', ['nottext' => 1]]],
+        ]]);
+
+        $weeks = $result['themes'][0]['weeks'];
+        $this->assertSame($sessions, $weeks[0]['sessions']);
+        $this->assertSame(['name' => 'Week summary'], $weeks[0]['learningactivity_metadata']);
+        $this->assertSame("Read chapter 1\nField trip", $weeks[1]['sessions']['session']['description']);
+        $this->assertArrayNotHasKey('sections', $result);
+    }
 }

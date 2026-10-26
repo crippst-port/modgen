@@ -26,26 +26,22 @@ require_once(__DIR__ . '/../../../config.php');
 
 use aiplacement_modgen\local\template_manager;
 
-require_login();
-
-// Master switch: Site admin > AI > AI placements.
-\aiplacement_modgen\local\settings_helper::require_placement_enabled();
-\aiplacement_modgen\local\settings_helper::require_structurefromfile_enabled();
-
 $templateid = required_param('id', PARAM_INT);
 $courseid = optional_param('courseid', 0, PARAM_INT);
 
-// Use course context if provided, otherwise use system context.
-// Course context: user is downloading from a course form.
-// System context: user is downloading from admin template management.
-if ($courseid) {
-    $context = context_course::instance($courseid);
-} else {
-    $context = context_system::instance();
-}
+// Master switch: Site admin > AI > AI placements.
+\aiplacement_modgen\local\settings_helper::require_placement_enabled();
 
-// Check capability - users must be able to generate from templates.
-require_capability('aiplacement/modgen:generatefromtemplate', $context);
+if ($courseid) {
+    // From a course's Structure from file form: the user must be able to use that form there.
+    require_login($courseid);
+    \aiplacement_modgen\local\settings_helper::require_structurefromfile_enabled();
+    require_capability('aiplacement/modgen:generatefromtemplate', context_course::instance($courseid));
+} else {
+    // Outside a course: for those who look after the template library.
+    require_login();
+    require_capability('aiplacement/modgen:managetemplates', context_system::instance());
+}
 
 // Get template.
 try {

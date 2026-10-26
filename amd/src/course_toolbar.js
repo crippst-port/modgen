@@ -149,18 +149,9 @@ export const init = (config) => {
         if (regionMain) {
             regionMain.insertAdjacentHTML('afterbegin', html);
 
-            // Bootstrap 4 collapse handling via jQuery (Moodle loads jQuery globally)
-            const collapseToggle = document.querySelector('.navbar-toggler');
-            const collapseTarget = document.querySelector('#aimodgenNavbar');
-            if (collapseToggle && collapseTarget && window.$ && window.$.fn && window.$.fn.collapse) {
-                // Initialize Bootstrap 4 collapse
-                window.$(collapseTarget).collapse({toggle: false});
+            // The toolbar's own toggler (data-toggle="collapse") is handled by Bootstrap's data API, which
+            // Boost loads. No handler of our own: one found by class alone would be Boost's main menu toggler.
 
-                // Handle toggle button clicks
-                collapseToggle.addEventListener('click', () => {
-                    window.$(collapseTarget).collapse('toggle');
-                });
-            }
 
             // Setup quick add buttons for theme/week forms.
             setupQuickAddButtons();

@@ -94,7 +94,7 @@ const updateStatusDisplay = (job) => {
 
     // Update badge
     if (statusBadge) {
-        statusBadge.textContent = job.status;
+        statusBadge.textContent = (config.strings.states || {})[job.status] || job.status;
         statusBadge.className = 'badge badge-' + getStatusColor(job.status);
     }
 

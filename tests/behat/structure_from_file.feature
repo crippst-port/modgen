@@ -205,6 +205,15 @@ Feature: Building a module from a CSV file
       | Session           | 日本語 |
       | Post-session      | 日本語 |
 
+  Scenario: Titles are previewed as written, and the JSON download keeps every character
+    Given I open the Structure from file form in "C1" as "teacher1"
+    When I upload "ai/placement/modgen/tests/fixtures/csv/ampersand_hash_percent.csv" file to "Upload structure file" filemanager
+    And I press "Preview Structure"
+    Then I should see "Q&A on C# basics"
+    And I should see "Rivers: 100% coverage"
+    And I should not see "&amp;"
+    And the "href" attribute of "Download as JSON" "link" should contain "C%23%20basics"
+    And the "href" attribute of "Download as JSON" "link" should contain "100%25%20coverage"
   Scenario: A title longer than a section name can hold is cut to fit and the build still completes
     Given I open the Structure from file form in "C1" as "teacher1"
     When I upload "ai/placement/modgen/tests/fixtures/csv/long_title.csv" file to "Upload structure file" filemanager

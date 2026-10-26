@@ -63,3 +63,17 @@ Feature: The Module Assistant toolbar offers only the current features
     When I am on the "Course 1" "course" page logged in as "teacher1"
     And I turn editing mode on
     Then I should see "Job failed: Could not build <b>Week 2</b>"
+
+  Scenario: On a narrow screen the toolbar opens from its own toggle button
+    Given I change viewport size to "mobile"
+    And I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    And I should not see "Check Structure"
+    # The site menu button belongs to the theme and leaves the toolbar alone.
+    When I click on "button[data-toggler='drawers'][data-target='theme_boost-drawers-primary']" "css_element"
+    Then I should not see "Check Structure"
+    And I click on "#theme_boost-drawers-primary [data-toggler='drawers'][data-action='closedrawer']" "css_element"
+    When I click on ".aiplacement-modgen-navbar .navbar-toggler" "css_element"
+    Then I should see "Check Structure"
+    When I click on ".aiplacement-modgen-navbar .navbar-toggler" "css_element"
+    Then I should not see "Check Structure"

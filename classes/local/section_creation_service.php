@@ -79,7 +79,6 @@ class section_creation_service {
             \aiplacement_modgen\local\theme_builder::ensure_flexsections_format($courseid);
 
             $course = get_course($courseid, true);
-            $context = \context_course::instance($courseid);
             $courseformat = course_get_format($course);
 
             // Start transaction for entire JSON processing operation.
@@ -92,7 +91,6 @@ class section_creation_service {
                     $result = $this->create_theme_structure(
                         $json['themes'],
                         $course,
-                        $context,
                         $courseformat,
                         $activitywarnings,
                         $createsummaryactivities
@@ -103,7 +101,6 @@ class section_creation_service {
                     $result = $this->create_weekly_structure(
                         $json['sections'],
                         $course,
-                        $context,
                         $courseformat,
                         $moduletype,
                         $activitywarnings,
@@ -186,7 +183,6 @@ class section_creation_service {
      *
      * @param array $themes Array of theme data
      * @param \stdClass $course Course object
-     * @param \context_course $context Course context
      * @param \course_format $courseformat Course format instance
      * @param array &$activitywarnings Array to collect warnings
      * @param bool $createsummaryactivities Whether to add the learningactivity summary module to each section
@@ -195,7 +191,6 @@ class section_creation_service {
     private function create_theme_structure(
         array $themes,
         \stdClass $course,
-        \context_course $context,
         $courseformat,
         array &$activitywarnings,
         bool $createsummaryactivities = true
@@ -305,7 +300,6 @@ class section_creation_service {
      *
      * @param array $sections Array of section data
      * @param \stdClass $course Course object
-     * @param \context_course $context Course context
      * @param object $courseformat Course format object
      * @param string $moduletype Module type
      * @param array &$activitywarnings Array to collect warnings
@@ -315,7 +309,6 @@ class section_creation_service {
     private function create_weekly_structure(
         array $sections,
         \stdClass $course,
-        \context_course $context,
         $courseformat,
         string $moduletype,
         array &$activitywarnings,
@@ -332,7 +325,9 @@ class section_creation_service {
             $summary = $sectiondata['summary'] ?? '';
             $outline = !empty($sectiondata['outline']) && is_array($sectiondata['outline']) ? $sectiondata['outline'] : [];
 
-            $summaryhtml = trim(format_text($summary, FORMAT_HTML, ['context' => $context]));
+            // Cleaned for storage, not formatted for display: filters run when the summary is shown, and
+            // applying them here would store their output (losing, say, the other languages in multilang text).
+            $summaryhtml = trim(clean_text((string) $summary, FORMAT_HTML));
             if (!empty($outline)) {
                 $items = '';
                 foreach ($outline as $entry) {

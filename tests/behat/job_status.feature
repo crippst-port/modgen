@@ -42,6 +42,7 @@ Feature: The job status page reports how a background build went
     And I am on the job status page of the latest job in "C1"
     Then I should see "Completed successfully!"
     And I should not see "Completed with problems"
+    And "//span[@id='status-badge' and normalize-space(.)='Completed']" "xpath_element" should exist
 
   Scenario: A failed build shows the error
     Given the following "aiplacement_modgen > jobs" exist:

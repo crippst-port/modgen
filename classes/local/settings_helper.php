@@ -75,6 +75,23 @@ class settings_helper {
     }
 
     /**
+     * Whether the current user can generate a structure with AI in a context right now.
+     *
+     * The AI setting and the capability, and also what Site administration > AI allows: a provider
+     * offering Generate text, with that action not switched off for this placement. For offering
+     * actions such as Regenerate, which would otherwise lead straight to a refusal.
+     *
+     * @param \context $context Course context
+     * @return bool
+     */
+    public static function can_generate_with_ai(\context $context): bool {
+        return self::is_ai_enabled()
+            && has_capability('aiplacement/modgen:generatewithprompt', $context)
+            && \core_ai\manager::is_action_available(\core_ai\aiactions\generate_text::class)
+            && \core_ai\manager::is_action_enabled('aiplacement_modgen', \core_ai\aiactions\generate_text::class);
+    }
+
+    /**
      * Stop with a "disabled" error unless AI generation is enabled.
      *
      * @throws \moodle_exception if AI generation is disabled

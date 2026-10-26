@@ -629,13 +629,15 @@ if ($pdata = $promptform->get_data()) {
         'hasjson' => !empty($jsonstr),
         'jsonheading' => get_string('generationresultsjsonheading', 'aiplacement_modgen'),
         'jsondescription' => get_string('generationresultsjsondescription', 'aiplacement_modgen'),
-        'json' => s($jsonstr),
+        // URL-encoded for the data: download link, where '#' or '%' would otherwise cut or corrupt the file.
+        'json' => rawurlencode($jsonstr),
         'jsonnote' => get_string('generationresultsjsonnote', 'aiplacement_modgen'),
         'downloadjsontext' => get_string('downloadjson', 'aiplacement_modgen'),
         'form' => $formhtml,
         'promptheading' => get_string('generationresultspromptheading', 'aiplacement_modgen'),
         'prompttoggle' => get_string('generationresultsprompttoggle', 'aiplacement_modgen'),
-        'prompttext' => format_text($prompt, FORMAT_PLAIN),
+        // Plain text: the template escapes it, and the stylesheet keeps its line breaks.
+        'prompttext' => $prompt,
         'hasprompt' => trim($prompt) !== '',
     ];
 
@@ -645,7 +647,7 @@ if ($pdata = $promptform->get_data()) {
     // Define footer buttons for the preview step - server-driven approach.
     if ($ajax) {
         $buttons = [];
-        if (get_config('aiplacement_modgen', 'enable_ai')) {
+        if (\aiplacement_modgen\local\settings_helper::can_generate_with_ai($context)) {
             $buttons[] = [
                 'action' => 'regenerate',
                 'label' => get_string('regenerate', 'aiplacement_modgen'),

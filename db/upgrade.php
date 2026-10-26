@@ -219,5 +219,17 @@ function xmldb_aiplacement_modgen_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026102601, 'aiplacement', 'modgen');
     }
 
+    // Jobs are now removed with their course. Remove those left behind by courses already deleted,
+    // which the privacy provider can no longer find.
+    if ($oldversion < 2026102700) {
+        $DB->delete_records_select(
+            'aiplacement_modgen_jobs',
+            'NOT EXISTS (SELECT 1 FROM {course} c WHERE c.id = {aiplacement_modgen_jobs}.courseid)'
+        );
+
+        // Savepoint reached.
+        upgrade_plugin_savepoint(true, 2026102700, 'aiplacement', 'modgen');
+    }
+
     return true;
 }

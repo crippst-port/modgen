@@ -64,4 +64,20 @@ class aiplacement_modgen_prompt_form extends moodleform {
 
         $this->add_action_buttons(true, get_string('submit', 'aiplacement_modgen'));
     }
+
+    /**
+     * Refuse a prompt that is only whitespace. The required rule lets that through unless the site
+     * sets $CFG->strictformsrequired, and an empty prompt would still use up one of the user's AI requests.
+     *
+     * @param array $data Submitted data
+     * @param array $files Submitted files
+     * @return array Errors by field name
+     */
+    public function validation($data, $files) {
+        $errors = parent::validation($data, $files);
+        if (trim((string) ($data['prompt'] ?? '')) === '') {
+            $errors['prompt'] = get_string('err_required', 'form');
+        }
+        return $errors;
+    }
 }

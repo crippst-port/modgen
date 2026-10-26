@@ -83,7 +83,8 @@ if ($action) {
                 // Show action buttons if there are issues to fix.
                 if ($result['hasIssues']) {
                     echo html_writer::start_div('mt-3');
-                    echo html_writer::tag('p', 'Course ID: ' . $courseid, ['class' => 'font-weight-bold']);
+                    $courseidlabel = get_string('courseidlabel', 'aiplacement_modgen', $courseid);
+                    echo html_writer::tag('p', $courseidlabel, ['class' => 'font-weight-bold']);
 
                     echo html_writer::link(
                         new moodle_url('/ai/placement/modgen/admin_tools.php', [

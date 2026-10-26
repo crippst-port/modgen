@@ -300,6 +300,32 @@ final class quick_add_structure_test extends \advanced_testcase {
     }
 
     /**
+     * A build that would nest sections deeper than Flexible sections allows is refused, and adds
+     * nothing; within the limit it goes ahead.
+     */
+    public function test_builds_respect_the_formats_depth_limit(): void {
+        global $DB;
+        // The refused build must really roll back, not inside the transaction PHPUnit wraps each test in.
+        $this->preventResetByRollback();
+        $this->add_themes(1, 1);
+        set_config('maxsectiondepth', 3, 'format_flexsections');
+
+        // A week in a theme (depth 2) with its sessions (depth 3) fits.
+        $this->add_weeks(1, false, $this->number_of('Theme 1'));
+        $this->assertTrue($DB->record_exists('course_sections', ['course' => $this->course->id, 'name' => 'Week 1']));
+
+        // A week in that week would put its sessions at depth 4.
+        $before = $DB->count_records('course_sections', ['course' => $this->course->id]);
+        $this->add_weeks(1, false, $this->number_of('Week 1'));
+
+        $this->assertSame($before, $DB->count_records('course_sections', ['course' => $this->course->id]));
+        $job = $DB->get_records('aiplacement_modgen_jobs', ['courseid' => $this->course->id], 'id DESC', '*', 0, 1);
+        $this->assertSame('failed', reset($job)->status);
+        $this->resetDebugging();
+        $this->assert_sound($this->course->id);
+    }
+
+    /**
      * Once a teacher has changed the sections set up by the first build, later builds leave them
      * alone: a renamed section 0 keeps its name, and a renamed Assessments section is not added again.
      */

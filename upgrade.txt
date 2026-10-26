@@ -47,6 +47,22 @@
 - Regenerate on the preview goes back to the prompt form instead of leaving a spinner.
 - Check Structure works when a section's stored parent is not a number, instead of failing with a
   database error.
+- The preview shows titles and the prompt as written ("Q&A", not "Q&amp;A"), and the JSON download
+  keeps characters such as # and %.
+- When the AI answers a theme request with plain sections, their sessions, learning design metadata
+  and outline are kept instead of being dropped.
+- Builds respect the Flexible sections maximum section depth: a build that would nest sections too
+  deeply is refused instead of creating them.
+- Weekly summaries are stored as written. Filters (such as multi-language content) were being applied
+  before storing, losing the other languages.
+- Regenerate is only offered when generating would be allowed.
+- A prompt of only spaces is refused by the server, not just the browser.
+- Text that was hard-coded in English (preview, generator modal, job status) is now translatable, and
+  the job page shows the course name formatted and the job state translated.
+- On narrow screens the toolbar's own toggle opens it; the site menu button leaves it alone.
+- Downloading a library structure outside a course needs aiplacement/modgen:managetemplates.
+- A course's structure jobs are deleted with the course, and the upgrade removes jobs left behind by
+  courses already deleted, so privacy requests can find every job.
 
 ### Features removed
 

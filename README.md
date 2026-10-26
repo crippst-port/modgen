@@ -90,7 +90,7 @@ Scheduled tasks:
 ## Privacy
 
 The plugin implements the Privacy API. It stores job records (user, course, the action, a summary of
-its parameters, and the result). Uploaded CSV files stay in the user's Moodle draft area, which Moodle
+its parameters, and the result), which are deleted with their course. Uploaded CSV files stay in the user's Moodle draft area, which Moodle
 cleans up, and are not kept by the plugin; only files an administrator adds to the template library
 are stored. Prompts sent to an AI provider are handled by Moodle's AI subsystem. Course content
 created by the plugin belongs to the course and is not removed when a user is deleted.

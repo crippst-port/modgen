@@ -35,8 +35,6 @@ $string['locktimeout'] = 'Another user is currently creating content in this cou
 $string['sectorcreationfailed'] = 'Failed to create section "{$a}". Check logs for details.';
 $string['invalidparentsection'] = 'Parent section {$a} does not exist';
 $string['maxsectiondepthreached'] = 'Maximum section depth of {$a} reached';
-$string['circularsectionparent'] = 'Cannot create circular reference: Section {$a->child} cannot be its own parent';
-$string['circularsectionchain'] = 'Cannot create circular reference: Section {$a->child} with parent {$a->parent} would create a loop in the hierarchy';
 $string['themecreationfailed'] = 'Failed to create themes. Check logs for details.';
 $string['jsonsectionscreationfailed'] = 'Failed to create sections from JSON: {$a}';
 $string['cacherebuildfailed'] = 'Course cache rebuild failed: {$a}';
@@ -47,6 +45,10 @@ $string['invalidaction'] = 'Invalid action';
 
 // Job status page strings.
 $string['jobstatuspage_title'] = 'Job Status';
+$string['jobstate_completed'] = 'Completed';
+$string['jobstate_failed'] = 'Failed';
+$string['jobstate_queued'] = 'Queued';
+$string['jobstate_running'] = 'Running';
 $string['jobstatus_queued'] = 'Queued';
 $string['jobstatus_queued_desc'] = 'Your job is waiting to be processed...';
 $string['jobstatus_running'] = 'Creating sections...';
@@ -220,6 +222,10 @@ $string['validationerrorhelp'] = 'The AI response was malformed and cannot be us
 $string['tryagain'] = 'Try Again';
 
 // Module preview display strings.
+$string['creatingstructurewait'] = 'Creating the structure... please wait.';
+$string['previewnoactivities'] = 'No activities';
+$string['previewnoactivitiesweek'] = 'No activities in this week';
+$string['previewnostructure'] = 'No module structure was found in the response. It may be incomplete.';
 $string['themes'] = 'Themes';
 $string['weeks'] = 'Weeks';
 $string['activities'] = 'Activities';
@@ -253,6 +259,7 @@ $string['introductionsectionname'] = 'Introduction & General Information';
 $string['assessmentssectionname'] = 'Assessments';
 
 // Error messages for exceptions.
+$string['erroroccurred'] = 'Something went wrong. Please try again.';
 $string['errorcreatinglearningactivity'] = 'The section summary activity could not be created.';
 $string['errorunexpected'] = 'Something unexpected happened. Please go back to the course and try again.';
 $string['invalidparameters'] = 'The request is missing the job or course it is about.';
@@ -320,6 +327,7 @@ $string['modgen:generatefromtemplate'] = 'Generate content from templates';
 $string['modgen:managetemplates'] = 'Manage site-wide templates';
 
 // Admin tools page.
+$string['courseidlabel'] = 'Course ID: {$a}';
 $string['admintools'] = 'Admin Diagnostic Tools';
 $string['admintoolsdesc'] = 'This page provides administrative tools for testing, diagnosing, and maintaining the modgen plugin. These tools help ensure database integrity and verify that security and performance improvements are working correctly.';
 $string['testing'] = 'Testing';

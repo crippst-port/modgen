@@ -59,8 +59,10 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->setType('createsummaryactivities', PARAM_BOOL);
         $mform->setDefault('createsummaryactivities', $this->_customdata['createsummaryactivities'] ?? 0);
 
-        // Add regenerate button if AI is enabled AND user chose AI options (not from template).
-        if (get_config('aiplacement_modgen', 'enable_ai') && !empty($this->_customdata['usedaioptions'])) {
+        // Add regenerate button if the user can generate with AI here AND chose AI options (not from template).
+        $context = \context_course::instance($this->_customdata['courseid']);
+        $canregenerate = \aiplacement_modgen\local\settings_helper::can_generate_with_ai($context);
+        if ($canregenerate && !empty($this->_customdata['usedaioptions'])) {
             $buttonarray = [];
             // Explicitly set type="button" so it's not treated as a submit button by the modal handler.
             $buttonarray[] = &$mform->createElement(

@@ -71,6 +71,7 @@ final class creation_warnings_test extends \advanced_testcase {
         $this->assertFalse(theme_builder::is_transient_failure(new \moodle_exception('generationdisabled', 'aiplacement_modgen')));
         $this->assertFalse(theme_builder::is_transient_failure(new \moodle_exception('invalidaction', 'aiplacement_modgen')));
         $this->assertFalse(theme_builder::is_transient_failure(new \TypeError('bad argument')));
+        $this->assertFalse(theme_builder::is_transient_failure(new \dml_missing_record_exception('course')));
     }
 
     /**

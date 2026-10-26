@@ -158,10 +158,9 @@ final class removed_features_routes_test extends advanced_testcase {
     }
 
     /**
-     * The toolbar has no Suggest entry, ignores a stale showsuggest argument, and shows the
-     * review link for existing AI-suggested records only when there are some.
+     * The toolbar has no Suggest entry or AI-suggestions link, and ignores a stale showsuggest argument.
      */
-    public function test_toolbar_has_no_suggest_and_keeps_review_link_for_legacy_records(): void {
+    public function test_toolbar_has_no_suggest_or_ai_suggestions_link(): void {
         $args = [
             'courseid' => $this->course->id,
             'contextid' => \context_course::instance($this->course->id)->id,
@@ -171,14 +170,19 @@ final class removed_features_routes_test extends advanced_testcase {
         $html = aiplacement_modgen_output_fragment_course_toolbar($args);
         $this->assertStringNotContainsString('data-form="suggest"', $html);
         $this->assertStringNotContainsString('aigen_list.php', $html);
+    }
 
-        $label = $this->getDataGenerator()->create_module('label', ['course' => $this->course->id]);
-        aigen_tracker::mark_as_aigenerated($label->cmid, $this->course->id);
-        rebuild_course_cache($this->course->id, true);
-
-        $html = aiplacement_modgen_output_fragment_course_toolbar($args);
-        $this->assertStringNotContainsString('data-form="suggest"', $html);
-        $this->assertStringContainsString('aigen_list.php', $html);
+    /**
+     * The AI-suggestion markers are gone: their code, pages, observers and table.
+     */
+    public function test_ai_suggestion_markers_are_removed(): void {
+        global $CFG, $DB;
+        $this->assertFalse(class_exists(\aiplacement_modgen\aigen_tracker::class));
+        $this->assertFalse(class_exists(\aiplacement_modgen\event\observer::class));
+        foreach (['aigen_list.php', 'ajax/get_aigen.php', 'ajax/toggle_visibility.php', 'db/events.php'] as $path) {
+            $this->assertFileDoesNotExist($CFG->dirroot . '/ai/placement/modgen/' . $path);
+        }
+        $this->assertFalse($DB->get_manager()->table_exists('aiplacement_modgen_aigen'));
     }
 
     // ------------------------------------------------------------------

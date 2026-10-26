@@ -207,5 +207,17 @@ function xmldb_aiplacement_modgen_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026102202, 'aiplacement', 'modgen');
     }
 
+    // The "AI suggested" markers were removed: nothing has created them since the activity
+    // handlers went, so drop the table that tracked them.
+    if ($oldversion < 2026102601) {
+        $table = new xmldb_table('aiplacement_modgen_aigen');
+        if ($dbman->table_exists($table)) {
+            $dbman->drop_table($table);
+        }
+
+        // Savepoint reached.
+        upgrade_plugin_savepoint(true, 2026102601, 'aiplacement', 'modgen');
+    }
+
     return true;
 }

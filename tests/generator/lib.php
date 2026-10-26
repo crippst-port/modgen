@@ -71,23 +71,4 @@ class aiplacement_modgen_generator extends component_generator_base {
         $job->id = $DB->insert_record('aiplacement_modgen_jobs', $job);
         return $job;
     }
-
-    /**
-     * Mark an activity as AI-generated.
-     *
-     * @param array|stdClass $record Needs cmid; courseid defaults to the activity's course.
-     * @return stdClass The marker record.
-     */
-    public function create_marker($record): stdClass {
-        global $DB;
-
-        $record = (array) $record;
-        if (empty($record['cmid'])) {
-            throw new coding_exception("The marker 'cmid' is required.");
-        }
-        $courseid = $record['courseid'] ?? $DB->get_field('course_modules', 'course', ['id' => $record['cmid']], MUST_EXIST);
-
-        \aiplacement_modgen\aigen_tracker::mark_as_aigenerated((int) $record['cmid'], (int) $courseid);
-        return $DB->get_record('aiplacement_modgen_aigen', ['cmid' => $record['cmid']], '*', MUST_EXIST);
-    }
 }

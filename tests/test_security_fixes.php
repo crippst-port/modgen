@@ -61,8 +61,8 @@ try {
 }
 echo "\n";
 
-// Test 3: Rate Limit Configuration.
-echo "Test 3: Verifying rate limit configuration...\n";
+// Test 2: Rate Limit Configuration.
+echo "Test 2: Verifying rate limit configuration...\n";
 $ratelimit = get_config('aiplacement_modgen', 'ai_rate_limit');
 if ($ratelimit !== false) {
     echo "  ✓ PASSED: Rate limit setting exists (value: " . ($ratelimit ?: '10 (default)') . ")\n";
@@ -73,29 +73,8 @@ if ($ratelimit !== false) {
 }
 echo "\n";
 
-// Test 4: Database Index on courseid.
-echo "Test 4: Checking database index on aiplacement_modgen_aigen.courseid...\n";
-try {
-    $dbman = $DB->get_manager();
-    $table = new xmldb_table('aiplacement_modgen_aigen');
-    $index = new xmldb_index('courseid', XMLDB_INDEX_NOTUNIQUE, ['courseid']);
-
-    if ($dbman->index_exists($table, $index)) {
-        echo "  ✓ PASSED: Database index exists on courseid column\n";
-        $passed++;
-    } else {
-        echo "  ✗ FAILED: Database index missing on courseid column\n";
-        echo "    Run: php admin/cli/upgrade.php to apply database changes\n";
-        $failed++;
-    }
-} catch (Exception $e) {
-    echo "  ✗ FAILED: " . $e->getMessage() . "\n";
-    $failed++;
-}
-echo "\n";
-
-// Test 5: Mustache Template Exists.
-echo "Test 5: Verifying XSS fix - Mustache template exists...\n";
+// Test 3: Mustache Template Exists.
+echo "Test 3: Verifying XSS fix - Mustache template exists...\n";
 $templatepath = $CFG->dirroot . '/ai/placement/modgen/templates/ai_policy_acceptance.mustache';
 if (file_exists($templatepath)) {
     echo "  ✓ PASSED: ai_policy_acceptance.mustache template exists\n";
@@ -106,8 +85,8 @@ if (file_exists($templatepath)) {
 }
 echo "\n";
 
-// Test 7: Rate Limiting Functionality.
-echo "Test 7: Testing rate limiting functionality...\n";
+// Test 4: Rate Limiting Functionality.
+echo "Test 4: Testing rate limiting functionality...\n";
 try {
     $cache = cache::make('aiplacement_modgen', 'ai_requests');
     $testkey = 'test_user_999999';

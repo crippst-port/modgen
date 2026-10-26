@@ -19,7 +19,7 @@ namespace aiplacement_modgen;
 use aiplacement_modgen\task\cleanup_old_jobs_task;
 
 /**
- * Tests for the scheduled cleanup of old jobs and for the AI-generated marker list.
+ * Tests for the scheduled cleanup of old jobs.
  *
  * @package     aiplacement_modgen
  * @copyright   2026 Tom Cripps <tom.cripps@port.ac.uk>
@@ -28,46 +28,32 @@ use aiplacement_modgen\task\cleanup_old_jobs_task;
  */
 final class cleanup_task_test extends \advanced_testcase {
     /**
-     * Markers for deleted activities are removed; markers for live ones are kept.
+     * Finished jobs older than 30 days are deleted; recent and unfinished ones are kept.
      */
-    public function test_stale_ai_markers_are_removed(): void {
+    public function test_only_old_finished_jobs_are_removed(): void {
         global $DB;
         $this->resetAfterTest();
         $course = $this->getDataGenerator()->create_course();
-        $page = $this->getDataGenerator()->create_module('page', ['course' => $course->id]);
+        $user = $this->getDataGenerator()->create_user();
+        $generator = $this->getDataGenerator()->get_plugin_generator('aiplacement_modgen');
+        $old = time() - 31 * DAYSECS;
 
-        $DB->insert_record('aiplacement_modgen_aigen', (object) [
-            'cmid' => $page->cmid, 'courseid' => $course->id, 'timecreated' => time(),
+        $oldcompleted = $generator->create_job([
+            'courseid' => $course->id, 'userid' => $user->id, 'status' => 'completed', 'timecompleted' => $old,
         ]);
-        $DB->insert_record('aiplacement_modgen_aigen', (object) [
-            'cmid' => 987654, 'courseid' => $course->id, 'timecreated' => time(),
+        $recent = $generator->create_job([
+            'courseid' => $course->id, 'userid' => $user->id, 'status' => 'failed', 'timecompleted' => time() - DAYSECS,
+        ]);
+        $oldqueued = $generator->create_job([
+            'courseid' => $course->id, 'userid' => $user->id, 'status' => 'queued', 'timecreated' => $old,
         ]);
 
         ob_start();
         (new cleanup_old_jobs_task())->execute();
         ob_end_clean();
 
-        $this->assertTrue($DB->record_exists('aiplacement_modgen_aigen', ['cmid' => $page->cmid]));
-        $this->assertFalse($DB->record_exists('aiplacement_modgen_aigen', ['cmid' => 987654]));
-    }
-
-    /**
-     * The endpoint's list only holds markers for activities that still exist in the course.
-     */
-    public function test_course_cmids_only_lists_existing_activities(): void {
-        global $DB;
-        $this->resetAfterTest();
-        $course = $this->getDataGenerator()->create_course();
-        $other = $this->getDataGenerator()->create_course();
-        $page = $this->getDataGenerator()->create_module('page', ['course' => $course->id]);
-        $otherpage = $this->getDataGenerator()->create_module('page', ['course' => $other->id]);
-        \aiplacement_modgen\aigen_tracker::mark_as_aigenerated($page->cmid, $course->id);
-        \aiplacement_modgen\aigen_tracker::mark_as_aigenerated($otherpage->cmid, $other->id);
-        // A marker whose activity has been removed.
-        $DB->insert_record('aiplacement_modgen_aigen', (object) [
-            'cmid' => 987654, 'courseid' => $course->id, 'timecreated' => time(),
-        ]);
-
-        $this->assertSame([(int) $page->cmid], \aiplacement_modgen\aigen_tracker::get_course_cmids($course->id));
+        $this->assertFalse($DB->record_exists('aiplacement_modgen_jobs', ['id' => $oldcompleted->id]));
+        $this->assertTrue($DB->record_exists('aiplacement_modgen_jobs', ['id' => $recent->id]));
+        $this->assertTrue($DB->record_exists('aiplacement_modgen_jobs', ['id' => $oldqueued->id]));
     }
 }

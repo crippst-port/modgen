@@ -14,20 +14,6 @@
  * along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/**
- * AI-generated activity marker - positioned absolute so tooltip is accessible
- */
-.activityname {
-    position: relative;
-}
-
-.aiplacement-modgen-aigen-marker {
-    position: absolute;
-    right: -20px;
-    top: 50%;
-    transform: translateY(-50%);
-    cursor: help;
-}
 
 /**
  * Course navigation bar for Module Assistant tools
@@ -1339,10 +1325,6 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
     height: 2rem;
 }
 
-.aiplacement-modgen-aigen-list img.icon {
-    width: 24px;
-    height: 24px;
-}
 
 .aiplacement-modgen-activity__session-icon {
     color: #4055cc;

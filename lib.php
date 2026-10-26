@@ -72,8 +72,6 @@ function aiplacement_modgen_extend_navigation_course(
         // Load strings needed by JS modules (must be in main page context, not fragment).
         $PAGE->requires->strings_for_js([
             'approveandcreate',
-            'aigenerated',
-            'aigenmarker_tooltip',
         ], 'aiplacement_modgen');
 
         // Get current section from URL (for context-aware creation).
@@ -92,11 +90,6 @@ function aiplacement_modgen_extend_navigation_course(
             'showcheckstructure' => $cancheckstructure,
             'currentsection' => $currentsection,
         ]]);
-
-        // Initialize AI-generated activity markers (only if AI is enabled).
-        if ($showgenerator) {
-            $PAGE->requires->js_call_amd('aiplacement_modgen/aigen_marker', 'init', [$course->id]);
-        }
     }
 
     // Navigation menu link removed - using toolbar only.

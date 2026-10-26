@@ -18,20 +18,12 @@
  * Deletion & cleanup integrity tests for Module Generator.
  *
  * Generation is only half the lifecycle. When a teacher deletes a generated
- * section or activity (the normal Moodle way), two integrity hazards appear:
+ * section (the normal Moodle way), leftover course_format_options 'parent' rows
+ * can point at a section that no longer exists — orphaned references that 500 the
+ * flexsections editor, the exact fault the admin integrity tooling hunts for.
  *
- *   1. Structural: leftover course_format_options 'parent' rows pointing at a
- *      section that no longer exists — i.e. orphaned references that 500 the
- *      flexsections editor, the exact fault the admin integrity tooling hunts for.
- *   2. Referential: the plugin's own aiplacement_modgen_aigen tracker table
- *      holding rows for cmids that have been deleted. The course_module_deleted
- *      event observer (-> aigen_tracker::remove_marker) is supposed to prevent
- *      this. Nothing currently proves the observer actually fires and cleans up.
- *
- * These tests delete content the way a teacher does (course_delete_module /
- * course_delete_section_async-equivalent via core APIs) and then assert no
- * orphaned structure and no stale tracker rows remain, including after a
- * delete-then-regenerate cycle.
+ * These tests delete content the way a teacher does (core APIs) and then assert no
+ * orphaned structure remains, including after a delete-then-regenerate cycle.
  *
  * @package    aiplacement_modgen
  * @category   test
@@ -42,7 +34,6 @@
 namespace aiplacement_modgen;
 
 use advanced_testcase;
-use aiplacement_modgen\aigen_tracker;
 use aiplacement_modgen\local\section_creation_service;
 use aiplacement_modgen\local\theme_builder;
 
@@ -155,54 +146,6 @@ final class deletion_integrity_test extends advanced_testcase {
         if (!defined('PHPUNIT_LONGTEST') || !PHPUNIT_LONGTEST) {
             $this->markTestSkipped('Repeated large-section deletion test only runs with PHPUNIT_LONGTEST=1.');
         }
-    }
-
-    // ------------------------------------------------------------------
-    // Observer-driven tracker cleanup.
-
-    /**
-     * Deleting a tracked module must fire course_module_deleted and remove its
-     * tracker row — proving the observer is wired up and runs.
-     *
-     * @covers ::course_module_deleted
-     * @covers \aiplacement_modgen\aigen_tracker::remove_marker
-     */
-    public function test_module_deletion_cleans_tracker(): void {
-        // Create a real module and mark it as AI-generated.
-        $label = $this->getDataGenerator()->create_module('label', ['course' => $this->course->id]);
-        aigen_tracker::mark_as_aigenerated($label->cmid, $this->course->id);
-        $this->assertTrue(
-            aigen_tracker::is_aigenerated($label->cmid),
-            'Pre-condition: module is tracked as AI-generated.'
-        );
-
-        // Delete it the way Moodle does — this fires course_module_deleted.
-        course_delete_module($label->cmid);
-
-        $this->assertFalse(
-            aigen_tracker::is_aigenerated($label->cmid),
-            'Tracker row must be removed by the course_module_deleted observer.'
-        );
-    }
-
-    /**
-     * Editing a tracked module fires course_module_updated, which clears its
-     * AI-generated marker (the activity is no longer pristine AI output).
-     *
-     * @covers ::course_module_updated
-     */
-    public function test_module_update_clears_marker(): void {
-        $label = $this->getDataGenerator()->create_module('label', ['course' => $this->course->id]);
-        aigen_tracker::mark_as_aigenerated($label->cmid, $this->course->id);
-
-        // Trigger a course_module_updated event via the core edit path.
-        $cm = get_coursemodule_from_id('label', $label->cmid, 0, false, MUST_EXIST);
-        \core\event\course_module_updated::create_from_cm($cm)->trigger();
-
-        $this->assertFalse(
-            aigen_tracker::is_aigenerated($label->cmid),
-            'Editing a module must clear its AI-generated marker.'
-        );
     }
 
     // ------------------------------------------------------------------
@@ -346,19 +289,5 @@ final class deletion_integrity_test extends advanced_testcase {
                 "Cycle {$cycle}: no section may be its own ancestor after the large delete."
             );
         }
-    }
-
-    /**
-     * remove_marker on an unknown cmid is a harmless no-op (idempotent cleanup) —
-     * the observer must never error when a delete event arrives for an untracked
-     * module.
-     *
-     * @covers \aiplacement_modgen\aigen_tracker::remove_marker
-     */
-    public function test_remove_marker_idempotent_for_untracked_cmid(): void {
-        // No exception, returns cleanly even though nothing is tracked.
-        $result = aigen_tracker::remove_marker(999999);
-        $this->assertIsBool($result);
-        $this->assertFalse(aigen_tracker::is_aigenerated(999999));
     }
 }

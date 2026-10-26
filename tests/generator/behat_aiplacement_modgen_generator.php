@@ -24,12 +24,10 @@
  */
 
 /**
- * Lets feature files create jobs and AI-generated markers:
+ * Lets feature files create jobs:
  *
  *   Given the following "aiplacement_modgen > jobs" exist:
  *     | course | user | action | status | result |
- *   And the following "aiplacement_modgen > markers" exist:
- *     | activity |
  */
 class behat_aiplacement_modgen_generator extends behat_generator_base {
     /**
@@ -45,12 +43,7 @@ class behat_aiplacement_modgen_generator extends behat_generator_base {
                 'required' => ['course', 'user'],
                 'switchids' => ['course' => 'courseid', 'user' => 'userid'],
             ],
-            'markers' => [
-                'singular' => 'marker',
-                'datagenerator' => 'marker',
-                'required' => ['activity'],
-                'switchids' => ['activity' => 'cmid'],
-            ],
+
         ];
     }
 

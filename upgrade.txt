@@ -24,6 +24,11 @@
 - The job status page keeps watching a job that will be retried. Jobs left waiting for a retry that
   will never run, and queued jobs whose task has gone, are now marked failed.
 
+### Features removed
+
+- AI-suggested activity markers: the "View unedited suggestions" toolbar link and page, and the
+  marker shown next to activities. Nothing has created markers since the activity handlers were
+  removed. The upgrade drops the aiplacement_modgen_aigen table and any records left in it.
 
 ## Upgrading to Version 0.8.1 (2026-10-22)
 
@@ -51,7 +56,7 @@
 - Hide existing sections option
 
 Their admin settings are deleted by the upgrade. Records of previously created AI-suggested
-activities are kept: unedited ones can still be reviewed from the toolbar.
+activities are kept: unedited ones can still be reviewed from the toolbar (until 0.8.2).
 
 ## Upgrading to Version 0.2.7 (2026-01-16)
 

@@ -45,6 +45,14 @@ Feature: Structure from prompt form
     Then I should not see "Enter prompt"
     And the course "C1" should have "0" sections
 
+  Scenario: Accepting the AI policy without ticking the box leaves the policy unaccepted
+    When I set the field "Additional context or requests for the Assistant" to "A twelve week module on rivers"
+    And I click on "Preview Structure" "button" in the ".modal-footer" "css_element"
+    And I click on "Accept" "button" in the ".modal-body" "css_element"
+    And I wait "1" seconds
+    Then I should see "AI statement Acceptance Required"
+    And there should be "0" structure jobs in "C1"
+
   Scenario: A prompt entered before accepting the policy is sent once it is accepted, and with no provider nothing is built
     When I set the field "Additional context or requests for the Assistant" to "A twelve week module on rivers"
     And I click on "Preview Structure" "button" in the ".modal-footer" "css_element"

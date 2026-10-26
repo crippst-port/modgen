@@ -709,17 +709,8 @@ class ModalGeneratorComponent extends BaseComponent {
                         }
                     });
 
-                    // If the response contains the approval form, we need to handle its submission too.
-                    // The approval form usually submits to prompt.php as well.
-                    // We can attach a listener to the new form in the modal body.
-                    const newForm = modal.getRoot().find('form');
-                    if (newForm.length) {
-                        newForm.on('submit', (e) => {
-                            e.preventDefault();
-                            const approvalFormData = new FormData(e.target);
-                            this.handlePromptSubmission(modal, approvalFormData);
-                        });
-                    }
+                    // Forms in the new body (approval, AI policy) are submitted by the delegated
+                    // handler from setupFormSubmission; binding another here would POST twice.
 
                     // Hide form buttons since we're using footer buttons
                     if (data.buttons && data.buttons.length > 0) {

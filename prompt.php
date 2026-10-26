@@ -296,9 +296,6 @@ if (!$manager->get_user_policy_status($USER->id)) {
         // The form in the body has the Accept button; the footer only offers the way out.
         $footer = aiplacement_modgen_render_modal_footer([]);
 
-        // Load AMD module for policy acceptance (SECURITY FIX: replaced inline JavaScript).
-        $PAGE->requires->js_call_amd('aiplacement_modgen/policy_acceptance', 'init');
-
         aiplacement_modgen_send_ajax_response($policyformhtml, $footer);
     } else {
         // For regular page requests, show the policy acceptance form as a full page
@@ -315,9 +312,6 @@ if (!$manager->get_user_policy_status($USER->id)) {
         if ($embedded) {
             $PAGE->set_pagelayout('embedded');
         }
-
-        // Load AMD module for policy acceptance.
-        $PAGE->requires->js_call_amd('aiplacement_modgen/policy_acceptance', 'init');
 
         // NOW render the template (after page setup is complete).
         $policyformhtml = $OUTPUT->render_from_template('aiplacement_modgen/ai_policy_acceptance', $policydata);

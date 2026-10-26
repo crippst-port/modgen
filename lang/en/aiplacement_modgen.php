@@ -93,10 +93,6 @@ $string['sectioncreated'] = 'Section created: {$a}';
 $string['nosectionscreated'] = 'No sections were created from the AI response.';
 $string['approveandcreate'] = 'Create';
 $string['reenterprompt'] = 'Re-enter prompt';
-$string['activity_created_coursemodule'] = 'Activity created (coursemodule id: {$a})';
-$string['activity_created_instance'] = 'Activity created (instance id: {$a})';
-$string['activity_created_cmid'] = 'Activity created (cmid: {$a})';
-$string['url_created_placeholder'] = 'URL activity "{$a}" created with placeholder URL - please edit to set the correct link';
 $string['aigenlabel'] = 'AI Generated Label';
 $string['aigenquiz'] = 'AI Generated Quiz';
 $string['aigenerated'] = 'AI suggested';
@@ -119,13 +115,6 @@ $string['hidden'] = 'Hidden';
 $string['backtocourse'] = 'Back to course';
 $string['created'] = 'Created';
 $string['type'] = 'Type';
-$string['labelcreated'] = 'Label created (cmid: {$a})';
-$string['quizcreated'] = 'Quiz created: {$a}';
-$string['activitytype_quiz'] = 'Quiz';
-$string['activitytype_label'] = 'Label';
-$string['activitycreated'] = 'Activity created: {$a}';
-$string['quizcreationerror'] = 'Unable to create the "quiz" activity automatically. Please review the course.';
-$string['labelcreationerror'] = 'Unable to create the "label" activity automatically. Please review the course.';
 $string['subsectioncreated'] = 'Subsection created: {$a}';
 $string['moduletype'] = 'Module format';
 $string['moduletype_weekly'] = 'Weekly format';
@@ -204,22 +193,6 @@ $string['connectedcurriculum60'] = '60 credit module';
 $string['connectedcurriculum120'] = '120 credit module';
 $string['connectedcurriculumcredits'] = 'Module type';
 $string['connectedcurriculuminstruction'] = 'Module credit volume: {$a} credit Connected Curriculum module.';
-
-// Book activity.
-$string['activitytype_book'] = 'Book';
-$string['bookdescription'] = 'Chapter-based content from uploaded document';
-
-// Forum activity.
-$string['activitytype_forum'] = 'Forum';
-$string['forumdescription'] = 'Collaborative discussion space for peer interaction and group communication';
-
-// URL activity.
-$string['activitytype_url'] = 'External Link';
-$string['urldescription'] = 'Links to external websites, articles, videos, or resources';
-
-// Assignment activity.
-$string['activitytype_assignment'] = 'Assignment';
-$string['assignmentdescription'] = 'Student work submission activity for formative and summative assessments, essays, projects, and reflective tasks';
 
 // Learning activity (metadata module).
 $string['activitytype_learningactivity'] = 'Learning Activity';

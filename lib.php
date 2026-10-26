@@ -179,79 +179,6 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
 }
 
 /**
- * Fragment callback to render the generator form in a modal.
- *
- * This properly handles filemanager initialization and other form JavaScript.
- *
- * @param array $args Fragment arguments containing courseid
- * @return string Rendered form HTML
- */
-function aiplacement_modgen_output_fragment_generator_form(array $args): string {
-    global $PAGE, $USER, $CFG;
-
-    // Fragments are reachable directly, so they enforce the placement switch too.
-    \aiplacement_modgen\local\settings_helper::require_placement_enabled();
-
-    // Ensure required libraries are loaded.
-    require_once($CFG->libdir . '/formslib.php');
-    require_once($CFG->libdir . '/filelib.php');
-
-    // Validate parameters.
-    $courseid = clean_param($args['courseid'], PARAM_INT);
-    $context = context_course::instance($courseid);
-
-    // Verify permission - need either generation method.
-    $hasprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
-    $hastemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
-    if (!$hasprompt && !$hastemplate) {
-        throw new required_capability_exception(
-            $context,
-            'aiplacement/modgen:generatefromtemplate',
-            'nopermissions',
-            'error'
-        );
-    }
-
-    // Set page context for proper JS/CSS loading.
-    $PAGE->set_context($context);
-
-    // Check AI policy acceptance.
-    $manager = \core\di::get(\core_ai\manager::class);
-    if (!$manager->get_user_policy_status($USER->id)) {
-        return $PAGE->get_renderer('aiplacement_modgen')->render_from_template(
-            'aiplacement_modgen/ai_policy',
-            [
-                'courseid' => $courseid,
-                'policytext' => get_string('aipolicyinfo', 'aiplacement_modgen'),
-            ]
-        );
-    }
-
-    // Create form with embedded flag.
-    require_once(__DIR__ . '/classes/form/generator_form.php');
-
-    // Create a draft file area for supporting files.
-    $draftitemid = file_get_unused_draft_itemid();
-
-    $formdata = [
-        'courseid' => $courseid,
-        'embedded' => 1,
-        'contextid' => $context->id,
-        'supportingfiles' => $draftitemid,
-    ];
-    $form = new \aiplacement_modgen_generator_form(null, $formdata);
-
-    // Set the draft area data.
-    $formdefaults = new stdClass();
-    $formdefaults->supportingfiles = $draftitemid;
-    $form->set_data($formdefaults);
-
-    // Return rendered form.
-    // Fragment API automatically handles JavaScript initialization.
-    return $form->render();
-}
-
-/**
  * Resolve the context a fragment callback should authorise against.
  *
  * Fragment arguments are client-supplied. A caller-chosen context id must not be allowed to
@@ -271,12 +198,6 @@ function aiplacement_modgen_fragment_context(int $courseid, int $contextid = 0):
     return $coursecontext;
 }
 
-/**
- * Fragment callback to render the add_theme form in a modal.
- *
- * @param array $args Fragment arguments containing courseid
- * @return string Rendered form HTML
- */
 /**
  * Fragment callback to render the add_theme form in a modal.
  *

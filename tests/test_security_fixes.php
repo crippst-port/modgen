@@ -123,18 +123,6 @@ if (file_exists($templatepath)) {
 }
 echo "\n";
 
-// Test 6: AMD Module Exists.
-echo "Test 6: Verifying XSS fix - AMD module exists...\n";
-$amdpath = $CFG->dirroot . '/ai/placement/modgen/amd/src/policy_acceptance.js';
-if (file_exists($amdpath)) {
-    echo "  ✓ PASSED: policy_acceptance.js AMD module exists\n";
-    $passed++;
-} else {
-    echo "  ✗ FAILED: policy_acceptance.js AMD module not found\n";
-    $failed++;
-}
-echo "\n";
-
 // Test 7: Rate Limiting Functionality.
 echo "Test 7: Testing rate limiting functionality...\n";
 try {

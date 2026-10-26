@@ -16,12 +16,8 @@
 
 namespace aiplacement_modgen;
 
+use aiplacement_modgen\local\ai_service;
 use aiplacement_modgen\local\job_status_helper;
-
-defined('MOODLE_INTERNAL') || die();
-
-// The ai_service class sits under classes/local but in the plugin's root namespace, so it is not autoloadable.
-require_once(__DIR__ . '/../classes/local/ai_service.php');
 
 /**
  * Tests for queuing a creation job and for the AI request allowance.
@@ -30,7 +26,7 @@ require_once(__DIR__ . '/../classes/local/ai_service.php');
  * @copyright   2026 Tom Cripps <tom.cripps@port.ac.uk>
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  * @covers \aiplacement_modgen\local\job_status_helper::queue_creation_job
- * @covers \aiplacement_modgen\ai_service
+ * @covers \aiplacement_modgen\local\ai_service
  */
 final class job_queue_and_rate_limit_test extends \advanced_testcase {
     /**

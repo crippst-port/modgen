@@ -31,9 +31,6 @@ class constants {
     /** @var int Maximum file content length in characters (100KB) */
     public const MAX_FILE_CONTENT_LENGTH = 100000;
 
-    /** @var int Generation lock timeout in seconds (10 minutes) */
-    public const GENERATION_LOCK_TIMEOUT = 600;
-
     /**
      * @var int Default maximum total sections per course (existing + projected).
      *

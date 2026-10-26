@@ -34,6 +34,7 @@ require_login();
 // Get the job, checking it belongs to this user and that they may still use the plugin in its course.
 $job = \aiplacement_modgen\local\job_status_helper::get_job_for_user($jobid, (int) $USER->id);
 $course = $DB->get_record('course', ['id' => $job->courseid], '*', MUST_EXIST);
+require_login($course);
 $context = context_course::instance($course->id);
 
 $PAGE->set_url('/ai/placement/modgen/job_status.php', ['jobid' => $jobid]);

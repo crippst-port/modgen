@@ -27,11 +27,6 @@
 
 namespace aiplacement_modgen\local;
 
-defined('MOODLE_INTERNAL') || die();
-
-require_once(__DIR__ . '/csv_parser.php');
-require_once(__DIR__ . '/ai_service.php');
-
 /**
  * Service for processing templates and generating module structures.
  */
@@ -198,7 +193,7 @@ class template_processing_service {
         $aiinstructions = $this->build_ai_instructions($csvstructure);
         $compositeprompt = $compositeprompt . $aiinstructions;
 
-        $result = \aiplacement_modgen\ai_service::generate_module(
+        $result = ai_service::generate_module(
             $compositeprompt,
             $moduletype,
             $courseid

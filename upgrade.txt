@@ -14,6 +14,21 @@
 - Quick Add now changes a course's format to Flexible sections with update_course(), as building
   from a file or prompt already did, so the change is logged like one made in course settings.
 - The AI policy checkbox must be ticked for the policy to be recorded as accepted.
+- The Learning Activity module (mod_learningactivity) is optional. Without it, the "Add a section
+  summary activity" option is not offered and builds create no summary activities. When it is
+  installed, the summary activities' metadata is validated before it is stored.
+- Section 0 is named and an Assessments section added only once, in a course whose section 0 has no
+  name of its own yet. Builds no longer rename a section 0 the teacher has renamed, or add
+  Assessments again after the teacher has renamed or deleted it.
+- Builds of every kind, and the Check Structure repairs, now take the same structure locks, so they
+  cannot renumber a course under each other or under a Flexible sections delete.
+- Only failures that might clear on their own (a database error, a lock) are retried. Others, such
+  as a capability removed after the job was queued, fail straight away instead of saying "will
+  retry" until Moodle gives up.
+- Building, and opening the generator, need access to the course itself (enrolment, visibility),
+  not only the capability: a teacher whose enrolment is suspended can no longer build.
+- Check Structure is closed while the Module Assistant is switched off, and only works on courses
+  in the Flexible sections format. Clean up no longer deletes a hidden section that has a summary.
 
 ### Fixed
 
@@ -22,7 +37,16 @@
   confusing error and being retried repeatedly.
 - The section limit counts what a build really creates (each week is 4 sections).
 - The job status page keeps watching a job that will be retried. Jobs left waiting for a retry that
-  will never run, and queued jobs whose task has gone, are now marked failed.
+  will never run, and queued jobs whose task has gone, are now marked failed. A job that finishes
+  while this check runs is no longer marked failed by mistake.
+- Error messages from a build are shown as text in the generator and in course page notifications,
+  not interpreted as HTML.
+- The structure sent to the browser for approval no longer includes the prompt sent to the AI
+  provider (which contains the site's base prompt) or the provider's raw response. This also stops
+  large structures failing approval as too large.
+- Regenerate on the preview goes back to the prompt form instead of leaving a spinner.
+- Check Structure works when a section's stored parent is not a number, instead of failing with a
+  database error.
 
 ### Features removed
 

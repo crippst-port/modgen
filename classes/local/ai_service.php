@@ -22,13 +22,12 @@
  * @license     https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 
-namespace aiplacement_modgen;
+namespace aiplacement_modgen\local;
 
 /**
  * Wraps the core AI subsystem to generate and validate module structures.
  */
-class ai_service
-{
+class ai_service {
     /**
      * Extract requested theme count from user prompt if specified.
      * Looks for patterns like "X themes", "X themed sections", "divide into X themes", etc.
@@ -592,8 +591,6 @@ class ai_service
                     get_string('aierror_actionunavailable', 'aiplacement_modgen')
                 ),
                 'error' => true,
-                'raw' => '',
-                'debugprompt' => trim($prompt),
             ];
         }
 
@@ -609,8 +606,6 @@ class ai_service
                 'activities' => [],
                 'template' => get_string('airatelimitexceeded', 'aiplacement_modgen'),
                 'error' => true,
-                'raw' => '',
-                'debugprompt' => trim($prompt),
             ];
         }
 
@@ -624,15 +619,14 @@ class ai_service
                 ? \context_course::instance($COURSE->id)->id
                 : \context_system::instance()->id;
 
-            // Instantiate Manager and ensure AI User Policy is accepted per subsystem design.
-            $aimanager = new \core_ai\manager();
-            if (!$aimanager->get_user_policy_status($USER->id)) {
+            // Get the manager from the container (so tests can stand in for the provider) and ensure the
+            // AI User Policy is accepted per subsystem design.
+            $aimanager = \core\di::get(\core_ai\manager::class);
+            if (!\core_ai\manager::get_user_policy_status($USER->id)) {
                 return [
                     'activities' => [],
                     'template' => get_string('aierror', 'aiplacement_modgen', get_string('aierror_policy', 'aiplacement_modgen')),
                     'error' => true,
-                    'raw' => '',
-                    'debugprompt' => trim($prompt),
                 ];
             }
 
@@ -1100,20 +1094,12 @@ class ai_service
                         'validation_error' => $validation['error'],
                         'template' => get_string('aierror', 'aiplacement_modgen', $validation['error']),
                         'error' => true,
-                        'raw' => $text,
-                        'debugprompt' => $finalprompt,
-                        'debugresponse' => $data,
                     ];
                 }
 
                 if ($structure === 'theme') {
                     $jsondecoded = self::blank_theme_summaries($jsondecoded);
                 }
-
-                // Provider adhered to format. Attach raw text and prompt for visibility.
-                $jsondecoded['raw'] = $text;
-                $jsondecoded['debugprompt'] = $finalprompt;
-                $jsondecoded['debugresponse'] = $data;
 
                 return $jsondecoded;
             }
@@ -1127,9 +1113,6 @@ class ai_service
                 $validation = self::validate_module_structure($jsondecoded, $structure);
                 if ($validation['valid']) {
                     $jsondecoded = self::blank_theme_summaries($jsondecoded);
-                    $jsondecoded['raw'] = $text;
-                    $jsondecoded['debugprompt'] = $finalprompt;
-                    $jsondecoded['debugresponse'] = $data;
                     return $jsondecoded;
                 }
             }
@@ -1143,9 +1126,6 @@ class ai_service
                     ['title' => get_string('aigensummary', 'aiplacement_modgen'), 'summary' => $text ?: ''],
                 ],
                 'template' => $revised ?: get_string('aigeneratedvia_nonjson', 'aiplacement_modgen'),
-                'raw' => $text,
-                'debugprompt' => $finalprompt,
-                'debugresponse' => $data,
             ];
         } catch (\Throwable $e) {
             // Fallback: return error info in template.

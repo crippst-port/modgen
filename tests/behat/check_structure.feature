@@ -173,3 +173,18 @@ Feature: Checking and repairing a course's structure
     And I click on "Show all sections (including clean ones)" "checkbox"
     And I should see "Theme 1 - Week 1" in the "#checkstructure-sectiontable" "css_element"
     And I should not see "No sections have issues."
+
+  Scenario: A course in another format has nothing to check
+    Given the following "courses" exist:
+      | fullname | shortname | format |
+      | Course 2 | C2        | topics |
+    And the following "course enrolments" exist:
+      | user     | course | role           |
+      | teacher1 | C2     | editingteacher |
+    And the following "permission overrides" exist:
+      | capability                        | permission | role           | contextlevel | reference |
+      | aiplacement/modgen:checkstructure | Allow      | editingteacher | Course       | C2        |
+    And I log in as "teacher1"
+    When I am on the Check Structure page of "C2"
+    Then I should see "Check Structure works on courses in the Flexible sections format"
+    And I should not see "No structural issues detected."

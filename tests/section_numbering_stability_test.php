@@ -69,6 +69,7 @@ final class section_numbering_stability_test extends advanced_testcase {
     /**
      * Create a flexsections course with the given number of top-level sections.
      *
+     * @param int $numsections Number of top-level sections
      * @return \stdClass
      */
     private function make_course(int $numsections = 6): \stdClass {

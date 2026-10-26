@@ -61,3 +61,16 @@ Feature: Endpoints refuse crafted requests for features that are switched off or
     When I post "ajax=1&_qf__aiplacement_modgen_prompt_form=1&moduletype=connected_weekly&prompt=A module on rivers" to the modgen endpoint "prompt.php" for "C1"
     Then the modgen endpoint response should contain "nopermissions"
     And there should be "0" structure jobs in "C1"
+
+  Scenario: A teacher whose enrolment is suspended cannot queue a build
+    Given the following "users" exist:
+      | username | firstname | lastname | email                |
+      | teacher2 | Teacher   | Two      | teacher2@example.com |
+    And the following "course enrolments" exist:
+      | user     | course | role           | status |
+      | teacher2 | C1     | editingteacher | 1      |
+    And I log in as "teacher2"
+    And I am on site homepage
+    When I post "action=create_weeks&weekcount=2" to the modgen endpoint "ajax/create_sections.php" for "C1"
+    Then the modgen endpoint response should contain "errorcode"
+    And there should be "0" structure jobs in "C1"

@@ -109,36 +109,20 @@ class integrity_checker {
             $result['has_issues'] = true;
         }
 
+        // Checks 3 and 4: parent values pointing at no section, and parent values that are not a
+        // section number at all. Sorted in PHP so an odd stored value cannot fail the query.
+        $parentvalues = self::classify_parent_values($courseid);
+
         // Check 3: Invalid parent references (parent points to non-existent section number).
-        // Null/empty values are check 4's domain (null_parents below) — exclude them here,
-        // otherwise a non-numeric parent value fails the CAST for the whole query rather
-        // than just being skipped.
-        $invalidsql = "SELECT cs.*, cfo.value AS parentnum
-                         FROM {course_sections} cs
-                         JOIN {course_format_options} cfo
-                           ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                        WHERE cs.course = ?
-                          AND cfo.value IS NOT NULL AND cfo.value <> ''
-                          AND " . $DB->sql_cast_char2int('cfo.value') . " > 0
-                          AND " . $DB->sql_cast_char2int('cfo.value') . " NOT IN (
-                              SELECT section FROM {course_sections} WHERE course = ?
-                          )";
-        $rows = $DB->get_records_sql($invalidsql, [$courseid, $courseid]);
+        $rows = $parentvalues['invalid'];
         if (!empty($rows)) {
             $result['issues']['invalid_parents'] = array_values($rows);
             $result['counts']['invalid_parents'] = count($rows);
             $result['has_issues'] = true;
         }
 
-        // Check 4: Null or empty parent values (sections > 0).
-        $nullsql = "SELECT cs.*, cfo.value AS parentval
-                      FROM {course_sections} cs
-                      JOIN {course_format_options} cfo
-                        ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                     WHERE cs.course = ?
-                       AND cs.section > 0
-                       AND (cfo.value IS NULL OR cfo.value = '')";
-        $rows = $DB->get_records_sql($nullsql, [$courseid]);
+        // Check 4: Null, empty or non-numeric parent values (sections > 0).
+        $rows = $parentvalues['null'];
         if (!empty($rows)) {
             $result['issues']['null_parents'] = array_values($rows);
             $result['counts']['null_parents'] = count($rows);
@@ -201,16 +185,8 @@ class integrity_checker {
             $result['has_issues'] = true;
         }
 
-        // Check 8: Orphaned sections (hidden, no activities, cleanup target).
-        $orphanedsectionssql = "SELECT cs.id, cs.section, cs.name
-                                  FROM {course_sections} cs
-                                 WHERE cs.course = ?
-                                   AND cs.visible = 0
-                                   AND cs.section > 0
-                                   AND NOT EXISTS (
-                                       SELECT 1 FROM {course_modules} cm WHERE cm.section = cs.id
-                                   )";
-        $rows = $DB->get_records_sql($orphanedsectionssql, [$courseid]);
+        // Check 8: Orphaned sections (hidden and empty: the cleanup target).
+        $rows = self::find_orphaned_sections($courseid);
         if (!empty($rows)) {
             $result['issues']['orphaned_sections'] = array_values($rows);
             $result['counts']['orphaned_sections'] = count($rows);
@@ -317,6 +293,16 @@ class integrity_checker {
      *   just resets those rows to top-level, which is the only safe automatic choice.
      */
     public static function fix_integrity(int $courseid): array {
+        return self::with_structure_locks($courseid, fn() => self::fix_integrity_unlocked($courseid));
+    }
+
+    /**
+     * fix_integrity() for a caller that already holds the structure locks.
+     *
+     * @param int $courseid Course ID
+     * @return array As fix_integrity()
+     */
+    private static function fix_integrity_unlocked(int $courseid): array {
         global $DB;
 
         $fixed = 0;
@@ -358,19 +344,8 @@ class integrity_checker {
             }
 
             // Fix invalid parent references (set to 0 = top level).
-            // Null/empty values are handled separately below (null_parents) — excluded here so
-            // they don't fail the CAST for every row in this query.
-            $invalidsql = "SELECT cs.*, cfo.value AS parentnum
-                             FROM {course_sections} cs
-                             JOIN {course_format_options} cfo
-                               ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                            WHERE cs.course = ?
-                              AND cfo.value IS NOT NULL AND cfo.value <> ''
-                              AND " . $DB->sql_cast_char2int('cfo.value') . " > 0
-                              AND " . $DB->sql_cast_char2int('cfo.value') . " NOT IN (
-                                  SELECT section FROM {course_sections} WHERE course = ?
-                              )";
-            $rows = $DB->get_records_sql($invalidsql, [$courseid, $courseid]);
+            $parentvalues = self::classify_parent_values($courseid);
+            $rows = $parentvalues['invalid'];
             if (!empty($rows)) {
                 // Snapshot parent links before any of them get reset below, so a suggestion for
                 // one broken row isn't thrown off by another broken row in the same batch having
@@ -392,15 +367,8 @@ class integrity_checker {
                 $details[] = get_string('detail_resetinvalidparents', 'aiplacement_modgen', count($rows));
             }
 
-            // Fix null/empty parent values.
-            $nullsql = "SELECT cs.*, cfo.id AS cfoid
-                          FROM {course_sections} cs
-                          JOIN {course_format_options} cfo
-                            ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                         WHERE cs.course = ?
-                           AND cs.section > 0
-                           AND (cfo.value IS NULL OR cfo.value = '')";
-            $rows = $DB->get_records_sql($nullsql, [$courseid]);
+            // Fix null, empty and non-numeric parent values (classified above, before any reset).
+            $rows = $parentvalues['null'];
             if (!empty($rows)) {
                 foreach ($rows as $row) {
                     $DB->set_field('course_format_options', 'value', '0', ['id' => $row->cfoid]);
@@ -456,20 +424,22 @@ class integrity_checker {
      * @return array ['deleted' => int]
      */
     public static function cleanup_orphaned(int $courseid): array {
+        return self::with_structure_locks($courseid, fn() => self::cleanup_orphaned_unlocked($courseid), true);
+    }
+
+    /**
+     * cleanup_orphaned() for a caller that already holds the structure locks.
+     *
+     * @param int $courseid Course ID
+     * @return array As cleanup_orphaned()
+     */
+    private static function cleanup_orphaned_unlocked(int $courseid): array {
         global $DB;
 
         $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
 
-        $sql = "SELECT cs.id, cs.section, cs.name
-                  FROM {course_sections} cs
-                 WHERE cs.course = ?
-                   AND cs.visible = 0
-                   AND cs.section > 0
-                   AND NOT EXISTS (
-                       SELECT 1 FROM {course_modules} cm WHERE cm.section = cs.id
-                   )
-              ORDER BY cs.section DESC";
-        $sections = $DB->get_records_sql($sql, [$courseid]);
+        // Highest number first, so deleting one does not renumber those still to come.
+        $sections = array_reverse(self::find_orphaned_sections($courseid), true);
 
         if (empty($sections)) {
             return ['deleted' => 0];
@@ -493,6 +463,78 @@ class integrity_checker {
     }
 
     /**
+     * Sort the course's stored parent values into the two kinds the checks and fixes deal with.
+     *
+     * Done in PHP rather than with a SQL cast: the value column is text, and one odd value (such as
+     * 'null' or ' 3') would otherwise make the whole query fail on PostgreSQL.
+     *
+     * @param int $courseid Course ID
+     * @return array{invalid: \stdClass[], null: \stdClass[]} Section records (cs.* plus cfoid, and
+     *     parentnum or parentval holding the stored value), keyed by section id: 'invalid' when the value
+     *     is a section number no section has, 'null' when a section above 0 has no usable number at all
+     */
+    private static function classify_parent_values(int $courseid): array {
+        global $DB;
+
+        $sectionnumbers = $DB->get_fieldset_select('course_sections', 'section', 'course = ?', [$courseid]);
+        $existing = array_flip(array_map('intval', $sectionnumbers));
+        $rows = $DB->get_records_sql(
+            "SELECT cs.*, cfo.id AS cfoid, cfo.value AS parentvalue
+               FROM {course_sections} cs
+               JOIN {course_format_options} cfo
+                 ON cfo.sectionid = cs.id AND cfo.name = 'parent'
+              WHERE cs.course = ?
+           ORDER BY cs.section",
+            [$courseid]
+        );
+
+        $result = ['invalid' => [], 'null' => []];
+        foreach ($rows as $row) {
+            $value = $row->parentvalue;
+            unset($row->parentvalue);
+            $trimmed = trim((string) $value);
+            if ($value === null || !ctype_digit($trimmed)) {
+                if ((int) $row->section > 0) {
+                    $row->parentval = $value;
+                    $result['null'][$row->id] = $row;
+                }
+            } else if ((int) $trimmed > 0 && !isset($existing[(int) $trimmed])) {
+                $row->parentnum = $value;
+                $result['invalid'][$row->id] = $row;
+            }
+        }
+        return $result;
+    }
+
+    /**
+     * Hidden sections with nothing in them: no activities and no summary.
+     *
+     * These are what Clean up deletes, so a section with any content of its own - a teacher's
+     * hidden placeholder week with notes in its summary, say - must never match.
+     *
+     * @param int $courseid Course ID
+     * @return \stdClass[] Sections (id, section, name), keyed by id, in section order
+     */
+    private static function find_orphaned_sections(int $courseid): array {
+        global $DB;
+
+        $summaryempty = $DB->sql_isempty('course_sections', 'cs.summary', true, true);
+        return $DB->get_records_sql(
+            "SELECT cs.id, cs.section, cs.name
+               FROM {course_sections} cs
+              WHERE cs.course = ?
+                AND cs.visible = 0
+                AND cs.section > 0
+                AND (cs.summary IS NULL OR {$summaryempty})
+                AND NOT EXISTS (
+                    SELECT 1 FROM {course_modules} cm WHERE cm.section = cs.id
+                )
+           ORDER BY cs.section ASC",
+            [$courseid]
+        );
+    }
+
+    /**
      * Fix circular parent references by resetting looping sections to top-level.
      *
      * @param int $courseid Course ID
@@ -500,6 +542,16 @@ class integrity_checker {
      *   section:int, name:string, suggestedparent:int|null}[]]
      */
     public static function fix_circular(int $courseid): array {
+        return self::with_structure_locks($courseid, fn() => self::fix_circular_unlocked($courseid));
+    }
+
+    /**
+     * fix_circular() for a caller that already holds the structure locks.
+     *
+     * @param int $courseid Course ID
+     * @return array As fix_circular()
+     */
+    private static function fix_circular_unlocked(int $courseid): array {
         global $DB;
 
         $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
@@ -685,6 +737,40 @@ class integrity_checker {
         return $result;
     }
 
+    /**
+     * Run a repair under the locks that guard the course's section structure.
+     *
+     * Repairs read section numbers and write parent links derived from them. A build, or a
+     * format_flexsections delete, renumbers the same rows, so without the locks a repair can
+     * attach sections to whatever has just moved into the number it read.
+     *
+     * @param int $courseid Course ID
+     * @param callable $work The repair
+     * @param bool $courseeditonly Take only the course edit lock. For repairs that delete through
+     *     format_flexsections, which takes its own lock and would otherwise wait on ours.
+     * @return array What the repair returns
+     * @throws \moodle_exception If the course is not in Flexible sections, or a lock cannot be obtained
+     */
+    private static function with_structure_locks(int $courseid, callable $work, bool $courseeditonly = false): array {
+        // The repairs write Flexible sections parent links and call its API: refuse other formats.
+        if (get_course($courseid)->format !== 'flexsections') {
+            throw new \moodle_exception('errorformatnotflexsections', 'aiplacement_modgen');
+        }
+        if ($courseeditonly) {
+            $lock = \core\lock\lock_config::get_lock_factory('core_course_edit')->get_lock('course_edit_' . $courseid, 60);
+            if (!$lock) {
+                throw new \moodle_exception('erroracquiringlock', 'aiplacement_modgen');
+            }
+            $locks = [$lock];
+        } else {
+            $locks = theme_builder::acquire_structure_locks($courseid);
+        }
+        try {
+            return $work();
+        } finally {
+            theme_builder::release_structure_locks($locks);
+        }
+    }
     /**
      * Renumber a course's sections into the depth-first order format_flexsections expects.
      *
@@ -1131,6 +1217,18 @@ class integrity_checker {
      *   'maxdepthexceeded'
      */
     public static function set_parent(int $courseid, int $sectionnum, int $newparent): array {
+        return self::with_structure_locks($courseid, fn() => self::set_parent_unlocked($courseid, $sectionnum, $newparent));
+    }
+
+    /**
+     * set_parent() for a caller that already holds the structure locks.
+     *
+     * @param int $courseid Course ID
+     * @param int $sectionnum Section number to update
+     * @param int $newparent New parent section number (0 = top-level)
+     * @return array As set_parent()
+     */
+    private static function set_parent_unlocked(int $courseid, int $sectionnum, int $newparent): array {
         global $DB;
 
         if ($sectionnum === 0) {
@@ -1195,6 +1293,18 @@ class integrity_checker {
      * @return array ['applied' => int, 'failed' => int] counts, not which pairs succeeded
      */
     public static function set_parents_bulk(int $courseid, array $sections, array $newparents): array {
+        return self::with_structure_locks($courseid, fn() => self::set_parents_bulk_unlocked($courseid, $sections, $newparents));
+    }
+
+    /**
+     * set_parents_bulk() for a caller that already holds the structure locks.
+     *
+     * @param int $courseid Course ID
+     * @param int[] $sections Section numbers to update, one per pair
+     * @param int[] $newparents New parent section numbers, one per pair, same order as
+     * @return array As set_parents_bulk()
+     */
+    private static function set_parents_bulk_unlocked(int $courseid, array $sections, array $newparents): array {
         $applied = 0;
         $failed = 0;
 
@@ -1202,7 +1312,7 @@ class integrity_checker {
             if (!array_key_exists($i, $newparents)) {
                 continue;
             }
-            $result = self::set_parent($courseid, (int) $sectionnum, (int) $newparents[$i]);
+            $result = self::set_parent_unlocked($courseid, (int) $sectionnum, (int) $newparents[$i]);
             if ($result['success']) {
                 $applied++;
             } else {

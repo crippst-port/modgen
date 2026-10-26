@@ -108,9 +108,6 @@ final class plugin_wiring_test extends advanced_testcase {
      */
     public function test_referenced_classes_exist(): void {
         $missing = [];
-        // The ai_service class sits under classes/local but in the plugin's root namespace, so it is not
-        // autoloadable; the code require_once()s it where needed.
-        require_once(dirname(__DIR__) . '/classes/local/ai_service.php');
         foreach ($this->plugin_files('php') as $file) {
             $source = file_get_contents($file);
             // Skip comments so prose such as "aiplacement_modgen\foo" cannot raise false alarms,

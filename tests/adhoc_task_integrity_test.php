@@ -489,8 +489,8 @@ final class adhoc_task_integrity_test extends advanced_testcase {
     // Failure path.
 
     /**
-     * A task whose action is invalid must mark the job failed (with will_retry),
-     * re-throw for Moodle's retry machinery, and leave the structure untouched.
+     * A task whose action is invalid fails the same way on every attempt, so it marks the job
+     * failed for good (no will_retry), is not retried, and leaves the structure untouched.
      *
      * @covers ::execute
      */
@@ -500,20 +500,16 @@ final class adhoc_task_integrity_test extends advanced_testcase {
         $jobid = $this->make_job('bogus_action', []);
         $task = $this->make_task($jobid, ['action' => 'bogus_action']);
 
-        try {
-            $this->run_task($task);
-            $this->fail('Invalid action should throw.');
-        } catch (\Throwable $e) {
-            $this->assertNotEmpty($e->getMessage());
-        }
+        // Returns normally, so Moodle drops the task instead of retrying it.
+        $this->run_task($task);
         $this->resetDebugging();
 
         $job = $this->job($jobid);
         $this->assertSame('failed', $job->status, 'A failing task must mark the job failed.');
         $result = json_decode($job->result, true);
         $this->assertFalse($result['success'] ?? true, 'Failed result must report success=false.');
-        $this->assertTrue($result['will_retry'] ?? false, 'Failed job must be flagged will_retry.');
-        $this->assertNull($job->timecompleted, 'A retryable failure must not set timecompleted.');
+        $this->assertFalse($result['will_retry'], 'A failure that cannot change must not promise a retry.');
+        $this->assertNotNull($job->timecompleted, 'A final failure records when it finished.');
 
         // No partial sections were created.
         $this->assertSame(

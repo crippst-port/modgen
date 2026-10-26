@@ -30,16 +30,12 @@
 namespace aiplacement_modgen;
 
 use advanced_testcase;
-
-defined('MOODLE_INTERNAL') || die();
-
-global $CFG;
-require_once($CFG->dirroot . '/ai/placement/modgen/classes/local/ai_service.php');
+use aiplacement_modgen\local\ai_service;
 
 /**
  * Tests for the generate_text availability check in ai_service.
  *
- * @covers \aiplacement_modgen\ai_service::generate_module
+ * @covers \aiplacement_modgen\local\ai_service::generate_module
  */
 final class ai_action_availability_test extends advanced_testcase {
     /**
@@ -100,5 +96,35 @@ final class ai_action_availability_test extends advanced_testcase {
 
         $this->assert_refused(ai_service::generate_module('A module on rivers'));
         $this->assert_rate_limit_untouched();
+    }
+
+    /**
+     * The structure handed back for preview carries only the module: not the prompt sent to the
+     * provider (which includes the administrator's base prompt), nor the raw provider response.
+     */
+    public function test_generated_structure_does_not_carry_the_prompt_or_raw_response(): void {
+        set_config('baseprompt', 'CONFIDENTIAL SITE GUIDANCE', 'aiplacement_modgen');
+        $structure = ['sections' => [['title' => 'Week 1', 'summary' => 'Rivers']]];
+
+        $response = new \core_ai\aiactions\responses\response_generate_text(true);
+        $response->set_response_data(['generatedcontent' => json_encode($structure)]);
+        $manager = $this->createPartialMock(\core_ai\manager::class, ['process_action']);
+        $manager->expects($this->once())->method('process_action')->willReturnCallback(
+            function (\core_ai\aiactions\generate_text $action) use ($response) {
+                // The base prompt is sent to the provider...
+                $this->assertStringContainsString('CONFIDENTIAL SITE GUIDANCE', $action->get_configuration('prompttext'));
+                return $response;
+            }
+        );
+        \core\di::set(\core_ai\manager::class, $manager);
+
+        $result = ai_service::generate_module('A module on rivers', 'weekly');
+
+        // ...but nothing that goes back to the browser includes it.
+        $this->assertSame('Week 1', $result['sections'][0]['title']);
+        foreach (['raw', 'debugprompt', 'debugresponse'] as $key) {
+            $this->assertArrayNotHasKey($key, $result);
+        }
+        $this->assertStringNotContainsString('CONFIDENTIAL SITE GUIDANCE', json_encode($result));
     }
 }

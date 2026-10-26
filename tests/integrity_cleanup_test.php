@@ -79,6 +79,20 @@ final class integrity_cleanup_test extends \advanced_testcase {
     }
 
     /**
+     * A hidden section with a summary is content a teacher wrote, such as a placeholder for next term:
+     * it is neither reported as orphaned nor deleted.
+     */
+    public function test_a_hidden_section_with_a_summary_is_kept(): void {
+        global $DB;
+        $id = $this->hide('Pre-session');
+        $DB->set_field('course_sections', 'summary', '<p>Reading list for next term</p>', ['id' => $id]);
+
+        $this->assertSame(0, integrity_checker::check($this->course->id)['counts']['orphaned_sections']);
+        $this->assertSame(['deleted' => 0], integrity_checker::cleanup_orphaned($this->course->id));
+        $this->assertTrue($DB->record_exists('course_sections', ['id' => $id]));
+    }
+
+    /**
      * A hidden empty section that still has subsections is left alone: deleting it would orphan them.
      */
     public function test_a_hidden_empty_section_with_children_is_kept(): void {

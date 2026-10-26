@@ -135,13 +135,12 @@ class session_creator {
                     }
                 }
 
-                $sessioncmid = self::create_learningactivity_metadata(
+                self::create_learningactivity_metadata(
                     $courseid,
                     $sessionsectionnum,
                     'activity',
                     $activityname,
-                    $metadata,
-                    false  // Don't validate - allows empty metadata from Quick Add.
+                    $metadata
                 );
             }
         }
@@ -158,19 +157,24 @@ class session_creator {
      * @param int $sectionnumber Section number where activity should be created
      * @param string $sectiontype 'section' for weeks, 'activity' for session subsections
      * @param string $name Activity name
-     * @param array $metadata Learningactivity metadata (instructions, duration, learningmode, etc.)
-     * @param bool $validate Whether to validate metadata (true for AI-generated, false for manual/Quick Add)
-     * @return int|null CM ID of created activity or null on failure
+     * @param array $metadata Learningactivity metadata (instructions, duration, learningmode, etc.). It can
+     *     come from the AI or back from the browser, so it is always validated.
+     * @return int|null CM ID of created activity, or null when none was created
+     * @throws \dml_exception If writing the module fails: the build's transaction can no longer commit
      */
     public static function create_learningactivity_metadata(
         $courseid,
         $sectionnumber,
         $sectiontype,
         $name,
-        $metadata = [],
-        $validate = false
+        $metadata = []
     ) {
         global $DB;
+
+        // The summary modules are optional: without mod_learningactivity there is nothing to create.
+        if (!learningactivity::is_available()) {
+            return null;
+        }
 
         // Get course.
         $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
@@ -180,21 +184,12 @@ class session_creator {
         $activitydata->sectiontype = $sectiontype;
         $activitydata->name = $name;
 
-        // Apply metadata - validate only if requested (AI-generated content).
-        if ($validate && !empty($metadata)) {
-            // Validate and sanitize metadata for AI-generated content.
-            $validatedmetadata = learningactivity_validator::validate_metadata($metadata);
-            foreach ($validatedmetadata as $field => $value) {
-                if ($value !== null) {
-                    $activitydata->$field = $value;
-                }
-            }
-        } else {
-            // Direct merge for manual/Quick Add - skip null/empty values.
-            foreach ($metadata as $key => $value) {
-                // Skip null values and empty strings to avoid issues with learningactivity module.
+        // Validate, then apply what was given: empty values are skipped so they do not replace the
+        // name passed in or the module's own defaults.
+        if (!empty($metadata)) {
+            foreach (learningactivity_validator::validate_metadata($metadata) as $field => $value) {
                 if ($value !== null && $value !== '') {
-                    $activitydata->$key = $value;
+                    $activitydata->$field = $value;
                 }
             }
         }
@@ -210,9 +205,11 @@ class session_creator {
                 \context_module::instance($result['cmid']);
                 return $result['cmid'];
             }
+        } catch (\dml_exception $e) {
+            // A failed write leaves the build's transaction unable to commit: abort the build.
+            throw $e;
         } catch (\Exception $e) {
-            // Log the error for debugging. Learningactivity creation failures are non-fatal
-            // as the section structure can still be created without metadata modules.
+            // Anything else is non-fatal: the section structure is still created without its summary module.
             debugging(
                 'Failed to create learningactivity in section ' . $sectionnumber . ': ' . $e->getMessage(),
                 DEBUG_DEVELOPER

@@ -35,6 +35,17 @@ use stdClass;
  */
 class learningactivity {
     /**
+     * Whether summary modules can be created: mod_learningactivity is optional, and adds a
+     * learning design summary to each section only when it is installed and enabled.
+     *
+     * @return bool
+     */
+    public static function is_available(): bool {
+        global $DB;
+        return \core_component::get_component_directory('mod_learningactivity') !== null
+            && (bool) $DB->get_field('modules', 'visible', ['name' => 'learningactivity']);
+    }
+    /**
      * Create the learningactivity module in the requested course section.
      *
      * @param stdClass $activitydata Raw activity definition returned by the AI response.
@@ -158,8 +169,9 @@ class learningactivity {
                 ]),
             ];
         } catch (\dml_exception $e) {
-            debugging('Database error creating learningactivity: ' . $e->getMessage(), DEBUG_DEVELOPER);
-            throw new \moodle_exception('errorcreatinglearningactivity', 'aiplacement_modgen', '', null, $e->getMessage());
+            // The write has failed inside the build's transaction, which can no longer commit: let the
+            // build see a database error, so it rolls back rather than carrying on.
+            throw $e;
         } catch (\Exception $e) {
             debugging('Failed to create learningactivity: ' . $e->getMessage(), DEBUG_DEVELOPER);
             throw new \moodle_exception('errorcreatinglearningactivity', 'aiplacement_modgen', '', null, $e->getMessage());

@@ -145,4 +145,38 @@ final class integrity_check_non_numeric_parent_test extends advanced_testcase {
         $this->assertContains((int) $sectiona, $reportedroots);
         $this->assertContains((int) $sectionb->section, $reportedroots);
     }
+
+    /**
+     * Values that are not a section number at all (such as the text "null") are reported and fixed
+     * as empty parents, rather than failing the query that reads them.
+     *
+     * @covers ::check
+     * @covers ::fix_integrity
+     */
+    public function test_non_numeric_parent_values_are_reported_and_fixed(): void {
+        global $DB;
+
+        $courseformat = \course_get_format($this->course->id);
+        $odd = [];
+        foreach (["null", "abc", " 3"] as $i => $value) {
+            $num = theme_builder::create_theme_section($this->course->id, $courseformat, "Odd $i", "");
+            $id = (int) $DB->get_field("course_sections", "id", ["course" => $this->course->id, "section" => $num]);
+            $DB->set_field("course_format_options", "value", $value, ["sectionid" => $id, "name" => "parent"]);
+            $odd[$value] = $id;
+        }
+
+        $diag = integrity_checker::check($this->course->id);
+
+        // A padded number such as " 3" still names a section, so it is not reported.
+        $this->assertSame(2, $diag["counts"]["null_parents"]);
+        $this->assertSame(0, $diag["counts"]["invalid_parents"]);
+
+        integrity_checker::fix_integrity($this->course->id);
+
+        foreach (["null", "abc"] as $value) {
+            $stored = $DB->get_field("course_format_options", "value", ["sectionid" => $odd[$value], "name" => "parent"]);
+            $this->assertSame("0", $stored);
+        }
+        $this->assertSame(0, integrity_checker::check($this->course->id)["counts"]["null_parents"]);
+    }
 }

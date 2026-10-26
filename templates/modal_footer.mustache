@@ -1,6 +1,35 @@
 {{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
     @template aiplacement_modgen/modal_footer
-    @description Action area for the Module Generator modal footer.
+
+    Action area for the Module Assistant modal footer.
+
+    Context variables required for this template:
+    * actions - Buttons and links, each with label, classes, and isbutton or islink; optional action,
+      url (links), and hasindex/index (buttons that stand in for a form's own button)
+
+    Example context (json):
+    {
+        "actions": [
+            {"isbutton": true, "label": "Try again", "classes": "btn btn-primary", "action": "aiplacement-modgen-reenter"},
+            {"islink": true, "label": "Back to course", "classes": "btn btn-secondary", "url": "#"}
+        ]
+    }
 }}
 <div class="aiplacement-modgen-modal-actions">
     {{#actions}}

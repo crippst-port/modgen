@@ -116,6 +116,7 @@ class theme_builder {
      * @param int $themecount Number of themes to create (1-10)
      * @param int $weeksperthemecount Number of weeks per theme (1-10)
      * @param int $parent Parent section number (0 = top level, N = nested under section N)
+     * @param bool $createsummaryactivities Whether to add the learningactivity summary module to each section
      * @return array Result with 'success' boolean and 'messages' array
      */
     public static function create_themes(
@@ -255,6 +256,10 @@ class theme_builder {
                 self::rollback_quietly($transaction, $e);
                 // Log technical details for administrators only.
                 debugging('Theme creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), DEBUG_DEVELOPER);
+                // Kept as it is when a retry could succeed, so the task can tell.
+                if (self::is_transient_failure($e)) {
+                    throw $e;
+                }
                 throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen');
             }
         } finally {
@@ -275,6 +280,7 @@ class theme_builder {
      * @param int $courseid Course ID
      * @param int $weekcount Number of weeks to create (1-10)
      * @param int $parent Parent section number (0 = top level, N = nested under section N)
+     * @param bool $createsummaryactivities Whether to add the learningactivity summary module to each section
      * @return array Result with 'success' boolean and 'messages' array
      */
     public static function create_weeks($courseid, $weekcount, $parent = 0, $createsummaryactivities = true) {
@@ -375,6 +381,10 @@ class theme_builder {
                 self::rollback_quietly($transaction, $e);
                 // Log technical details for administrators only.
                 debugging('Week creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), DEBUG_DEVELOPER);
+                // Kept as it is when a retry could succeed, so the task can tell.
+                if (self::is_transient_failure($e)) {
+                    throw $e;
+                }
                 throw new \moodle_exception('themecreationfailed', 'aiplacement_modgen');
             }
         } finally {
@@ -511,6 +521,22 @@ class theme_builder {
         }
         $id = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => (int) $sectionnum]);
         return ($id === false) ? null : (int) $id;
+    }
+
+    /**
+     * Whether a failed build might succeed if it is simply run again.
+     *
+     * Only failures that depend on what else was happening at the time: a database error, a section
+     * write that failed part way, or not getting a lock. Anything else - a missing capability, a
+     * switched-off feature, a structure the course cannot take - fails the same way every time.
+     *
+     * @param \Throwable $e The failure
+     * @return bool
+     */
+    public static function is_transient_failure(\Throwable $e): bool {
+        return $e instanceof \dml_exception
+            || $e instanceof structure_write_failed_exception
+            || ($e instanceof \moodle_exception && in_array($e->errorcode, ['erroracquiringlock', 'locktimeout'], true));
     }
 
     /**
@@ -759,7 +785,7 @@ class theme_builder {
                 255
             );
 
-            $weekcmid = session_creator::create_learningactivity_metadata(
+            session_creator::create_learningactivity_metadata(
                 $courseid,
                 self::current_section_number($courseid, $weeksectionid) ?? $weeksectionnum,
                 'section',
@@ -787,10 +813,12 @@ class theme_builder {
     }
 
     /**
-     * Initialize section 0 and create Assessments section if they don't already exist.
+     * Set up section 0 and an Assessments section, once, in a course that has not been set up.
      *
-     * Section 0 is renamed to 'Introduction & General Information' and an 'Assessments'
-     * section is created after it if it doesn't already exist.
+     * Section 0 is named 'Introduction & General Information' and an 'Assessments' section is
+     * created after it. This happens only while section 0 still has no name of its own, as in a
+     * new course. Once it has one - given here, or by the teacher - the course is left as it is: a
+     * renamed section 0, or an Assessments section the teacher renamed or deleted, is not changed back.
      *
      * @param int $courseid Course ID
      */
@@ -802,28 +830,15 @@ class theme_builder {
 
         // Get section 0.
         $section0 = $DB->get_record('course_sections', ['course' => $courseid, 'section' => 0], '*', MUST_EXIST);
-
-        // Check if section 0 already has the standard name - if so, assume already initialized.
-        $standardname = get_string('introductionsectionname', 'aiplacement_modgen');
-        if ($section0->name === $standardname) {
-            // Already initialized, check for Assessments section.
-            $assessmentsname = get_string('assessmentssectionname', 'aiplacement_modgen');
-            $existing = $DB->get_record('course_sections', [
-                'course' => $courseid,
-                'name' => $assessmentsname,
-            ]);
-            if ($existing) {
-                // Both already exist, nothing to do.
-                return;
-            }
-        } else {
-            // Rename section 0.
-            $DB->update_record('course_sections', [
-                'id' => $section0->id,
-                'name' => $standardname,
-                'timemodified' => time(),
-            ]);
+        if (trim((string) $section0->name) !== '') {
+            return;
         }
+
+        $DB->update_record('course_sections', [
+            'id' => $section0->id,
+            'name' => get_string('introductionsectionname', 'aiplacement_modgen'),
+            'timemodified' => time(),
+        ]);
 
         // Create Assessments section if it doesn't exist.
         $assessmentsname = get_string('assessmentssectionname', 'aiplacement_modgen');

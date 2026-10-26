@@ -31,7 +31,6 @@ namespace aiplacement_modgen;
 use advanced_testcase;
 use aiplacement_modgen\local\section_creation_service;
 use aiplacement_modgen\local\theme_builder;
-use aiplacement_modgen\local\constants;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -264,30 +263,6 @@ final class lock_handling_test extends advanced_testcase {
             \core\lock\lock_factory::class,
             $lockfactory,
             'Should be valid lock factory instance'
-        );
-    }
-
-    /**
-     * Test lock timeout constant is reasonable.
-     *
-     * @covers \aiplacement_modgen\constants::GENERATION_LOCK_TIMEOUT
-     */
-    public function test_lock_timeout_is_reasonable(): void {
-        $this->resetAfterTest(true);
-
-        $timeout = constants::GENERATION_LOCK_TIMEOUT;
-
-        $this->assertIsInt($timeout, 'Timeout should be integer');
-        $this->assertGreaterThan(0, $timeout, 'Timeout should be positive');
-        $this->assertLessThanOrEqual(
-            600,
-            $timeout,
-            'Timeout should not exceed 10 minutes (reasonable limit)'
-        );
-        $this->assertEquals(
-            600,
-            $timeout,
-            'Timeout should be 600 seconds (10 minutes) as configured'
         );
     }
 

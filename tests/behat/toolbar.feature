@@ -55,3 +55,11 @@ Feature: The Module Assistant toolbar offers only the current features
     And I turn editing mode on
     Then I should see "Module Assistant"
     And I should not see "Help and Advice"
+
+  Scenario: A finished job's error is shown as text, not markup
+    Given the following "aiplacement_modgen > jobs" exist:
+      | course | user     | action       | status | result                                                                       |
+      | C1     | teacher1 | create_weeks | failed | {"success":false,"error":"Could not build <b>Week 2</b>","will_retry":false} |
+    When I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    Then I should see "Job failed: Could not build <b>Week 2</b>"

@@ -289,9 +289,8 @@ final class quick_add_structure_test extends \advanced_testcase {
         $this->delete_section((int) $assessments->id);
         $this->run_jobs();
 
-        // The next build puts Assessments back at the top; the weeks still land in Theme 2.
+        // The weeks still land in Theme 2, and the deleted Assessments section is not put back.
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows('Theme 1', ['Theme 1 - Week 1'], 0),
             [$this->theme_rows('Theme 2', ['Theme 2 - Week 1'], 0)[0]],
             $this->week_rows('Theme 2 - Week 1', 'Theme 2', 0),
@@ -300,6 +299,28 @@ final class quick_add_structure_test extends \advanced_testcase {
         $this->assert_sound($this->course->id);
     }
 
+    /**
+     * Once a teacher has changed the sections set up by the first build, later builds leave them
+     * alone: a renamed section 0 keeps its name, and a renamed Assessments section is not added again.
+     */
+    public function test_later_builds_leave_the_teachers_changes_to_section_0_and_assessments(): void {
+        global $DB;
+        $this->add_themes(1, 1);
+        $DB->set_field("course_sections", "name", "Welcome", ["course" => $this->course->id, "section" => 0]);
+        $DB->set_field("course_sections", "name", "Coursework", [
+            "course" => $this->course->id,
+            "name" => get_string("assessmentssectionname", "aiplacement_modgen"),
+        ]);
+
+        $this->add_themes(1, 1);
+
+        $this->assertSame("Welcome", $DB->get_field("course_sections", "name", ["course" => $this->course->id, "section" => 0]));
+        $this->assertFalse($DB->record_exists("course_sections", [
+            "course" => $this->course->id,
+            "name" => get_string("assessmentssectionname", "aiplacement_modgen"),
+        ]));
+        $this->assertTrue($DB->record_exists("course_sections", ["course" => $this->course->id, "name" => "Coursework"]));
+    }
     /**
      * If the target section is gone when the job runs, the weeks go to the top level instead.
      */

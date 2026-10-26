@@ -26,6 +26,19 @@ import Notification from 'core/notification';
 import {get_string as getString} from 'core/str';
 import {init as initModalComponent} from 'aiplacement_modgen/modal_generator_reactive';
 
+/**
+ * Escape text for HTML: notifications render their message as HTML, and job results carry
+ * server text (error messages, section names) that must not be parsed as markup.
+ *
+ * @param {*} value Untrusted value
+ * @returns {string} HTML-escaped string
+ */
+const escapeHtml = (value) => {
+    const div = document.createElement('div');
+    div.textContent = String(value === null || value === undefined ? '' : value);
+    return div.innerHTML;
+};
+
 // Store modal component instance for button handlers.
 let modalComponent = null;
 
@@ -62,7 +75,8 @@ const checkCompletedJobs = (courseid) => {
                         });
                     } else {
                         Notification.addNotification({
-                            message: result.message || await getString('jobcompletednotice', 'aiplacement_modgen'),
+                            message: result.message ? escapeHtml(result.message)
+                                : await getString('jobcompletednotice', 'aiplacement_modgen'),
                             type: 'success'
                         });
                     }
@@ -74,7 +88,7 @@ const checkCompletedJobs = (courseid) => {
                         message: await getString(
                             'jobfailed',
                             'aiplacement_modgen',
-                            result.error || await getString('unknownerror', 'aiplacement_modgen')
+                            result.error ? escapeHtml(result.error) : await getString('unknownerror', 'aiplacement_modgen')
                         ),
                         type: 'error'
                     });

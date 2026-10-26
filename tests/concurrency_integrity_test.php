@@ -44,7 +44,6 @@ namespace aiplacement_modgen;
 use advanced_testcase;
 use aiplacement_modgen\local\section_creation_service;
 use aiplacement_modgen\local\theme_builder;
-use aiplacement_modgen\local\constants;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -193,8 +192,8 @@ final class concurrency_integrity_test extends advanced_testcase {
      */
     public function test_generation_blocked_while_lock_held(): void {
         // Simulate worker A holding the generation lock for this course.
-        $lockkey = 'aiplacement_modgen_building_' . $this->course->id;
-        $factory = \core\lock\lock_config::get_lock_factory('aiplacement_modgen');
+        $lockkey = 'course_edit_' . $this->course->id;
+        $factory = \core\lock\lock_config::get_lock_factory('core_course_edit');
         $heldlock = $factory->get_lock($lockkey, 5);
         $this->assertNotFalse($heldlock, 'Pre-condition: worker A acquires the lock.');
 
@@ -237,8 +236,8 @@ final class concurrency_integrity_test extends advanced_testcase {
         theme_builder::ensure_flexsections_format($other->id);
 
         // Hold course A's lock.
-        $factory = \core\lock\lock_config::get_lock_factory('aiplacement_modgen');
-        $heldlock = $factory->get_lock('aiplacement_modgen_building_' . $this->course->id, 5);
+        $factory = \core\lock\lock_config::get_lock_factory('core_course_edit');
+        $heldlock = $factory->get_lock('course_edit_' . $this->course->id, 5);
         $this->assertNotFalse($heldlock);
 
         try {
@@ -339,20 +338,6 @@ final class concurrency_integrity_test extends advanced_testcase {
             5,
             $this->count_generated_toplevel_sections(),
             'Five serial generations should yield five distinct top-level themes.'
-        );
-    }
-
-    /**
-     * Sanity pin: the generation lock timeout is long enough that a real second
-     * worker waits rather than failing instantly under brief contention.
-     *
-     * @covers \aiplacement_modgen\local\constants::GENERATION_LOCK_TIMEOUT
-     */
-    public function test_lock_timeout_allows_waiting(): void {
-        $this->assertGreaterThanOrEqual(
-            60,
-            constants::GENERATION_LOCK_TIMEOUT,
-            'Generation lock timeout should let a queued worker wait, not fail immediately.'
         );
     }
 }

@@ -55,6 +55,25 @@ final class creation_warnings_test extends \advanced_testcase {
     }
 
     /**
+     * Only failures that depend on timing are worth retrying; the rest fail the same way every time.
+     *
+     * @covers \aiplacement_modgen\local\theme_builder::is_transient_failure
+     */
+    public function test_only_timing_dependent_failures_are_retried(): void {
+        $this->assertTrue(theme_builder::is_transient_failure(new \dml_write_exception('deadlock')));
+        $this->assertTrue(theme_builder::is_transient_failure(new structure_write_failed_exception('Week 1')));
+        $this->assertTrue(theme_builder::is_transient_failure(new \moodle_exception('erroracquiringlock', 'aiplacement_modgen')));
+
+        $context = \context_system::instance();
+        $this->assertFalse(theme_builder::is_transient_failure(
+            new \required_capability_exception($context, 'aiplacement/modgen:managestructure', 'nopermissions', '')
+        ));
+        $this->assertFalse(theme_builder::is_transient_failure(new \moodle_exception('generationdisabled', 'aiplacement_modgen')));
+        $this->assertFalse(theme_builder::is_transient_failure(new \moodle_exception('invalidaction', 'aiplacement_modgen')));
+        $this->assertFalse(theme_builder::is_transient_failure(new \TypeError('bad argument')));
+    }
+
+    /**
      * A section write that fails part way inside a build reports a failure that ends the build,
      * because its rollback has already doomed the build's own transaction. A problem found before
      * anything is written stays an ordinary, recoverable error and leaves the build committable.

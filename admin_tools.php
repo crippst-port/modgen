@@ -1549,7 +1549,7 @@ function flatten_hierarchy_to_toplevel($courseid) {
                 SET value = '0'
                 WHERE courseid = ?
                   AND name = 'parent'
-                  AND value != '0'";
+                  AND " . $DB->sql_compare_text('value') . " <> '0'";
 
         $count = $DB->execute($sql, [$courseid]);
 

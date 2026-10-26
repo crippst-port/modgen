@@ -58,18 +58,21 @@ class aiplacement_modgen_add_week_form extends moodleform {
             html_writer::tag('small', $hinttext, ['class' => 'form-text text-muted'])
         );
 
-        // Optionally create the learningactivity "section summary" placeholder modules.
-        // The help text only mentions the AI-metadata caveat when AI is enabled.
-        $mform->addElement(
-            'advcheckbox',
-            'createsummaryactivities',
-            get_string('createsummaryactivities', 'aiplacement_modgen')
-        );
-        $mform->setType('createsummaryactivities', PARAM_BOOL);
-        $mform->setDefault('createsummaryactivities', 0);
-        $summaryhelp = get_config('aiplacement_modgen', 'enable_ai')
-            ? 'createsummaryactivitiesai' : 'createsummaryactivities';
-        $mform->addHelpButton('createsummaryactivities', $summaryhelp, 'aiplacement_modgen');
+        // Optionally create the learningactivity "section summary" placeholder modules, offered only
+        // when mod_learningactivity is installed. The help text only mentions the AI-metadata caveat
+        // when AI is enabled.
+        if (\aiplacement_modgen\activitytype\learningactivity::is_available()) {
+            $mform->addElement(
+                'advcheckbox',
+                'createsummaryactivities',
+                get_string('createsummaryactivities', 'aiplacement_modgen')
+            );
+            $mform->setType('createsummaryactivities', PARAM_BOOL);
+            $mform->setDefault('createsummaryactivities', 0);
+            $summaryhelp = get_config('aiplacement_modgen', 'enable_ai')
+                ? 'createsummaryactivitiesai' : 'createsummaryactivities';
+            $mform->addHelpButton('createsummaryactivities', $summaryhelp, 'aiplacement_modgen');
+        }
 
         // Action buttons.
         $this->add_action_buttons(true, get_string('generatorbutton', 'aiplacement_modgen'));

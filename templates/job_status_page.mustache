@@ -34,6 +34,23 @@
     * messages - Array of success messages (if completed)
     * error - Error message (if failed)
     * canretry - Whether job will retry (if failed)
+    * haswarnings - Whether a completed job reported problems
+    * warnings - Array of problems, each with text (if completed with problems)
+
+    Example context (json):
+    {
+        "jobid": 12,
+        "courseid": 2,
+        "coursename": "Rivers",
+        "courseurl": "https://example.com/course/view.php?id=2",
+        "status": "completed",
+        "actiondisplay": "Creating 2 weeks",
+        "timecreated": "26/10/26, 10:00",
+        "iscompleted": true,
+        "messages": [{"text": "Section created: Week 1"}],
+        "haswarnings": true,
+        "warnings": [{"text": "The week \"Week 2\" could not be created"}]
+    }
 }}
 
 <div class="aiplacement-modgen-job-status" data-jobid="{{jobid}}">

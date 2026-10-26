@@ -273,18 +273,9 @@ class job_status_helper {
     public static function fail_orphaned_running_jobs(int $graceseconds = 300): int {
         global $DB;
 
-        $jobs = $DB->get_records_select(
-            'aiplacement_modgen_jobs',
-            "(status = 'running' AND timestarted < :cutoff1)
-                OR (status = 'queued' AND timecreated < :cutoff2)
-                OR (status = 'failed' AND timecompleted IS NULL AND COALESCE(timestarted, timecreated) < :cutoff3)",
-            ['cutoff1' => time() - $graceseconds, 'cutoff2' => time() - $graceseconds, 'cutoff3' => time() - $graceseconds]
-        );
-        if (!$jobs) {
-            return 0;
-        }
-
-        // One pass over the queue rather than a lookup per job.
+        // Read the queue before the jobs. A task records its job as finished before its own row is
+        // deleted, so a job that finishes in between is already finished when the jobs are read,
+        // rather than looking unfinished with no task left. One pass over the queue, not a lookup per job.
         $pending = [];
         foreach (\core\task\manager::get_adhoc_tasks('\\aiplacement_modgen\\task\\create_sections_task') as $task) {
             $data = $task->get_custom_data();
@@ -293,6 +284,14 @@ class job_status_helper {
             }
         }
 
+        $jobs = $DB->get_records_select(
+            'aiplacement_modgen_jobs',
+            "(status = 'running' AND timestarted < :cutoff1)
+                OR (status = 'queued' AND timecreated < :cutoff2)
+                OR (status = 'failed' AND timecompleted IS NULL AND COALESCE(timestarted, timecreated) < :cutoff3)",
+            ['cutoff1' => time() - $graceseconds, 'cutoff2' => time() - $graceseconds, 'cutoff3' => time() - $graceseconds]
+        );
+
         $failed = 0;
         foreach ($jobs as $job) {
             if (isset($pending[(int) $job->id])) {
@@ -300,14 +299,23 @@ class job_status_helper {
             }
             $lastresult = $job->status === 'failed' ? json_decode((string) $job->result, true) : null;
             $error = $lastresult['error'] ?? get_string('jobinterrupted', 'aiplacement_modgen');
-            $job->status = 'failed';
-            $job->result = json_encode([
+            $result = json_encode([
                 'success' => false,
                 'error' => $error,
                 'will_retry' => false,
             ]);
-            $job->timecompleted = time();
-            $DB->update_record('aiplacement_modgen_jobs', $job);
+            $now = time();
+            // Only if the job is still as it was read: never overwrite a job that has just finished.
+            $DB->execute(
+                "UPDATE {aiplacement_modgen_jobs}
+                    SET status = 'failed', result = :result, timecompleted = :now
+                  WHERE id = :id AND status = :status AND timecompleted IS NULL",
+                ['result' => $result, 'now' => $now, 'id' => $job->id, 'status' => $job->status]
+            );
+            $job = $DB->get_record('aiplacement_modgen_jobs', ['id' => $job->id]);
+            if (!$job || (int) $job->timecompleted !== $now || $job->status !== 'failed') {
+                continue;
+            }
             \aiplacement_modgen\event\structure_job_failed::from_job($job, [
                 'error' => $error,
                 'willretry' => 0,

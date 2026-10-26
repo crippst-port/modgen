@@ -45,6 +45,7 @@ class section_creation_service {
      * @param array $json The approved JSON structure
      * @param int $courseid Course ID
      * @param string $moduletype Module type (connected_theme, connected_weekly, etc)
+     * @param bool $createsummaryactivities Whether to add the learningactivity summary module to each section
      * @return array Array with 'results' and 'warnings' keys
      * @throws \moodle_exception If lock acquisition or section creation fails
      */
@@ -68,19 +69,10 @@ class section_creation_service {
             \aiplacement_modgen\local\theme_builder::count_projected_sections_from_json($json, $moduletype)
         );
 
-        // Lock the course to prevent concurrent access.
-        $lockkey = 'aiplacement_modgen_building_' . $courseid;
-        $lock = \core\lock\lock_config::get_lock_factory('aiplacement_modgen')->get_lock(
-            $lockkey,
-            constants::GENERATION_LOCK_TIMEOUT
-        );
-
-        // The get_lock() call returns false on timeout. Report that here, before any work: the release
-        // in the finally below is reached on every path, and a false lock there would fatal on
-        // false->release() rather than surfacing the timeout.
-        if (!$lock) {
-            throw new \moodle_exception('erroracquiringlock', 'aiplacement_modgen');
-        }
+        // Take the same locks as Quick Add, so builds of either kind, the Check Structure repairs and
+        // format_flexsections deletes cannot renumber the course under each other. Throws if a lock
+        // cannot be had, before any work: the release in the finally below is reached on every path.
+        $locks = \aiplacement_modgen\local\theme_builder::acquire_structure_locks($courseid);
 
         try {
             // Ensure course format is flexsections, with its core sections (section 0 and Assessments).
@@ -133,10 +125,14 @@ class section_creation_service {
                 // no-op when the order is already correct. Cannot fail the build: the helper
                 // swallows its own errors, leaving the "Renumber Sections" repair in
                 // check_structure.php as the fallback.
-                \aiplacement_modgen\local\theme_builder::renumber_into_hierarchy_order($courseid);
+                \aiplacement_modgen\local\theme_builder::renumber_into_hierarchy_order($courseid, true);
             } catch (\Throwable $e) {
                 // Roll back explicitly: delegated transactions do not do it on their own.
                 \aiplacement_modgen\local\theme_builder::rollback_quietly($transaction, $e);
+                // Kept as it is when a retry could succeed, so the task can tell.
+                if (\aiplacement_modgen\local\theme_builder::is_transient_failure($e)) {
+                    throw $e;
+                }
                 throw new \moodle_exception(
                     'jsonsectionscreationfailed',
                     'aiplacement_modgen',
@@ -157,9 +153,7 @@ class section_creation_service {
                     debugging(get_string('cacherebuildfailed', 'aiplacement_modgen', $e->getMessage()), DEBUG_DEVELOPER);
                 }
             }
-            if ($lock) {
-                $lock->release();
-            }
+            \aiplacement_modgen\local\theme_builder::release_structure_locks($locks);
         }
 
         return [
@@ -195,6 +189,7 @@ class section_creation_service {
      * @param \context_course $context Course context
      * @param \course_format $courseformat Course format instance
      * @param array &$activitywarnings Array to collect warnings
+     * @param bool $createsummaryactivities Whether to add the learningactivity summary module to each section
      * @return array Results messages
      */
     private function create_theme_structure(
@@ -314,6 +309,7 @@ class section_creation_service {
      * @param object $courseformat Course format object
      * @param string $moduletype Module type
      * @param array &$activitywarnings Array to collect warnings
+     * @param bool $createsummaryactivities Whether to add the learningactivity summary module to each section
      * @return array Results messages
      */
     private function create_weekly_structure(

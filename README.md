@@ -19,10 +19,8 @@ page when editing is on (course pages using the Flexible sections format only).
 - **Structure from prompt** asks the site's AI provider (through Moodle's core AI subsystem) to
   propose a structure from a prompt and optional CSV. The proposal is shown as a preview and nothing
   is created until the teacher approves it.
-- **AI-generated activities** lists the activities the plugin created so they can be reviewed,
-  hidden or opened. A marker disappears once the activity is edited.
 - **Check Structure** diagnoses and repairs problems with the section hierarchy (parents, ordering,
-  orphans, circular references).
+  orphans, circular references) in Flexible sections courses.
 - **Help and Advice** shows links an administrator configures in the plugin settings.
 
 Creation always runs as a background (ad-hoc) task, so large builds do not time out a web request.
@@ -34,7 +32,10 @@ success. A build that would take the course over the section limit is refused be
 - Moodle 4.5 or later (PHP 8.1 or later, as Moodle requires).
 - The Flexible sections course format (`format_flexsections` 4.1.4 or later, version 2024120801).
   It is a hard dependency; the plugin only builds into courses using that format.
-- An AI provider configured in Moodle's AI subsystem, for *Structure from prompt* only.
+- An AI provider configured in Moodle's AI subsystem, offering *Generate text* and allowed for this
+  placement, for *Structure from prompt* only.
+- Optional: the Learning Activity module (`mod_learningactivity`). When it is installed, builds can add
+  a learning design summary activity to each section; without it that option is not offered.
 - Cron running, for background jobs.
 
 ## Installation
@@ -51,8 +52,8 @@ Nothing is granted by default; assign these in the course (or system) context.
 | Capability | Allows |
 |------------|--------|
 | `aiplacement/modgen:managestructure` | Quick Add: New Theme(s) and New Week(s) |
-| `aiplacement/modgen:generatefromtemplate` | Structure from file, and the AI-generated activities list |
-| `aiplacement/modgen:generatewithprompt` | Structure from prompt (needs AI enabled), and the AI-generated activities list |
+| `aiplacement/modgen:generatefromtemplate` | Structure from file (needs Structure from file enabled) |
+| `aiplacement/modgen:generatewithprompt` | Structure from prompt (needs AI enabled) |
 | `aiplacement/modgen:checkstructure` | Check Structure and its repair actions |
 | `aiplacement/modgen:managetemplates` (system) | Managing the CSV template library |
 
@@ -82,10 +83,9 @@ The plugin writes standard Moodle events, so actions appear in the logs report:
 
 Scheduled tasks:
 
-- *Clean up old job records* removes finished job records after 30 days and stale
-  AI-generated markers.
+- *Clean up old job records* removes finished job records after 30 days.
 - *Fail interrupted background jobs* (every five minutes) marks a job as failed when its task has
-  been lost, so a job cannot stay "running" for ever.
+  been lost or Moodle has stopped retrying it, so a job cannot stay "running" or "will retry" for ever.
 
 ## Privacy
 

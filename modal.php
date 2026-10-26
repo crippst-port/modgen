@@ -49,8 +49,9 @@ function aiplacement_modgen_send_json(array $data): void {
 // Get course ID from parameters.
 $courseid = required_param('id', PARAM_INT);
 
-// Verify course exists and user has access.
+// Verify course exists and user has access: enrolment, course visibility and suspension, not just roles.
 $course = get_course($courseid);
+require_login($course);
 $coursecontext = context_course::instance($courseid);
 $hasprompt = has_capability('aiplacement/modgen:generatewithprompt', $coursecontext);
 $hastemplate = has_capability('aiplacement/modgen:generatefromtemplate', $coursecontext);

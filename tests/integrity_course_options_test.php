@@ -21,9 +21,6 @@ use aiplacement_modgen\local\integrity_checker;
 defined('MOODLE_INTERNAL') || die();
 
 require_once(__DIR__ . '/fixtures/structure_assertions.php');
-// The ai_service class sits under classes/local but in the plugin's root namespace, so it is not autoloadable.
-require_once(__DIR__ . '/../classes/local/ai_service.php');
-
 /**
  * Two rules that protect data: course-level format options are not "orphans", and generated themes
  * stay empty containers.
@@ -84,7 +81,7 @@ final class integrity_course_options_test extends \advanced_testcase {
      * Generated themes lose any summary; weeks and everything else are untouched.
      */
     public function test_generated_theme_summaries_are_blanked(): void {
-        $data = \aiplacement_modgen\ai_service::blank_theme_summaries(['themes' => [
+        $data = \aiplacement_modgen\local\ai_service::blank_theme_summaries(['themes' => [
             ['title' => 'A', 'summary' => 'Wordy', 'weeks' => [['title' => 'W', 'summary' => 'Keep me']]],
             'not a theme',
             ['title' => 'B'],
@@ -95,6 +92,6 @@ final class integrity_course_options_test extends \advanced_testcase {
         $this->assertSame('A', $data['themes'][0]['title']);
         $this->assertSame('not a theme', $data['themes'][1]);
         $this->assertSame('', $data['themes'][2]['summary']);
-        $this->assertSame(['title' => 'x'], \aiplacement_modgen\ai_service::blank_theme_summaries(['title' => 'x']));
+        $this->assertSame(['title' => 'x'], \aiplacement_modgen\local\ai_service::blank_theme_summaries(['title' => 'x']));
     }
 }

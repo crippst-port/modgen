@@ -1,8 +1,31 @@
 {{!
-    Modal link template - simple link to the generator form.
-    
-    Context variables:
-    - generatorurl: URL to the standalone generator form
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template aiplacement_modgen/modal_link
+
+    Link from the modal to the standalone generator page.
+
+    Context variables required for this template:
+    * generatorurl - URL of the standalone generator page
+
+    Example context (json):
+    {
+        "generatorurl": "https://example.com/ai/placement/modgen/prompt.php?id=2"
+    }
 }}
 <div class="aiplacement-modgen__modal-link">
     <p>{{#str}}modalintro,aiplacement_modgen{{/str}}</p>

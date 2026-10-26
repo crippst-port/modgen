@@ -276,8 +276,7 @@ class behat_aiplacement_modgen extends behat_base {
      * @param string $parentname Name of the section to add it under (the first one with that name).
      * @param string $shortname Course short name.
      */
-    public function a_section_was_added_without_renumbering(string $name, string $p, string $shortname): void {
-        $parentname = $p;
+    public function a_section_was_added_without_renumbering(string $name, string $parentname, string $shortname): void {
         global $DB;
 
         $courseid = $this->course_id($shortname);

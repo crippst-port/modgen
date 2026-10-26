@@ -75,7 +75,8 @@ $parentsection = optional_param('parentsection', 0, PARAM_INT); // Current secti
 // only applies to callers that omit the field entirely.
 $createsummaryactivities = optional_param('createsummaryactivities', 0, PARAM_BOOL);
 
-// Verify course access and permissions.
+// Verify course access (enrolment, visibility and suspension, not just roles) and permissions.
+require_login($courseid);
 $context = context_course::instance($courseid);
 require_capability('aiplacement/modgen:managestructure', $context);
 

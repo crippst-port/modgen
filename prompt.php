@@ -43,7 +43,8 @@ if (!$courseid) {
     throw new moodle_exception('missingcourseid', 'aiplacement_modgen');
 }
 
-// Verify user has access to this course and can generate content.
+// Verify user has access to this course (enrolment, visibility and suspension, not just roles) and can generate content.
+require_login($courseid);
 $context = context_course::instance($courseid);
 $hasprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
 $hastemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
@@ -345,7 +346,6 @@ if ($embedded || $ajax) {
 }
 
 // Business logic - use cached config values.
-require_once(__DIR__ . '/classes/local/ai_service.php');
 
 // Attempt approval form first (so refreshes on approval post are handled).
 $approveform = null;

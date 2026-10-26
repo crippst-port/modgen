@@ -44,6 +44,9 @@ $course  = get_course($courseid);
 $context = context_course::instance($courseid);
 require_capability('aiplacement/modgen:checkstructure', $context);
 
+// Master switch: Site admin > AI > AI placements.
+\aiplacement_modgen\local\settings_helper::require_placement_enabled();
+
 // Page setup.
 $PAGE->set_course($course);
 $PAGE->set_context($context);
@@ -52,6 +55,15 @@ $PAGE->set_title(get_string('checkstructurepage', 'aiplacement_modgen'));
 $PAGE->set_heading(format_string($course->fullname));
 $PAGE->set_pagelayout('course');
 $PAGE->requires->css('/ai/placement/modgen/styles.css');
+
+// The checks and repairs are about Flexible sections' parent links: other formats have none.
+if ($course->format !== 'flexsections') {
+    echo $OUTPUT->header();
+    echo $OUTPUT->notification(get_string('checkstructure_notflexsections', 'aiplacement_modgen'), 'info');
+    echo $OUTPUT->continue_button(new moodle_url('/course/view.php', ['id' => $courseid]));
+    echo $OUTPUT->footer();
+    exit;
+}
 
 // Actions that apply immediately without a separate confirmation click: each one only
 // touches a single, explicitly-chosen section and is trivially reversible by picking a

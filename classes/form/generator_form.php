@@ -105,16 +105,22 @@ class aiplacement_modgen_generator_form extends moodleform
         }
 
         // Content placement header (always visible).
-        $mform->addElement('header', 'contentplacementheader', get_string('contentplacement', 'aiplacement_modgen'));
-        $mform->setExpanded('contentplacementheader', true);
-
-        // Checkbox to add the learningactivity "section summary" placeholder to each
-        // section. The help text only mentions the AI-metadata caveat when AI is enabled.
-        $mform->addElement('advcheckbox', 'createsummaryactivities', get_string('createsummaryactivities', 'aiplacement_modgen'));
-        $summaryhelp = $aienabled ? 'createsummaryactivitiesai' : 'createsummaryactivities';
-        $mform->addHelpButton('createsummaryactivities', $summaryhelp, 'aiplacement_modgen');
-        $mform->setType('createsummaryactivities', PARAM_BOOL);
-        $mform->setDefault('createsummaryactivities', 0);
+        // Checkbox to add the learningactivity "section summary" placeholder to each section, offered
+        // only when mod_learningactivity is installed. The help text only mentions the AI-metadata
+        // caveat when AI is enabled.
+        if (\aiplacement_modgen\activitytype\learningactivity::is_available()) {
+            $mform->addElement('header', 'contentplacementheader', get_string('contentplacement', 'aiplacement_modgen'));
+            $mform->setExpanded('contentplacementheader', true);
+            $mform->addElement(
+                'advcheckbox',
+                'createsummaryactivities',
+                get_string('createsummaryactivities', 'aiplacement_modgen')
+            );
+            $summaryhelp = $aienabled ? 'createsummaryactivitiesai' : 'createsummaryactivities';
+            $mform->addHelpButton('createsummaryactivities', $summaryhelp, 'aiplacement_modgen');
+            $mform->setType('createsummaryactivities', PARAM_BOOL);
+            $mform->setDefault('createsummaryactivities', 0);
+        }
 
         $mform->closeHeaderBefore('buttonar');
 

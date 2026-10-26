@@ -132,6 +132,9 @@ class csv_parser {
 
     /**
      * Get file content with UTF-8 BOM stripped if present.
+     *
+     * @param \stored_file $file The CSV file
+     * @return string Its content
      */
     private static function get_content(\stored_file $file): string {
         $content = $file->get_content();
@@ -214,6 +217,9 @@ class csv_parser {
 
     /**
      * Normalize module type for processing.
+     *
+     * @param string $moduletype Module type as given
+     * @return string The module type the parser works with
      */
     private static function normalize_module_type(string $moduletype): string {
         if ($moduletype === 'connected_weekly') {

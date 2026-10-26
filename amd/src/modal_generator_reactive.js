@@ -720,19 +720,18 @@ class ModalGeneratorComponent extends BaseComponent {
                     }
 
                 } else if (data.error) {
-                    modal.setBody('<div class="alert alert-danger">' + data.error + '</div>');
+                    // The message is server text that can include names from the structure: never parse it as HTML.
+                    const alert = document.createElement('div');
+                    alert.className = 'alert alert-danger';
+                    alert.textContent = data.error;
+                    modal.setBody(alert.outerHTML);
                 }
             })
             .catch(error => {
                 // Reload form to restore modal state
-                Fragment.loadFragment('aiplacement_modgen', 'form_template_from_prompt', this.contextid, {
-                    courseid: this.courseid,
-                    contextid: this.contextid,
-                }).then((html) => {
-                    modal.setBody(html);
-                    this.setupFormSubmission(modal, 'template_from_prompt');
-                    this.updateFooterFromForm(modal);
+                this.reloadPromptForm(modal).then(() => {
                     Notification.exception(error);
+                    return null;
                 }).catch((fragmentError) => {
                     // If fragment reload fails, show basic error
                     modal.setBody('<div class="alert alert-danger">An error occurred. Please try again.</div>');
@@ -740,6 +739,22 @@ class ModalGeneratorComponent extends BaseComponent {
                     Notification.exception(error);
                 });
             });
+    }
+
+    /**
+     * Show the prompt form again in the open modal, ready to submit.
+     *
+     * @param {Object} modal The modal instance
+     * @return {Promise} Resolves once the form is shown
+     */
+    async reloadPromptForm(modal) {
+        const html = await Fragment.loadFragment('aiplacement_modgen', 'form_template_from_prompt', this.contextid, {
+            courseid: this.courseid,
+            contextid: this.contextid,
+        });
+        modal.setBody(this.buildProgressHeader(STEPS.PROMPT) + html);
+        this.setupFormSubmission(modal, 'template_from_prompt');
+        this.updateFooterFromForm(modal);
     }
 
     /**
@@ -851,13 +866,10 @@ class ModalGeneratorComponent extends BaseComponent {
                 break;
 
             case 'regenerate':
-                // Reset step and reload the prompt form
+                // Back to the prompt form in this modal. Not openModalWithForm: the modal is already
+                // open, so that would only show the loading overlay and never load a form.
                 this.reactive.dispatch('setStep', STEPS.PROMPT);
-                this.reactive.dispatch(
-                    'openModalWithForm',
-                    'template_from_prompt',
-                    await getString('templatefromprompt', 'aiplacement_modgen')
-                );
+                this.reloadPromptForm(modal).catch(Notification.exception);
                 break;
 
             case 'return-to-course':

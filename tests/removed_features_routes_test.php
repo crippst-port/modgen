@@ -31,6 +31,7 @@
 namespace aiplacement_modgen;
 
 use advanced_testcase;
+use aiplacement_modgen\local\ai_service;
 use aiplacement_modgen\local\csv_processing_service;
 use aiplacement_modgen\local\section_creation_service;
 use aiplacement_modgen\local\theme_builder;
@@ -43,9 +44,6 @@ require_once($CFG->dirroot . '/course/lib.php');
 require_once($CFG->dirroot . '/ai/placement/modgen/lib.php');
 require_once($CFG->libdir . '/formslib.php');
 require_once($CFG->libdir . '/upgradelib.php');
-// The ai_service class sits under classes/local but in the plugin's root namespace, so it is not autoloadable.
-require_once($CFG->dirroot . '/ai/placement/modgen/classes/local/ai_service.php');
-
 /**
  * Behaviour tests for the changed routes.
  *

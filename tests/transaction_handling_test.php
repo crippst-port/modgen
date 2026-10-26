@@ -369,6 +369,9 @@ final class transaction_handling_test extends \advanced_testcase {
      *
      * @dataProvider invalid_validation_params_provider
      * @covers ::create_section_with_parent
+     * @param mixed $courseid Course id to pass
+     * @param mixed $parentsection Parent section number to pass
+     * @param string $expectedexception Exception class expected
      */
     public function test_validation_with_invalid_params($courseid, $parentsection, $expectedexception): void {
         $this->resetAfterTest();

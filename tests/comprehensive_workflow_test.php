@@ -568,7 +568,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
     /**
      * Test 5: Session Creation with Parent Validation.
      *
-     * @covers \aiplacement_modgen\local\session_creator::create_sessions
+     * @covers \aiplacement_modgen\local\session_creator::create_session_subsections
      */
     public function test_session_creation_with_parent_validation(): void {
         global $DB;

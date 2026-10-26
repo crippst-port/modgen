@@ -253,6 +253,9 @@ $string['introductionsectionname'] = 'Introduction & General Information';
 $string['assessmentssectionname'] = 'Assessments';
 
 // Error messages for exceptions.
+$string['errorcreatinglearningactivity'] = 'The section summary activity could not be created.';
+$string['errorunexpected'] = 'Something unexpected happened. Please go back to the course and try again.';
+$string['invalidparameters'] = 'The request is missing the job or course it is about.';
 $string['sectionnotfound'] = 'Section not found in course';
 $string['errorformatnotflexsections'] = 'Course format must be flexsections';
 $string['errorflexsectionsmissingmethod'] = 'Required flexsections method is not available';
@@ -359,6 +362,7 @@ $string['orphanedsections'] = 'Orphaned sections';
 $string['circularreferences'] = 'Circular references';
 
 // Check Structure page (course-editor diagnostic tool).
+$string['checkstructure_notflexsections'] = 'Check Structure works on courses in the Flexible sections format. This course uses a different format, so there is nothing to check.';
 $string['checkstructure'] = 'Check Structure';
 $string['modgen:checkstructure'] = 'View and fix course structure diagnostics';
 $string['checkstructuredesc'] = 'Checks how this course\'s sections are nested and linked, and can fix common problems automatically. Some, like circular references, can stop the course from loading; others, like orphaned sections, can silently block actions like deleting or duplicating the course.';
@@ -387,7 +391,7 @@ $string['fixdetails'] = 'Details: {$a}';
 
 $string['fixcleanup_label'] = 'Remove Orphaned Sections';
 $string['fixcleanup_desc'] = 'Permanently deletes hidden, empty sections no longer connected to the course structure.';
-$string['fixcleanup_confirm'] = 'Remove orphaned sections from this course? This permanently deletes hidden, disconnected empty sections. This cannot be undone.';
+$string['fixcleanup_confirm'] = 'Remove orphaned sections from this course? This permanently deletes hidden sections that have no activities and no summary. This cannot be undone.';
 $string['fixcleanup_done'] = '{$a} orphaned section(s) removed.';
 $string['fixcleanup_none'] = 'No orphaned sections found.';
 

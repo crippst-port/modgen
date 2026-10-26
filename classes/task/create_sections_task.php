@@ -238,13 +238,11 @@ class create_sections_task extends \core\task\adhoc_task {
         } catch (\Throwable $e) {
             // Note: Catch Throwable (not just Exception) to handle both Exceptions and Errors (TypeError, etc.).
             //
-            // Distinguish PERMANENT failures (retrying cannot possibly help — the
-            // request itself is invalid) from TRANSIENT ones (DB lock, race) that
-            // Moodle should retry. A section-limit rejection is permanent: the course
-            // is too large and nothing changes between attempts, so retrying just
-            // fails identically and misleads the user with a "will retry" message.
-            $permanentcodes = ['sectionlimitexceeded'];
-            $ispermanent = ($e instanceof \moodle_exception) && in_array($e->errorcode, $permanentcodes, true);
+            // Only TRANSIENT failures (a database error, a lock, a write that failed part way) are
+            // retried. Anything else - a lost capability, a switched-off feature, a course too large
+            // for the structure - fails identically on every attempt, and retrying would only keep
+            // the user waiting on a "will retry" message.
+            $ispermanent = !\aiplacement_modgen\local\theme_builder::is_transient_failure($e);
 
             $job = $DB->get_record('aiplacement_modgen_jobs', ['id' => $jobid]);
             if ($job) {

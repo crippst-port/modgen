@@ -56,6 +56,14 @@ if (!$hasprompt && !$hastemplate) {
     );
 }
 
+// Each route needs its own capability and its own feature switch. An approved structure can come
+// from either, so building one needs at least one route to be open to this user.
+$canuseprompt = $hasprompt && \aiplacement_modgen\local\settings_helper::is_ai_enabled();
+$canusefile = $hastemplate && \aiplacement_modgen\local\settings_helper::is_structurefromfile_enabled();
+if (!$canuseprompt && !$canusefile) {
+    throw new moodle_exception('generationdisabled', 'aiplacement_modgen');
+}
+
 // Set page URL early to avoid "page did not call set_url()" errors.
 $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid]));
 $PAGE->set_context($context);
@@ -83,7 +91,6 @@ if ($ajax && $_SERVER['REQUEST_METHOD'] === 'POST') {
 if ($embedded && !$ajax) {
     $PAGE->requires->css('/ai/placement/modgen/styles.css');
     $PAGE->add_body_class('aiplacement-modgen-embedded');
-    $PAGE->requires->js_call_amd('aiplacement_modgen/embedded_prompt', 'init');
 }
 
 /**
@@ -436,9 +443,15 @@ if ($approveform && ($adata = $approveform->get_data())) {
 $ispromptform = optional_param('_qf__aiplacement_modgen_prompt_form', 0, PARAM_BOOL);
 
 if ($ispromptform) {
+    // Structure from prompt.
+    require_capability('aiplacement/modgen:generatewithprompt', $context);
+    \aiplacement_modgen\local\settings_helper::require_ai_enabled();
     require_once($CFG->dirroot . '/ai/placement/modgen/classes/form/prompt_form.php');
     $promptform = new \aiplacement_modgen_prompt_form(null, ['courseid' => $courseid]);
 } else {
+    // Structure from file.
+    require_capability('aiplacement/modgen:generatefromtemplate', $context);
+    \aiplacement_modgen\local\settings_helper::require_structurefromfile_enabled();
     $promptform = new aiplacement_modgen_generator_form(null, [
         'courseid' => $courseid,
         'embedded' => 0,
@@ -538,26 +551,8 @@ if ($pdata = $promptform->get_data()) {
         exit;
     }
 
-    if (!empty($json['error'])) {
-        $errorhtml = html_writer::div(
-            html_writer::tag('h4', get_string('aierrorheading', 'aiplacement_modgen'), ['class' => 'text-danger']) .
-            $OUTPUT->notification(s($json['template']), \core\output\notification::NOTIFY_ERROR),
-            'aiplacement-modgen__validation-error'
-        );
-
-        $bodyhtml = html_writer::div($errorhtml, 'aiplacement-modgen__content');
-
-        $footeractions = [[
-            'label' => get_string('tryagain', 'aiplacement_modgen'),
-            'classes' => 'btn btn-primary',
-            'isbutton' => true,
-            'action' => 'aiplacement-modgen-reenter',
-        ]];
-
-        aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
-        exit;
-    }
-
+    // Checked before the general error below: ai_service sets 'error' on these too, and this one
+    // adds guidance on what to change.
     if (!empty($json['validation_error'])) {
         // AI returned malformed structure - show error and don't allow approval.
         $errorhtml = html_writer::div(
@@ -580,8 +575,26 @@ if ($pdata = $promptform->get_data()) {
         exit;
     }
 
-    // Get the final prompt sent to AI for debugging (returned by ai_service).
-    $debugprompt = isset($json['debugprompt']) ? $json['debugprompt'] : $prompt;
+    if (!empty($json['error'])) {
+        $errorhtml = html_writer::div(
+            html_writer::tag('h4', get_string('aierrorheading', 'aiplacement_modgen'), ['class' => 'text-danger']) .
+            $OUTPUT->notification(s($json['template']), \core\output\notification::NOTIFY_ERROR),
+            'aiplacement-modgen__validation-error'
+        );
+
+        $bodyhtml = html_writer::div($errorhtml, 'aiplacement-modgen__content');
+
+        $footeractions = [[
+            'label' => get_string('tryagain', 'aiplacement_modgen'),
+            'classes' => 'btn btn-primary',
+            'isbutton' => true,
+            'action' => 'aiplacement-modgen-reenter',
+        ]];
+
+        aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
+        exit;
+    }
+
     $jsonstr = json_encode($json, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     // For fresh generation (start from scratch), skip re-encoding module data for summary
     // Just use a simple generated fallback summary instead.
@@ -598,32 +611,9 @@ if ($pdata = $promptform->get_data()) {
         'usedaioptions' => !empty($prompt) ? 1 : 0,
     ]);
 
-    $notifications = [];
-    if (!empty($json['error'])) {
-        $notifications[] = [
-            'html' => $OUTPUT->notification(s($json['template']), \core\output\notification::NOTIFY_ERROR),
-        ];
-    }
-
-    $formhtml = '';
     ob_start();
     $approveform->display();
     $formhtml = ob_get_clean();
-
-    // Add regenerate button functionality if AI is enabled.
-    if (get_config('aiplacement_modgen', 'enable_ai')) {
-        $formhtml .= html_writer::script("
-            document.addEventListener('DOMContentLoaded', function() {
-                var regenerateBtn = document.querySelector('[name=\"regeneratebutton\"]');
-                if (regenerateBtn) {
-                    regenerateBtn.addEventListener('click', function(e) {
-                        e.preventDefault();
-                        location.reload();
-                    });
-                }
-            });
-        ");
-    }
 
     // Build module preview from the generated JSON.
     $modulepreview = aiplacement_modgen_build_module_preview($json, $moduletype);
@@ -631,7 +621,6 @@ if ($pdata = $promptform->get_data()) {
     $modulepreview['showmodulepreview'] = !empty($modulepreview['hasthemes']) || !empty($modulepreview['hasweeks']);
 
     $previewdata = [
-        'notifications' => $notifications,
         'hassummary' => $summarytext !== '',
         'summaryheading' => get_string('generationresultssummaryheading', 'aiplacement_modgen'),
         'summary' => $summaryformatted,

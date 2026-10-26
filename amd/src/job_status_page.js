@@ -280,7 +280,7 @@ const pollJobStatus = () => {
                 // If completed or failed (and not retrying), stop polling
                 if (data.status === 'completed') {
                     stopPolling();
-                } else if (data.status === 'failed' && !data.will_retry) {
+                } else if (data.status === 'failed' && !(data.result && data.result.will_retry)) {
                     stopPolling();
                 }
             }
@@ -321,6 +321,7 @@ const stopPolling = () => {
  * @param {string} cfg.courseurl URL to course page
  * @param {string} cfg.initialstatus Initial job status
  * @param {boolean} cfg.haswarnings Whether a completed job reported warnings
+ * @param {boolean} cfg.willretry Whether a failed job will be retried by Moodle
  * @param {Object} cfg.strings Language strings: completed, completedwarnings
  */
 export const init = (cfg) => {
@@ -330,9 +331,8 @@ export const init = (cfg) => {
     if (cfg.initialstatus === 'completed') {
         redirectToCourse(Boolean(cfg.haswarnings));
     } else if (cfg.initialstatus === 'failed') {
-        // Check if will retry
-        const result = document.querySelector('[data-jobid]');
-        if (result && result.dataset.willretry) {
+        // Keep watching a failed job that Moodle will retry.
+        if (cfg.willretry) {
             startPolling();
         }
     } else {

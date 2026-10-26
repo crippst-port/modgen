@@ -61,23 +61,6 @@ try {
 }
 echo "\n";
 
-// Test 2: Section Maps Cache Definition.
-echo "Test 2: Verifying section maps cache definition exists...\n";
-try {
-    $cache = cache::make('aiplacement_modgen', 'section_maps');
-    if ($cache) {
-        echo "  ✓ PASSED: Section maps cache is configured\n";
-        $passed++;
-    } else {
-        echo "  ✗ FAILED: Section maps cache not found\n";
-        $failed++;
-    }
-} catch (Exception $e) {
-    echo "  ✗ FAILED: " . $e->getMessage() . "\n";
-    $failed++;
-}
-echo "\n";
-
 // Test 3: Rate Limit Configuration.
 echo "Test 3: Verifying rate limit configuration...\n";
 $ratelimit = get_config('aiplacement_modgen', 'ai_rate_limit');

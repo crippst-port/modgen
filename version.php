@@ -25,8 +25,8 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'aiplacement_modgen';
-$plugin->release = '0.8.1';
-$plugin->version = 2026102204;
+$plugin->release = '0.8.2';
+$plugin->version = 2026102600;
 $plugin->requires = 2024100700; // Moodle 4.5: needs the core AI subsystem and the aiplacement plugin type.
 $plugin->maturity = MATURITY_BETA;
 

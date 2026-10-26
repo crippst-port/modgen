@@ -32,15 +32,4 @@ $definitions = [
         'simpledata' => true,
         'ttl' => 3600, // 1 hour
     ],
-
-    // Cache for section maps to avoid repeated processing.
-    'section_maps' => [
-        'mode' => cache_store::MODE_APPLICATION,
-        'simplekeys' => true,
-        'simpledata' => false,
-        'ttl' => 300, // 5 minutes
-        'invalidationevents' => [
-            'course_updated',
-        ],
-    ],
 ];

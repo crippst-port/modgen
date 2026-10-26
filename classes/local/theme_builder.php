@@ -29,7 +29,6 @@
 
 namespace aiplacement_modgen\local;
 
-use aiplacement_modgen\activitytype\registry;
 use context_module;
 
 defined('MOODLE_INTERNAL') || die();
@@ -41,63 +40,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * Theme builder service class.
  */
 class theme_builder {
-    /**
-     * Create a learningactivity module at the start of a section.
-     *
-     * This is a shared helper to add learning design metadata modules to themes and weeks.
-     *
-     * @param int $courseid Course ID
-     * @param int $sectionnumber Section number where activity should be created
-     * @param string $sectiontype 'section' for themes/weeks, 'activity' for session subsections
-     * @param string $name Section name (optional for sections)
-     * @param array $metadata Additional metadata (duration, learningmode, etc.)
-     * @return int|null CM ID of created activity or null on failure
-     */
-    private static function create_learningactivity_metadata($courseid, $sectionnumber, $sectiontype, $name = '', $metadata = []) {
-        global $DB;
-
-        // Get handler.
-        $handler = registry::get_handler('learningactivity');
-        if (!$handler) {
-            // Learningactivity handler not found.
-            return null;
-        }
-
-        // Get course.
-        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
-
-        // Prepare activity data.
-        $activitydata = new \stdClass();
-        $activitydata->sectiontype = $sectiontype;
-        $activitydata->name = $name;
-
-        // Merge additional metadata - skip null/empty values.
-        foreach ($metadata as $key => $value) {
-            // Skip null values and empty strings to avoid issues with learningactivity module.
-            if ($value !== null && $value !== '') {
-                $activitydata->$key = $value;
-            }
-        }
-
-        // Create instance.
-        try {
-            $instance = new $handler();
-            $result = $instance->create($activitydata, $course, $sectionnumber);
-
-            if ($result && isset($result['cmid'])) {
-                // Ensure context is created immediately to avoid integrity errors
-                // if user refreshes page during background task execution.
-                \context_module::instance($result['cmid']);
-                return $result['cmid'];
-            }
-        } catch (\Exception $e) {
-            // Expected in test environment; log for real failures elsewhere.
-            debugging('Failed to create learningactivity: ' . $e->getMessage(), DEBUG_DEVELOPER);
-        }
-
-        return null;
-    }
-
     /**
      * Enforce the per-course total-section safety limit.
      *
@@ -134,18 +76,19 @@ class theme_builder {
     }
 
     /**
-     * Estimate how many course sections an approved JSON structure will create.
+     * Count how many course sections an approved JSON structure will create.
      *
-     * Counts themes, weeks and sessions (each becomes a section). Session phases for
-     * connected_weekly default to 3 (pre/session/post) when not explicitly listed, so
-     * the estimate is intentionally slightly conservative (over- rather than
-     * under-counting) to keep the safety limit on the cautious side.
+     * Mirrors section_creation_service: each theme is one section, and every week - in a theme
+     * or on its own - is one section plus the three session subsections create_week_section()
+     * always adds, whatever sessions the JSON lists. The JSON comes back from the browser, so
+     * this must not trust its 'sessions' to say how many sections will be made.
      *
      * @param array $json Approved JSON structure.
      * @param string $moduletype Module type (connected_theme, connected_weekly, etc).
      * @return int Projected number of sections.
      */
     public static function count_projected_sections_from_json(array $json, $moduletype) {
+        $sectionsperweek = 4;
         $count = 0;
 
         if ($moduletype === 'connected_theme' && !empty($json['themes']) && is_array($json['themes'])) {
@@ -155,25 +98,10 @@ class theme_builder {
                 }
                 $count++; // Theme section.
                 $weeks = (!empty($theme['weeks']) && is_array($theme['weeks'])) ? $theme['weeks'] : [];
-                foreach ($weeks as $week) {
-                    if (!is_array($week)) {
-                        continue;
-                    }
-                    $count++; // Week section.
-                    $sessions = (!empty($week['sessions']) && is_array($week['sessions'])) ? $week['sessions'] : [];
-                    $count += $sessions ? count($sessions) : 0;
-                }
+                $count += $sectionsperweek * count(array_filter($weeks, 'is_array'));
             }
         } else if (!empty($json['sections']) && is_array($json['sections'])) {
-            foreach ($json['sections'] as $section) {
-                if (!is_array($section)) {
-                    continue;
-                }
-                $count++; // Week/section.
-                $sessions = (!empty($section['sessions']) && is_array($section['sessions'])) ? $section['sessions'] : [];
-                // Connected-weekly courses always materialise 3 session subsections.
-                $count += $sessions ? count($sessions) : ($moduletype === 'connected_weekly' ? 3 : 0);
-            }
+            $count += $sectionsperweek * count(array_filter($json['sections'], 'is_array'));
         }
 
         return $count;
@@ -227,22 +155,8 @@ class theme_builder {
             // Get fresh course object after format conversion.
             $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
             $courseformat = course_get_format($course);
-            // PROACTIVE FIX: Ensure ALL course modules have contexts before starting.
-            // This prevents integrity errors if previous jobs left orphaned modules.
-            $sql = "SELECT cm.id
-                    FROM {course_modules} cm
-                    LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
-                    WHERE cm.course = :courseid AND ctx.id IS NULL";
-            $orphaned = $DB->get_records_sql($sql, [
-                'courseid' => $courseid,
-                'contextlevel' => CONTEXT_MODULE,
-            ]);
-
-            if (!empty($orphaned)) {
-                foreach ($orphaned as $cm) {
-                    \context_module::instance($cm->id);
-                }
-            }
+            // Give any module an earlier build left without a context one now, so it cannot fail this build.
+            self::ensure_module_contexts($courseid);
             // Start transaction for entire bulk operation.
             // This ensures all themes and weeks are created atomically - all or nothing.
             $transaction = $DB->start_delegated_transaction();
@@ -320,43 +234,9 @@ class theme_builder {
                     }
                 }
 
-                // Ensure all course modules have contexts before rebuilding cache.
-                // Subsections are course modules that need contexts created.
+                // Subsections are course modules: make sure each has a context before commit.
                 if ($createdcount > 0) {
-                    $sql = "SELECT cm.id
-                            FROM {course_modules} cm
-                            LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
-                            WHERE cm.course = :courseid AND ctx.id IS NULL";
-                    $orphaned = $DB->get_records_sql($sql, [
-                        'courseid' => $courseid,
-                        'contextlevel' => CONTEXT_MODULE,
-                    ]);
-
-                    if (!empty($orphaned)) {
-                        foreach ($orphaned as $cm) {
-                            \context_module::instance($cm->id);
-                        }
-                    }
-                }
-
-                // Ensure all course modules have contexts before committing.
-                // This is a safety net in case immediate context creation failed or
-                // modules exist from previous operations without contexts.
-                if ($createdcount > 0) {
-                    $sql = "SELECT cm.id
-                            FROM {course_modules} cm
-                            LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
-                            WHERE cm.course = :courseid AND ctx.id IS NULL";
-                    $orphaned = $DB->get_records_sql($sql, [
-                        'courseid' => $courseid,
-                        'contextlevel' => CONTEXT_MODULE,
-                    ]);
-
-                    if (!empty($orphaned)) {
-                        foreach ($orphaned as $cm) {
-                            \context_module::instance($cm->id);
-                        }
-                    }
+                    self::ensure_module_contexts($courseid);
                 }
 
                 // Note: flexsections already rebuilds cache after each section creation.
@@ -429,22 +309,8 @@ class theme_builder {
             $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
             $courseformat = course_get_format($course);
 
-            // PROACTIVE FIX: Ensure ALL course modules have contexts before starting.
-            // This prevents integrity errors if previous jobs left orphaned modules.
-            $sql = "SELECT cm.id
-                    FROM {course_modules} cm
-                    LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
-                    WHERE cm.course = :courseid AND ctx.id IS NULL";
-            $orphaned = $DB->get_records_sql($sql, [
-                'courseid' => $courseid,
-                'contextlevel' => CONTEXT_MODULE,
-            ]);
-
-            if (!empty($orphaned)) {
-                foreach ($orphaned as $cm) {
-                    \context_module::instance($cm->id);
-                }
-            }
+            // Give any module an earlier build left without a context one now, so it cannot fail this build.
+            self::ensure_module_contexts($courseid);
 
             // Start transaction for entire bulk operation.
             // This ensures all weeks are created atomically - all or nothing.
@@ -489,23 +355,9 @@ class theme_builder {
                     }
                 }
 
-                // Ensure all course modules have contexts before rebuilding cache.
-                // Subsections are course modules that need contexts created.
+                // Subsections are course modules: make sure each has a context before commit.
                 if ($createdcount > 0) {
-                    $sql = "SELECT cm.id
-                            FROM {course_modules} cm
-                            LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
-                            WHERE cm.course = :courseid AND ctx.id IS NULL";
-                    $orphaned = $DB->get_records_sql($sql, [
-                        'courseid' => $courseid,
-                        'contextlevel' => CONTEXT_MODULE,
-                    ]);
-
-                    if (!empty($orphaned)) {
-                        foreach ($orphaned as $cm) {
-                            \context_module::instance($cm->id);
-                        }
-                    }
+                    self::ensure_module_contexts($courseid);
                 }
 
                 // Note: flexsections already rebuilds cache after each section creation.
@@ -659,6 +511,30 @@ class theme_builder {
         }
         $id = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => (int) $sectionnum]);
         return ($id === false) ? null : (int) $id;
+    }
+
+    /**
+     * Give every course module in a course a context, creating any that are missing.
+     *
+     * Subsections are course modules, and one without a context fails integrity checks and
+     * cache rebuilds. Builds call this before they start, in case an earlier one left any, and
+     * again before they commit.
+     *
+     * @param int $courseid Course ID
+     */
+    public static function ensure_module_contexts(int $courseid): void {
+        global $DB;
+
+        $cmids = $DB->get_fieldset_sql(
+            "SELECT cm.id
+               FROM {course_modules} cm
+          LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
+              WHERE cm.course = :courseid AND ctx.id IS NULL",
+            ['courseid' => $courseid, 'contextlevel' => CONTEXT_MODULE]
+        );
+        foreach ($cmids as $cmid) {
+            \context_module::instance($cmid);
+        }
     }
 
     /**
@@ -883,7 +759,7 @@ class theme_builder {
                 255
             );
 
-            $weekcmid = self::create_learningactivity_metadata(
+            $weekcmid = session_creator::create_learningactivity_metadata(
                 $courseid,
                 self::current_section_number($courseid, $weeksectionid) ?? $weeksectionnum,
                 'section',
@@ -994,37 +870,39 @@ class theme_builder {
     }
 
     /**
-     * Ensure course is using flexsections format.
+     * Ensure course is using flexsections format, then set up its core sections.
      *
-     * Converts course to flexsections if needed.
-     * Public to allow use in tests and validation scripts.
+     * Converts the course with update_course(), as changing the format in course settings
+     * would: that fires course_updated and removes the old format's options. A direct update
+     * is kept only as a fallback for when update_course() leaves the format unchanged.
      *
      * @param int $courseid Course ID
-     * @throws \moodle_exception If conversion fails
+     * @throws \moodle_exception If flexsections is not installed or conversion fails
      */
     public static function ensure_flexsections_format($courseid) {
         global $DB;
 
-        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+        $course = get_course($courseid, true);
 
         if ($course->format !== 'flexsections') {
-            // Attempt to convert to flexsections.
-            $DB->update_record('course', [
-                'id' => $courseid,
-                'format' => 'flexsections',
-            ]);
+            if (!\core_plugin_manager::instance()->get_plugin_info('format_flexsections')) {
+                throw new \moodle_exception('flexsectionsmissing', 'aiplacement_modgen');
+            }
 
-            // Clear course cache.
-            rebuild_course_cache($courseid, true);
+            update_course((object) ['id' => $courseid, 'format' => 'flexsections']);
 
-            // Verify conversion.
-            $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
+            $course = get_course($courseid, true);
             if ($course->format !== 'flexsections') {
-                throw new \moodle_exception('errorconvertingformat', 'aiplacement_modgen');
+                $DB->set_field('course', 'format', 'flexsections', ['id' => $courseid]);
+            }
+            rebuild_course_cache($courseid, true, true);
+
+            $course = get_course($courseid, true);
+            if ($course->format !== 'flexsections') {
+                throw new \moodle_exception('flexsectionsformatfailed', 'aiplacement_modgen', '', $course->format);
             }
         }
 
-        // Initialize core sections after ensuring flexsections format.
         self::initialize_core_sections($courseid);
     }
 
@@ -1211,13 +1089,9 @@ class theme_builder {
             // Log technical details for administrators only.
             debugging('Section creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), DEBUG_DEVELOPER);
 
-            // User-facing message without technical details.
-            throw new \moodle_exception(
-                'sectorcreationfailed',
-                'aiplacement_modgen',
-                '',
-                clean_param($name, PARAM_TEXT)
-            ); // Sanitized name in user message.
+            // The rollback has also doomed any enclosing transaction, so this must end the build:
+            // see structure_write_failed_exception. The user-facing message has no technical details.
+            throw new structure_write_failed_exception($name, $e->getMessage());
         }
     }
 

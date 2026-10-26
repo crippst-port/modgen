@@ -171,11 +171,60 @@ final class section_limit_test extends advanced_testcase {
             ['title' => 'T2', 'weeks' => []],
         ]];
 
-        // 2 themes + 2 weeks + 3 sessions = 7.
+        // 2 themes + 2 weeks, each week with the 3 session subsections it always gets = 10.
         $this->assertSame(
-            7,
+            10,
             theme_builder::count_projected_sections_from_json($json, 'connected_theme')
         );
+    }
+
+    /**
+     * The projection matches what a build really creates, whatever sessions the JSON lists, so a
+     * crafted structure cannot slip under the limit.
+     *
+     * @covers ::count_projected_sections_from_json
+     * @dataProvider real_build_provider
+     * @param array $json Approved structure.
+     * @param string $moduletype Module type.
+     */
+    public function test_json_projection_matches_a_real_build(array $json, string $moduletype): void {
+        set_config('maxtotalsections', 1000, 'aiplacement_modgen');
+        // The first build also adds the Assessments section; do that first so only the build is counted.
+        theme_builder::initialize_core_sections($this->course->id);
+        $before = $this->total_sections();
+
+        (new section_creation_service())->create_sections_from_json($json, $this->course->id, $moduletype, false);
+
+        $this->assertSame(
+            theme_builder::count_projected_sections_from_json($json, $moduletype),
+            $this->total_sections() - $before
+        );
+    }
+
+    /**
+     * Structures whose listed sessions do not match the three subsections every week gets.
+     *
+     * @return array
+     */
+    public static function real_build_provider(): array {
+        return [
+            'theme weeks without sessions' => [
+                ['themes' => [['title' => 'T1', 'weeks' => [['title' => 'W1'], ['title' => 'W2']]]]],
+                'connected_theme',
+            ],
+            'theme week listing one session' => [
+                ['themes' => [['title' => 'T1', 'weeks' => [['title' => 'W1', 'sessions' => [['phase' => 'pre']]]]]]],
+                'connected_theme',
+            ],
+            'plain weekly sections' => [
+                ['sections' => [['title' => 'Wk1'], ['title' => 'Wk2']]],
+                'weekly',
+            ],
+            'connected weekly' => [
+                ['sections' => [['title' => 'Wk1']]],
+                'connected_weekly',
+            ],
+        ];
     }
 
     /**

@@ -32,12 +32,6 @@ defined('MOODLE_INTERNAL') || die();
 require_once(__DIR__ . '/csv_parser.php');
 require_once(__DIR__ . '/ai_service.php');
 
-require_once(__DIR__ . '/csv_parser.php');
-require_once(__DIR__ . '/ai_service.php');
-
-require_once(__DIR__ . '/csv_parser.php');
-require_once(__DIR__ . '/ai_service.php');
-
 /**
  * Service for processing templates and generating module structures.
  */
@@ -152,19 +146,9 @@ class template_processing_service {
      * @throws \Exception If CSV file is missing
      */
     private function process_pure_csv_mode(?\stored_file $csvfile, \stdClass $pdata, string $moduletype): array {
-        global $USER;
-
+        // The upload area has already been searched by load_csv_template(), which takes any file there.
         if (empty($csvfile)) {
-            $draftitemid = $pdata->supportingfiles;
-            $usercontext = \context_user::instance($USER->id);
-            $fs = get_file_storage();
-            $files = $fs->get_area_files($usercontext->id, 'user', 'draft', $draftitemid, 'filename', false);
-
-            if (empty($files)) {
-                throw new \moodle_exception('csvnodraft', 'aiplacement_modgen');
-            }
-
-            $csvfile = array_shift($files);
+            throw new \moodle_exception('csvnodraft', 'aiplacement_modgen');
         }
 
         // Auto-detect CSV format if needed.
@@ -198,26 +182,16 @@ class template_processing_service {
         string $moduletype,
         ?\stored_file $csvfile
     ): array {
-        global $USER;
-
         $csvstructure = null;
-        $hascsvfile = !empty($pdata->supportingfiles) || !empty($csvfile);
 
-        if ($hascsvfile) {
-            if (empty($csvfile)) {
-                $usercontext = \context_user::instance($USER->id);
-                $csvservice = new csv_processing_service();
-                $csvfile = $csvservice->get_csv_file($csvfile, $pdata->supportingfiles, $usercontext->id);
+        // The upload area has already been searched by load_csv_template(), which takes any file there.
+        if (!empty($csvfile)) {
+            if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
+                $detectedformat = csv_parser::detect_csv_format($csvfile);
+                $moduletype = $detectedformat;
             }
 
-            if (!empty($csvfile)) {
-                if (empty($pdata->moduletype) || $pdata->moduletype === 'connected_weekly') {
-                    $detectedformat = csv_parser::detect_csv_format($csvfile);
-                    $moduletype = $detectedformat;
-                }
-
-                $csvstructure = csv_parser::parse_csv_to_structure($csvfile, $moduletype);
-            }
+            $csvstructure = csv_parser::parse_csv_to_structure($csvfile, $moduletype);
         }
 
         // Build AI instructions.

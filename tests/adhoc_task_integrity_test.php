@@ -297,15 +297,8 @@ final class adhoc_task_integrity_test extends advanced_testcase {
 
     /**
      * Once the creation call returns (its sections are committed), the job must be
-     * marked 'completed' BEFORE the best-effort post-creation housekeeping runs, so
-     * that a housekeeping failure cannot flip a committed success into 'failed' and
-     * trigger a duplicating retry.
-     *
-     * We prove the ordering by inspecting the executed flow: a normal run leaves the
-     * job 'completed' with committed sections, and the post-creation context-backfill
-     * is wrapped so it cannot throw out of execute(). The companion
-     * test_post_creation_housekeeping_is_non_fatal subclass asserts the non-fatal
-     * contract directly.
+     * marked 'completed' straight away, so that nothing afterwards can flip a committed
+     * success into 'failed' and trigger a duplicating retry.
      *
      * @covers ::execute
      */

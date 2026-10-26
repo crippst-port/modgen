@@ -27,8 +27,7 @@ namespace aiplacement_modgen\local;
 /**
  * Service class for determining CSV processing mode.
  *
- * Consolidates the complex boolean logic repeated 4 times in prompt.php
- * to decide whether to use pure CSV parsing or AI enhancement.
+ * Decides whether to use pure CSV parsing or AI enhancement.
  */
 class csv_processing_service {
     /**
@@ -55,47 +54,5 @@ class csv_processing_service {
 
         // AI is enabled - use pure CSV only if there is a CSV and no prompt.
         return $hascsvfile && !$hasuserprompt;
-    }
-
-    /**
-     * Get CSV file from template or uploaded files.
-     *
-     * @param \stored_file|null $templatecsvfile CSV file from template (if selected)
-     * @param int $draftitemid Draft item ID from file upload
-     * @param int $contextid User context ID
-     * @return \stored_file|null CSV file or null if not found
-     */
-    public function get_csv_file(?\stored_file $templatecsvfile, int $draftitemid, int $contextid): ?\stored_file {
-        // If CSV file provided (uploaded file takes priority over template), use it.
-        if ($templatecsvfile !== null) {
-            return $templatecsvfile;
-        }
-
-        // Otherwise, try to find CSV in uploaded files.
-        if (empty($draftitemid)) {
-            return null;
-        }
-
-        $fs = get_file_storage();
-        $files = $fs->get_area_files($contextid, 'user', 'draft', $draftitemid, 'filename', false);
-
-        if (empty($files)) {
-            return null;
-        }
-
-        // Find first CSV file.
-        foreach ($files as $file) {
-            if ($file->is_directory()) {
-                continue;
-            }
-
-            $ext = strtolower(pathinfo($file->get_filename(), PATHINFO_EXTENSION));
-            if ($ext === 'csv') {
-                return $file;
-            }
-        }
-
-        // If no CSV found, return first file (might be processable as CSV).
-        return array_shift($files);
     }
 }

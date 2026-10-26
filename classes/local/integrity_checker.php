@@ -192,72 +192,13 @@ class integrity_checker {
         }
 
         // Check 7: Circular references.
-        // Null/empty parent values are excluded before the CAST in both arms below — same
-        // reasoning as check 3: a non-numeric value must not fail the cast for every row.
-        $circularsql = "WITH RECURSIVE section_tree AS (
-                            SELECT cs.id, cs.section, cs.course,
-                                   CAST(cfo.value AS INTEGER) AS parent,
-                                   cs.section AS root_section,
-                                   1 AS depth,
-                                   CAST(cs.section AS VARCHAR(1000)) AS path
-                              FROM {course_sections} cs
-                              JOIN {course_format_options} cfo
-                                ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                             WHERE cs.course = ? AND cs.section > 0
-                               AND cfo.value IS NOT NULL AND cfo.value <> ''
-                            UNION ALL
-                            SELECT cs.id, cs.section, cs.course,
-                                   CAST(cfo.value AS INTEGER) AS parent,
-                                   st.root_section,
-                                   st.depth + 1,
-                                   CAST(st.path || '->' || cs.section AS VARCHAR(1000))
-                              FROM {course_sections} cs
-                              JOIN {course_format_options} cfo
-                                ON cfo.sectionid = cs.id AND cfo.name = 'parent'
-                              JOIN section_tree st ON cs.section = st.parent
-                             WHERE st.depth < 10 AND st.course = ?
-                               AND cfo.value IS NOT NULL AND cfo.value <> ''
-                        )
-                        SELECT DISTINCT root_section, path
-                          FROM section_tree
-                         WHERE section = root_section AND depth > 1";
-        try {
-            // Use a recordset and build a plain sequential array: the query has no unique
-            // id column, and get_records_sql() would key (and silently collapse) rows by
-            // root_section, which is not guaranteed unique across distinct cycles.
-            $rows = [];
-            $recordset = $DB->get_recordset_sql($circularsql, [$courseid, $courseid]);
-            foreach ($recordset as $row) {
-                $rows[] = $row;
-            }
-            $recordset->close();
-
-            // The CTE keeps walking past the first time it detects a loop (up to the depth
-            // cap), so a single cycle produces one row per extra lap around it — e.g. a
-            // 1-section self-loop yields 9 rows (depths 2-10), not 1. Deduplicate to one
-            // row per affected root_section (keeping the shortest path as the clearest
-            // example) so the reported count matches the number of sections actually
-            // involved, consistent with how row-level highlighting already deduplicates.
-            $bysection = [];
-            foreach ($rows as $row) {
-                if (
-                    !isset($bysection[$row->root_section])
-                        || strlen($row->path) < strlen($bysection[$row->root_section]->path)
-                ) {
-                    $bysection[$row->root_section] = $row;
-                }
-            }
-            $rows = array_values($bysection);
-
-            if (!empty($rows)) {
-                $result['issues']['circular_refs'] = $rows;
-                $result['counts']['circular_refs'] = count($rows);
-                $result['has_issues'] = true;
-            }
-        } catch (\dml_exception $e) {
-            // Recursive CTE not supported on this DB engine, or a query-level failure —
-            // log for developers/admins rather than silently reporting "no issues".
-            debugging('Circular reference check failed: ' . $e->getMessage(), DEBUG_DEVELOPER);
+        // Walked in PHP over the parent map rather than with a recursive CTE, whose casts and
+        // string concatenation are not portable across the databases Moodle supports.
+        $rows = self::find_circular_refs(self::get_parent_map($courseid));
+        if (!empty($rows)) {
+            $result['issues']['circular_refs'] = $rows;
+            $result['counts']['circular_refs'] = count($rows);
+            $result['has_issues'] = true;
         }
 
         // Check 8: Orphaned sections (hidden, no activities, cleanup target).
@@ -967,6 +908,41 @@ class integrity_checker {
             $map[(int) $row->section] = $row->parent;
         }
         return $map;
+    }
+
+    /**
+     * The sections that lie on a loop of parent links.
+     *
+     * From each section, follows parent links up to 10 steps; if the walk comes back to the
+     * starting section, that section is reported once, with the shortest such loop. Missing,
+     * empty or non-numeric parent values end a walk rather than failing the check.
+     *
+     * @param array<int, string|null> $parentmap Section number => parent value, from get_parent_map().
+     * @return \stdClass[] One row per section on a loop: root_section, and path such as "5->7->5".
+     */
+    private static function find_circular_refs(array $parentmap): array {
+        $parentof = function (int $section) use ($parentmap): ?int {
+            $value = $parentmap[$section] ?? null;
+            return ($value !== null && $value !== '' && ctype_digit((string) $value)) ? (int) $value : null;
+        };
+
+        $rows = [];
+        foreach (array_keys($parentmap) as $root) {
+            if ($root <= 0) {
+                continue;
+            }
+            $path = [$root];
+            $current = $parentof($root);
+            for ($depth = 1; $current !== null && $depth < 10 && array_key_exists($current, $parentmap); $depth++) {
+                $path[] = $current;
+                if ($current === $root) {
+                    $rows[] = (object) ['root_section' => $root, 'path' => implode('->', $path)];
+                    break;
+                }
+                $current = $parentof($current);
+            }
+        }
+        return $rows;
     }
 
     /**

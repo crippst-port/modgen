@@ -52,3 +52,14 @@ Feature: The job status page reports how a background build went
     Then I should see "Job failed"
     And I should see "The course is too large."
 
+
+  Scenario: A failed build that will be retried keeps being watched until the retry succeeds
+    Given the following "aiplacement_modgen > jobs" exist:
+      | course | user     | action       | status | result                                                         |
+      | C1     | teacher1 | create_weeks | failed | {"success":false,"error":"Deadlock found","will_retry":true} |
+    When I am on the "Course 1" "course" page logged in as "teacher1"
+    And I am on the job status page of the latest job in "C1"
+    Then I should see "Deadlock found"
+    And I should see "This job will automatically retry in a moment"
+    When the latest structure job in "C1" completes successfully
+    Then I should see "Completed successfully!"

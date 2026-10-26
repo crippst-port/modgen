@@ -75,6 +75,17 @@ class settings_helper {
     }
 
     /**
+     * Stop with a "disabled" error unless AI generation is enabled.
+     *
+     * @throws \moodle_exception if AI generation is disabled
+     */
+    public static function require_ai_enabled(): void {
+        if (!self::is_ai_enabled()) {
+            throw new \moodle_exception('aidisabled', 'aiplacement_modgen');
+        }
+    }
+
+    /**
      * Check whether the Quick add options ("New theme" / "New week") are enabled.
      *
      * @return bool True if quick add is enabled

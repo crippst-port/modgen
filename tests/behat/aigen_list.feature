@@ -50,3 +50,13 @@ Feature: Reviewing the AI-generated activities
     And I turn editing mode on
     Then I should see "Module Assistant"
     And "//a[contains(@href, 'aigen_list.php')]" "xpath_element" should not exist
+
+  Scenario: An editing teacher who can generate sees the AI marker on the course page
+    Given the following config values are set as admin:
+      | enable_ai | 1 | aiplacement_modgen |
+    And the following "permission overrides" exist:
+      | capability                            | permission | role           | contextlevel | reference |
+      | aiplacement/modgen:generatewithprompt | Allow      | editingteacher | Course       | C1        |
+    When I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    Then ".aiplacement-modgen-aigen-marker" "css_element" should exist

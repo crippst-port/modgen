@@ -96,10 +96,8 @@ class learningactivity_validator {
         $name = isset($metadata['name']) ? trim((string) $metadata['name']) : '';
         $validated['name'] = clean_param($name, PARAM_TEXT);
 
-        // Enforce maximum length.
-        if (strlen($validated['name']) > 255) {
-            $validated['name'] = substr($validated['name'], 0, 255);
-        }
+        // Enforce maximum length, in characters so a multibyte character is never split.
+        $validated['name'] = \core_text::substr($validated['name'], 0, 255);
 
         // Activity icon (must be in valid list).
         $validated['activityicon'] = '';
@@ -115,10 +113,8 @@ class learningactivity_validator {
         $instructions = isset($metadata['instructions']) ? (string) $metadata['instructions'] : '';
         $validated['instructions'] = clean_param($instructions, PARAM_TEXT);
 
-        // Enforce maximum length (64KB should be sufficient for instructions).
-        if (strlen($validated['instructions']) > 65535) {
-            $validated['instructions'] = substr($validated['instructions'], 0, 65535);
-        }
+        // Enforce maximum length (65535 characters is ample for instructions).
+        $validated['instructions'] = \core_text::substr($validated['instructions'], 0, 65535);
 
         // Duration (integer/string, should be numeric).
         $validated['duration'] = null;
@@ -172,17 +168,13 @@ class learningactivity_validator {
         $outcomes = isset($metadata['learningoutcomes_weekly']) ? (string) $metadata['learningoutcomes_weekly'] : '';
         $validated['learningoutcomes_weekly'] = clean_param($outcomes, PARAM_TEXT);
 
-        // Enforce maximum length.
-        if (strlen($validated['learningoutcomes_weekly']) > 65535) {
-            $validated['learningoutcomes_weekly'] = substr($validated['learningoutcomes_weekly'], 0, 65535);
-        }
+        // Enforce maximum length, in characters so a multibyte character is never split.
+        $validated['learningoutcomes_weekly'] = \core_text::substr($validated['learningoutcomes_weekly'], 0, 65535);
 
         // Design notes (sanitize if present).
         if (isset($metadata['designnotes'])) {
             $designnotes = clean_param((string) $metadata['designnotes'], PARAM_TEXT);
-            if (strlen($designnotes) > 65535) {
-                $designnotes = substr($designnotes, 0, 65535);
-            }
+            $designnotes = \core_text::substr($designnotes, 0, 65535);
             $validated['designnotes'] = $designnotes;
         }
 

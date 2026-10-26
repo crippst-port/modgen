@@ -216,13 +216,11 @@ class create_sections_task extends \core\task\adhoc_task {
             // committed (each action wraps section/activity creation in a single
             // delegated transaction that either fully commits or fully rolls back).
             //
-            // Everything below is post-creation housekeeping (context backfill, cache).
-            // It must NOT be allowed to flip a committed success into a 'failed' job:
-            // doing so would trigger a retry that re-runs creation from scratch and
-            // DUPLICATES the already-committed sections (there is no idempotency at the
-            // content level, and we must not delete sections a teacher may now be
-            // editing). So we mark the job completed first, then do housekeeping as a
-            // best-effort step whose failure is logged but never re-thrown.
+            // Nothing after this may flip a committed success into a 'failed' job: that
+            // would trigger a retry that re-runs creation from scratch and DUPLICATES the
+            // already-committed sections (there is no idempotency at the content level, and
+            // we must not delete sections a teacher may now be editing). So the job is marked
+            // completed straight away, and its event is triggered quietly.
 
             // Mark the job completed as the direct consequence of creation succeeding.
             $job->status = 'completed';
@@ -237,32 +235,6 @@ class create_sections_task extends \core\task\adhoc_task {
                 'messages' => count($result['messages'] ?? []),
                 'warnings' => count($result['warnings'] ?? []),
             ]));
-
-            // Best-effort: ensure all course modules have contexts (subsections create
-            // course modules). The creation services already do this internally before
-            // committing; this is a redundant safety net. Never fatal.
-            if (!empty($result['success'])) {
-                try {
-                    $sql = "SELECT cm.id
-                            FROM {course_modules} cm
-                            LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
-                            WHERE cm.course = :courseid AND ctx.id IS NULL";
-                    $orphaned = $DB->get_records_sql($sql, [
-                        'courseid' => $data->courseid,
-                        'contextlevel' => CONTEXT_MODULE,
-                    ]);
-
-                    if (!empty($orphaned)) {
-                        foreach ($orphaned as $cm) {
-                            \context_module::instance($cm->id);
-                        }
-                    }
-                } catch (\Throwable $e) {
-                    // Housekeeping failure does not invalidate the committed result.
-                    debugging('Post-creation context backfill failed for job ' . $jobid . ': '
-                        . $e->getMessage(), DEBUG_DEVELOPER);
-                }
-            }
         } catch (\Throwable $e) {
             // Note: Catch Throwable (not just Exception) to handle both Exceptions and Errors (TypeError, etc.).
             //

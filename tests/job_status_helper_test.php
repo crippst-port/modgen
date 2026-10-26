@@ -191,6 +191,59 @@ final class job_status_helper_test extends advanced_testcase {
     }
 
     /**
+     * A failed job waiting for a retry that Moodle will no longer run is finished, keeping its error.
+     *
+     * @covers ::fail_orphaned_running_jobs
+     */
+    public function test_failed_job_whose_retries_ran_out_is_finished(): void {
+        global $DB;
+        $jobid = $this->make_job($this->owner->id, 'failed', time() - 600);
+        $DB->set_field('aiplacement_modgen_jobs', 'result', json_encode([
+            'success' => false,
+            'error' => 'Deadlock found',
+            'will_retry' => true,
+        ]), ['id' => $jobid]);
+
+        $this->assertSame(1, job_status_helper::fail_orphaned_running_jobs());
+
+        $job = $this->job($jobid);
+        $this->assertSame('failed', $job->status);
+        $this->assertNotEmpty($job->timecompleted);
+        $result = json_decode($job->result, true);
+        $this->assertSame('Deadlock found', $result['error']);
+        $this->assertFalse($result['will_retry']);
+    }
+
+    /**
+     * A failed job whose retry is still queued is left for Moodle to run.
+     *
+     * @covers ::fail_orphaned_running_jobs
+     */
+    public function test_failed_job_with_a_pending_retry_is_left_alone(): void {
+        $jobid = $this->make_job($this->owner->id, 'failed', time() - 600);
+        $task = new create_sections_task();
+        $task->set_custom_data((object)['jobid' => $jobid, 'courseid' => $this->course->id, 'action' => 'create_weeks']);
+        $task->set_userid($this->owner->id);
+        \core\task\manager::queue_adhoc_task($task);
+
+        $this->assertSame(0, job_status_helper::fail_orphaned_running_jobs());
+        $this->assertEmpty($this->job($jobid)->timecompleted);
+    }
+
+    /**
+     * A queued job whose task has gone will never start, so it is finished as interrupted.
+     *
+     * @covers ::fail_orphaned_running_jobs
+     */
+    public function test_queued_job_without_a_task_is_marked_failed(): void {
+        $jobid = $this->make_job($this->owner->id, 'queued');
+
+        $this->assertSame(1, job_status_helper::fail_orphaned_running_jobs());
+        $result = json_decode($this->job($jobid)->result, true);
+        $this->assertSame(get_string('jobinterrupted', 'aiplacement_modgen'), $result['error']);
+    }
+
+    /**
      * A job that only just started is not treated as lost.
      *
      * @covers ::fail_orphaned_running_jobs

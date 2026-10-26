@@ -256,15 +256,18 @@ class job_status_helper {
     }
 
     /**
-     * Mark running jobs whose ad-hoc task has disappeared as failed.
+     * Finish, as failed, unfinished jobs whose ad-hoc task has disappeared.
      *
-     * A job is only set to running by its own task, and that task is removed from the queue
-     * once it finishes. A job still running with no task left was therefore interrupted
-     * (killed process, task deleted) and will never complete. While a matching task exists
-     * Moodle owns the retry, so the job is left alone. Sections are never re-created: the
-     * job is only reported as failed, because a previous attempt may have built part of it.
+     * The task is removed from the queue once it succeeds, gives up, or runs out of retries.
+     * A job with no task left will therefore never finish:
+     * - queued or running: it was interrupted (killed process, task deleted);
+     * - failed, waiting for a retry (no timecompleted): Moodle stopped retrying it. Its last
+     *   error is kept, and it no longer claims it will be retried.
+     * While a matching task exists Moodle owns the retry, so the job is left alone. Sections are
+     * never re-created: the job is only reported as failed, because an attempt may have built
+     * part of it.
      *
-     * @param int $graceseconds How long a job must have been running before it can count as lost.
+     * @param int $graceseconds How long a job must have been waiting before it can count as lost.
      * @return int Number of jobs marked failed.
      */
     public static function fail_orphaned_running_jobs(int $graceseconds = 300): int {
@@ -272,8 +275,10 @@ class job_status_helper {
 
         $jobs = $DB->get_records_select(
             'aiplacement_modgen_jobs',
-            'status = :status AND timestarted < :cutoff',
-            ['status' => 'running', 'cutoff' => time() - $graceseconds]
+            "(status = 'running' AND timestarted < :cutoff1)
+                OR (status = 'queued' AND timecreated < :cutoff2)
+                OR (status = 'failed' AND timecompleted IS NULL AND COALESCE(timestarted, timecreated) < :cutoff3)",
+            ['cutoff1' => time() - $graceseconds, 'cutoff2' => time() - $graceseconds, 'cutoff3' => time() - $graceseconds]
         );
         if (!$jobs) {
             return 0;
@@ -293,16 +298,18 @@ class job_status_helper {
             if (isset($pending[(int) $job->id])) {
                 continue;
             }
+            $lastresult = $job->status === 'failed' ? json_decode((string) $job->result, true) : null;
+            $error = $lastresult['error'] ?? get_string('jobinterrupted', 'aiplacement_modgen');
             $job->status = 'failed';
             $job->result = json_encode([
                 'success' => false,
-                'error' => get_string('jobinterrupted', 'aiplacement_modgen'),
+                'error' => $error,
                 'will_retry' => false,
             ]);
             $job->timecompleted = time();
             $DB->update_record('aiplacement_modgen_jobs', $job);
             \aiplacement_modgen\event\structure_job_failed::from_job($job, [
-                'error' => get_string('jobinterrupted', 'aiplacement_modgen'),
+                'error' => $error,
                 'willretry' => 0,
             ])->trigger();
             $failed++;

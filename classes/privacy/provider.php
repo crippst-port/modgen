@@ -64,7 +64,9 @@ class provider implements
             'privacy:metadata:jobs'
         );
 
-        // AI policy acceptance is handled by core AI subsystem, no need to declare here.
+        // Prompts are sent to the AI subsystem, which records each request and its response, and
+        // the user's AI policy acceptance. That data is exported and deleted by core_ai.
+        $collection->add_subsystem_link('core_ai', [], 'privacy:metadata:core_ai');
 
         return $collection;
     }

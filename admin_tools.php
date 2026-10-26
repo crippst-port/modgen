@@ -1558,7 +1558,8 @@ function flatten_hierarchy_to_toplevel($courseid) {
         echo $OUTPUT->notification(get_string('hierarchyflattened', 'aiplacement_modgen'), 'success');
         rebuild_course_cache($courseid, false, true);
     } catch (\Throwable $e) {
-        $transaction->rollback($e);
+        // A plain rollback() rethrows; roll back quietly so the admin sees this notification instead.
+        \aiplacement_modgen\local\theme_builder::rollback_quietly($transaction, $e);
         echo $OUTPUT->notification(get_string('flattenerror', 'aiplacement_modgen', $e->getMessage()), 'error');
     }
 }

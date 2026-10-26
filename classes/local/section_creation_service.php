@@ -83,11 +83,8 @@ class section_creation_service {
         }
 
         try {
-            // Ensure course format is flexsections.
-            $this->ensure_flexsections_format($courseid);
-
-            // Initialize core sections (section 0 and Assessments).
-            \aiplacement_modgen\local\theme_builder::initialize_core_sections($courseid);
+            // Ensure course format is flexsections, with its core sections (section 0 and Assessments).
+            \aiplacement_modgen\local\theme_builder::ensure_flexsections_format($courseid);
 
             $course = get_course($courseid, true);
             $context = \context_course::instance($courseid);
@@ -123,22 +120,8 @@ class section_creation_service {
                     $results = array_merge($results, $result);
                 }
 
-                // Ensure all course modules have contexts before committing transaction.
-                // This prevents integrity warnings during cache rebuild.
-                $sql = "SELECT cm.id
-                        FROM {course_modules} cm
-                        LEFT JOIN {context} ctx ON ctx.instanceid = cm.id AND ctx.contextlevel = :contextlevel
-                        WHERE cm.course = :courseid AND ctx.id IS NULL";
-                $orphaned = $DB->get_records_sql($sql, [
-                    'courseid' => $courseid,
-                    'contextlevel' => CONTEXT_MODULE,
-                ]);
-
-                if (!empty($orphaned)) {
-                    foreach ($orphaned as $cm) {
-                        \context_module::instance($cm->id);
-                    }
-                }
+                // Subsections are course modules: make sure each has a context before commit.
+                \aiplacement_modgen\local\theme_builder::ensure_module_contexts($courseid);
 
                 // Commit all changes - all sections and activities created successfully.
                 $transaction->allow_commit();
@@ -189,8 +172,9 @@ class section_creation_service {
      * Re-throw anything that must not be turned into a warning.
      *
      * Creation runs inside one delegated transaction. A failed database query leaves that
-     * transaction unusable (PostgreSQL aborts it), so carrying on to the next item would only
-     * produce confusing follow-on errors and a half-built structure. Database errors therefore
+     * transaction unusable (PostgreSQL aborts it), and a section write that rolled back its own
+     * nested transaction has marked this one for rollback too, so carrying on to the next item
+     * would only produce confusing follow-on errors and a half-built structure. Both therefore
      * propagate and roll everything back; other failures are recorded as warnings and the
      * remaining items still get created.
      *
@@ -198,49 +182,8 @@ class section_creation_service {
      * @throws \Throwable The same exception when it is not recoverable.
      */
     private static function rethrow_unless_recoverable(\Throwable $e): void {
-        if ($e instanceof \dml_exception) {
+        if ($e instanceof \dml_exception || $e instanceof structure_write_failed_exception) {
             throw $e;
-        }
-    }
-
-    /**
-     * Ensure course format is set to flexsections.
-     *
-     * @param int $courseid Course ID
-     * @throws \Exception If flexsections plugin is not available
-     */
-    private function ensure_flexsections_format(int $courseid): void {
-        $pluginmanager = \core_plugin_manager::instance();
-        $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
-
-        if (empty($flexsectionsplugin)) {
-            throw new \moodle_exception('flexsectionsmissing', 'aiplacement_modgen');
-        }
-
-        $course = get_course($courseid, true);
-
-        if ($course->format !== 'flexsections') {
-            $update = new \stdClass();
-            $update->id = $courseid;
-            $update->format = 'flexsections';
-
-            update_course($update);
-
-            // Fallback: Direct DB update if update_course() failed.
-            $course = get_course($courseid, true);
-            if ($course->format !== 'flexsections') {
-                global $DB;
-                $DB->set_field('course', 'format', 'flexsections', ['id' => $courseid]);
-                $course = get_course($courseid, true);
-            }
-
-            // Single rebuild after all format changes complete.
-            rebuild_course_cache($courseid, true, true);
-            $course = get_course($courseid, true);
-
-            if ($course->format !== 'flexsections') {
-                throw new \moodle_exception('flexsectionsformatfailed', 'aiplacement_modgen', '', $course->format);
-            }
         }
     }
 

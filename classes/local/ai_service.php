@@ -577,6 +577,26 @@ class ai_service
     ) {
         global $USER, $COURSE;
 
+        // Honour the admin's AI configuration the way core's placements do: a provider must offer
+        // generate_text, and the action must not be switched off for this placement. Checked before
+        // the rate limit so a refused request does not use up the user's allowance.
+        if (
+            !\core_ai\manager::is_action_available(\core_ai\aiactions\generate_text::class)
+            || !\core_ai\manager::is_action_enabled('aiplacement_modgen', \core_ai\aiactions\generate_text::class)
+        ) {
+            return [
+                'activities' => [],
+                'template' => get_string(
+                    'aierror',
+                    'aiplacement_modgen',
+                    get_string('aierror_actionunavailable', 'aiplacement_modgen')
+                ),
+                'error' => true,
+                'raw' => '',
+                'debugprompt' => trim($prompt),
+            ];
+        }
+
         // SECURITY FIX: Check rate limit before making AI request.
         $ratelimit = get_config('aiplacement_modgen', 'ai_rate_limit');
         if ($ratelimit === false || $ratelimit === '') {

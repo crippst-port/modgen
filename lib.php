@@ -311,6 +311,7 @@ function aiplacement_modgen_output_fragment_form_template_from_prompt(array $arg
 
     // Verify permission.
     require_capability('aiplacement/modgen:generatewithprompt', $context);
+    \aiplacement_modgen\local\settings_helper::require_ai_enabled();
 
     // Set page context for proper JS/CSS loading.
     $PAGE->set_context($context);

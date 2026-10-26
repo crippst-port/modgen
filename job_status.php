@@ -127,6 +127,7 @@ $PAGE->requires->js_call_amd('aiplacement_modgen/job_status_page', 'init', [
         'courseurl' => $courseurl->out(false),
         'initialstatus' => $job->status,
         'haswarnings' => !empty($templatedata['haswarnings']),
+        'willretry' => !empty($templatedata['canretry']),
         'strings' => [
             'completed' => get_string('jobstatus_completed', 'aiplacement_modgen'),
             'completedwarnings' => get_string('jobcompletedwarnings', 'aiplacement_modgen'),

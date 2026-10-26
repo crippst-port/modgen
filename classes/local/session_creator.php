@@ -27,7 +27,7 @@
 
 namespace aiplacement_modgen\local;
 
-use aiplacement_modgen\activitytype\registry;
+use aiplacement_modgen\activitytype\learningactivity;
 use context_module;
 
 /**
@@ -150,34 +150,27 @@ class session_creator {
     }
 
     /**
-     * Create a learningactivity module at the start of a session.
+     * Create a learningactivity module at the start of a section.
      *
-     * This is a shared helper to add learning design metadata modules to session subsections.
+     * Shared by weeks (theme_builder) and their session subsections to add learning design metadata.
      *
      * @param int $courseid Course ID
      * @param int $sectionnumber Section number where activity should be created
-     * @param string $sectiontype 'activity' for session subsections
-     * @param string $name Session name
+     * @param string $sectiontype 'section' for weeks, 'activity' for session subsections
+     * @param string $name Activity name
      * @param array $metadata Learningactivity metadata (instructions, duration, learningmode, etc.)
      * @param bool $validate Whether to validate metadata (true for AI-generated, false for manual/Quick Add)
      * @return int|null CM ID of created activity or null on failure
      */
-    private static function create_learningactivity_metadata(
+    public static function create_learningactivity_metadata(
         $courseid,
         $sectionnumber,
         $sectiontype,
         $name,
-        $metadata,
+        $metadata = [],
         $validate = false
     ) {
         global $DB;
-
-        // Get handler.
-        $handler = registry::get_handler('learningactivity');
-        if (!$handler) {
-            // Learningactivity handler not found.
-            return null;
-        }
 
         // Get course.
         $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
@@ -208,7 +201,7 @@ class session_creator {
 
         // Create learningactivity instance.
         try {
-            $instance = new $handler();
+            $instance = new learningactivity();
             $result = $instance->create($activitydata, $course, $sectionnumber);
 
             if ($result && isset($result['cmid'])) {

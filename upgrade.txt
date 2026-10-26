@@ -1,5 +1,30 @@
 === Module Assistant (aiplacement_modgen) Upgrade Notes ===
 
+## Upgrading to Version 0.8.2 (2026-10-26)
+
+### Changed
+
+- Each way of building a structure now needs both its own capability and its own setting:
+  Structure from prompt needs aiplacement/modgen:generatewithprompt and "Enable AI"; Structure from
+  file needs aiplacement/modgen:generatefromtemplate and "Enable structure from file". Before, either
+  capability opened both, and building an approved structure ignored the settings.
+- AI generation now also respects Site administration > AI: it is refused when no enabled provider
+  offers "Generate text", or when that action is switched off for the Module Assistant placement.
+- Quick Add requests are refused while Quick Add is switched off, not only hidden from the menu.
+- Quick Add now changes a course's format to Flexible sections with update_course(), as building
+  from a file or prompt already did, so the change is logged like one made in course settings.
+- The AI policy checkbox must be ticked for the policy to be recorded as accepted.
+
+### Fixed
+
+- Check Structure's circular reference check works on MySQL and MariaDB.
+- A build whose section write fails part way now fails cleanly, instead of failing later with a
+  confusing error and being retried repeatedly.
+- The section limit counts what a build really creates (each week is 4 sections).
+- The job status page keeps watching a job that will be retried. Jobs left waiting for a retry that
+  will never run, and queued jobs whose task has gone, are now marked failed.
+
+
 ## Upgrading to Version 0.8.1 (2026-10-22)
 
 ### Fixed

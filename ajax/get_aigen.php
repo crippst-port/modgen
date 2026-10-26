@@ -40,7 +40,14 @@ require_login($course);
 // Master switch: Site admin > AI > AI placements.
 \aiplacement_modgen\local\settings_helper::require_placement_enabled();
 
-require_capability('moodle/course:view', $context);
+// The same people who can open the list of AI suggestions (aigen_list.php) can see its markers.
+// Not moodle/course:view: that means viewing courses without participating, which teachers lack.
+if (
+    !has_capability('aiplacement/modgen:generatewithprompt', $context)
+    && !has_capability('aiplacement/modgen:generatefromtemplate', $context)
+) {
+    throw new required_capability_exception($context, 'aiplacement/modgen:generatewithprompt', 'nopermissions', '');
+}
 
 header('Content-Type: application/json');
 

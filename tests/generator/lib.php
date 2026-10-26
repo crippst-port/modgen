@@ -61,8 +61,10 @@ class aiplacement_modgen_generator extends component_generator_base {
                 $job->$json = json_encode($job->$json);
             }
         }
-        // A finished job is complete now unless a time was given.
-        if (in_array($job->status, ['completed', 'failed']) && empty($job->timecompleted)) {
+        // A finished job is complete now unless a time was given. A failed job waiting for a retry
+        // is not finished, as when the task records it.
+        $willretry = $job->status === 'failed' && !empty(json_decode((string) $job->result, true)['will_retry']);
+        if (in_array($job->status, ['completed', 'failed']) && empty($job->timecompleted) && !$willretry) {
             $job->timecompleted = $now;
         }
 

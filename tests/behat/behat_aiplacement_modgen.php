@@ -365,4 +365,64 @@ class behat_aiplacement_modgen extends behat_base {
             throw new Exception("The response does not contain '$text'. It starts: " . substr(strip_tags($body), 0, 200));
         }
     }
+
+    /**
+     * Finish the most recent job in a course successfully, as its task would on a later attempt.
+     *
+     * @Given /^the latest structure job in "(?P<course_string>[^"]*)" completes successfully$/
+     * @param string $shortname Course short name.
+     */
+    public function the_latest_structure_job_completes_successfully(string $shortname): void {
+        global $DB;
+
+        $jobs = $DB->get_records('aiplacement_modgen_jobs', ['courseid' => $this->course_id($shortname)], 'id DESC', '*', 0, 1);
+        if (!$jobs) {
+            throw new Exception("There is no structure job in the course '$shortname'.");
+        }
+        $job = reset($jobs);
+        $job->status = 'completed';
+        $job->result = json_encode(['success' => true, 'messages' => ['Section created: Week 1'], 'warnings' => []]);
+        $job->timecompleted = time();
+        $DB->update_record('aiplacement_modgen_jobs', $job);
+    }
+
+    /**
+     * POST straight to one of the plugin's endpoints from the current page, as a crafted request
+     * would, bypassing whatever the UI offers. The course id and the user's sesskey are added.
+     *
+     * @When /^I post "(?P<params_string>[^"]*)" to the modgen endpoint "(?P<path_string>[^"]*)" for "(?P<course_string>[^"]*)"$/
+     * @param string $params Query-string encoded fields, e.g. "action=create_weeks&weekcount=2".
+     * @param string $path Path under /ai/placement/modgen/, e.g. "ajax/create_sections.php".
+     * @param string $shortname Course short name.
+     */
+    public function i_post_to_the_modgen_endpoint(string $params, string $path, string $shortname): void {
+        $courseid = $this->course_id($shortname);
+        $session = $this->getSession();
+        $session->executeScript('window.modgenPostResponse = null;
+            const body = new URLSearchParams(' . json_encode($params) . ');
+            body.set("courseid", ' . $courseid . ');
+            body.set("sesskey", M.cfg.sesskey);
+            fetch(M.cfg.wwwroot + "/ai/placement/modgen/" + ' . json_encode($path) . ', {method: "POST", body: body})
+                .then(r => r.text())
+                .then(t => { window.modgenPostResponse = t; })
+                .catch(e => { window.modgenPostResponse = "FETCH FAILED: " + e; });');
+        $this->spin(
+            fn() => $session->evaluateScript('return window.modgenPostResponse !== null;'),
+            [],
+            behat_base::get_extended_timeout()
+        );
+    }
+
+    /**
+     * Check the body returned by the last "I post ... to the modgen endpoint" step.
+     *
+     * @Then /^the modgen endpoint response should contain "(?P<text_string>[^"]*)"$/
+     * @param string $text Expected text.
+     */
+    public function the_modgen_endpoint_response_should_contain(string $text): void {
+        $body = (string) $this->getSession()->evaluateScript('return window.modgenPostResponse;');
+        if (strpos($body, $text) === false) {
+            throw new Exception("The endpoint response does not contain '$text'. It was: " . substr($body, 0, 300));
+        }
+    }
 }

@@ -33,41 +33,7 @@ use stdClass;
 /**
  * Creates Learning Activity modules for capturing learning design metadata.
  */
-class learningactivity implements activity_type {
-    /**
-     * Flag to exclude this activity from AI generation.
-     * Set to true in the future to allow AI to suggest learning activities.
-     */
-    public const AI_CREATABLE = false;
-
-    /**
-     * Machine-readable identifier for this activity type.
-     *
-     * @return string
-     */
-    public static function get_type(): string {
-        return 'learningactivity';
-    }
-
-    /**
-     * Language string identifier describing this activity type for display to users.
-     *
-     * @return string
-     */
-    public static function get_display_string_id(): string {
-        return 'activitytype_learningactivity';
-    }
-
-    /**
-     * Short natural-language description shared with the AI prompt.
-     *
-     * @return string
-     */
-    public static function get_prompt_description(): string {
-        // Empty description since this should not be shown to AI.
-        return '';
-    }
-
+class learningactivity {
     /**
      * Create the learningactivity module in the requested course section.
      *
@@ -89,10 +55,8 @@ class learningactivity implements activity_type {
         // Sanitize name field to prevent XSS.
         $name = isset($activitydata->name) ? clean_param(trim($activitydata->name), PARAM_TEXT) : '';
 
-        // Enforce maximum length.
-        if (strlen($name) > 255) {
-            $name = substr($name, 0, 255);
-        }
+        // Enforce maximum length, in characters so a multibyte character is never split.
+        $name = \core_text::substr($name, 0, 255);
 
         // If no name, try to infer from section type.
         if ($name === '') {

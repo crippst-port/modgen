@@ -62,6 +62,7 @@ require_login();
 
 // Master switch: Site admin > AI > AI placements.
 \aiplacement_modgen\local\settings_helper::require_placement_enabled();
+\aiplacement_modgen\local\settings_helper::require_quickadd_enabled();
 
 require_sesskey();
 

@@ -46,7 +46,7 @@ class ajax_response {
      * @param mixed $extra Optional extra debug info
      * @return void (terminates script)
      */
-    public static function error(string $message, string $code = null, $extra = null) {
+    public static function error(string $message, ?string $code = null, $extra = null) {
         $response = ['success' => false, 'error' => $message];
         if ($code !== null) {
             $response['code'] = $code;

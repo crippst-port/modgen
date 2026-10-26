@@ -93,8 +93,6 @@ $string['sectioncreated'] = 'Section created: {$a}';
 $string['nosectionscreated'] = 'No sections were created from the AI response.';
 $string['approveandcreate'] = 'Create';
 $string['reenterprompt'] = 'Re-enter prompt';
-$string['aigenlabel'] = 'AI Generated Label';
-$string['aigenquiz'] = 'AI Generated Quiz';
 $string['aigenerated'] = 'AI suggested';
 $string['aigenmarker_tooltip'] = 'Unedited AI suggestion. (This marker is removed after editing)';
 $string['aigen_unedited'] = 'unedited AI suggestions';
@@ -195,7 +193,6 @@ $string['connectedcurriculumcredits'] = 'Module type';
 $string['connectedcurriculuminstruction'] = 'Module credit volume: {$a} credit Connected Curriculum module.';
 
 // Learning activity (metadata module).
-$string['activitytype_learningactivity'] = 'Learning Activity';
 $string['learningactivity_created'] = 'Created learning activity metadata for {$a->name} (type: {$a->type})';
 $string['learningactivity_section'] = 'Section';
 
@@ -207,6 +204,7 @@ $string['timeout'] = 'AI Request Timeout (seconds)';
 $string['timeout_desc'] = 'Maximum time to wait for AI responses before timing out. Default is 300 seconds (5 minutes).';
 $string['airatelimit'] = 'AI Request Rate Limit (per hour)';
 $string['airatelimit_desc'] = 'Maximum number of AI generation requests a user can make per hour. This helps prevent API quota exhaustion and abuse. Default is 10 requests per hour. Set to 0 for unlimited (not recommended).';
+$string['cachedef_ai_requests'] = 'How many AI generation requests each user has made in the current hour, for the rate limit';
 $string['processing'] = 'Processing your request, this may take several minutes...';
 $string['requesttimeout'] = 'Your request is taking longer than expected. Please try with a shorter prompt or try again later.';
 $string['aiprocessing'] = 'AI is generating your module. Please wait...';
@@ -330,7 +328,6 @@ $string['seedetails'] = 'See details';
 $string['returntocourseview'] = 'Return to course';
 $string['placementdisabled'] = 'The Module Assistant is currently disabled. An administrator can enable it in Site administration > General > AI > AI placements.';
 $string['erroracquiringlock'] = 'Could not acquire course lock. Another user may be editing this course.';
-$string['errorconvertingformat'] = 'Could not convert course to flexsections format.';
 $string['introductionsectionname'] = 'Introduction & General Information';
 $string['assessmentssectionname'] = 'Assessments';
 
@@ -379,6 +376,8 @@ $string['enablequickadd_desc'] = 'Show the "New theme" and "New week" options in
 $string['enablestructurefromfile'] = 'Enable Structure from file';
 $string['enablestructurefromfile_desc'] = 'Allow module structures to be built from a CSV file - the "Structure from file" option, the CSV template chooser and the file upload on the generator form. Turning this off leaves AI generation from a prompt available, which is controlled separately by the AI generation setting above.';
 $string['quickadddisabled'] = 'Quick add is currently disabled. An administrator can enable it in the Module Assistant plugin settings.';
+$string['aidisabled'] = 'AI generation is currently disabled. An administrator can enable it in the Module Assistant plugin settings.';
+$string['generationdisabled'] = 'Building a structure is not available to you here: the routes you have permission for are disabled. An administrator can enable them in the Module Assistant plugin settings.';
 $string['structurefromfiledisabled'] = 'Building a structure from a file is currently disabled. An administrator can enable it in the Module Assistant plugin settings.';
 $string['maxquicksections'] = 'Maximum themes or weeks';
 $string['maxquicksections_desc'] = 'Maximum number of themes OR weeks that can be created at once using the quick-add forms. This applies when creating standalone themes or standalone weeks. Default: 30';
@@ -625,6 +624,7 @@ $string['hierarchyflattened'] = 'Hierarchy successfully flattened - all sections
 $string['flattenerror'] = 'Error flattening hierarchy: {$a}';
 
 // Privacy API strings.
+$string['privacy:metadata:core_ai'] = 'Prompts entered in the Module Assistant are sent to the AI subsystem, which records each request and the text generated for it.';
 $string['privacy:metadata:jobs'] = 'Background job records for section creation operations';
 $string['privacy:metadata:jobs:userid'] = 'The ID of the user who queued the creation job';
 $string['privacy:metadata:jobs:courseid'] = 'The ID of the course where sections are being created';
@@ -658,6 +658,7 @@ $string['parentsectiongone'] = 'The section these were to be added inside no lon
 // AI service errors.
 $string['aierror'] = 'AI error: {$a}';
 $string['aierror_empty'] = 'The AI service returned an empty response. The service may be unavailable or not configured.';
+$string['aierror_actionunavailable'] = 'Text generation is not available. An administrator needs to enable an AI provider that offers it, and allow it for the Module Assistant placement.';
 $string['aierror_nosubsystem'] = 'AI subsystem not available';
 $string['aierror_notext'] = 'The AI service did not return any generated text. Response keys: {$a}';
 $string['aierror_policy'] = 'User has not accepted the AI User Policy.';

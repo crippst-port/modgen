@@ -198,7 +198,7 @@ class aiplacement_modgen_generator_form extends moodleform
         $templates = $DB->get_records('aiplacement_modgen_templates', null, 'sortorder ASC');
 
         foreach ($templates as $template) {
-            $description = !empty($template->description) ? ' - ' . substr($template->description, 0, 50) : '';
+            $description = !empty($template->description) ? ' - ' . \core_text::substr($template->description, 0, 50) : '';
             $options[$template->id] = $template->name . $description;
         }
 

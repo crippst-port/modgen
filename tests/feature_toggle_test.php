@@ -143,6 +143,39 @@ final class feature_toggle_test extends advanced_testcase {
     }
 
     /**
+     * The Structure from prompt form is a directly reachable fragment too, so switching AI
+     * off has to refuse it.
+     *
+     * @covers ::aiplacement_modgen_output_fragment_form_template_from_prompt
+     */
+    public function test_prompt_fragment_refuses_while_ai_disabled(): void {
+        $this->set_toggle('enable_ai', 0);
+
+        $this->expectException(moodle_exception::class);
+        $this->expectExceptionMessage(get_string('aidisabled', 'aiplacement_modgen'));
+        \aiplacement_modgen_output_fragment_form_template_from_prompt([
+            'courseid' => $this->course->id,
+            'contextid' => \context_course::instance($this->course->id)->id,
+        ]);
+    }
+
+    /**
+     * With AI on, the same fragment renders.
+     *
+     * @covers ::aiplacement_modgen_output_fragment_form_template_from_prompt
+     */
+    public function test_prompt_fragment_renders_while_ai_enabled(): void {
+        $this->set_toggle('enable_ai', 1);
+
+        $html = \aiplacement_modgen_output_fragment_form_template_from_prompt([
+            'courseid' => $this->course->id,
+            'contextid' => \context_course::instance($this->course->id)->id,
+        ]);
+
+        $this->assertIsString($html);
+    }
+
+    /**
      * Switching Structure from file off must remove the CSV upload field from the generator
      * form, not merely hide the menu entry that leads to it.
      *

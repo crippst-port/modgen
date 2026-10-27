@@ -34,6 +34,19 @@ namespace aiplacement_modgen\local;
  */
 class integrity_checker {
     /**
+     * Whether a stored 'parent' value on section 0 actually names a parent.
+     *
+     * Moodle stores the format's default, 0 (top level), whenever section 0 is edited, so 0 and
+     * empty are no parent. Anything else, including junk, is.
+     *
+     * @param string|null $value Stored value
+     * @return bool
+     */
+    private static function section0_parent_is_set(?string $value): bool {
+        return $value !== null && $value !== '' && $value !== '0';
+    }
+
+    /**
      * Run all integrity checks for a course.
      *
      * @param int $courseid Course ID
@@ -87,7 +100,10 @@ class integrity_checker {
                          WHERE cs.course = ?
                            AND cs.section = 0
                            AND cfo.value IS NOT NULL";
-        $rows = $DB->get_records_sql($section0sql, [$courseid]);
+        $rows = array_filter(
+            $DB->get_records_sql($section0sql, [$courseid]),
+            fn($row) => self::section0_parent_is_set($row->parentval)
+        );
         if (!empty($rows)) {
             $result['issues']['section0_with_parent'] = array_values($rows);
             $result['counts']['section0_with_parent'] = count($rows);
@@ -321,6 +337,9 @@ class integrity_checker {
                                AND cfo.value IS NOT NULL";
             $rows = $DB->get_records_sql($section0sql, [$courseid]);
             foreach ($rows as $row) {
+                if (!self::section0_parent_is_set($row->value)) {
+                    continue;
+                }
                 $DB->delete_records('course_format_options', ['id' => $row->id]);
                 $fixed++;
                 $details[] = get_string('detail_removedsection0parent', 'aiplacement_modgen');

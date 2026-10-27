@@ -643,7 +643,7 @@ class ModalGeneratorComponent extends BaseComponent {
         formData.append('sesskey', M.cfg.sesskey);
 
         // POST to prompt.php. Pending until settled, so Behat waits for the job to be queued.
-        const pendingPromise = new Pending('aiplacement_modgen/prompt_submission');
+        const pendingPromise = new Pending('aiplacement_modgen/modal_generator_reactive:prompt_submission');
         fetch(M.cfg.wwwroot + '/ai/placement/modgen/prompt.php', {
             method: 'POST',
             body: formData,
@@ -1166,7 +1166,7 @@ class ModalGeneratorComponent extends BaseComponent {
             window.modgenCreationInProgress = true;
 
             // POST to AJAX endpoint. Pending until settled, so Behat waits for the job to be queued.
-            const pendingPromise = new Pending('aiplacement_modgen/create_sections');
+            const pendingPromise = new Pending('aiplacement_modgen/modal_generator_reactive:create_sections');
             fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/create_sections.php', {
                 method: 'POST',
                 headers: {

@@ -77,9 +77,10 @@ class theme_builder {
      *
      * @param int $courseid Course ID.
      * @param int $projectedsections Number of sections this operation will add.
+     * @param bool $createassessments Whether the build was asked to add an Assessments section.
      * @throws \moodle_exception If the resulting total would exceed the limit.
      */
-    public static function enforce_section_limit($courseid, $projectedsections) {
+    public static function enforce_section_limit($courseid, $projectedsections, bool $createassessments = true) {
         global $DB;
 
         $max = (int) get_config('aiplacement_modgen', 'maxtotalsections');
@@ -88,7 +89,7 @@ class theme_builder {
         }
 
         $existing = $DB->count_records('course_sections', ['course' => $courseid]);
-        $total = $existing + self::count_core_sections_to_create($courseid) + (int) $projectedsections;
+        $total = $existing + self::count_core_sections_to_create($courseid, $createassessments) + (int) $projectedsections;
 
         if ($total > $max) {
             throw new \moodle_exception('sectionlimitexceeded', 'aiplacement_modgen', '', (object) [
@@ -102,24 +103,15 @@ class theme_builder {
     /**
      * How many sections initialize_core_sections() will add to a course before a build.
      *
-     * Mirrors its rules: nothing once section 0 has a name, otherwise the Assessments section
-     * unless one already exists.
+     * Mirrors its rule: the Assessments section, when the build asks for it and the course has no
+     * assessments section of its own.
      *
      * @param int $courseid Course ID.
+     * @param bool $createassessments Whether the build was asked to add an Assessments section.
      * @return int 0 or 1.
      */
-    private static function count_core_sections_to_create($courseid): int {
-        global $DB;
-
-        $section0name = $DB->get_field('course_sections', 'name', ['course' => $courseid, 'section' => 0]);
-        if (trim((string) $section0name) !== '') {
-            return 0;
-        }
-        $assessmentsexists = $DB->record_exists('course_sections', [
-            'course' => $courseid,
-            'name' => get_string('assessmentssectionname', 'aiplacement_modgen'),
-        ]);
-        return $assessmentsexists ? 0 : 1;
+    private static function count_core_sections_to_create($courseid, bool $createassessments): int {
+        return ($createassessments && self::find_assessments_section($courseid) === null) ? 1 : 0;
     }
 
     /**
@@ -163,13 +155,14 @@ class theme_builder {
      *
      * @param int $courseid Course ID.
      * @param int $projectedsections Number of sections the build will add.
+     * @param bool $createassessments Whether the build was asked to add an Assessments section.
      * @return array Locks, to pass to release_structure_locks().
      * @throws \moodle_exception If a lock cannot be had or the build no longer fits; no lock is held then.
      */
-    public static function acquire_build_locks($courseid, int $projectedsections): array {
+    public static function acquire_build_locks($courseid, int $projectedsections, bool $createassessments = true): array {
         $locks = self::acquire_structure_locks($courseid);
         try {
-            self::enforce_section_limit($courseid, $projectedsections);
+            self::enforce_section_limit($courseid, $projectedsections, $createassessments);
         } catch (\Throwable $e) {
             self::release_structure_locks($locks);
             throw $e;
@@ -237,6 +230,7 @@ class theme_builder {
      * @param int $parent Parent section number (0 = top level, N = nested under section N)
      * @param bool $createsummaryactivities Whether to add the learningactivity summary module to each section
      * @param int|null $parentsectionid Stable parent ID from a queued job; null resolves $parent before waiting for locks
+     * @param bool $createassessments Whether to add an Assessments section if the course has none
      * @return array Result with 'success' boolean and 'messages' array
      */
     public static function create_themes(
@@ -245,7 +239,8 @@ class theme_builder {
         $weeksperthemecount,
         $parent = 0,
         $createsummaryactivities = true,
-        ?int $parentsectionid = null
+        ?int $parentsectionid = null,
+        bool $createassessments = true
     ) {
         global $DB;
 
@@ -253,7 +248,7 @@ class theme_builder {
 
         // Refuse before doing any work if this would push the course past the section limit.
         $projectedsections = self::projected_sections_for_themes((int) $themecount, (int) $weeksperthemecount);
-        self::enforce_section_limit($courseid, $projectedsections);
+        self::enforce_section_limit($courseid, $projectedsections, $createassessments);
 
         // A caller with only a number: pin it to an id now, so a renumbering during the lock wait
         // cannot move the build. The number is only as current as when the caller read it.
@@ -261,13 +256,13 @@ class theme_builder {
 
         // Acquire every lock guarding this course's structure - including the one
         // format_flexsections uses, which the modgen lock alone does not exclude.
-        $locks = self::acquire_build_locks($courseid, $projectedsections);
+        $locks = self::acquire_build_locks($courseid, $projectedsections, $createassessments);
 
         try {
             $parentsectionid = self::check_parent_still_exists($courseid, $parentsectionid, $parent, $messages);
 
             // Ensure flexsections format (must be inside try block to ensure lock release).
-            self::ensure_flexsections_format($courseid);
+            self::ensure_flexsections_format($courseid, $createassessments);
 
             // Get fresh course object after format conversion.
             $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
@@ -398,6 +393,7 @@ class theme_builder {
      * @param int $parent Parent section number (0 = top level, N = nested under section N)
      * @param bool $createsummaryactivities Whether to add the learningactivity summary module to each section
      * @param int|null $parentsectionid Stable parent ID from a queued job; null resolves $parent before waiting for locks
+     * @param bool $createassessments Whether to add an Assessments section if the course has none
      * @return array Result with 'success' boolean and 'messages' array
      */
     public static function create_weeks(
@@ -405,7 +401,8 @@ class theme_builder {
         $weekcount,
         $parent = 0,
         $createsummaryactivities = true,
-        ?int $parentsectionid = null
+        ?int $parentsectionid = null,
+        bool $createassessments = true
     ) {
         global $DB;
 
@@ -413,7 +410,7 @@ class theme_builder {
 
         // Refuse before doing any work if this would push the course past the section limit.
         $projectedsections = self::projected_sections_for_weeks((int) $weekcount);
-        self::enforce_section_limit($courseid, $projectedsections);
+        self::enforce_section_limit($courseid, $projectedsections, $createassessments);
 
         // A caller with only a number: pin it to an id now, so a renumbering during the lock wait
         // cannot move the build. The number is only as current as when the caller read it.
@@ -421,13 +418,13 @@ class theme_builder {
 
         // Acquire every lock guarding this course's structure - including the one
         // format_flexsections uses, which the modgen lock alone does not exclude.
-        $locks = self::acquire_build_locks($courseid, $projectedsections);
+        $locks = self::acquire_build_locks($courseid, $projectedsections, $createassessments);
 
         try {
             $parentsectionid = self::check_parent_still_exists($courseid, $parentsectionid, $parent, $messages);
 
             // Ensure flexsections format (must be inside try block to ensure lock release).
-            self::ensure_flexsections_format($courseid);
+            self::ensure_flexsections_format($courseid, $createassessments);
 
             // Get fresh course object after format conversion.
             $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
@@ -939,41 +936,36 @@ class theme_builder {
     }
 
     /**
-     * Set up section 0 and an Assessments section, once, in a course that has not been set up.
+     * Set up section 0, and the Assessments section when asked for, before a build.
      *
-     * Section 0 is named 'Introduction & General Information' and an 'Assessments' section is
-     * created after it. This happens only while section 0 still has no name of its own, as in a
-     * new course. Once it has one - given here, or by the teacher - the course is left as it is: a
-     * renamed section 0, or an Assessments section the teacher renamed or deleted, is not changed back.
+     * Two independent steps. Section 0 is named 'Introduction & General Information' while it has
+     * no name of its own, as in a new course; a name the teacher gave it is kept. An 'Assessments'
+     * section is added straight after section 0 only when the build asks for one and the course has
+     * no assessments section of its own (find_assessments_section()). This runs under the build
+     * locks, so one added by another build meanwhile is found and not duplicated.
      *
      * @param int $courseid Course ID
+     * @param bool $createassessments Whether to add an Assessments section if the course has none
      */
-    public static function initialize_core_sections($courseid) {
+    public static function initialize_core_sections($courseid, bool $createassessments = true) {
         global $DB;
 
         $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
         $courseformat = course_get_format($course);
 
-        // Get section 0.
+        // Name section 0 while it has no name of its own, as in a new course.
         $section0 = $DB->get_record('course_sections', ['course' => $courseid, 'section' => 0], '*', MUST_EXIST);
-        if (trim((string) $section0->name) !== '') {
-            return;
+        if (trim((string) $section0->name) === '') {
+            $DB->update_record('course_sections', [
+                'id' => $section0->id,
+                'name' => get_string('introductionsectionname', 'aiplacement_modgen'),
+                'timemodified' => time(),
+            ]);
         }
 
-        $DB->update_record('course_sections', [
-            'id' => $section0->id,
-            'name' => get_string('introductionsectionname', 'aiplacement_modgen'),
-            'timemodified' => time(),
-        ]);
-
-        // Create Assessments section if it doesn't exist.
+        // Add Assessments only when asked to and the course has no assessments section of its own.
         $assessmentsname = get_string('assessmentssectionname', 'aiplacement_modgen');
-        $existing = $DB->get_record('course_sections', [
-            'course' => $courseid,
-            'name' => $assessmentsname,
-        ]);
-
-        if (!$existing) {
+        if ($createassessments && self::find_assessments_section($courseid) === null) {
             // Create new section after section 0.
             if (method_exists($courseformat, 'create_new_section')) {
                 // Flexsections format - create at top level using centralized helper.
@@ -1018,9 +1010,10 @@ class theme_builder {
      * is kept only as a fallback for when update_course() leaves the format unchanged.
      *
      * @param int $courseid Course ID
+     * @param bool $createassessments Whether to add an Assessments section if the course has none
      * @throws \moodle_exception If flexsections is not installed or conversion fails
      */
-    public static function ensure_flexsections_format($courseid) {
+    public static function ensure_flexsections_format($courseid, bool $createassessments = true) {
         global $DB;
 
         $course = get_course($courseid, true);
@@ -1044,7 +1037,7 @@ class theme_builder {
             }
         }
 
-        self::initialize_core_sections($courseid);
+        self::initialize_core_sections($courseid, $createassessments);
     }
 
     /**

@@ -327,14 +327,14 @@ final class quick_add_structure_test extends \advanced_testcase {
     }
 
     /**
-     * Once a teacher has changed the sections set up by the first build, later builds leave them
-     * alone: a renamed section 0 keeps its name, and a renamed Assessments section is not added again.
+     * Later builds keep the teacher's names: a renamed section 0 keeps its name, and a renamed
+     * assessments section that still says so is not added again.
      */
     public function test_later_builds_leave_the_teachers_changes_to_section_0_and_assessments(): void {
         global $DB;
         $this->add_themes(1, 1);
         $DB->set_field("course_sections", "name", "Welcome", ["course" => $this->course->id, "section" => 0]);
-        $DB->set_field("course_sections", "name", "Coursework", [
+        $DB->set_field("course_sections", "name", "Assessment and feedback", [
             "course" => $this->course->id,
             "name" => get_string("assessmentssectionname", "aiplacement_modgen"),
         ]);
@@ -346,8 +346,12 @@ final class quick_add_structure_test extends \advanced_testcase {
             "course" => $this->course->id,
             "name" => get_string("assessmentssectionname", "aiplacement_modgen"),
         ]));
-        $this->assertTrue($DB->record_exists("course_sections", ["course" => $this->course->id, "name" => "Coursework"]));
+        $this->assertTrue($DB->record_exists("course_sections", [
+            "course" => $this->course->id,
+            "name" => "Assessment and feedback",
+        ]));
     }
+
     /**
      * If the target section is gone when the job runs, the weeks go to the top level instead.
      */

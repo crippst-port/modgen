@@ -125,4 +125,101 @@ final class assessments_section_test extends \advanced_testcase {
 
         $this->assertNull(theme_builder::find_assessments_section($this->course->id));
     }
+
+    /**
+     * Asked for, with none in the course: added straight after section 0, even when section 0 has a name.
+     */
+    public function test_a_build_adds_assessments_after_section_0_when_asked(): void {
+        global $DB;
+        $DB->set_field('course_sections', 'name', 'Welcome', ['course' => $this->course->id, 'section' => 0]);
+
+        theme_builder::create_weeks($this->course->id, 1, 0, false);
+
+        $assessments = get_string('assessmentssectionname', 'aiplacement_modgen');
+        $this->assertSame('1', (string) $DB->get_field('course_sections', 'section', [
+            'course' => $this->course->id, 'name' => $assessments,
+        ]));
+        $this->assertSame('Welcome', $DB->get_field('course_sections', 'name', [
+            'course' => $this->course->id, 'section' => 0,
+        ]));
+    }
+
+    /**
+     * Not asked for: none added, but an unnamed section 0 is still named.
+     */
+    public function test_a_build_leaves_assessments_out_when_not_asked(): void {
+        global $DB;
+
+        theme_builder::create_weeks($this->course->id, 1, 0, false, null, false);
+
+        $this->assertSame(0, $this->count_named(get_string('assessmentssectionname', 'aiplacement_modgen')));
+        $this->assertSame(
+            get_string('introductionsectionname', 'aiplacement_modgen'),
+            $DB->get_field('course_sections', 'name', ['course' => $this->course->id, 'section' => 0])
+        );
+    }
+
+    /**
+     * Asked for, but the course already has its own: no second one.
+     */
+    public function test_an_existing_assessments_section_is_not_duplicated(): void {
+        $this->add_section('Assessment Information');
+
+        theme_builder::create_weeks($this->course->id, 1, 0, false);
+
+        $this->assertSame(0, $this->count_named(get_string('assessmentssectionname', 'aiplacement_modgen')));
+        $this->assertSame(1, $this->count_named('Assessment Information'));
+    }
+
+    /**
+     * One added by another build while this one waited for its lock is found, not duplicated.
+     */
+    public function test_one_added_while_waiting_for_the_lock_is_not_duplicated(): void {
+        global $CFG;
+        require_once(__DIR__ . '/fixtures/interleaving_lock_factory.php');
+        $CFG->lock_factory = interleaving_lock_factory::class;
+        interleaving_lock_factory::$beforelock = function (): void {
+            $this->add_section(get_string('assessmentssectionname', 'aiplacement_modgen'));
+        };
+
+        try {
+            theme_builder::create_weeks($this->course->id, 1, 0, false);
+        } finally {
+            interleaving_lock_factory::$beforelock = null;
+        }
+
+        $this->assertSame(1, $this->count_named(get_string('assessmentssectionname', 'aiplacement_modgen')));
+    }
+
+    /**
+     * The section limit counts the Assessments section only when the build will add it.
+     */
+    public function test_the_limit_counts_assessments_only_when_it_will_be_added(): void {
+        global $DB;
+        $existing = $DB->count_records('course_sections', ['course' => $this->course->id]);
+        set_config('maxtotalsections', $existing + theme_builder::projected_sections_for_weeks(1), 'aiplacement_modgen');
+
+        // Not asked for: one week fits exactly.
+        theme_builder::enforce_section_limit($this->course->id, theme_builder::projected_sections_for_weeks(1), false);
+
+        // Asked for: the Assessments section takes it one over.
+        $this->expectException(\moodle_exception::class);
+        theme_builder::enforce_section_limit($this->course->id, theme_builder::projected_sections_for_weeks(1), true);
+    }
+
+    /**
+     * The JSON route takes the choice too.
+     */
+    public function test_a_structure_build_leaves_assessments_out_when_not_asked(): void {
+        (new \aiplacement_modgen\local\section_creation_service())->create_sections_from_json(
+            ['sections' => [['title' => 'Week one']]],
+            $this->course->id,
+            'connected_weekly',
+            false,
+            false
+        );
+
+        $this->assertSame(0, $this->count_named(get_string('assessmentssectionname', 'aiplacement_modgen')));
+        $this->assertSame(1, $this->count_named('Week one'));
+    }
 }

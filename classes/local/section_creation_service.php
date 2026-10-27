@@ -46,6 +46,7 @@ class section_creation_service {
      * @param int $courseid Course ID
      * @param string $moduletype Module type (connected_theme, connected_weekly, etc)
      * @param bool $createsummaryactivities Whether to add the learningactivity summary module to each section
+     * @param bool $createassessments Whether to add an Assessments section if the course has none
      * @return array Array with 'results' and 'warnings' keys
      * @throws \moodle_exception If lock acquisition or section creation fails
      */
@@ -53,7 +54,8 @@ class section_creation_service {
         array $json,
         int $courseid,
         string $moduletype,
-        bool $createsummaryactivities = true
+        bool $createsummaryactivities = true,
+        bool $createassessments = true
     ): array {
         global $DB;
 
@@ -65,17 +67,17 @@ class section_creation_service {
         // the section limit (flexsections section creation is ~O(n^2) in total
         // sections). Fails fast and cheap, before locking or creating anything.
         $projectedsections = \aiplacement_modgen\local\theme_builder::count_projected_sections_from_json($json, $moduletype);
-        \aiplacement_modgen\local\theme_builder::enforce_section_limit($courseid, $projectedsections);
+        \aiplacement_modgen\local\theme_builder::enforce_section_limit($courseid, $projectedsections, $createassessments);
 
         // Take the same locks as Quick Add, so builds of either kind, the Check Structure repairs and
         // format_flexsections deletes cannot renumber the course under each other, and recheck the
         // limit under them. Throws before any work, holding no lock: the release in the finally
         // below is reached on every path.
-        $locks = \aiplacement_modgen\local\theme_builder::acquire_build_locks($courseid, $projectedsections);
+        $locks = \aiplacement_modgen\local\theme_builder::acquire_build_locks($courseid, $projectedsections, $createassessments);
 
         try {
             // Ensure course format is flexsections, with its core sections (section 0 and Assessments).
-            \aiplacement_modgen\local\theme_builder::ensure_flexsections_format($courseid);
+            \aiplacement_modgen\local\theme_builder::ensure_flexsections_format($courseid, $createassessments);
 
             $course = get_course($courseid, true);
             $courseformat = course_get_format($course);

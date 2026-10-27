@@ -157,21 +157,31 @@ class create_sections_task extends \core\task\adhoc_task {
 
             $result = null;
 
-            // Recheck the permission for this action: the owner may have lost it since queueing.
-            $context = \context_course::instance($data->courseid);
-            if (in_array($data->action, ['create_themes', 'create_weeks'], true)) {
-                require_capability('aiplacement/modgen:managestructure', $context);
-            } else if ($data->action === 'create_from_json') {
-                if (!has_capability('aiplacement/modgen:generatewithprompt', $context)) {
-                    require_capability('aiplacement/modgen:generatefromtemplate', $context);
-                }
+            // Recheck everything queueing required, as it stands now: the owner may have lost
+            // access to the course, or the route may have been switched off, since queueing.
+            // require_login() cannot run from cron, so check what it would have.
+            $course = get_course($data->courseid);
+            if (!empty($jobuser->suspended) || !empty($jobuser->deleted) || !can_access_course($course)) {
+                throw new \require_login_exception('Job owner can no longer access course ' . $course->id);
             }
+            \aiplacement_modgen\local\permissions::require_build_action(
+                $data->action,
+                \context_course::instance($course->id)
+            );
 
             // Pass the stable ID through to the builder. Resolving it to a number here would
             // lose its identity if the course is renumbered while the builder waits for locks.
-            // Older jobs only have a number; the builder pins that before waiting.
-            $parentsection = (int) ($data->parentsection ?? 0);
-            $parentsectionid = isset($data->parentsectionid) ? (int) $data->parentsectionid : null;
+            if (property_exists($data, 'parentsectionid')) {
+                // Pinned when queued; null or 0 is the top level. Never fall back to the number,
+                // which may name another section by now.
+                $parentsectionid = !empty($data->parentsectionid) ? (int) $data->parentsectionid : null;
+                $parentsection = 0;
+            } else {
+                // Jobs queued before ids were stored only have a number; the builder pins it as
+                // soon as it can, though it may already be out of date.
+                $parentsectionid = null;
+                $parentsection = (int) ($data->parentsection ?? 0);
+            }
 
             // Execute the appropriate creation method based on action.
             if ($data->action === 'create_themes') {

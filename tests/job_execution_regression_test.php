@@ -49,6 +49,12 @@ final class job_execution_regression_test extends \advanced_testcase {
         parent::setUp();
         $this->resetAfterTest();
         $this->setAdminUser();
+        // Queued jobs recheck the switches queueing needed, so open every route.
+        set_config('enabled', 1, 'aiplacement_modgen');
+        set_config('enable_quickadd', 1, 'aiplacement_modgen');
+        set_config('enable_ai', 1, 'aiplacement_modgen');
+        set_config('enable_structurefromfile', 1, 'aiplacement_modgen');
+        \aiplacement_modgen\local\settings_helper::clear_cache();
     }
 
     /**
@@ -262,6 +268,128 @@ final class job_execution_regression_test extends \advanced_testcase {
         $cm = $DB->get_record('course_modules', ['section' => $week->id, 'module' => $moduleid], '*', MUST_EXIST);
         $instructions = $DB->get_field('learningactivity', 'instructions', ['id' => $cm->instance]);
         $this->assertStringContainsString('Activity instructions', $instructions);
+    }
+
+    /**
+     * Instructions that validation reduces to nothing must not cost the week its summary.
+     */
+    public function test_markup_only_instructions_keep_summary(): void {
+        global $DB;
+        if (!\aiplacement_modgen\activitytype\learningactivity::is_available()) {
+            $this->markTestSkipped('mod_learningactivity is not available.');
+        }
+        $course = $this->course();
+        (new section_creation_service())->create_sections_from_json([
+            'sections' => [[
+                'title' => 'My week', 'summary' => 'Summary shown in the preview',
+                'learningactivity_metadata' => ['instructions' => '<p> </p>'],
+            ]],
+        ], $course->id, 'connected_weekly', true);
+        $week = $DB->get_record('course_sections', ['course' => $course->id, 'name' => 'My week'], '*', MUST_EXIST);
+        $this->assertStringContainsString('Summary shown in the preview', $week->summary);
+        $moduleid = $DB->get_field('modules', 'id', ['name' => 'learningactivity']);
+        $this->assertTrue($DB->record_exists('course_modules', ['section' => $week->id, 'module' => $moduleid]));
+    }
+
+    /**
+     * A section that does not exist cannot be queued as a parent: the task would have only a number to go on.
+     */
+    public function test_unknown_parent_is_refused_when_queued(): void {
+        global $DB, $USER;
+        $course = $this->course();
+        $missing = (int) $DB->get_field('course_sections', 'MAX(section)', ['course' => $course->id]) + 5;
+        try {
+            quick_add_service::queue_weeks($course->id, $USER->id, 1, $missing, false);
+            $this->fail('An unknown parent section must be refused.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('invalidparentsection', $e->errorcode);
+        }
+        $this->assertSame(0, $DB->count_records('aiplacement_modgen_jobs'));
+    }
+
+    /**
+     * A job queued with an id never falls back to its section number, which may name another section by now.
+     */
+    public function test_pinned_job_ignores_stale_parent_number(): void {
+        global $DB, $USER;
+        $course = $this->course();
+        $other = theme_builder::create_section_with_parent($course->id, course_get_format($course), 0, 'Other', '', FORMAT_PLAIN);
+        $jobid = job_status_helper::queue_creation_job($course->id, $USER->id, 'create_weeks', [
+            'weekcount' => 1,
+            'parentsection' => $other->section,
+            'parentsectionid' => null,
+            'createsummaryactivities' => false,
+        ]);
+
+        $this->execute_job($jobid);
+        $week = $DB->get_record('course_sections', [
+            'course' => $course->id,
+            'name' => get_string('defaultstandaloneweekname', 'aiplacement_modgen', 1),
+        ], '*', MUST_EXIST);
+        $parent = $DB->get_field('course_format_options', 'value', ['sectionid' => $week->id, 'name' => 'parent']);
+        $this->assertSame(0, (int) $parent);
+        $this->assertSame('completed', $DB->get_field('aiplacement_modgen_jobs', 'status', ['id' => $jobid]));
+    }
+
+    /**
+     * A queued job is refused if its owner lost course access, or its route was switched off, since queueing.
+     *
+     * @dataProvider revoked_access
+     * @param string $change What changes after queueing
+     */
+    public function test_queued_job_rechecks_access_and_switches(string $change): void {
+        global $DB;
+        $course = $this->course();
+        $user = $this->getDataGenerator()->create_user();
+        $this->getDataGenerator()->enrol_user($user->id, $course->id, 'editingteacher');
+        $this->setUser($user);
+        $jobid = job_status_helper::queue_creation_job($course->id, $user->id, 'create_weeks', [
+            'weekcount' => 1, 'createsummaryactivities' => false,
+        ]);
+
+        if ($change === 'suspended') {
+            $DB->set_field('user_enrolments', 'status', ENROL_USER_SUSPENDED, ['userid' => $user->id]);
+        } else {
+            set_config('enable_quickadd', 0, 'aiplacement_modgen');
+        }
+        accesslib_clear_all_caches_for_unit_testing();
+        \aiplacement_modgen\local\settings_helper::clear_cache();
+
+        $before = $DB->count_records('course_sections', ['course' => $course->id]);
+        $this->execute_job($jobid);
+        $this->assertSame($before, $DB->count_records('course_sections', ['course' => $course->id]));
+        $job = $DB->get_record('aiplacement_modgen_jobs', ['id' => $jobid]);
+        $this->assertSame('failed', $job->status);
+        $this->assertFalse(json_decode($job->result, true)['will_retry']);
+        $this->assertDebuggingCalled();
+    }
+
+    /**
+     * Changes after queueing that must stop a job.
+     *
+     * @return array
+     */
+    public static function revoked_access(): array {
+        return ['enrolment suspended' => ['suspended'], 'quick add switched off' => ['quickadd']];
+    }
+
+    /**
+     * The sections a build adds to set up a new course count towards the limit.
+     */
+    public function test_core_sections_count_towards_limit(): void {
+        global $DB;
+        $course = $this->getDataGenerator()->create_course(['format' => 'topics', 'numsections' => 0]);
+        $before = $DB->count_records('course_sections', ['course' => $course->id]);
+        // Room for one week, but not for the Assessments section the build adds first.
+        set_config('maxtotalsections', $before + theme_builder::projected_sections_for_weeks(1), 'aiplacement_modgen');
+
+        try {
+            theme_builder::create_weeks($course->id, 1, 0, false);
+            $this->fail('The build must count the sections it adds to set up the course.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('sectionlimitexceeded', $e->errorcode);
+        }
+        $this->assertSame($before, $DB->count_records('course_sections', ['course' => $course->id]));
     }
 
     /**

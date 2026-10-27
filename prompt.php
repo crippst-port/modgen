@@ -46,24 +46,10 @@ if (!$courseid) {
 // Verify user has access to this course (enrolment, visibility and suspension, not just roles) and can generate content.
 require_login($courseid);
 $context = context_course::instance($courseid);
-$hasprompt = has_capability('aiplacement/modgen:generatewithprompt', $context);
-$hastemplate = has_capability('aiplacement/modgen:generatefromtemplate', $context);
-if (!$hasprompt && !$hastemplate) {
-    throw new required_capability_exception(
-        $context,
-        'aiplacement/modgen:generatefromtemplate',
-        'nopermissions',
-        'error'
-    );
-}
 
 // Each route needs its own capability and its own feature switch. An approved structure can come
 // from either, so building one needs at least one route to be open to this user.
-$canuseprompt = $hasprompt && \aiplacement_modgen\local\settings_helper::is_ai_enabled();
-$canusefile = $hastemplate && \aiplacement_modgen\local\settings_helper::is_structurefromfile_enabled();
-if (!$canuseprompt && !$canusefile) {
-    throw new moodle_exception('generationdisabled', 'aiplacement_modgen');
-}
+\aiplacement_modgen\local\permissions::require_build_action('create_from_json', $context);
 
 // Set page URL early to avoid "page did not call set_url()" errors.
 $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $courseid]));

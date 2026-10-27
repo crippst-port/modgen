@@ -68,4 +68,69 @@ class permissions {
             throw new \required_capability_exception($context, self::BUILD_CAPABILITIES[0], 'nopermissions', '');
         }
     }
+
+    /**
+     * Whether the current user may build from a prompt: the capability, and AI switched on.
+     *
+     * @param \context $context Course context.
+     * @return bool
+     */
+    public static function can_build_from_prompt(\context $context): bool {
+        return has_capability('aiplacement/modgen:generatewithprompt', $context) && settings_helper::is_ai_enabled();
+    }
+
+    /**
+     * Whether the current user may build from a file: the capability, and structure-from-file switched on.
+     *
+     * @param \context $context Course context.
+     * @return bool
+     */
+    public static function can_build_from_file(\context $context): bool {
+        return has_capability('aiplacement/modgen:generatefromtemplate', $context)
+            && settings_helper::is_structurefromfile_enabled();
+    }
+
+    /**
+     * Require that the current user may start a build of one kind in a course right now.
+     *
+     * The one statement of which capability and which switches open each build route, used where a
+     * build is queued and again when its task runs, so the two cannot drift apart. Quick Add
+     * (create_themes, create_weeks) needs the structure capability with Quick Add on. An approved
+     * structure (create_from_json) can come from a prompt or a file, so either route being open
+     * to the user is enough.
+     *
+     * @param string $action Build action: create_themes, create_weeks or create_from_json.
+     * @param \context $context Course context.
+     * @throws \moodle_exception If the placement or route is switched off, or the action is unknown.
+     * @throws \required_capability_exception If the user has no capability for the route.
+     */
+    public static function require_build_action(string $action, \context $context): void {
+        settings_helper::require_placement_enabled();
+
+        if ($action === 'create_themes' || $action === 'create_weeks') {
+            settings_helper::require_quickadd_enabled();
+            require_capability('aiplacement/modgen:managestructure', $context);
+            return;
+        }
+
+        if ($action === 'create_from_json') {
+            if (self::can_build_from_prompt($context) || self::can_build_from_file($context)) {
+                return;
+            }
+            if (
+                !has_capability('aiplacement/modgen:generatewithprompt', $context)
+                && !has_capability('aiplacement/modgen:generatefromtemplate', $context)
+            ) {
+                throw new \required_capability_exception(
+                    $context,
+                    'aiplacement/modgen:generatefromtemplate',
+                    'nopermissions',
+                    ''
+                );
+            }
+            throw new \moodle_exception('generationdisabled', 'aiplacement_modgen');
+        }
+
+        throw new \moodle_exception('invalidaction', 'aiplacement_modgen');
+    }
 }

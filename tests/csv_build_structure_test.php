@@ -59,6 +59,7 @@ final class csv_build_structure_test extends \advanced_testcase {
         $this->resetAfterTest();
         $this->setAdminUser();
         set_config('enable_ai', 0, 'aiplacement_modgen');
+        $this->enable_placement();
         $this->course = $this->flexsections_course();
     }
 
@@ -120,7 +121,8 @@ final class csv_build_structure_test extends \advanced_testcase {
         assign_capability('moodle/course:manageactivities', CAP_ALLOW, $roleid, $context->id);
         assign_capability('mod/learningactivity:addinstance', CAP_ALLOW, $roleid, $context->id);
         $user = $this->getDataGenerator()->create_user();
-        role_assign($roleid, $user->id, $context->id);
+        // Enrolled, as require_login() needs to let them start the build: the job checks access again.
+        $this->getDataGenerator()->enrol_user($user->id, $this->course->id, $roleid);
         $this->setUser($user);
 
         $this->build('weeks.csv', "Week 1,Alpha\n", true);

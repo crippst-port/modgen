@@ -45,6 +45,7 @@ final class integrity_cleanup_test extends \advanced_testcase {
         parent::setUp();
         $this->resetAfterTest();
         $this->setAdminUser();
+        $this->enable_placement();
         $this->course = $this->flexsections_course();
         quick_add_service::queue_themes($this->course->id, $USER->id, 2, 1, 0, false);
         $this->run_jobs();

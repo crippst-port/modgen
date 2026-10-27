@@ -65,8 +65,7 @@ class quick_add_service {
             throw new \moodle_exception('invalidweeksperTheme', 'aiplacement_modgen', '', $maxweeks);
         }
 
-        // Themes + (themes x weeks x 4 sections: the week and its three sessions).
-        $total = $themecount + ($themecount * $weeksperthemecount * 4);
+        $total = theme_builder::projected_sections_for_themes($themecount, $weeksperthemecount);
 
         // Refuse now rather than queue a job that is certain to fail in the background.
         theme_builder::enforce_section_limit($courseid, $total);
@@ -105,8 +104,7 @@ class quick_add_service {
             throw new \moodle_exception('invalidweekcount', 'aiplacement_modgen', '', $maxsections);
         }
 
-        // Weeks + (weeks x 3 session sections).
-        $total = $weekcount + ($weekcount * 3);
+        $total = theme_builder::projected_sections_for_weeks($weekcount);
 
         theme_builder::enforce_section_limit($courseid, $total);
 
@@ -139,7 +137,9 @@ class quick_add_service {
      *
      * @param int $courseid Course id.
      * @param int $sectionnumber Section number, 0 for none.
-     * @return int|null Section id, or null for the top of the course or an unknown section.
+     * @return int|null Section id, or null for the top of the course.
+     * @throws \moodle_exception If the section does not exist: queueing it would leave the task
+     *     to guess from a number that may name another section by the time it runs.
      */
     private static function section_id(int $courseid, int $sectionnumber): ?int {
         global $DB;
@@ -148,6 +148,9 @@ class quick_add_service {
             return null;
         }
         $id = $DB->get_field('course_sections', 'id', ['course' => $courseid, 'section' => $sectionnumber]);
-        return $id ? (int) $id : null;
+        if (!$id) {
+            throw new \moodle_exception('invalidparentsection', 'aiplacement_modgen', '', $sectionnumber);
+        }
+        return (int) $id;
     }
 }

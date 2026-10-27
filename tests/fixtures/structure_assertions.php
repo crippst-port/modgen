@@ -41,6 +41,16 @@ trait aiplacement_modgen_structure_assertions {
     }
 
     /**
+     * Switch the placement and its Quick Add and file routes on: queued jobs recheck them when they run.
+     */
+    protected function enable_placement(): void {
+        set_config('enabled', 1, 'aiplacement_modgen');
+        set_config('enable_quickadd', 1, 'aiplacement_modgen');
+        set_config('enable_structurefromfile', 1, 'aiplacement_modgen');
+        \aiplacement_modgen\local\settings_helper::clear_cache();
+    }
+
+    /**
      * Run the queued background jobs, hiding the task output.
      */
     protected function run_jobs(): void {

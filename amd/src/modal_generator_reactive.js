@@ -78,6 +78,7 @@ import Fragment from 'core/fragment';
 import ModgenModal from 'aiplacement_modgen/modal';
 import Notification from 'core/notification';
 import ModalEvents from 'core/modal_events';
+import Pending from 'core/pending';
 import Templates from 'core/templates';
 import {get_string as getString, get_strings as getStrings} from 'core/str';
 import * as LoadingIndicator from 'aiplacement_modgen/loading_indicator';
@@ -641,7 +642,8 @@ class ModalGeneratorComponent extends BaseComponent {
         formData.append('courseid', this.courseid);
         formData.append('sesskey', M.cfg.sesskey);
 
-        // POST to prompt.php
+        // POST to prompt.php. Pending until settled, so Behat waits for the job to be queued.
+        const pendingPromise = new Pending('aiplacement_modgen/prompt_submission');
         fetch(M.cfg.wwwroot + '/ai/placement/modgen/prompt.php', {
             method: 'POST',
             body: formData,
@@ -724,7 +726,8 @@ class ModalGeneratorComponent extends BaseComponent {
                     window.console.error('Fragment reload failed:', fragmentError);
                     Notification.exception(error);
                 });
-            });
+            })
+            .finally(() => pendingPromise.resolve());
     }
 
     /**
@@ -1162,7 +1165,8 @@ class ModalGeneratorComponent extends BaseComponent {
             // Set flag to warn on navigation
             window.modgenCreationInProgress = true;
 
-            // POST to AJAX endpoint
+            // POST to AJAX endpoint. Pending until settled, so Behat waits for the job to be queued.
+            const pendingPromise = new Pending('aiplacement_modgen/create_sections');
             fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/create_sections.php', {
                 method: 'POST',
                 headers: {
@@ -1236,7 +1240,8 @@ class ModalGeneratorComponent extends BaseComponent {
                             return html;
                         })
                         .catch(Notification.exception);
-                });
+                })
+                .finally(() => pendingPromise.resolve());
         });
     }
 

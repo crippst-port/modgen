@@ -74,6 +74,11 @@ final class adhoc_task_integrity_test extends advanced_testcase {
         parent::setUp();
         $this->resetAfterTest(true);
         $this->setAdminUser();
+        // Queued jobs recheck the switches queueing needed.
+        set_config('enabled', 1, 'aiplacement_modgen');
+        set_config('enable_quickadd', 1, 'aiplacement_modgen');
+        set_config('enable_structurefromfile', 1, 'aiplacement_modgen');
+        \aiplacement_modgen\local\settings_helper::clear_cache();
 
         $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
         theme_builder::ensure_flexsections_format($this->course->id);

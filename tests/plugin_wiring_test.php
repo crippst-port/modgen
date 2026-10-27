@@ -52,7 +52,7 @@ final class plugin_wiring_test extends advanced_testcase {
             $relative = substr($path, strlen($root) + 1);
             if (
                 $file->getExtension() !== $extension
-                || preg_match('#^(tests|node_modules|\.git|amd/build)/#', $relative)
+                || preg_match('#^(tests|docs|node_modules|\.git|amd/build)/#', $relative)
             ) {
                 continue;
             }

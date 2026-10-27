@@ -40,13 +40,37 @@ require_once($CFG->dirroot . '/course/lib.php');
  * Theme builder service class.
  */
 class theme_builder {
+    /** @var int Sections each week adds: the week itself and its three session subsections. */
+    public const SECTIONS_PER_WEEK = 4;
+
+    /**
+     * How many sections a Quick Add theme build will create.
+     *
+     * @param int $themecount Number of themes.
+     * @param int $weekspertheme Number of weeks in each theme.
+     * @return int
+     */
+    public static function projected_sections_for_themes(int $themecount, int $weekspertheme): int {
+        return $themecount + ($themecount * $weekspertheme * self::SECTIONS_PER_WEEK);
+    }
+
+    /**
+     * How many sections a Quick Add week build will create.
+     *
+     * @param int $weekcount Number of weeks.
+     * @return int
+     */
+    public static function projected_sections_for_weeks(int $weekcount): int {
+        return $weekcount * self::SECTIONS_PER_WEEK;
+    }
+
     /**
      * Enforce the per-course total-section safety limit.
      *
-     * Counts the course's existing sections and refuses the operation if adding
-     * $projectedsections would push the total past the configured maximum
-     * ('maxtotalsections', default constants::MAX_TOTAL_SECTIONS). This guards every
-     * creation entry point — Quick Add, template/JSON and any retry — against the
+     * Counts the course's existing sections, plus any that ensure_flexsections_format() will add
+     * before the build, and refuses the operation if adding $projectedsections would push the
+     * total past the configured maximum ('maxtotalsections', default constants::MAX_TOTAL_SECTIONS).
+     * This guards every creation entry point — Quick Add, template/JSON and any retry — against the
      * ~O(n^2) flexsections reorder cost that makes large courses pathologically slow
      * and can exhaust memory. Call this BEFORE acquiring locks or starting work so it
      * fails fast and cheap without creating partial content.
@@ -64,7 +88,7 @@ class theme_builder {
         }
 
         $existing = $DB->count_records('course_sections', ['course' => $courseid]);
-        $total = $existing + (int) $projectedsections;
+        $total = $existing + self::count_core_sections_to_create($courseid) + (int) $projectedsections;
 
         if ($total > $max) {
             throw new \moodle_exception('sectionlimitexceeded', 'aiplacement_modgen', '', (object) [
@@ -73,6 +97,68 @@ class theme_builder {
                 'max' => $max,
             ]);
         }
+    }
+
+    /**
+     * How many sections initialize_core_sections() will add to a course before a build.
+     *
+     * Mirrors its rules: nothing once section 0 has a name, otherwise the Assessments section
+     * unless one already exists.
+     *
+     * @param int $courseid Course ID.
+     * @return int 0 or 1.
+     */
+    private static function count_core_sections_to_create($courseid): int {
+        global $DB;
+
+        $section0name = $DB->get_field('course_sections', 'name', ['course' => $courseid, 'section' => 0]);
+        if (trim((string) $section0name) !== '') {
+            return 0;
+        }
+        $assessmentsexists = $DB->record_exists('course_sections', [
+            'course' => $courseid,
+            'name' => get_string('assessmentssectionname', 'aiplacement_modgen'),
+        ]);
+        return $assessmentsexists ? 0 : 1;
+    }
+
+    /**
+     * Take the structure locks for a build, then check the build still fits in the course.
+     *
+     * The check must come after the locks: a build that held them before us may have used up the
+     * room that an earlier check saw. Every build goes through here so none can skip it.
+     *
+     * @param int $courseid Course ID.
+     * @param int $projectedsections Number of sections the build will add.
+     * @return array Locks, to pass to release_structure_locks().
+     * @throws \moodle_exception If a lock cannot be had or the build no longer fits; no lock is held then.
+     */
+    public static function acquire_build_locks($courseid, int $projectedsections): array {
+        $locks = self::acquire_structure_locks($courseid);
+        try {
+            self::enforce_section_limit($courseid, $projectedsections);
+        } catch (\Throwable $e) {
+            self::release_structure_locks($locks);
+            throw $e;
+        }
+        return $locks;
+    }
+
+    /**
+     * Check, under the build locks, that the section a build was to go inside still exists.
+     *
+     * @param int $courseid Course ID.
+     * @param int|null $parentsectionid Pinned parent section id, null for the top level.
+     * @param int $parent Section number the caller asked for, 0 for the top level.
+     * @param array $messages Build messages; one is added if the parent has gone.
+     * @return int|null The parent section id to build in, null for the top level.
+     */
+    private static function check_parent_still_exists($courseid, ?int $parentsectionid, $parent, array &$messages): ?int {
+        if (($parent > 0 || $parentsectionid) && self::current_section_number($courseid, $parentsectionid) === null) {
+            $messages[] = get_string('parentsectiongone', 'aiplacement_modgen');
+            return null;
+        }
+        return $parentsectionid;
     }
 
     /**
@@ -88,7 +174,7 @@ class theme_builder {
      * @return int Projected number of sections.
      */
     public static function count_projected_sections_from_json(array $json, $moduletype) {
-        $sectionsperweek = 4;
+        $sectionsperweek = self::SECTIONS_PER_WEEK;
         $count = 0;
 
         if ($moduletype === 'connected_theme' && !empty($json['themes']) && is_array($json['themes'])) {
@@ -132,25 +218,20 @@ class theme_builder {
 
         $messages = [];
 
-        // Refuse before doing any work if this would push the course past the section
-        // limit. Each theme is 1 section; each week is 1 + 3 session subsections.
-        $projectedsections = $themecount + ($themecount * $weeksperthemecount * 4);
+        // Refuse before doing any work if this would push the course past the section limit.
+        $projectedsections = self::projected_sections_for_themes((int) $themecount, (int) $weeksperthemecount);
         self::enforce_section_limit($courseid, $projectedsections);
 
-        // Keep identity across a lock wait: another build may renumber the course before we acquire it.
+        // A caller with only a number: pin it to an id now, so a renumbering during the lock wait
+        // cannot move the build. The number is only as current as when the caller read it.
         $parentsectionid = $parentsectionid ?? self::section_id_from_number($courseid, $parent);
 
         // Acquire every lock guarding this course's structure - including the one
         // format_flexsections uses, which the modgen lock alone does not exclude.
-        $locks = self::acquire_structure_locks($courseid);
+        $locks = self::acquire_build_locks($courseid, $projectedsections);
 
         try {
-            // The preflight count may be stale after waiting for another build to finish.
-            self::enforce_section_limit($courseid, $projectedsections);
-            if (($parent > 0 || $parentsectionid) && self::current_section_number($courseid, $parentsectionid) === null) {
-                $parentsectionid = null;
-                $messages[] = get_string('parentsectiongone', 'aiplacement_modgen');
-            }
+            $parentsectionid = self::check_parent_still_exists($courseid, $parentsectionid, $parent, $messages);
 
             // Ensure flexsections format (must be inside try block to ensure lock release).
             self::ensure_flexsections_format($courseid);
@@ -297,23 +378,20 @@ class theme_builder {
 
         $messages = [];
 
-        // Refuse before doing any work if this would push the course past the section
-        // limit. Each week is 1 section + 3 session subsections.
-        self::enforce_section_limit($courseid, $weekcount * 4);
+        // Refuse before doing any work if this would push the course past the section limit.
+        $projectedsections = self::projected_sections_for_weeks((int) $weekcount);
+        self::enforce_section_limit($courseid, $projectedsections);
 
-        // Keep identity across a lock wait, including for callers using the legacy section number.
+        // A caller with only a number: pin it to an id now, so a renumbering during the lock wait
+        // cannot move the build. The number is only as current as when the caller read it.
         $parentsectionid = $parentsectionid ?? self::section_id_from_number($courseid, $parent);
 
         // Acquire every lock guarding this course's structure - including the one
         // format_flexsections uses, which the modgen lock alone does not exclude.
-        $locks = self::acquire_structure_locks($courseid);
+        $locks = self::acquire_build_locks($courseid, $projectedsections);
 
         try {
-            self::enforce_section_limit($courseid, $weekcount * 4);
-            if (($parent > 0 || $parentsectionid) && self::current_section_number($courseid, $parentsectionid) === null) {
-                $parentsectionid = null;
-                $messages[] = get_string('parentsectiongone', 'aiplacement_modgen');
-            }
+            $parentsectionid = self::check_parent_still_exists($courseid, $parentsectionid, $parent, $messages);
 
             // Ensure flexsections format (must be inside try block to ensure lock release).
             self::ensure_flexsections_format($courseid);
@@ -799,8 +877,13 @@ class theme_builder {
                 $weekactivityname,
                 $weekmetadata
             );
-            if ($summarycmid !== null && !empty($weekmetadata['instructions'])) {
-                $DB->set_field('course_sections', 'summary', '', ['id' => $weeksectionid]);
+            // Judge by the instructions the activity was given, after validation: markup-only or
+            // blank instructions are dropped, and the summary must then stay. Clear it through
+            // the format so the section event fires and the cached copy is purged.
+            $validatedmetadata = learningactivity_validator::validate_metadata($weekmetadata);
+            if ($summarycmid !== null && $validatedmetadata['instructions'] !== '') {
+                $weeksectionrecord = $DB->get_record('course_sections', ['id' => $weeksectionid], '*', MUST_EXIST);
+                course_update_section($courseid, $weeksectionrecord, ['summary' => '']);
             }
         }
 

@@ -111,7 +111,8 @@ class learningactivity_validator {
 
         // Instructions (string, sanitize to prevent XSS).
         $instructions = isset($metadata['instructions']) ? (string) $metadata['instructions'] : '';
-        $validated['instructions'] = clean_param($instructions, PARAM_TEXT);
+        // Trimmed after cleaning: markup with no text, such as '<p> </p>', must come out empty.
+        $validated['instructions'] = trim(clean_param($instructions, PARAM_TEXT));
 
         // Enforce maximum length (65535 characters is ample for instructions).
         $validated['instructions'] = \core_text::substr($validated['instructions'], 0, 65535);

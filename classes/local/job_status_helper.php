@@ -40,7 +40,7 @@ class job_status_helper {
     }
 
     /**
-     * Find a queued or failed adhoc section-creation task for a job.
+     * Find the section-creation task that will still run for a job.
      *
      * Moodle stores task custom data as the full JSON payload, not just {"jobid": N},
      * so an exact DB lookup by partial customdata misses legitimate pending tasks.
@@ -49,14 +49,29 @@ class job_status_helper {
      * @return \core\task\adhoc_task|null Matching pending task, if any.
      */
     public static function find_section_creation_task(int $jobid): ?\core\task\adhoc_task {
-        $tasks = \core\task\manager::get_adhoc_tasks('\\aiplacement_modgen\\task\\create_sections_task');
-        foreach ($tasks as $task) {
+        return self::pending_section_creation_tasks()[$jobid] ?? null;
+    }
+
+    /**
+     * Section-creation tasks that Moodle will still run, by job id.
+     *
+     * One pass over the queue. Moodle retains exhausted tasks for inspection but will not run
+     * them again, so they are left out: their jobs will not be retried.
+     *
+     * @return \core\task\adhoc_task[] Tasks keyed by job id.
+     */
+    private static function pending_section_creation_tasks(): array {
+        $pending = [];
+        foreach (\core\task\manager::get_adhoc_tasks('\\aiplacement_modgen\\task\\create_sections_task') as $task) {
+            if ($task->get_attempts_available() === 0) {
+                continue;
+            }
             $data = $task->get_custom_data();
-            if (!empty($data->jobid) && (int)$data->jobid === $jobid) {
-                return $task;
+            if (!empty($data->jobid)) {
+                $pending[(int) $data->jobid] = $task;
             }
         }
-        return null;
+        return $pending;
     }
 
     /**
@@ -275,18 +290,8 @@ class job_status_helper {
 
         // Read the queue before the jobs. A task records its job as finished before its own row is
         // deleted, so a job that finishes in between is already finished when the jobs are read,
-        // rather than looking unfinished with no task left. One pass over the queue, not a lookup per job.
-        $pending = [];
-        foreach (\core\task\manager::get_adhoc_tasks('\\aiplacement_modgen\\task\\create_sections_task') as $task) {
-            // Moodle retains exhausted tasks for inspection, but will not execute them again.
-            if ($task->get_attempts_available() === 0) {
-                continue;
-            }
-            $data = $task->get_custom_data();
-            if (!empty($data->jobid)) {
-                $pending[(int) $data->jobid] = true;
-            }
-        }
+        // rather than looking unfinished with no task left.
+        $pending = self::pending_section_creation_tasks();
 
         $jobs = $DB->get_records_select(
             'aiplacement_modgen_jobs',

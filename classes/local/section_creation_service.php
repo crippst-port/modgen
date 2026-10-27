@@ -68,13 +68,12 @@ class section_creation_service {
         \aiplacement_modgen\local\theme_builder::enforce_section_limit($courseid, $projectedsections);
 
         // Take the same locks as Quick Add, so builds of either kind, the Check Structure repairs and
-        // format_flexsections deletes cannot renumber the course under each other. Throws if a lock
-        // cannot be had, before any work: the release in the finally below is reached on every path.
-        $locks = \aiplacement_modgen\local\theme_builder::acquire_structure_locks($courseid);
+        // format_flexsections deletes cannot renumber the course under each other, and recheck the
+        // limit under them. Throws before any work, holding no lock: the release in the finally
+        // below is reached on every path.
+        $locks = \aiplacement_modgen\local\theme_builder::acquire_build_locks($courseid, $projectedsections);
 
         try {
-            // A build that held the locks before us may have consumed the remaining capacity.
-            \aiplacement_modgen\local\theme_builder::enforce_section_limit($courseid, $projectedsections);
             // Ensure course format is flexsections, with its core sections (section 0 and Assessments).
             \aiplacement_modgen\local\theme_builder::ensure_flexsections_format($courseid);
 

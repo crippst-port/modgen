@@ -43,6 +43,7 @@ final class generated_structure_build_test extends \advanced_testcase {
         parent::setUp();
         $this->resetAfterTest();
         $this->setAdminUser();
+        $this->enable_placement();
         $this->course = $this->flexsections_course();
     }
 

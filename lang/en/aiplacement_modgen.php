@@ -257,6 +257,7 @@ $string['placementdisabled'] = 'The Module Assistant is currently disabled. An a
 $string['erroracquiringlock'] = 'Could not acquire course lock. Another user may be editing this course.';
 $string['introductionsectionname'] = 'Introduction & General Information';
 $string['assessmentssectionname'] = 'Assessments';
+$string['assessmentsectionmatch'] = 'assessment';
 
 // Error messages for exceptions.
 $string['erroroccurred'] = 'Something went wrong. Please try again.';

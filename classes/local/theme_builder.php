@@ -123,6 +123,39 @@ class theme_builder {
     }
 
     /**
+     * Find the course's own assessments section, if it has one.
+     *
+     * A top-level section, other than section 0, whose name contains the word in
+     * 'assessmentsectionmatch' in any case. Nested sections do not count: "Week 3: Peer assessment"
+     * inside a theme is not an assessments section.
+     *
+     * @param int $courseid Course ID.
+     * @return \stdClass|null The first match in course order (id, section, name), or null.
+     */
+    public static function find_assessments_section($courseid): ?\stdClass {
+        global $DB;
+
+        $word = \core_text::strtolower(get_string('assessmentsectionmatch', 'aiplacement_modgen'));
+        $sections = $DB->get_records_sql(
+            "SELECT cs.id, cs.section, cs.name, cfo.value AS parent
+               FROM {course_sections} cs
+          LEFT JOIN {course_format_options} cfo
+                 ON cfo.sectionid = cs.id AND cfo.name = 'parent' AND cfo.format = 'flexsections'
+              WHERE cs.course = ? AND cs.section > 0
+           ORDER BY cs.section ASC",
+            [$courseid]
+        );
+        foreach ($sections as $section) {
+            $toplevel = $section->parent === null || $section->parent === '' || $section->parent === '0';
+            if ($toplevel && \core_text::strpos(\core_text::strtolower((string) $section->name), $word) !== false) {
+                unset($section->parent);
+                return $section;
+            }
+        }
+        return null;
+    }
+
+    /**
      * Take the structure locks for a build, then check the build still fits in the course.
      *
      * The check must come after the locks: a build that held them before us may have used up the

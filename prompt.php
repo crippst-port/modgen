@@ -482,6 +482,8 @@ if ($pdata = $promptform->get_data()) {
 
     // Check if user wants the learningactivity "section summary" placeholders.
     $createsummaryactivities = !empty($pdata->createsummaryactivities);
+    // The forms always submit the Assessments choice; default to adding it as builds did before.
+    $createassessments = (bool) ($pdata->createassessments ?? 1);
 
     $typeinstruction = get_string('moduletypeinstruction_' . $moduletype, 'aiplacement_modgen');
 
@@ -599,6 +601,7 @@ if ($pdata = $promptform->get_data()) {
         'moduletype' => $moduletype,
         'generatedsummary' => $summarytext,
         'createsummaryactivities' => $createsummaryactivities ? 1 : 0,
+        'createassessments' => $createassessments ? 1 : 0,
         'embedded' => $embedded ? 1 : 0,
         'usedaioptions' => !empty($prompt) ? 1 : 0,
     ]);

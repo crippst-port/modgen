@@ -62,6 +62,9 @@ class aiplacement_modgen_prompt_form extends moodleform {
         $mform->addRule('prompt', null, 'required', null, 'client');
         $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
 
+        // Offer an Assessments section, or say which one the course already has.
+        \aiplacement_modgen\local\assessments_choice::add_to_form($mform, (int) $this->_customdata['courseid']);
+
         $this->add_action_buttons(true, get_string('submit', 'aiplacement_modgen'));
     }
 

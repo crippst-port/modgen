@@ -248,4 +248,47 @@ final class assessments_section_test extends \advanced_testcase {
 
         $this->assertSame(1, $this->count_named(get_string('assessmentssectionname', 'aiplacement_modgen')));
     }
+
+    /**
+     * Build a bare form with the choice in it.
+     *
+     * @return \MoodleQuickForm
+     */
+    private function form_with_choice(): \MoodleQuickForm {
+        global $CFG;
+        require_once($CFG->libdir . '/formslib.php');
+        $mform = new \MoodleQuickForm('test', 'post', '');
+        \aiplacement_modgen\local\assessments_choice::add_to_form($mform, $this->course->id);
+        return $mform;
+    }
+
+    /**
+     * With no assessments section the form offers a ticked checkbox.
+     *
+     * @covers \aiplacement_modgen\local\assessments_choice::add_to_form
+     */
+    public function test_the_form_offers_a_ticked_checkbox_when_there_is_none(): void {
+        $mform = $this->form_with_choice();
+
+        $this->assertInstanceOf(\MoodleQuickForm_advcheckbox::class, $mform->getElement('createassessments'));
+        $this->assertEquals(1, $mform->getElement('createassessments')->getValue());
+        $this->assertFalse($mform->elementExists('assessmentsexists'));
+    }
+
+    /**
+     * With one already, the form names it and sends no request for another.
+     *
+     * @covers \aiplacement_modgen\local\assessments_choice::add_to_form
+     */
+    public function test_the_form_names_the_existing_section_instead(): void {
+        $this->add_section('Assessment <b>Information</b>');
+
+        $mform = $this->form_with_choice();
+
+        $this->assertInstanceOf(\MoodleQuickForm_hidden::class, $mform->getElement('createassessments'));
+        $this->assertEquals(0, $mform->getElement('createassessments')->getValue());
+        $html = $mform->getElement('assessmentsexists')->toHtml();
+        $this->assertStringContainsString('Assessment Information', $html);
+        $this->assertStringNotContainsString('<b>', $html);
+    }
 }

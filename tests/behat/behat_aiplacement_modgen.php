@@ -146,6 +146,26 @@ class behat_aiplacement_modgen extends behat_base {
     }
 
     /**
+     * Add a top-level section with a given name straight away, without the browser.
+     *
+     * @Given /^the course "(?P<course_string>[^"]*)" has a top-level section called "(?P<name_string>[^"]*)"$/
+     * @param string $shortname Course short name.
+     * @param string $name Section name.
+     */
+    public function the_course_has_a_top_level_section_called(string $shortname, string $name): void {
+        \core\session\manager::set_user(get_admin());
+        $courseid = $this->course_id($shortname);
+        \aiplacement_modgen\local\theme_builder::create_section_with_parent(
+            $courseid,
+            course_get_format($courseid),
+            0,
+            $name,
+            '',
+            FORMAT_PLAIN
+        );
+    }
+
+    /**
      * Check how many structure jobs a course has queued or run.
      *
      * @Then /^there should be "(?P<count_number>\d+)" structure jobs in "(?P<course_string>[^"]*)"$/

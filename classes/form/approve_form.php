@@ -58,6 +58,9 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->addElement('hidden', 'createsummaryactivities', $this->_customdata['createsummaryactivities'] ?? 0);
         $mform->setType('createsummaryactivities', PARAM_BOOL);
         $mform->setDefault('createsummaryactivities', $this->_customdata['createsummaryactivities'] ?? 0);
+        $mform->addElement('hidden', 'createassessments', $this->_customdata['createassessments'] ?? 1);
+        $mform->setType('createassessments', PARAM_BOOL);
+        $mform->setDefault('createassessments', $this->_customdata['createassessments'] ?? 1);
 
         // Add regenerate button if the user can generate with AI here AND chose AI options (not from template).
         $context = \context_course::instance($this->_customdata['courseid']);

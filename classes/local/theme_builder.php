@@ -117,6 +117,7 @@ class theme_builder {
      * @param int $weeksperthemecount Number of weeks per theme (1-10)
      * @param int $parent Parent section number (0 = top level, N = nested under section N)
      * @param bool $createsummaryactivities Whether to add the learningactivity summary module to each section
+     * @param int|null $parentsectionid Stable parent ID from a queued job; null resolves $parent before waiting for locks
      * @return array Result with 'success' boolean and 'messages' array
      */
     public static function create_themes(
@@ -124,7 +125,8 @@ class theme_builder {
         $themecount,
         $weeksperthemecount,
         $parent = 0,
-        $createsummaryactivities = true
+        $createsummaryactivities = true,
+        ?int $parentsectionid = null
     ) {
         global $DB;
 
@@ -132,21 +134,21 @@ class theme_builder {
 
         // Refuse before doing any work if this would push the course past the section
         // limit. Each theme is 1 section; each week is 1 + 3 session subsections.
-        self::enforce_section_limit($courseid, $themecount + ($themecount * $weeksperthemecount * 4));
+        $projectedsections = $themecount + ($themecount * $weeksperthemecount * 4);
+        self::enforce_section_limit($courseid, $projectedsections);
+
+        // Keep identity across a lock wait: another build may renumber the course before we acquire it.
+        $parentsectionid = $parentsectionid ?? self::section_id_from_number($courseid, $parent);
 
         // Acquire every lock guarding this course's structure - including the one
         // format_flexsections uses, which the modgen lock alone does not exclude.
         $locks = self::acquire_structure_locks($courseid);
 
         try {
-            // Pin the caller's parent to a section ID before ANYTHING renumbers the course.
-            // The number arrives from a form or an adhoc task and is only valid at this
-            // instant; ensure_flexsections_format() below creates the Assessments section
-            // and moves it to position 1, which shifts every number after it. Resolving the
-            // number later would resolve it against the new numbering and attach the new
-            // content to whatever had slid into that position.
-            $parentsectionid = self::section_id_from_number($courseid, $parent);
-            if ($parent > 0 && $parentsectionid === null) {
+            // The preflight count may be stale after waiting for another build to finish.
+            self::enforce_section_limit($courseid, $projectedsections);
+            if (($parent > 0 || $parentsectionid) && self::current_section_number($courseid, $parentsectionid) === null) {
+                $parentsectionid = null;
                 $messages[] = get_string('parentsectiongone', 'aiplacement_modgen');
             }
 
@@ -281,9 +283,16 @@ class theme_builder {
      * @param int $weekcount Number of weeks to create (1-10)
      * @param int $parent Parent section number (0 = top level, N = nested under section N)
      * @param bool $createsummaryactivities Whether to add the learningactivity summary module to each section
+     * @param int|null $parentsectionid Stable parent ID from a queued job; null resolves $parent before waiting for locks
      * @return array Result with 'success' boolean and 'messages' array
      */
-    public static function create_weeks($courseid, $weekcount, $parent = 0, $createsummaryactivities = true) {
+    public static function create_weeks(
+        $courseid,
+        $weekcount,
+        $parent = 0,
+        $createsummaryactivities = true,
+        ?int $parentsectionid = null
+    ) {
         global $DB;
 
         $messages = [];
@@ -292,19 +301,17 @@ class theme_builder {
         // limit. Each week is 1 section + 3 session subsections.
         self::enforce_section_limit($courseid, $weekcount * 4);
 
+        // Keep identity across a lock wait, including for callers using the legacy section number.
+        $parentsectionid = $parentsectionid ?? self::section_id_from_number($courseid, $parent);
+
         // Acquire every lock guarding this course's structure - including the one
         // format_flexsections uses, which the modgen lock alone does not exclude.
         $locks = self::acquire_structure_locks($courseid);
 
         try {
-            // Pin the caller's parent to a section ID before ANYTHING renumbers the course.
-            // The number arrives from a form or an adhoc task and is only valid at this
-            // instant; ensure_flexsections_format() below creates the Assessments section
-            // and moves it to position 1, which shifts every number after it. Resolving the
-            // number later would resolve it against the new numbering and attach the new
-            // content to whatever had slid into that position.
-            $parentsectionid = self::section_id_from_number($courseid, $parent);
-            if ($parent > 0 && $parentsectionid === null) {
+            self::enforce_section_limit($courseid, $weekcount * 4);
+            if (($parent > 0 || $parentsectionid) && self::current_section_number($courseid, $parentsectionid) === null) {
+                $parentsectionid = null;
                 $messages[] = get_string('parentsectiongone', 'aiplacement_modgen');
             }
 
@@ -742,18 +749,14 @@ class theme_builder {
         // Store the title as given; it is escaped when shown (see create_theme_section()).
         $weektitle = trim((string) $title);
 
-        // Prepare metadata for week-level learningactivity.
-        // If metadata includes instructions, use that instead of setting summary on section.
+        // Keep the summary unless an activity carrying the replacement instructions is actually created.
         $weekmetadata = $options['metadata'] ?? [];
-        $usemetadataforintro = !empty($weekmetadata['instructions']);
 
-        // If using metadata for intro, don't set summary on section (leave it minimal/empty).
-        // Otherwise, use the provided summary on the section.
         // Plain text is stored as given and escaped when shown. A caller that has already built
         // sanitised HTML (the weekly import adds an outline list) says so with 'summaryformat'.
         $weeksummaryformat = ($options['summaryformat'] ?? FORMAT_PLAIN) === FORMAT_HTML ? FORMAT_HTML : FORMAT_PLAIN;
         $weeksectionhtml = '';
-        if (!$usemetadataforintro && trim((string) $summary) !== '') {
+        if (trim((string) $summary) !== '') {
             $weeksectionhtml = (string) $summary;
         }
 
@@ -789,13 +792,16 @@ class theme_builder {
                 255
             );
 
-            session_creator::create_learningactivity_metadata(
+            $summarycmid = session_creator::create_learningactivity_metadata(
                 $courseid,
                 self::current_section_number($courseid, $weeksectionid) ?? $weeksectionnum,
                 'section',
                 $weekactivityname,
                 $weekmetadata
             );
+            if ($summarycmid !== null && !empty($weekmetadata['instructions'])) {
+                $DB->set_field('course_sections', 'summary', '', ['id' => $weeksectionid]);
+            }
         }
 
         // Create session subsections using shared helper.

@@ -256,14 +256,14 @@ class job_status_helper {
     }
 
     /**
-     * Finish, as failed, unfinished jobs whose ad-hoc task has disappeared.
+     * Finish, as failed, unfinished jobs whose ad-hoc task has disappeared or exhausted its attempts.
      *
-     * The task is removed from the queue once it succeeds, gives up, or runs out of retries.
-     * A job with no task left will therefore never finish:
+     * Moodle retains exhausted tasks for inspection until its retention period expires.
+     * A job with no task left, or with no attempts remaining, will therefore never finish:
      * - queued or running: it was interrupted (killed process, task deleted);
      * - failed, waiting for a retry (no timecompleted): Moodle stopped retrying it. Its last
      *   error is kept, and it no longer claims it will be retried.
-     * While a matching task exists Moodle owns the retry, so the job is left alone. Sections are
+     * While a matching task has attempts remaining Moodle owns the retry, so the job is left alone. Sections are
      * never re-created: the job is only reported as failed, because an attempt may have built
      * part of it.
      *
@@ -278,6 +278,10 @@ class job_status_helper {
         // rather than looking unfinished with no task left. One pass over the queue, not a lookup per job.
         $pending = [];
         foreach (\core\task\manager::get_adhoc_tasks('\\aiplacement_modgen\\task\\create_sections_task') as $task) {
+            // Moodle retains exhausted tasks for inspection, but will not execute them again.
+            if ($task->get_attempts_available() === 0) {
+                continue;
+            }
             $data = $task->get_custom_data();
             if (!empty($data->jobid)) {
                 $pending[(int) $data->jobid] = true;

@@ -64,10 +64,8 @@ class section_creation_service {
         // Refuse before doing any work if this structure would push the course past
         // the section limit (flexsections section creation is ~O(n^2) in total
         // sections). Fails fast and cheap, before locking or creating anything.
-        \aiplacement_modgen\local\theme_builder::enforce_section_limit(
-            $courseid,
-            \aiplacement_modgen\local\theme_builder::count_projected_sections_from_json($json, $moduletype)
-        );
+        $projectedsections = \aiplacement_modgen\local\theme_builder::count_projected_sections_from_json($json, $moduletype);
+        \aiplacement_modgen\local\theme_builder::enforce_section_limit($courseid, $projectedsections);
 
         // Take the same locks as Quick Add, so builds of either kind, the Check Structure repairs and
         // format_flexsections deletes cannot renumber the course under each other. Throws if a lock
@@ -75,6 +73,8 @@ class section_creation_service {
         $locks = \aiplacement_modgen\local\theme_builder::acquire_structure_locks($courseid);
 
         try {
+            // A build that held the locks before us may have consumed the remaining capacity.
+            \aiplacement_modgen\local\theme_builder::enforce_section_limit($courseid, $projectedsections);
             // Ensure course format is flexsections, with its core sections (section 0 and Assessments).
             \aiplacement_modgen\local\theme_builder::ensure_flexsections_format($courseid);
 

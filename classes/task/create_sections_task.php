@@ -157,22 +157,21 @@ class create_sections_task extends \core\task\adhoc_task {
 
             $result = null;
 
-            // Resolve the target parent from the section ID pinned when the job was queued.
-            // The section NUMBER captured then is not reliable now: format_flexsections
-            // renumbers the whole course on every create/move/delete, and this task can run
-            // minutes later. Fall back to the stored number only for jobs queued before the
-            // id was recorded, and to top level if the section has since been deleted.
-            $parentsection = (int) ($data->parentsection ?? 0);
-            if (!empty($data->parentsectionid)) {
-                $resolved = \aiplacement_modgen\local\theme_builder::current_section_number(
-                    $data->courseid,
-                    (int) $data->parentsectionid
-                );
-                $parentsection = $resolved ?? 0;
-                if ($resolved === null) {
-                    mtrace('Target parent section no longer exists; creating at top level instead.');
+            // Recheck the permission for this action: the owner may have lost it since queueing.
+            $context = \context_course::instance($data->courseid);
+            if (in_array($data->action, ['create_themes', 'create_weeks'], true)) {
+                require_capability('aiplacement/modgen:managestructure', $context);
+            } else if ($data->action === 'create_from_json') {
+                if (!has_capability('aiplacement/modgen:generatewithprompt', $context)) {
+                    require_capability('aiplacement/modgen:generatefromtemplate', $context);
                 }
             }
+
+            // Pass the stable ID through to the builder. Resolving it to a number here would
+            // lose its identity if the course is renumbered while the builder waits for locks.
+            // Older jobs only have a number; the builder pins that before waiting.
+            $parentsection = (int) ($data->parentsection ?? 0);
+            $parentsectionid = isset($data->parentsectionid) ? (int) $data->parentsectionid : null;
 
             // Execute the appropriate creation method based on action.
             if ($data->action === 'create_themes') {
@@ -181,14 +180,16 @@ class create_sections_task extends \core\task\adhoc_task {
                     $data->themecount,
                     $data->weeksperTheme,
                     $parentsection,
-                    $data->createsummaryactivities ?? true
+                    $data->createsummaryactivities ?? true,
+                    $parentsectionid
                 );
             } else if ($data->action === 'create_weeks') {
                 $result = \aiplacement_modgen\local\theme_builder::create_weeks(
                     $data->courseid,
                     $data->weekcount,
                     $parentsection,
-                    $data->createsummaryactivities ?? true
+                    $data->createsummaryactivities ?? true,
+                    $parentsectionid
                 );
             } else if ($data->action === 'create_from_json') {
                 // Template upload workflow - decode parameters and create sections.

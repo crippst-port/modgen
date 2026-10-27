@@ -280,7 +280,8 @@ final class quick_add_structure_test extends \advanced_testcase {
         global $DB, $USER;
         $this->add_themes(2, 1);
         $target = $this->number_of('Theme 2');
-        quick_add_service::queue_weeks($this->course->id, $USER->id, 1, $target, false);
+        // Queued while the course had Assessments, so the form sent no request for another.
+        quick_add_service::queue_weeks($this->course->id, $USER->id, 1, $target, false, false);
 
         // Someone removes the Assessments section before the background job runs; every number shifts.
         $assessments = $DB->get_record('course_sections', [

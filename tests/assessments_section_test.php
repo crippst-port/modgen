@@ -222,4 +222,30 @@ final class assessments_section_test extends \advanced_testcase {
         $this->assertSame(0, $this->count_named(get_string('assessmentssectionname', 'aiplacement_modgen')));
         $this->assertSame(1, $this->count_named('Week one'));
     }
+
+    /**
+     * A Quick Add job queued without the section leaves it out.
+     */
+    public function test_a_queued_job_with_the_choice_off_adds_none(): void {
+        global $USER;
+        \aiplacement_modgen\local\quick_add_service::queue_weeks($this->course->id, $USER->id, 1, 0, false, false);
+        $this->run_jobs();
+
+        $this->assertSame(0, $this->count_named(get_string('assessmentssectionname', 'aiplacement_modgen')));
+    }
+
+    /**
+     * A job queued before the choice existed has no 'createassessments': it adds the section as before.
+     */
+    public function test_an_older_job_without_the_choice_adds_the_section(): void {
+        global $USER;
+        \aiplacement_modgen\local\job_status_helper::queue_creation_job($this->course->id, $USER->id, 'create_weeks', [
+            'weekcount' => 1,
+            'parentsection' => 0,
+            'createsummaryactivities' => false,
+        ]);
+        $this->run_jobs();
+
+        $this->assertSame(1, $this->count_named(get_string('assessmentssectionname', 'aiplacement_modgen')));
+    }
 }

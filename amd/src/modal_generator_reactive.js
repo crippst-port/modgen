@@ -1066,7 +1066,7 @@ class ModalGeneratorComponent extends BaseComponent {
     /**
      * Setup form submission handler for modal forms.
      *
-     * Handles form submission for non-AI workflows (add_theme, add_week):
+     * Handles form submission for non-AI workflows (add_theme, add_week, add_assessments):
      * 1. Intercepts form submit event
      * 2. Determines which button was clicked (submit vs cancel)
      * 3. POSTs to create_sections.php AJAX endpoint
@@ -1139,7 +1139,8 @@ class ModalGeneratorComponent extends BaseComponent {
                 return;
             }
             // Determine action based on form name
-            const action = formName === 'add_theme' ? 'create_themes' : 'create_weeks';
+            const actions = {add_theme: 'create_themes', add_assessments: 'create_assessments'};
+            const action = actions[formName] || 'create_weeks';
 
             // Build params object - start with required params
             const params = {

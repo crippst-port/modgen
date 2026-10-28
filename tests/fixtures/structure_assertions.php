@@ -140,7 +140,7 @@ trait aiplacement_modgen_structure_assertions {
     }
 
     /**
-     * Row for the Assessments section that the first build adds at the top level.
+     * Row for the Assessments section that Quick Add's Assessments entry adds at the top level.
      *
      * @return array
      */

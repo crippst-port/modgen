@@ -49,7 +49,6 @@ Feature: The administrator's structure tools
     And the course "C1" structure should be sound
     And the course "C1" structure should be:
       | name             | parent           |
-      | Assessments      | -                |
       | Theme 1          | -                |
       | Theme 1 - Week 1 | -                |
       | Pre-session      | Theme 1 - Week 1 |
@@ -87,7 +86,7 @@ Feature: The administrator's structure tools
     Then I should see "Hierarchy Analysis"
     And I should see "Analyzing hierarchy for course: Course 1"
     And I should see "Section Hierarchy Tree"
-    And I should see "Section 3: Theme 1 - Week 1"
+    And I should see "Section 2: Theme 1 - Week 1"
 
   Scenario Outline: The hierarchy can be exported in each format
     When I set the field with xpath "(//input[@name='courseid'])[2]" to the id of course "C1"

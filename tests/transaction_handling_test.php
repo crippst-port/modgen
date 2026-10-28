@@ -258,7 +258,6 @@ final class transaction_handling_test extends \advanced_testcase {
         $sectionsafter = $DB->count_records('course_sections', ['course' => $course->id]);
 
         // We expect sections to be created. Don't check exact count since:
-        // - initialize_core_sections() may create Assessments section
         // - Section 0 always exists
         // Just verify that sections WERE created (more than before).
         $this->assertGreaterThan($sectionsbefore, $sectionsafter, 'Sections should have been created');
@@ -317,7 +316,6 @@ final class transaction_handling_test extends \advanced_testcase {
         $sectionsafter = $DB->count_records('course_sections', ['course' => $course->id]);
 
         // We expect sections to be created. Don't check exact count since:
-        // - initialize_core_sections() may create Assessments section
         // Just verify that sections WERE created (more than before).
         $this->assertGreaterThan($sectionsbefore, $sectionsafter, 'Weeks should have been created');
 

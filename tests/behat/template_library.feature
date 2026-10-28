@@ -118,7 +118,6 @@ Feature: The CSV structure library
     And I run all adhoc tasks
     And the course "C1" structure should be:
       | name         | parent       | summary           |
-      | Assessments  | -            |                   |
       | Foundations  | -            | About foundations |
       | Introduction | Foundations  | Intro week        |
       | Pre-session  | Introduction |                   |

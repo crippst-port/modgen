@@ -339,7 +339,6 @@ $approvedjsonparam = optional_param('approvedjson', null, PARAM_RAW);
 $approvedtypeparam = optional_param('moduletype', 'connected_weekly', PARAM_ALPHA);
 $generatedsummaryparam = optional_param('generatedsummary', '', PARAM_RAW);
 $createsummaryactivitiesparam = optional_param('createsummaryactivities', 0, PARAM_BOOL);
-$createassessmentsparam = optional_param('createassessments', 1, PARAM_BOOL);
 if ($approvedjsonparam !== null) {
     $approveform = new aiplacement_modgen_approve_form(null, [
         'courseid' => $courseid,
@@ -347,7 +346,6 @@ if ($approvedjsonparam !== null) {
         'moduletype' => $approvedtypeparam,
         'generatedsummary' => $generatedsummaryparam,
         'createsummaryactivities' => $createsummaryactivitiesparam,
-        'createassessments' => $createassessmentsparam,
         'embedded' => $embedded ? 1 : 0,
     ]);
 }
@@ -368,7 +366,6 @@ if ($approveform && ($adata = $approveform->get_data())) {
 
     $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'connected_weekly';
     $createsummaryactivities = !empty($adata->createsummaryactivities);
-    $createassessments = !empty($adata->createassessments);
 
     // Count sections for display purposes.
     $sectioncount = 0;
@@ -390,8 +387,7 @@ if ($approveform && ($adata = $approveform->get_data())) {
     try {
         \aiplacement_modgen\local\theme_builder::enforce_section_limit(
             $courseid,
-            \aiplacement_modgen\local\theme_builder::count_projected_sections_from_json($json, $moduletype),
-            $createassessments
+            \aiplacement_modgen\local\theme_builder::count_projected_sections_from_json($json, $moduletype)
         );
     } catch (\moodle_exception $e) {
         if ($ajax) {
@@ -406,13 +402,11 @@ if ($approveform && ($adata = $approveform->get_data())) {
         'json' => $json,
         'moduletype' => $moduletype,
         'createsummaryactivities' => $createsummaryactivities,
-        'createassessments' => $createassessments,
     ], [
         // The job row only needs enough to describe the job; the structure itself is in the task data.
         'moduletype' => $moduletype,
         'sectioncount' => $sectioncount,
         'createsummaryactivities' => $createsummaryactivities,
-        'createassessments' => $createassessments,
     ]);
 
     // Return queued response for AJAX.
@@ -482,8 +476,6 @@ if ($pdata = $promptform->get_data()) {
 
     // Check if user wants the learningactivity "section summary" placeholders.
     $createsummaryactivities = !empty($pdata->createsummaryactivities);
-    // The forms always submit the Assessments choice; default to adding it as builds did before.
-    $createassessments = (bool) ($pdata->createassessments ?? 1);
 
     $typeinstruction = get_string('moduletypeinstruction_' . $moduletype, 'aiplacement_modgen');
 
@@ -601,7 +593,6 @@ if ($pdata = $promptform->get_data()) {
         'moduletype' => $moduletype,
         'generatedsummary' => $summarytext,
         'createsummaryactivities' => $createsummaryactivities ? 1 : 0,
-        'createassessments' => $createassessments ? 1 : 0,
         'embedded' => $embedded ? 1 : 0,
         'usedaioptions' => !empty($prompt) ? 1 : 0,
     ]);

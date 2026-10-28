@@ -183,9 +183,6 @@ class create_sections_task extends \core\task\adhoc_task {
                 $parentsection = (int) ($data->parentsection ?? 0);
             }
 
-            // Jobs queued before the choice existed have no flag: they add the section as builds did then.
-            $createassessments = (bool) ($data->createassessments ?? true);
-
             // Execute the appropriate creation method based on action.
             if ($data->action === 'create_themes') {
                 $result = \aiplacement_modgen\local\theme_builder::create_themes(
@@ -194,8 +191,7 @@ class create_sections_task extends \core\task\adhoc_task {
                     $data->weeksperTheme,
                     $parentsection,
                     $data->createsummaryactivities ?? true,
-                    $parentsectionid,
-                    $createassessments
+                    $parentsectionid
                 );
             } else if ($data->action === 'create_weeks') {
                 $result = \aiplacement_modgen\local\theme_builder::create_weeks(
@@ -203,8 +199,7 @@ class create_sections_task extends \core\task\adhoc_task {
                     $data->weekcount,
                     $parentsection,
                     $data->createsummaryactivities ?? true,
-                    $parentsectionid,
-                    $createassessments
+                    $parentsectionid
                 );
             } else if ($data->action === 'create_from_json') {
                 // Template upload workflow - decode parameters and create sections.
@@ -217,8 +212,7 @@ class create_sections_task extends \core\task\adhoc_task {
                     $jsonarray,
                     $data->courseid,
                     $data->moduletype,
-                    $data->createsummaryactivities ?? true,
-                    $createassessments
+                    $data->createsummaryactivities ?? true
                 );
                 $result = [
                     'success' => true,

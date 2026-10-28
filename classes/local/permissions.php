@@ -107,7 +107,7 @@ class permissions {
     public static function require_build_action(string $action, \context $context): void {
         settings_helper::require_placement_enabled();
 
-        if ($action === 'create_themes' || $action === 'create_weeks') {
+        if ($action === 'create_themes' || $action === 'create_weeks' || $action === 'create_assessments') {
             settings_helper::require_quickadd_enabled();
             require_capability('aiplacement/modgen:managestructure', $context);
             return;

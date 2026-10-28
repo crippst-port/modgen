@@ -282,6 +282,37 @@ function aiplacement_modgen_output_fragment_form_add_week(array $args): string {
 }
 
 /**
+ * Fragment callback to render the add_assessments form in a modal.
+ *
+ * Submission is handled via AJAX (ajax/create_sections.php).
+ *
+ * @param array $args Fragment arguments containing courseid
+ * @return string Rendered form HTML
+ */
+function aiplacement_modgen_output_fragment_form_add_assessments(array $args): string {
+    global $PAGE, $CFG;
+
+    // Fragments are reachable directly, so they enforce the placement switch too.
+    \aiplacement_modgen\local\settings_helper::require_placement_enabled();
+    \aiplacement_modgen\local\settings_helper::require_quickadd_enabled();
+
+    require_once($CFG->libdir . '/formslib.php');
+
+    $courseid = clean_param($args['courseid'], PARAM_INT);
+    $contextid = clean_param($args['contextid'] ?? 0, PARAM_INT);
+
+    $context = aiplacement_modgen_fragment_context($courseid, $contextid);
+    require_capability('aiplacement/modgen:managestructure', $context);
+    $PAGE->set_context($context);
+
+    require_once(__DIR__ . '/classes/form/add_assessments_form.php');
+    $form = new \aiplacement_modgen_add_assessments_form(null, ['courseid' => $courseid]);
+    $form->set_data((object) ['courseid' => $courseid]);
+
+    return $form->render();
+}
+
+/**
  * Fragment callback to render the template_from_prompt form in a modal.
  *
  * @param array $args Fragment arguments containing courseid

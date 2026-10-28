@@ -299,7 +299,7 @@ final class removed_features_routes_test extends advanced_testcase {
             array_map(fn($p) => $p->getName(), (new \ReflectionMethod(ai_service::class, 'generate_module'))->getParameters())
         );
         $this->assertSame(
-            ['json', 'courseid', 'moduletype', 'createsummaryactivities', 'createassessments'],
+            ['json', 'courseid', 'moduletype', 'createsummaryactivities'],
             array_map(
                 fn($p) => $p->getName(),
                 (new \ReflectionMethod(section_creation_service::class, 'create_sections_from_json'))->getParameters()

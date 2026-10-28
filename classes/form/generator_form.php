@@ -46,6 +46,9 @@ class aiplacement_modgen_generator_form extends moodleform
             $mform->setType('embedded', PARAM_BOOL);
         }
 
+        // Warn, without refusing, when the module already has content.
+        \aiplacement_modgen\local\existing_content::add_warning($mform, (int) $this->_customdata['courseid']);
+
         // Check if AI is enabled early so we can control visibility.
         $aienabled = get_config('aiplacement_modgen', 'enable_ai');
 
@@ -104,13 +107,13 @@ class aiplacement_modgen_generator_form extends moodleform
             $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
         }
 
-        // Content placement: whether to add an Assessments section, and the learningactivity "section
-        // summary" placeholders (offered only when mod_learningactivity is installed; the help text only
-        // mentions the AI-metadata caveat when AI is enabled).
-        $mform->addElement('header', 'contentplacementheader', get_string('contentplacement', 'aiplacement_modgen'));
-        $mform->setExpanded('contentplacementheader', true);
-        \aiplacement_modgen\local\assessments_choice::add_to_form($mform, (int) $this->_customdata['courseid']);
+        // Content placement header (always visible).
+        // Checkbox to add the learningactivity "section summary" placeholder to each section, offered
+        // only when mod_learningactivity is installed. The help text only mentions the AI-metadata
+        // caveat when AI is enabled.
         if (\aiplacement_modgen\activitytype\learningactivity::is_available()) {
+            $mform->addElement('header', 'contentplacementheader', get_string('contentplacement', 'aiplacement_modgen'));
+            $mform->setExpanded('contentplacementheader', true);
             $mform->addElement(
                 'advcheckbox',
                 'createsummaryactivities',

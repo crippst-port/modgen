@@ -18,12 +18,12 @@
  * AJAX endpoint for creating course sections (themes/weeks).
  *
  * This endpoint handles the quick-add creation of course structure via AJAX.
- * It supports two actions: creating themes (with optional nested weeks) and
- * creating standalone weeks.
+ * It supports three actions: creating themes (with optional nested weeks),
+ * creating standalone weeks, and adding the Assessments section.
  *
  * Expected POST parameters:
  * - courseid (int): Course ID
- * - action (string): 'create_themes' or 'create_weeks'
+ * - action (string): 'create_themes', 'create_weeks' or 'create_assessments'
  * - sesskey (string): Session key for CSRF protection
  * - parentsection (int, optional): Parent section number for nested structure
  *
@@ -74,9 +74,6 @@ $parentsection = optional_param('parentsection', 0, PARAM_INT); // Current secti
 // The Quick Add forms always submit this (advcheckbox, default off); this fallback
 // only applies to callers that omit the field entirely.
 $createsummaryactivities = optional_param('createsummaryactivities', 0, PARAM_BOOL);
-// Whether to add an Assessments section. The forms always submit it (a checkbox, or a hidden 0 when
-// the course already has one); callers that omit it get the section, as builds did before the choice.
-$createassessments = optional_param('createassessments', 1, PARAM_BOOL);
 
 // Verify course access (enrolment, visibility and suspension, not just roles) and permissions.
 require_login($courseid);
@@ -99,8 +96,7 @@ try {
             required_param('themecount', PARAM_INT),
             required_param('weeksperTheme', PARAM_INT),
             $parentsection,
-            $createsummaryactivities,
-            $createassessments
+            $createsummaryactivities
         );
     } else if ($action === 'create_weeks') {
         $queued = quick_add_service::queue_weeks(
@@ -108,9 +104,14 @@ try {
             (int) $USER->id,
             required_param('weekcount', PARAM_INT),
             $parentsection,
-            $createsummaryactivities,
-            $createassessments
+            $createsummaryactivities
         );
+    } else if ($action === 'create_assessments') {
+        // One section, so it is added straight away rather than queued.
+        $section = \aiplacement_modgen\local\theme_builder::add_assessments_section($courseid);
+        ajax_response::success([
+            'message' => get_string('assessmentsadded', 'aiplacement_modgen', $section->name),
+        ]);
     } else {
         ajax_response::error(get_string('invalidaction', 'aiplacement_modgen'), 'invalidaction');
     }

@@ -254,7 +254,7 @@ final class comprehensive_workflow_test extends advanced_testcase {
 
         // Verify total sections with parents.
         // Note: Week creation also creates 3 session subsections per week (pre/session/post).
-        // Total: 2 themes + 3 weeks + (3 weeks × 3 sessions) + 1 assessments = 15 sections.
+        // Total: 2 themes + 3 weeks + (3 weeks × 3 sessions) = 14 sections.
         $count = $this->count_sections_with_parents();
         $this->assertGreaterThanOrEqual(14, $count, 'Should have at least 14 sections with parent fields');
     }
@@ -739,13 +739,12 @@ final class comprehensive_workflow_test extends advanced_testcase {
     /**
      * Test 10: Assessments Section Creation.
      *
-     * @covers \aiplacement_modgen\local\theme_builder::initialize_core_sections
+     * @covers \aiplacement_modgen\local\theme_builder::add_assessments_section
      */
     public function test_assessments_section_has_valid_parent(): void {
         global $DB;
 
-        // Initialize core sections (creates Assessments section).
-        theme_builder::initialize_core_sections($this->course->id);
+        theme_builder::add_assessments_section($this->course->id);
 
         // Get assessments section.
         $assessmentsname = get_string('assessmentssectionname', 'aiplacement_modgen');
@@ -850,12 +849,12 @@ final class comprehensive_workflow_test extends advanced_testcase {
             }
 
             // Verify this course has expected number of sections.
-            // 3 themes + (3 themes × 10 weeks) + (30 weeks × 3 sessions) + 1 assessments = 124 sections.
+            // 3 themes + (3 themes × 10 weeks) + (30 weeks × 3 sessions) = 123 sections.
             $allsections = $DB->get_records('course_sections', ['course' => $course->id]);
             $this->assertGreaterThanOrEqual(
                 34,
                 count($allsections),
-                "Course {$course->shortname} should have at least 34 sections (3 themes + 30 weeks + assessments)"
+                "Course {$course->shortname} should have at least 34 sections (3 themes + 30 weeks)"
             );
             $totalassertions++;
         }

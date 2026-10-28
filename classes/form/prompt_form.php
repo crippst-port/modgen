@@ -39,6 +39,9 @@ class aiplacement_modgen_prompt_form extends moodleform {
         $mform->addElement('hidden', 'courseid', $this->_customdata['courseid']);
         $mform->setType('courseid', PARAM_INT);
 
+        // Warn, without refusing, when the module already has content.
+        \aiplacement_modgen\local\existing_content::add_warning($mform, (int) $this->_customdata['courseid']);
+
         // Add module type selection.
         $moduletypeoptions = [];
 
@@ -61,9 +64,6 @@ class aiplacement_modgen_prompt_form extends moodleform {
         $mform->setType('prompt', PARAM_TEXT);
         $mform->addRule('prompt', null, 'required', null, 'client');
         $mform->addHelpButton('prompt', 'prompt', 'aiplacement_modgen');
-
-        // Offer an Assessments section, or say which one the course already has.
-        \aiplacement_modgen\local\assessments_choice::add_to_form($mform, (int) $this->_customdata['courseid']);
 
         $this->add_action_buttons(true, get_string('submit', 'aiplacement_modgen'));
     }

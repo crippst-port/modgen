@@ -40,7 +40,6 @@ class quick_add_service {
      * @param int $weeksperthemecount Weeks in each theme.
      * @param int $parentsection Section the request was made from (0 at the top of the course).
      * @param bool $createsummaryactivities Whether to create the section summary placeholders.
-     * @param bool $createassessments Whether to add an Assessments section if the course has none.
      * @return array With 'jobid' and 'total' (how many sections the job will create).
      * @throws \moodle_exception If the request is not allowed or would not fit in the course.
      */
@@ -50,8 +49,7 @@ class quick_add_service {
         int $themecount,
         int $weeksperthemecount,
         int $parentsection,
-        bool $createsummaryactivities,
-        bool $createassessments = true
+        bool $createsummaryactivities
     ): array {
         // Themes are top-level containers: refuse them when the request comes from inside a section.
         if ($parentsection > 0) {
@@ -70,7 +68,7 @@ class quick_add_service {
         $total = theme_builder::projected_sections_for_themes($themecount, $weeksperthemecount);
 
         // Refuse now rather than queue a job that is certain to fail in the background.
-        theme_builder::enforce_section_limit($courseid, $total, $createassessments);
+        theme_builder::enforce_section_limit($courseid, $total);
 
         $jobid = job_status_helper::queue_creation_job($courseid, $userid, 'create_themes', [
             'themecount' => $themecount,
@@ -78,7 +76,6 @@ class quick_add_service {
             'parentsection' => $parentsection,
             'parentsectionid' => self::section_id($courseid, $parentsection),
             'createsummaryactivities' => $createsummaryactivities,
-            'createassessments' => $createassessments,
         ]);
 
         return ['jobid' => $jobid, 'total' => $total];
@@ -92,7 +89,6 @@ class quick_add_service {
      * @param int $weekcount Number of weeks.
      * @param int $parentsection Section to add the weeks within (0 for the top of the course).
      * @param bool $createsummaryactivities Whether to create the section summary placeholders.
-     * @param bool $createassessments Whether to add an Assessments section if the course has none.
      * @return array With 'jobid' and 'total' (how many sections the job will create).
      * @throws \moodle_exception If the request is not allowed or would not fit in the course.
      */
@@ -101,8 +97,7 @@ class quick_add_service {
         int $userid,
         int $weekcount,
         int $parentsection,
-        bool $createsummaryactivities,
-        bool $createassessments = true
+        bool $createsummaryactivities
     ): array {
         $maxsections = self::max_quick_sections();
         if ($weekcount < 1 || $weekcount > $maxsections) {
@@ -111,14 +106,13 @@ class quick_add_service {
 
         $total = theme_builder::projected_sections_for_weeks($weekcount);
 
-        theme_builder::enforce_section_limit($courseid, $total, $createassessments);
+        theme_builder::enforce_section_limit($courseid, $total);
 
         $jobid = job_status_helper::queue_creation_job($courseid, $userid, 'create_weeks', [
             'weekcount' => $weekcount,
             'parentsection' => $parentsection,
             'parentsectionid' => self::section_id($courseid, $parentsection),
             'createsummaryactivities' => $createsummaryactivities,
-            'createassessments' => $createassessments,
         ]);
 
         return ['jobid' => $jobid, 'total' => $total];

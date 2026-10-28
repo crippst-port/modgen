@@ -257,10 +257,12 @@ $string['placementdisabled'] = 'The Module Assistant is currently disabled. An a
 $string['erroracquiringlock'] = 'Could not acquire course lock. Another user may be editing this course.';
 $string['introductionsectionname'] = 'Introduction & General Information';
 $string['assessmentssectionname'] = 'Assessments';
-$string['assessmentsectionmatch'] = 'assessment';
-$string['assessmentsexists'] = 'This course already has an assessments section, "{$a}", so a new one will not be added.';
-$string['createassessments'] = 'Add an Assessments section';
-$string['createassessments_help'] = 'Adds a section called Assessments at the top of the course, straight after section 0. It is only offered when the course has no top-level section with "assessment" in its name.';
+$string['newassessments'] = 'Assessments section';
+$string['addassessmentsintro'] = 'This adds a section called "Assessments" at the top of the course, straight after section 0.';
+$string['addassessmentsbutton'] = 'Add section';
+$string['assessmentsadded'] = 'The "{$a}" section has been added.';
+$string['assessmentsexists'] = 'This course already has a section called "{$a}".';
+$string['existingcontentwarning'] = 'This module already has some content. A new structure is added alongside what is already here, not in place of it, so we advise deleting the existing content before you continue.';
 
 // Error messages for exceptions.
 $string['erroroccurred'] = 'Something went wrong. Please try again.';

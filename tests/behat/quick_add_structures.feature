@@ -34,7 +34,6 @@ Feature: Quick Add builds the expected course structure
     And I run all adhoc tasks
     And the course "C1" structure should be:
       | name             | parent           | collapsed | activities | depth |
-      | Assessments      | -                | 0         | 0          | 1     |
       | Theme 1          | -                | 1         | 0          | 1     |
       | Theme 1 - Week 1 | Theme 1          | 1         | 0          | 2     |
       | Pre-session      | Theme 1 - Week 1 | 0         | 0          | 3     |
@@ -55,7 +54,7 @@ Feature: Quick Add builds the expected course structure
     And I set the field "How many weeks per theme?" to "1"
     And I click on "Create" "button" in the ".modal-footer" "css_element"
     And I run all adhoc tasks
-    Then the course "C1" should have "16" sections
+    Then the course "C1" should have "15" sections
     And the course "C1" structure should be sound
 
   Scenario: The summary activities option puts an activity in every week and session
@@ -70,7 +69,6 @@ Feature: Quick Add builds the expected course structure
     And I run all adhoc tasks
     Then the course "C1" structure should be:
       | name             | parent           | activities | activitynames       |
-      | Assessments      | -                | 0          |                     |
       | Theme 1          | -                | 0          |                     |
       | Theme 1 - Week 1 | Theme 1          | 1          | Theme 1 - Week 1    |
       | Pre-session      | Theme 1 - Week 1 | 1          | Pre-session activity  |
@@ -89,7 +87,6 @@ Feature: Quick Add builds the expected course structure
     And I run all adhoc tasks
     And the course "C1" structure should be:
       | name         | parent | collapsed | depth |
-      | Assessments  | -      | 0         | 1     |
       | Week 1       | -      | 1         | 1     |
       | Pre-session  | Week 1 | 0         | 2     |
       | Session      | Week 1 | 0         | 2     |
@@ -117,7 +114,6 @@ Feature: Quick Add builds the expected course structure
     And I run all adhoc tasks
     Then the course "C1" structure should be:
       | name             | parent           | depth |
-      | Assessments      | -                | 1     |
       | Theme 1          | -                | 1     |
       | Theme 1 - Week 1 | Theme 1          | 2     |
       | Pre-session      | Theme 1 - Week 1 | 3     |
@@ -141,7 +137,6 @@ Feature: Quick Add builds the expected course structure
     And I run all adhoc tasks
     Then the course "C1" structure should be:
       | name             | parent           | depth |
-      | Assessments      | -                | 1     |
       | Week 1           | -                | 1     |
       | Pre-session      | Week 1           | 2     |
       | Session          | Week 1           | 2     |
@@ -165,7 +160,6 @@ Feature: Quick Add builds the expected course structure
     And I run all adhoc tasks
     Then the course "C1" structure should be:
       | name             | parent           | depth |
-      | Assessments      | -                | 1     |
       | Theme 1          | -                | 1     |
       | Theme 1 - Week 1 | Theme 1          | 2     |
       | Pre-session      | Theme 1 - Week 1 | 3     |
@@ -181,3 +175,25 @@ Feature: Quick Add builds the expected course structure
       | Session          | Theme 2 - Week 1 | 3     |
       | Post-session     | Theme 2 - Week 1 | 3     |
     And the course "C1" structure should be sound
+
+  Scenario: The Assessments section is added only from its own Quick Add entry, and only once
+    Given the course "C1" has "1" standalone weeks
+    And I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    When I click on "Quick Add" "link"
+    And I click on "Assessments section" "link"
+    And I click on "Add section" "button" in the ".modal-footer" "css_element"
+    Then I should see "section has been added"
+    And the course "C1" structure should be:
+      | name         | parent | depth |
+      | Assessments  | -      | 1     |
+      | Week 1       | -      | 1     |
+      | Pre-session  | Week 1 | 2     |
+      | Session      | Week 1 | 2     |
+      | Post-session | Week 1 | 2     |
+    And the course "C1" structure should be sound
+    And I am on the "Course 1" "course" page
+    And I click on "Quick Add" "link"
+    And I click on "Assessments section" "link"
+    And I click on "Add section" "button" in the ".modal-footer" "css_element"
+    And I should see "already has a section called"

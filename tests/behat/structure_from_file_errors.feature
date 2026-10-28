@@ -74,7 +74,7 @@ Feature: Structure from file refuses what it cannot build
     And I press "Create"
     Then I should see "That's too many sections to create at once"
     And there should be "0" structure jobs in "C1"
-    And the course "C1" should have "6" sections
+    And the course "C1" should have "5" sections
 
   Scenario Outline: Files that are not CSV files are not accepted by the file picker
     Given I open the Structure from file form in "C1" as "teacher1"

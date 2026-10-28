@@ -374,22 +374,18 @@ final class job_execution_regression_test extends \advanced_testcase {
     }
 
     /**
-     * The sections a build adds to set up a new course count towards the limit.
+     * Setting up a new course adds no sections of its own, so a build that exactly fills the limit goes ahead.
      */
-    public function test_core_sections_count_towards_limit(): void {
+    public function test_set_up_adds_no_sections_beyond_the_build(): void {
         global $DB;
         $course = $this->getDataGenerator()->create_course(['format' => 'topics', 'numsections' => 0]);
         $before = $DB->count_records('course_sections', ['course' => $course->id]);
-        // Room for one week, but not for the Assessments section the build adds first.
-        set_config('maxtotalsections', $before + theme_builder::projected_sections_for_weeks(1), 'aiplacement_modgen');
+        $projected = theme_builder::projected_sections_for_weeks(1);
+        set_config('maxtotalsections', $before + $projected, 'aiplacement_modgen');
 
-        try {
-            theme_builder::create_weeks($course->id, 1, 0, false);
-            $this->fail('The build must count the sections it adds to set up the course.');
-        } catch (\moodle_exception $e) {
-            $this->assertSame('sectionlimitexceeded', $e->errorcode);
-        }
-        $this->assertSame($before, $DB->count_records('course_sections', ['course' => $course->id]));
+        theme_builder::create_weeks($course->id, 1, 0, false);
+
+        $this->assertSame($before + $projected, $DB->count_records('course_sections', ['course' => $course->id]));
     }
 
     /**

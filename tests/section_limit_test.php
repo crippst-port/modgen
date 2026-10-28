@@ -189,8 +189,6 @@ final class section_limit_test extends advanced_testcase {
      */
     public function test_json_projection_matches_a_real_build(array $json, string $moduletype): void {
         set_config('maxtotalsections', 1000, 'aiplacement_modgen');
-        // The first build also adds the Assessments section; do that first so only the build is counted.
-        theme_builder::initialize_core_sections($this->course->id);
         $before = $this->total_sections();
 
         (new section_creation_service())->create_sections_from_json($json, $this->course->id, $moduletype, false);

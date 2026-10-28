@@ -79,14 +79,13 @@ final class generated_structure_build_test extends \advanced_testcase {
 
         $this->assertSame('completed', $job->status);
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows('Energy', ['Forces', 'Work'], 0)
         ));
         $rows = \aiplacement_modgen_structure_snapshot::rows($this->course->id);
-        $this->assertSame('', $rows[1]['summary']);
-        $this->assertSame('How things move', $rows[2]['summary']);
-        $this->assertSame(['Forces pre', 'Forces during', 'Forces post'], array_column(array_slice($rows, 3, 3), 'summary'));
-        $this->assertSame(['Work pre', 'Work during', 'Work post'], array_column(array_slice($rows, 7, 3), 'summary'));
+        $this->assertSame('', $rows[0]['summary']);
+        $this->assertSame('How things move', $rows[1]['summary']);
+        $this->assertSame(['Forces pre', 'Forces during', 'Forces post'], array_column(array_slice($rows, 2, 3), 'summary'));
+        $this->assertSame(['Work pre', 'Work during', 'Work post'], array_column(array_slice($rows, 6, 3), 'summary'));
         $this->assert_sound($this->course->id);
     }
 
@@ -109,7 +108,6 @@ final class generated_structure_build_test extends \advanced_testcase {
 
         $this->assertSame('completed', $job->status);
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->week_rows('Cells', '-', 0),
             $this->week_rows('Genetics', '-', 0)
         ));
@@ -122,8 +120,8 @@ final class generated_structure_build_test extends \advanced_testcase {
         $this->assertEquals(FORMAT_HTML, $cells->summaryformat);
 
         $rows = \aiplacement_modgen_structure_snapshot::rows($this->course->id);
-        $this->assertSame(['Cells pre', 'Cells during', 'Cells post'], array_column(array_slice($rows, 2, 3), 'summary'));
-        $this->assertSame(['', '', ''], array_column(array_slice($rows, 6, 3), 'summary'));
+        $this->assertSame(['Cells pre', 'Cells during', 'Cells post'], array_column(array_slice($rows, 1, 3), 'summary'));
+        $this->assertSame(['', '', ''], array_column(array_slice($rows, 5, 3), 'summary'));
         $this->assert_sound($this->course->id);
     }
 
@@ -164,11 +162,11 @@ final class generated_structure_build_test extends \advanced_testcase {
         $this->build_structure($this->course->id, $json, 'connected_theme', true);
 
         $rows = \aiplacement_modgen_structure_snapshot::rows($this->course->id);
-        $this->assertSame(['Forces overview'], $rows[2]['activitynames']);
-        $this->assertSame(['Read first'], $rows[3]['activitynames']);
+        $this->assertSame(['Forces overview'], $rows[1]['activitynames']);
+        $this->assertSame(['Read first'], $rows[2]['activitynames']);
         $default = get_string('sessionactivityname', 'aiplacement_modgen', get_string('session', 'aiplacement_modgen'));
-        $this->assertSame([$default], $rows[4]['activitynames']);
-        $this->assertSame(['Reflect'], $rows[5]['activitynames']);
+        $this->assertSame([$default], $rows[3]['activitynames']);
+        $this->assertSame(['Reflect'], $rows[4]['activitynames']);
         $this->assert_sound($this->course->id);
     }
 
@@ -184,9 +182,9 @@ final class generated_structure_build_test extends \advanced_testcase {
         $this->build_structure($this->course->id, $json, 'connected_theme');
 
         $rows = \aiplacement_modgen_structure_snapshot::rows($this->course->id);
-        $this->assertSame('Safe alert(1)theme', $rows[1]['name']);
-        $this->assertSame('Bold week', $rows[2]['name']);
-        $this->assertStringNotContainsString('script', $rows[2]['summary']);
+        $this->assertSame('Safe alert(1)theme', $rows[0]['name']);
+        $this->assertSame('Bold week', $rows[1]['name']);
+        $this->assertStringNotContainsString('script', $rows[1]['summary']);
         $this->assert_sound($this->course->id);
     }
 
@@ -203,7 +201,6 @@ final class generated_structure_build_test extends \advanced_testcase {
 
         $this->assertSame('completed', $job->status);
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows('Real theme', ['Real week'], 0)
         ));
     }
@@ -222,6 +219,6 @@ final class generated_structure_build_test extends \advanced_testcase {
         $this->course = $empty;
         $job = $this->build_structure($empty->id, ['themes' => []], 'connected_theme');
         $this->assertSame('completed', $job->status);
-        $this->assert_structure($empty->id, [$this->assessments_row()]);
+        $this->assert_structure($empty->id, []);
     }
 }

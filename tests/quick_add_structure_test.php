@@ -104,13 +104,12 @@ final class quick_add_structure_test extends \advanced_testcase {
     }
 
     /**
-     * One theme with one week: the theme, its week and the week's three sessions, plus Assessments.
+     * One theme with one week: the theme, its week and the week's three sessions.
      */
     public function test_one_theme_with_one_week(): void {
         $this->add_themes(1, 1);
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows('Theme 1', ['Theme 1 - Week 1'], 0)
         ));
         $this->assert_sound($this->course->id);
@@ -125,7 +124,7 @@ final class quick_add_structure_test extends \advanced_testcase {
         $themesummary = get_string('defaultthemesummary', 'aiplacement_modgen');
         $weeksummary = get_string('defaultweeksummary', 'aiplacement_modgen');
         $expected = $this->theme_rows('Theme 1', ['Theme 1 - Week 1'], 0, $themesummary, $weeksummary);
-        $this->assert_structure($this->course->id, array_merge([$this->assessments_row()], $expected));
+        $this->assert_structure($this->course->id, $expected);
 
         $rows = \aiplacement_modgen_structure_snapshot::rows($this->course->id);
         $sessions = array_filter($rows, fn($row) => $row['depth'] === 3);
@@ -141,7 +140,7 @@ final class quick_add_structure_test extends \advanced_testcase {
     public function test_several_themes_with_several_weeks(): void {
         $this->add_themes(3, 2);
 
-        $expected = [$this->assessments_row()];
+        $expected = [];
         for ($t = 1; $t <= 3; $t++) {
             $expected = array_merge($expected, $this->theme_rows(
                 "Theme $t",
@@ -163,8 +162,8 @@ final class quick_add_structure_test extends \advanced_testcase {
         $this->add_themes(4, 3);
 
         $rows = \aiplacement_modgen_structure_snapshot::rows($this->course->id);
-        // Assessments + 4 themes + 12 weeks + 36 sessions.
-        $this->assertCount(1 + 4 + 12 + 36, $rows);
+        // 4 themes + 12 weeks + 36 sessions.
+        $this->assertCount(4 + 12 + 36, $rows);
         $this->assert_sound($this->course->id);
     }
 
@@ -175,7 +174,6 @@ final class quick_add_structure_test extends \advanced_testcase {
         $this->add_themes(1, 2, true);
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows('Theme 1', ['Theme 1 - Week 1', 'Theme 1 - Week 2'], 1)
         ));
         $this->assert_sound($this->course->id);
@@ -187,7 +185,7 @@ final class quick_add_structure_test extends \advanced_testcase {
     public function test_weeks_only(): void {
         $this->add_weeks(3);
 
-        $expected = [$this->assessments_row()];
+        $expected = [];
         foreach ([1, 2, 3] as $w) {
             $expected = array_merge($expected, $this->week_rows("Week $w", '-', 0));
         }
@@ -203,7 +201,6 @@ final class quick_add_structure_test extends \advanced_testcase {
 
         $weeksummary = get_string('defaultweeksummary', 'aiplacement_modgen');
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->week_rows('Week 1', '-', 1, $weeksummary),
             $this->week_rows('Week 2', '-', 1, $weeksummary)
         ));
@@ -217,7 +214,6 @@ final class quick_add_structure_test extends \advanced_testcase {
         $this->add_weeks(2);
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows('Theme 1', ['Theme 1 - Week 1'], 0),
             $this->theme_rows('Theme 2', ['Theme 2 - Week 1'], 0),
             $this->week_rows('Week 1', '-', 0),
@@ -234,7 +230,6 @@ final class quick_add_structure_test extends \advanced_testcase {
         $this->add_themes(1, 2);
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->week_rows('Week 1', '-', 0),
             $this->theme_rows('Theme 1', ['Theme 1 - Week 1', 'Theme 1 - Week 2'], 0)
         ));
@@ -249,7 +244,6 @@ final class quick_add_structure_test extends \advanced_testcase {
         $this->add_themes(1, 1);
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows('Theme 1', ['Theme 1 - Week 1'], 0),
             $this->theme_rows('Theme 1', ['Theme 1 - Week 1'], 0)
         ));
@@ -264,7 +258,6 @@ final class quick_add_structure_test extends \advanced_testcase {
         $this->add_weeks(1, false, $this->number_of('Theme 1'));
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             [$this->theme_rows('Theme 1', ['Theme 1 - Week 1'], 0)[0]],
             $this->week_rows('Theme 1 - Week 1', 'Theme 1', 0),
             $this->week_rows('Week 1', 'Theme 1', 0),
@@ -279,9 +272,9 @@ final class quick_add_structure_test extends \advanced_testcase {
     public function test_target_section_survives_renumbering_before_the_job_runs(): void {
         global $DB, $USER;
         $this->add_themes(2, 1);
+        \aiplacement_modgen\local\theme_builder::add_assessments_section($this->course->id);
         $target = $this->number_of('Theme 2');
-        // Queued while the course had Assessments, so the form sent no request for another.
-        quick_add_service::queue_weeks($this->course->id, $USER->id, 1, $target, false, false);
+        quick_add_service::queue_weeks($this->course->id, $USER->id, 1, $target, false);
 
         // Someone removes the Assessments section before the background job runs; every number shifts.
         $assessments = $DB->get_record('course_sections', [
@@ -328,31 +321,74 @@ final class quick_add_structure_test extends \advanced_testcase {
     }
 
     /**
-     * Later builds keep the teacher's names: a renamed section 0 keeps its name, and a renamed
-     * assessments section that still says so is not added again.
+     * Builds never add an Assessments section, and a name the teacher gave section 0 is kept.
      */
-    public function test_later_builds_leave_the_teachers_changes_to_section_0_and_assessments(): void {
+    public function test_builds_add_no_assessments_section_and_keep_section_0s_name(): void {
         global $DB;
         $this->add_themes(1, 1);
-        $DB->set_field("course_sections", "name", "Welcome", ["course" => $this->course->id, "section" => 0]);
-        $DB->set_field("course_sections", "name", "Assessment and feedback", [
-            "course" => $this->course->id,
-            "name" => get_string("assessmentssectionname", "aiplacement_modgen"),
-        ]);
+        $DB->set_field('course_sections', 'name', 'Welcome', ['course' => $this->course->id, 'section' => 0]);
 
-        $this->add_themes(1, 1);
+        $this->add_weeks(1);
 
-        $this->assertSame("Welcome", $DB->get_field("course_sections", "name", ["course" => $this->course->id, "section" => 0]));
-        $this->assertFalse($DB->record_exists("course_sections", [
-            "course" => $this->course->id,
-            "name" => get_string("assessmentssectionname", "aiplacement_modgen"),
-        ]));
-        $this->assertTrue($DB->record_exists("course_sections", [
-            "course" => $this->course->id,
-            "name" => "Assessment and feedback",
+        $this->assertSame('Welcome', $DB->get_field('course_sections', 'name', ['course' => $this->course->id, 'section' => 0]));
+        $this->assertFalse($DB->record_exists('course_sections', [
+            'course' => $this->course->id,
+            'name' => get_string('assessmentssectionname', 'aiplacement_modgen'),
         ]));
     }
 
+    /**
+     * Quick Add's Assessments entry adds the section at the top, straight after section 0, and
+     * leaves the rest of the structure as it was.
+     */
+    public function test_assessments_entry_adds_the_section_at_the_top(): void {
+        $this->add_themes(1, 1);
+
+        $section = \aiplacement_modgen\local\theme_builder::add_assessments_section($this->course->id);
+
+        $this->assertSame(1, (int) $section->section);
+        $this->assert_structure($this->course->id, array_merge(
+            [$this->assessments_row()],
+            $this->theme_rows('Theme 1', ['Theme 1 - Week 1'], 0)
+        ));
+        $this->assert_sound($this->course->id);
+    }
+
+    /**
+     * A course that already has an Assessments section is not given a second one.
+     */
+    public function test_assessments_entry_refuses_a_second_section(): void {
+        global $DB;
+        \aiplacement_modgen\local\theme_builder::add_assessments_section($this->course->id);
+
+        try {
+            \aiplacement_modgen\local\theme_builder::add_assessments_section($this->course->id);
+            $this->fail('A second Assessments section must be refused.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('assessmentsexists', $e->errorcode);
+        }
+        $this->assertSame(1, $DB->count_records('course_sections', [
+            'course' => $this->course->id,
+            'name' => get_string('assessmentssectionname', 'aiplacement_modgen'),
+        ]));
+    }
+
+    /**
+     * The Assessments entry counts against the total section cap like any build.
+     */
+    public function test_assessments_entry_respects_the_section_cap(): void {
+        global $DB;
+        $existing = $DB->count_records('course_sections', ['course' => $this->course->id]);
+        set_config('maxtotalsections', $existing, 'aiplacement_modgen');
+
+        try {
+            \aiplacement_modgen\local\theme_builder::add_assessments_section($this->course->id);
+            $this->fail('An Assessments section over the cap must be refused.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('sectionlimitexceeded', $e->errorcode);
+        }
+        $this->assertSame($existing, $DB->count_records('course_sections', ['course' => $this->course->id]));
+    }
     /**
      * If the target section is gone when the job runs, the weeks go to the top level instead.
      */
@@ -365,7 +401,6 @@ final class quick_add_structure_test extends \advanced_testcase {
         $this->run_jobs();
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows('Theme 1', ['Theme 1 - Week 1'], 0),
             $this->week_rows('Week 1', '-', 0)
         ));

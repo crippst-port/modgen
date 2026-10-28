@@ -72,7 +72,7 @@ final class job_execution_regression_test extends \advanced_testcase {
      */
     private function course(): \stdClass {
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections', 'numsections' => 0]);
-        theme_builder::ensure_flexsections_format($course->id);
+        theme_builder::prepare_course_for_build($course->id);
         return $course;
     }
 
@@ -378,7 +378,7 @@ final class job_execution_regression_test extends \advanced_testcase {
      */
     public function test_set_up_adds_no_sections_beyond_the_build(): void {
         global $DB;
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics', 'numsections' => 0]);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections', 'numsections' => 0]);
         $before = $DB->count_records('course_sections', ['course' => $course->id]);
         $projected = theme_builder::projected_sections_for_weeks(1);
         set_config('maxtotalsections', $before + $projected, 'aiplacement_modgen');

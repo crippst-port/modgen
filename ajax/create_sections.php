@@ -80,6 +80,7 @@ require_login($courseid);
 $context = context_course::instance($courseid);
 // Both Quick Add actions share one rule; an unknown action is refused below with the other request errors.
 \aiplacement_modgen\local\permissions::require_build_action('create_weeks', $context);
+\aiplacement_modgen\local\theme_builder::require_flexsections_format($courseid);
 
 // Allow extended execution time for large section creation operations.
 core_php_time_limit::raise(600);
@@ -107,6 +108,10 @@ try {
             $createsummaryactivities
         );
     } else if ($action === 'create_assessments') {
+        // Added at the top of the course, so refused from inside a section, as New Theme is.
+        if ($parentsection > 0) {
+            throw new \moodle_exception('assessmentstoplevelonly', 'aiplacement_modgen');
+        }
         // One section, so it is added straight away rather than queued.
         $section = \aiplacement_modgen\local\theme_builder::add_assessments_section($courseid);
         ajax_response::success([

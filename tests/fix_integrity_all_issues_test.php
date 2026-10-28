@@ -62,13 +62,11 @@ final class fix_integrity_all_issues_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($this->course->id);
 
-        // Converting from 'topics' format leaves the default topic sections without a
-        // 'parent' format option (a flexsections-only concept) until something sets one —
-        // normalise that ambient state here so the test below can assert an exact count
-        // for the five corruptions it introduces deliberately.
+        // Normalise any ambient state the generated course has, so the test below can assert
+        // an exact count for the five corruptions it introduces deliberately.
         integrity_checker::fix_integrity($this->course->id);
     }
 

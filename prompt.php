@@ -56,6 +56,18 @@ $PAGE->set_url(new moodle_url('/ai/placement/modgen/prompt.php', ['id' => $cours
 $PAGE->set_context($context);
 $PAGE->set_course(get_course($courseid));
 
+// The plugin never changes a course's format. This page can be reached by its address (a bookmark),
+// so a course in another format gets a plain page saying so rather than an error.
+if (!\aiplacement_modgen\local\theme_builder::uses_flexsections($courseid)) {
+    $PAGE->set_title(get_string('pluginname', 'aiplacement_modgen'));
+    $PAGE->set_heading(get_string('pluginname', 'aiplacement_modgen'));
+    echo $OUTPUT->header();
+    echo $OUTPUT->notification(get_string('errorformatnotflexsections', 'aiplacement_modgen'), 'warning', false);
+    echo $OUTPUT->continue_button(new moodle_url('/course/view.php', ['id' => $courseid]));
+    echo $OUTPUT->footer();
+    exit;
+}
+
 // Include form classes.
 require_once(__DIR__ . '/classes/form/generator_form.php');
 require_once(__DIR__ . '/classes/form/approve_form.php');

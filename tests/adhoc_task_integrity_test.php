@@ -80,8 +80,8 @@ final class adhoc_task_integrity_test extends advanced_testcase {
         set_config('enable_structurefromfile', 1, 'aiplacement_modgen');
         \aiplacement_modgen\local\settings_helper::clear_cache();
 
-        $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($this->course->id);
     }
 
     /**

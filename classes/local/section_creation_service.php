@@ -74,8 +74,8 @@ class section_creation_service {
         $locks = \aiplacement_modgen\local\theme_builder::acquire_build_locks($courseid, $projectedsections);
 
         try {
-            // Ensure course format is flexsections, with section 0 named.
-            \aiplacement_modgen\local\theme_builder::ensure_flexsections_format($courseid);
+            // Check the course uses flexsections, and name section 0.
+            \aiplacement_modgen\local\theme_builder::prepare_course_for_build($courseid);
 
             $course = get_course($courseid, true);
             $courseformat = course_get_format($course);

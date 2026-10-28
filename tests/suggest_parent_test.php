@@ -56,7 +56,7 @@ final class suggest_parent_test extends advanced_testcase {
 
     /**
      * Set up a flexsections course for each test, with every section the course generator
-     * created ahead of time (the 'topics' default is 5, per numsections in
+     * created ahead of time (the default numsections, per
      * lib/testing/generator/data_generator.php) deliberately self-parented.
      *
      * Without this, those ambient sections would sit at valid, unbroken parent=0 and could get
@@ -71,8 +71,8 @@ final class suggest_parent_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($this->course->id);
 
         $ambient = $DB->get_records_select(
             'course_sections',

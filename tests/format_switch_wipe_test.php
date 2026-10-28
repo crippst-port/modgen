@@ -66,8 +66,8 @@ final class format_switch_wipe_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($this->course->id);
         $this->courseformat = \course_get_format($this->course->id);
 
         // Normalise the ambient topics->flexsections conversion state first, same as
@@ -185,8 +185,8 @@ final class format_switch_wipe_test extends advanced_testcase {
     public function test_single_section_course_missing_parent_is_not_flagged(): void {
         global $DB;
 
-        $solocourse = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($solocourse->id);
+        $solocourse = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($solocourse->id);
         integrity_checker::fix_integrity($solocourse->id);
         $soloformat = \course_get_format($solocourse->id);
         theme_builder::create_theme_section($solocourse->id, $soloformat, 'Only section', 'Desc');

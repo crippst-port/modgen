@@ -22,7 +22,7 @@
     Context variables required for this template:
     * showquickaddmenu - Whether the Quick Add menu is shown
     * showquickadd - Whether New Theme(s) and New Week(s) are offered
-    * showaddtheme - Whether New Theme(s) is offered (only at the top of the course)
+    * showaddtheme - Whether New Theme(s) and Assessments section are offered (only at the top of the course)
     * showtemplatefromfile - Whether Structure from file is offered
     * generatorurl - URL of the Structure from file page
     * showgenerator - Whether Structure from prompt is offered
@@ -86,9 +86,11 @@
                 <a href="#" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" role="button" data-form="add_week" data-title="{{#str}}newweek, aiplacement_modgen{{/str}}">
                     <i class="fas fa-calendar" aria-hidden="true"></i> {{#str}}newweek, aiplacement_modgen{{/str}}
                 </a>
+          {{#showaddtheme}}
                 <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" role="button" data-form="add_assessments" data-title="{{#str}}newassessments, aiplacement_modgen{{/str}}">
                     <i class="fas fa-clipboard-check" aria-hidden="true"></i> {{#str}}newassessments, aiplacement_modgen{{/str}}
                 </a>
+          {{/showaddtheme}}
           {{/showquickadd}}
                
                 {{! "Structure from file" opens the generator form (CSV/template upload).

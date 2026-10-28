@@ -214,8 +214,8 @@ final class concurrent_process_integrity_test extends advanced_testcase {
         // Shared course must be COMMITTED so forked children (separate connections)
         // can see it. preventResetByRollback() commits and switches cleanup to the
         // slower truncate path.
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
         $this->preventResetByRollback();
 
         // The result of export_dbconfig() is a stdClass; cast to array for the child helper.

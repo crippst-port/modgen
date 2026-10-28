@@ -67,10 +67,10 @@ final class comprehensive_workflow_test extends advanced_testcase {
         $this->setAdminUser();
 
         // Create test course.
-        $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
+        $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
 
         // Convert to flexsections.
-        theme_builder::ensure_flexsections_format($this->course->id);
+        theme_builder::prepare_course_for_build($this->course->id);
         $this->courseformat = \course_get_format($this->course->id);
     }
 
@@ -796,10 +796,10 @@ final class comprehensive_workflow_test extends advanced_testcase {
             $course = $this->getDataGenerator()->create_course([
                 'shortname' => "STRESS{$i}",
                 'fullname' => "Stress Test Course {$i}",
+                'format' => 'flexsections',
             ]);
 
-            // Convert to flexsections.
-            theme_builder::ensure_flexsections_format($course->id);
+            theme_builder::prepare_course_for_build($course->id);
             $courses[] = $course;
         }
 
@@ -1298,8 +1298,8 @@ final class comprehensive_workflow_test extends advanced_testcase {
         global $DB;
 
         // Create a fresh test course to avoid contamination from setUp().
-        $testcourse = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($testcourse->id);
+        $testcourse = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($testcourse->id);
         $courseformat = course_get_format($testcourse->id);
 
         // Count sections before we start.
@@ -1422,8 +1422,8 @@ final class comprehensive_workflow_test extends advanced_testcase {
         global $DB;
 
         // Create a fresh course for this test.
-        $testcourse = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($testcourse->id);
+        $testcourse = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($testcourse->id);
         $courseformat = course_get_format($testcourse->id);
 
         // Create a section the NORMAL way (with parent field).

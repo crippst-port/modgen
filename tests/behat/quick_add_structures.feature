@@ -197,3 +197,12 @@ Feature: Quick Add builds the expected course structure
     And I click on "Assessments section" "link"
     And I click on "Add section" "button" in the ".modal-footer" "css_element"
     And I should see "already has a section called"
+
+  Scenario: The Assessments section is only offered at the top of the module
+    Given the course "C1" has "1" themes with "1" weeks each
+    And I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    When I click on "Theme 1" "link" in the "region-main" "region"
+    And I click on "Quick Add" "link"
+    Then I should see "New Week(s)"
+    And I should not see "Assessments section"

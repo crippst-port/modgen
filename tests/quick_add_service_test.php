@@ -40,8 +40,8 @@ final class quick_add_service_test extends \advanced_testcase {
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
-        $this->course = $this->getDataGenerator()->create_course(['format' => 'topics', 'numsections' => 0]);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections', 'numsections' => 0]);
+        theme_builder::prepare_course_for_build($this->course->id);
         $this->user = $this->getDataGenerator()->create_user();
     }
 

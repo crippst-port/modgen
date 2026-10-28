@@ -261,6 +261,7 @@ $string['newassessments'] = 'Assessments section';
 $string['addassessmentsintro'] = 'This adds a section called "Assessments" at the top of the course, straight after section 0.';
 $string['addassessmentsbutton'] = 'Add section';
 $string['assessmentsadded'] = 'The "{$a}" section has been added.';
+$string['assessmentstoplevelonly'] = 'The Assessments section can only be added from the top level of the module.';
 $string['assessmentsexists'] = 'This course already has a section called "{$a}".';
 $string['existingcontentwarning'] = 'This module already has some content. A new structure is added alongside what is already here, not in place of it, so we advise deleting the existing content before you continue.';
 
@@ -270,7 +271,7 @@ $string['errorcreatinglearningactivity'] = 'The section summary activity could n
 $string['errorunexpected'] = 'Something unexpected happened. Please go back to the course and try again.';
 $string['invalidparameters'] = 'The request is missing the job or course it is about.';
 $string['sectionnotfound'] = 'Section not found in course';
-$string['errorformatnotflexsections'] = 'Course format must be flexsections';
+$string['errorformatnotflexsections'] = 'The Module Assistant only works in courses that use the Flexible sections format.';
 $string['errorflexsectionsmissingmethod'] = 'Required flexsections method is not available';
 $string['invalidsectionparent'] = 'Invalid section parent number. Must be a non-negative integer.';
 $string['invalidsectionname'] = 'Section name cannot be empty';
@@ -595,8 +596,6 @@ $string['csvempty'] = 'The CSV file is empty.';
 $string['csvfilenotfound'] = 'The CSV file could not be found in file storage.';
 $string['csvnodata'] = 'No data was found in the CSV file.';
 $string['csvnodraft'] = 'No CSV file was found in the upload area.';
-$string['flexsectionsformatfailed'] = 'The course format could not be changed to Flexible sections. It is still: {$a}';
-$string['flexsectionsmissing'] = 'The Flexible sections course format plugin is required but not installed. Install it before using this feature.';
 $string['templateloaderror'] = 'The template could not be loaded: {$a}';
 
 // Event names.

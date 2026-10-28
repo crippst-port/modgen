@@ -201,6 +201,16 @@ class behat_aiplacement_modgen extends behat_base {
     }
 
     /**
+     * Go straight to the Structure from file page of a course by its address, as a bookmark would.
+     *
+     * @Given /^I visit the Structure from file page of "(?P<course_string>[^"]*)"$/
+     * @param string $shortname Course short name.
+     */
+    public function i_visit_the_structure_from_file_page_of(string $shortname): void {
+        $this->getSession()->visit($this->locate_path('/ai/placement/modgen/prompt.php?id=' . $this->course_id($shortname)));
+    }
+
+    /**
      * Check the course format of a course.
      *
      * @Then /^the course "(?P<course_string>[^"]*)" should use the "(?P<format_string>[^"]*)" format$/

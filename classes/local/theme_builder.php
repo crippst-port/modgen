@@ -210,7 +210,7 @@ class theme_builder {
             $parentsectionid = self::check_parent_still_exists($courseid, $parentsectionid, $parent, $messages);
 
             // Ensure flexsections format (must be inside try block to ensure lock release).
-            self::ensure_flexsections_format($courseid);
+            self::prepare_course_for_build($courseid);
 
             // Get fresh course object after format conversion.
             $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
@@ -370,7 +370,7 @@ class theme_builder {
             $parentsectionid = self::check_parent_still_exists($courseid, $parentsectionid, $parent, $messages);
 
             // Ensure flexsections format (must be inside try block to ensure lock release).
-            self::ensure_flexsections_format($courseid);
+            self::prepare_course_for_build($courseid);
 
             // Get fresh course object after format conversion.
             $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
@@ -908,8 +908,8 @@ class theme_builder {
     /**
      * Add an 'Assessments' section at the top of the course, straight after section 0.
      *
-     * Quick Add's Assessments entry. Runs under the build locks and the section limit like any other
-     * build, and refuses if the course already has a section with that name.
+     * Quick Add's Assessments entry. Runs under the build locks and the section limit, and sets the
+     * course up, like any other build; refuses if the course already has a section with that name.
      *
      * @param int $courseid Course ID
      * @return \stdClass The new section's record.
@@ -925,38 +925,30 @@ class theme_builder {
                 throw new \moodle_exception('assessmentsexists', 'aiplacement_modgen', '', $assessmentsname);
             }
 
-            $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
-            $courseformat = course_get_format($course);
+            // Checked and set up like every other build.
+            self::prepare_course_for_build($courseid);
+            $courseformat = course_get_format($DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST));
 
-            if (method_exists($courseformat, 'create_new_section')) {
-                // Flexsections format - create at top level, then move it to position 1.
-                $section = self::create_section_with_parent(
-                    $courseid,
-                    $courseformat,
-                    0, // Top level (no parent section).
-                    $assessmentsname,
-                    '', // No summary.
-                    FORMAT_HTML,
-                    [] // No additional format options.
-                );
+            // Create at top level, then move it to position 1.
+            $section = self::create_section_with_parent(
+                $courseid,
+                $courseformat,
+                0, // Top level (no parent section).
+                $assessmentsname,
+                '', // No summary.
+                FORMAT_HTML,
+                [] // No additional format options.
+            );
 
-                if (method_exists($courseformat, 'move_section')) {
-                    try {
-                        $courseformat->move_section($section->section, 0, 1);
-                    } catch (\Throwable $e) {
-                        // If move fails, section will remain at end but still be created.
-                        debugging('Failed to move Assessments section: ' . $e->getMessage(), DEBUG_DEVELOPER);
-                    }
-                }
-            } else {
-                // Standard format - use core function.
-                $section = course_create_section($course, 1);
-                $DB->update_record('course_sections', [
-                    'id' => $section->id,
-                    'name' => $assessmentsname,
-                    'timemodified' => time(),
-                ]);
+            try {
+                $courseformat->move_section($section->section, 0, 1);
+            } catch (\Throwable $e) {
+                // If move fails, section will remain at end but still be created.
+                debugging('Failed to move Assessments section: ' . $e->getMessage(), DEBUG_DEVELOPER);
             }
+
+            // Other builds end with a renumbering that rebuilds the cache; this one has to do it itself.
+            rebuild_course_cache($courseid, true, true);
         } finally {
             self::release_structure_locks($locks);
         }
@@ -965,39 +957,41 @@ class theme_builder {
     }
 
     /**
-     * Ensure course is using flexsections format, then name section 0.
+     * Refuse a course that does not use the Flexible sections format.
      *
-     * Converts the course with update_course(), as changing the format in course settings
-     * would: that fires course_updated and removes the old format's options. A direct update
-     * is kept only as a fallback for when update_course() leaves the format unchanged.
+     * The plugin is only offered in Flexible sections courses and never changes a course's format,
+     * so every way into a build checks this: a page or request reached by URL, and a queued job
+     * whose course was switched to another format after it was queued.
      *
      * @param int $courseid Course ID
-     * @throws \moodle_exception If flexsections is not installed or conversion fails
+     * @throws \moodle_exception If the course uses another format
      */
-    public static function ensure_flexsections_format($courseid) {
+    public static function require_flexsections_format($courseid) {
+        if (!self::uses_flexsections($courseid)) {
+            throw new \moodle_exception('errorformatnotflexsections', 'aiplacement_modgen');
+        }
+    }
+
+    /**
+     * Whether a course uses the Flexible sections format.
+     *
+     * @param int $courseid Course ID
+     * @return bool
+     */
+    public static function uses_flexsections($courseid): bool {
         global $DB;
 
-        $course = get_course($courseid, true);
+        return $DB->get_field('course', 'format', ['id' => $courseid], MUST_EXIST) === 'flexsections';
+    }
 
-        if ($course->format !== 'flexsections') {
-            if (!\core_plugin_manager::instance()->get_plugin_info('format_flexsections')) {
-                throw new \moodle_exception('flexsectionsmissing', 'aiplacement_modgen');
-            }
-
-            update_course((object) ['id' => $courseid, 'format' => 'flexsections']);
-
-            $course = get_course($courseid, true);
-            if ($course->format !== 'flexsections') {
-                $DB->set_field('course', 'format', 'flexsections', ['id' => $courseid]);
-            }
-            rebuild_course_cache($courseid, true, true);
-
-            $course = get_course($courseid, true);
-            if ($course->format !== 'flexsections') {
-                throw new \moodle_exception('flexsectionsformatfailed', 'aiplacement_modgen', '', $course->format);
-            }
-        }
-
+    /**
+     * Get a course ready for a build: check it uses Flexible sections, then name section 0.
+     *
+     * @param int $courseid Course ID
+     * @throws \moodle_exception If the course uses another format
+     */
+    public static function prepare_course_for_build($courseid) {
+        self::require_flexsections_format($courseid);
         self::initialize_core_sections($courseid);
     }
 

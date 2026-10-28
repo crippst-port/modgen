@@ -63,6 +63,7 @@ if (!$hasprompt && !$hastemplate) {
         'error'
     );
 }
+\aiplacement_modgen\local\theme_builder::require_flexsections_format($courseid);
 
 // Set page context.
 global $PAGE, $OUTPUT;

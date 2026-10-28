@@ -71,8 +71,8 @@ final class concurrency_integrity_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($this->course->id);
     }
 
     /**
@@ -232,8 +232,8 @@ final class concurrency_integrity_test extends advanced_testcase {
      * @covers ::create_sections_from_json
      */
     public function test_lock_does_not_cross_courses(): void {
-        $other = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($other->id);
+        $other = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($other->id);
 
         // Hold course A's lock.
         $factory = \core\lock\lock_config::get_lock_factory('core_course_edit');

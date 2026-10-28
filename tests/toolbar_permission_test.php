@@ -66,8 +66,8 @@ final class toolbar_permission_test extends advanced_testcase {
         set_config('enabled', 1, 'aiplacement_modgen');
 
         $generator = $this->getDataGenerator();
-        $this->course = $generator->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $generator->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($this->course->id);
 
         $coursecontext = \context_course::instance($this->course->id);
 

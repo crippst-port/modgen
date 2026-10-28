@@ -107,7 +107,7 @@ class aiplacement_modgen_generator_form extends moodleform
             $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
         }
 
-        // Content placement header (always visible).
+        // Content placement header, shown only when there is something to place.
         // Checkbox to add the learningactivity "section summary" placeholder to each section, offered
         // only when mod_learningactivity is installed. The help text only mentions the AI-metadata
         // caveat when AI is enabled.

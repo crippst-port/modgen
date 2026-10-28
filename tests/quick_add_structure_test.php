@@ -355,6 +355,62 @@ final class quick_add_structure_test extends \advanced_testcase {
     }
 
     /**
+     * The entry sets the course up as other builds do, and the course page shows the new
+     * section's name straight away.
+     */
+    public function test_assessments_entry_sets_up_the_course_and_its_cache(): void {
+        global $DB;
+        get_fast_modinfo($this->course->id);
+
+        $section = \aiplacement_modgen\local\theme_builder::add_assessments_section($this->course->id);
+
+        $this->assertSame(
+            get_string('introductionsectionname', 'aiplacement_modgen'),
+            $DB->get_field('course_sections', 'name', ['course' => $this->course->id, 'section' => 0])
+        );
+        $this->assertSame(1, (int) $section->section);
+        $name = get_string('assessmentssectionname', 'aiplacement_modgen');
+        $this->assertSame($name, get_fast_modinfo($this->course->id)->get_section_info(1)->name);
+        $this->assert_sound($this->course->id);
+    }
+
+    /**
+     * A job whose course was switched to another format after it was queued fails, and does not
+     * switch the course back.
+     */
+    public function test_a_job_fails_if_the_course_changed_format_after_it_was_queued(): void {
+        global $DB, $USER;
+        quick_add_service::queue_weeks($this->course->id, $USER->id, 1, 0, false);
+        update_course((object) ['id' => $this->course->id, 'format' => 'topics']);
+
+        $this->run_jobs();
+
+        $job = $DB->get_records('aiplacement_modgen_jobs', ['courseid' => $this->course->id], 'id DESC', '*', 0, 1);
+        $this->assertSame('failed', reset($job)->status);
+        $this->assertSame('topics', $DB->get_field('course', 'format', ['id' => $this->course->id]));
+        $this->assertFalse($DB->record_exists('course_sections', ['course' => $this->course->id, 'name' => 'Week 1']));
+        $this->resetDebugging();
+    }
+
+    /**
+     * A course in another format is refused and left as it is: the plugin never changes the format.
+     */
+    public function test_assessments_entry_refuses_a_course_in_another_format(): void {
+        global $DB;
+        $course = $this->getDataGenerator()->create_course(['format' => 'topics', 'numsections' => 3]);
+        $before = $DB->count_records('course_sections', ['course' => $course->id]);
+
+        try {
+            \aiplacement_modgen\local\theme_builder::add_assessments_section($course->id);
+            $this->fail('A course that is not Flexible sections must be refused.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('errorformatnotflexsections', $e->errorcode);
+        }
+        $this->assertSame('topics', $DB->get_field('course', 'format', ['id' => $course->id]));
+        $this->assertSame($before, $DB->count_records('course_sections', ['course' => $course->id]));
+    }
+
+    /**
      * A course that already has an Assessments section is not given a second one.
      */
     public function test_assessments_entry_refuses_a_second_section(): void {

@@ -218,6 +218,7 @@ function aiplacement_modgen_output_fragment_form_add_theme(array $args): string 
 
     // Verify permission.
     require_capability('aiplacement/modgen:managestructure', $context);
+    \aiplacement_modgen\local\theme_builder::require_flexsections_format($courseid);
 
     // Set page context for proper JS/CSS loading.
     $PAGE->set_context($context);
@@ -263,6 +264,7 @@ function aiplacement_modgen_output_fragment_form_add_week(array $args): string {
 
     // Verify permission.
     require_capability('aiplacement/modgen:managestructure', $context);
+    \aiplacement_modgen\local\theme_builder::require_flexsections_format($courseid);
 
     // Set page context for proper JS/CSS loading.
     $PAGE->set_context($context);
@@ -303,6 +305,7 @@ function aiplacement_modgen_output_fragment_form_add_assessments(array $args): s
 
     $context = aiplacement_modgen_fragment_context($courseid, $contextid);
     require_capability('aiplacement/modgen:managestructure', $context);
+    \aiplacement_modgen\local\theme_builder::require_flexsections_format($courseid);
     $PAGE->set_context($context);
 
     require_once(__DIR__ . '/classes/form/add_assessments_form.php');
@@ -335,6 +338,7 @@ function aiplacement_modgen_output_fragment_form_template_from_prompt(array $arg
 
     // Verify permission.
     require_capability('aiplacement/modgen:generatewithprompt', $context);
+    \aiplacement_modgen\local\theme_builder::require_flexsections_format($courseid);
     \aiplacement_modgen\local\settings_helper::require_ai_enabled();
 
     // Set page context for proper JS/CSS loading.

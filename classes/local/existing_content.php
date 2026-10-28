@@ -28,8 +28,9 @@ namespace aiplacement_modgen\local;
  * Detects content already in a module, to warn before a file or prompt build.
  *
  * New modules often come with several empty sections, so sections alone never count, whatever
- * their number or names. Content is an activity or resource (other than the Announcements forum
- * Moodle adds by itself, and the modules Flexible sections uses to hold subsections), or a section
+ * their number or names. Content is an activity or resource (other than the modules Moodle adds by
+ * itself - the Announcements forum and, from Moodle 5.0, question banks - and the modules that hold
+ * subsections), or a section
  * inside another one, which means a theme and week structure has already been built.
  */
 class existing_content {
@@ -49,7 +50,7 @@ class existing_content {
           LEFT JOIN {forum} f ON m.name = 'forum' AND f.id = cm.instance
               WHERE cm.course = :courseid
                 AND cm.deletioninprogress = 0
-                AND m.name <> 'subsection'
+                AND m.name NOT IN ('subsection', 'qbank')
                 AND (f.id IS NULL OR f.type <> 'news')",
             ['courseid' => $courseid]
         );

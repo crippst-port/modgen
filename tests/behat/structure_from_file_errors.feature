@@ -85,3 +85,20 @@ Feature: Structure from file refuses what it cannot build
       | file       | message                                                  |
       | notes.txt  | filetype cannot be accepted                              |
       | plan_noext | filetype cannot be accepted                              |
+
+  Scenario: A course in another format is refused when the page is reached by its address, and keeps its format
+    Given the following "courses" exist:
+      | fullname | shortname | format |
+      | Course 2 | C2        | topics |
+    And the following "course enrolments" exist:
+      | user     | course | role           |
+      | teacher1 | C2     | editingteacher |
+    And the following "permission overrides" exist:
+      | capability                              | permission | role           | contextlevel | reference |
+      | aiplacement/modgen:generatefromtemplate | Allow      | editingteacher | Course       | C2        |
+    And I log in as "teacher1"
+    When I visit the Structure from file page of "C2"
+    Then I should see "only works in courses that use the Flexible sections format"
+    And I should not see "Upload structure file"
+    And the course "C2" should use the "topics" format
+    And there should be "0" structure jobs in "C2"

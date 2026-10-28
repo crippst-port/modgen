@@ -60,8 +60,8 @@ final class summary_activity_toggle_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($this->course->id);
     }
 
     /**
@@ -164,8 +164,8 @@ final class summary_activity_toggle_test extends advanced_testcase {
         );
 
         // A fresh course with summaries on: 2 weeks x (week + 3 sessions) = 8 modules.
-        $other = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($other->id);
+        $other = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($other->id);
         theme_builder::create_weeks($other->id, 2, 0, true);
         $modinfo = get_fast_modinfo($other->id);
         $count = 0;

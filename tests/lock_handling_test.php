@@ -55,8 +55,8 @@ final class lock_handling_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
 
         $structure = [
             'themes' => [
@@ -91,8 +91,8 @@ final class lock_handling_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
 
         $structure = [
             'themes' => [
@@ -135,8 +135,8 @@ final class lock_handling_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
 
         $structure = [
             'themes' => [
@@ -177,11 +177,11 @@ final class lock_handling_test extends advanced_testcase {
         $this->resetAfterTest(true);
 
         // Create two courses.
-        $course1 = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        $course2 = $this->getDataGenerator()->create_course(['format' => 'topics']);
+        $course1 = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        $course2 = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
 
-        theme_builder::ensure_flexsections_format($course1->id);
-        theme_builder::ensure_flexsections_format($course2->id);
+        theme_builder::prepare_course_for_build($course1->id);
+        theme_builder::prepare_course_for_build($course2->id);
 
         $structure = [
             'themes' => [
@@ -218,8 +218,8 @@ final class lock_handling_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
 
         $structure = [
             'themes' => [
@@ -276,8 +276,8 @@ final class lock_handling_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
 
         $structure = [
             'themes' => [

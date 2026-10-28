@@ -36,7 +36,11 @@ class aiplacement_modgen_add_assessments_form extends moodleform {
         $mform->addElement('hidden', 'courseid');
         $mform->setType('courseid', PARAM_INT);
 
-        $mform->addElement('static', 'addassessmentsintro', '', get_string('addassessmentsintro', 'aiplacement_modgen'));
+        \aiplacement_modgen\local\quick_add_ui::add_intro(
+            $mform,
+            'clipboard-check',
+            get_string('addassessmentsintro', 'aiplacement_modgen')
+        );
 
         // Action buttons.
         $this->add_action_buttons(true, get_string('addassessmentsbutton', 'aiplacement_modgen'));

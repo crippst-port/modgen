@@ -430,6 +430,41 @@ final class quick_add_structure_test extends \advanced_testcase {
     }
 
     /**
+     * A top-level section the teacher named in another case counts as the course's Assessments section.
+     */
+    public function test_assessments_entry_refuses_a_top_level_section_in_another_case(): void {
+        global $DB;
+        $this->add_themes(1, 1);
+        $DB->set_field('course_sections', 'name', 'assessments', ['course' => $this->course->id, 'name' => 'Theme 1']);
+        $before = $DB->count_records('course_sections', ['course' => $this->course->id]);
+
+        try {
+            \aiplacement_modgen\local\theme_builder::add_assessments_section($this->course->id);
+            $this->fail('A course with a top-level "assessments" section must be refused.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('assessmentsexists', $e->errorcode);
+        }
+        $this->assertSame($before, $DB->count_records('course_sections', ['course' => $this->course->id]));
+    }
+
+    /**
+     * A nested section called Assessments does not stop the entry adding the top-level one.
+     */
+    public function test_assessments_entry_ignores_a_nested_section_of_that_name(): void {
+        global $DB;
+        $name = get_string('assessmentssectionname', 'aiplacement_modgen');
+        $this->add_themes(1, 1);
+        $DB->set_field('course_sections', 'name', $name, ['course' => $this->course->id, 'name' => 'Theme 1 - Week 1']);
+        rebuild_course_cache($this->course->id, true);
+
+        $section = \aiplacement_modgen\local\theme_builder::add_assessments_section($this->course->id);
+
+        $this->assertSame(1, (int) $section->section);
+        $this->assertSame(2, $DB->count_records('course_sections', ['course' => $this->course->id, 'name' => $name]));
+        $this->assert_sound($this->course->id);
+    }
+
+    /**
      * The Assessments entry counts against the total section cap like any build.
      */
     public function test_assessments_entry_respects_the_section_cap(): void {

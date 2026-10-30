@@ -1,5 +1,24 @@
 === Module Assistant (aiplacement_modgen) Upgrade Notes ===
 
+## Upgrading to Version 0.8.3 (2026-10-30)
+
+### Changed
+
+- Builds never change a course's format. The plugin is only offered in Flexible sections courses,
+  and every way into a build (the file and prompt page, its modal, Quick Add, and a queued job
+  whose course was switched to another format) refuses any other format. This replaces 0.8.2's
+  conversion of the course with update_course().
+- Builds no longer add an Assessments section. Quick Add has an "Assessments section" entry
+  instead, offered only at the top of the course: it adds the section straight away, under the
+  build locks and the section limit, and refuses if the course already has one.
+- Structure from file and Structure from prompt warn, without refusing, when the module already
+  has content (an activity or resource other than Announcements, or nested sections from an
+  earlier build). Empty sections and question banks do not count.
+- The Quick Add and Structure from prompt forms are restyled: labels sit above their fields, each
+  form opens with a line saying what it creates, the count fields have - and + buttons, the module
+  format is chosen from cards, and New Theme(s) and New Week(s) show how many sections they will
+  add. What the forms submit is unchanged.
+
 ## Upgrading to Version 0.8.2 (2026-10-26)
 
 ### Changed

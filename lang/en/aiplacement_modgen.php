@@ -193,7 +193,7 @@ $string['templatename_help'] = 'Give this structure a descriptive name that user
 $string['templatedescription_help'] = 'Optionally provide a brief description of what this structure contains or when it should be used.';
 
 // Generator introduction.
-$string['generatorintroduction'] = 'This page allows you to create your course structure in several ways. You can upload a CSV structure file to define sections, weeks, or themes, or optionally select a pre-made structure from the library. When you upload a structure file, the form will read its contents and create your course layout. You can edit titles and descriptions after the strucure has been created on your module.';
+$string['generatorintroduction'] = 'This page allows you to create your course structure in several ways. You can upload a CSV structure file to define sections, weeks, or themes, or optionally select a pre-made structure from the library. When you upload a structure file, the form will read its contents and create your course layout. You can edit titles and descriptions after the structure has been created on your module.';
 
 // AI enable/disable setting.
 $string['aienabledheading'] = 'AI Integration';

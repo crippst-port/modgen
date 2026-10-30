@@ -99,7 +99,7 @@ class permissions {
      * structure (create_from_json) can come from a prompt or a file, so either route being open
      * to the user is enough.
      *
-     * @param string $action Build action: create_themes, create_weeks or create_from_json.
+     * @param string $action Build action: create_themes, create_weeks, create_assessments or create_from_json.
      * @param \context $context Course context.
      * @throws \moodle_exception If the placement or route is switched off, or the action is unknown.
      * @throws \required_capability_exception If the user has no capability for the route.
@@ -107,8 +107,15 @@ class permissions {
     public static function require_build_action(string $action, \context $context): void {
         settings_helper::require_placement_enabled();
 
-        if ($action === 'create_themes' || $action === 'create_weeks' || $action === 'create_assessments') {
+        if ($action === 'create_themes' || $action === 'create_weeks') {
             settings_helper::require_quickadd_enabled();
+            require_capability('aiplacement/modgen:managestructure', $context);
+            return;
+        }
+
+        // The Assessments section has its own switch, and the same capability as the rest of Quick Add.
+        if ($action === 'create_assessments') {
+            settings_helper::require_assessments_enabled();
             require_capability('aiplacement/modgen:managestructure', $context);
             return;
         }

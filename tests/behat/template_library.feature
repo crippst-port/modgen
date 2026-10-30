@@ -153,5 +153,6 @@ Feature: The CSV structure library
       | enable_structurefromfile | 0 | aiplacement_modgen |
     And I am on the "Course 1" "course" page logged in as "teacher1"
     And I turn editing mode on
-    Then "nav[aria-label='Module Assistant']" "css_element" should exist
+    # Structure from file is this teacher's only entry, so with it off there is no toolbar at all.
+    Then "nav[aria-label='Module Assistant']" "css_element" should not exist
     And I should not see "Structure from file"

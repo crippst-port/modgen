@@ -60,9 +60,8 @@ use aiplacement_modgen\local\quick_add_service;
 // Require login and valid session.
 require_login();
 
-// Master switch: Site admin > AI > AI placements.
+// Master switch: Site admin > AI > AI placements. Each action's own switch is checked with its capability below.
 \aiplacement_modgen\local\settings_helper::require_placement_enabled();
-\aiplacement_modgen\local\settings_helper::require_quickadd_enabled();
 
 require_sesskey();
 
@@ -78,8 +77,13 @@ $createsummaryactivities = optional_param('createsummaryactivities', 0, PARAM_BO
 // Verify course access (enrolment, visibility and suspension, not just roles) and permissions.
 require_login($courseid);
 $context = context_course::instance($courseid);
-// Both Quick Add actions share one rule; an unknown action is refused below with the other request errors.
-\aiplacement_modgen\local\permissions::require_build_action('create_weeks', $context);
+// Each action's switch and capability. An unknown action is held to New Week(s)'s rule here, and refused
+// below with the other request errors.
+$quickaddactions = ['create_themes', 'create_weeks', 'create_assessments'];
+\aiplacement_modgen\local\permissions::require_build_action(
+    in_array($action, $quickaddactions, true) ? $action : 'create_weeks',
+    $context
+);
 \aiplacement_modgen\local\course_formats::require_supported($courseid);
 
 // Allow extended execution time for large section creation operations.

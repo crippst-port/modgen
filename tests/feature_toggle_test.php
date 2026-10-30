@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Tests for the per-feature admin toggles: Quick add and Structure from file.
+ * Tests for the per-feature admin toggles: New Theme(s) and New Week(s), Assessments section and Structure from file.
  *
  * Each toggle has to close the feature rather than merely hide its menu entry, since the
  * forms behind them are reachable directly as fragments. These tests pin both ends: the
@@ -41,7 +41,7 @@ require_once($CFG->dirroot . '/course/lib.php');
 require_once($CFG->dirroot . '/ai/placement/modgen/lib.php');
 
 /**
- * Tests for the Quick add and Structure from file feature toggles.
+ * Tests for the New Theme(s) and New Week(s), Assessments section and Structure from file feature toggles.
  */
 final class feature_toggle_test extends advanced_testcase {
     /** @var \stdClass Test course. */
@@ -57,7 +57,6 @@ final class feature_toggle_test extends advanced_testcase {
         $this->setAdminUser();
 
         set_config('enabled', 1, 'aiplacement_modgen');
-        settings_helper::clear_cache();
 
         $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
         theme_builder::prepare_course_for_build($this->course->id);
@@ -71,7 +70,6 @@ final class feature_toggle_test extends advanced_testcase {
      */
     private function set_toggle(string $name, int $value): void {
         set_config($name, $value, 'aiplacement_modgen');
-        settings_helper::clear_cache();
     }
 
     /**
@@ -140,6 +138,54 @@ final class feature_toggle_test extends advanced_testcase {
         ]);
 
         $this->assertIsString($html);
+    }
+
+    /**
+     * The Assessments section has its own switch: off, its form and its request are refused, while New Theme(s)
+     * and New Week(s) are unaffected.
+     *
+     * @covers ::aiplacement_modgen_output_fragment_form_add_assessments
+     * @covers \aiplacement_modgen\local\permissions::require_build_action
+     */
+    public function test_assessments_switch_refuses_only_the_assessments_entry(): void {
+        $context = \context_course::instance($this->course->id);
+        $this->set_toggle('enable_quickadd', 1);
+        $this->set_toggle('enable_assessments', 0);
+
+        \aiplacement_modgen\local\permissions::require_build_action('create_weeks', $context);
+        try {
+            \aiplacement_modgen\local\permissions::require_build_action('create_assessments', $context);
+            $this->fail('The Assessments request must be refused while its switch is off.');
+        } catch (moodle_exception $e) {
+            $this->assertSame('assessmentsdisabled', $e->errorcode);
+        }
+        try {
+            \aiplacement_modgen_output_fragment_form_add_assessments(['courseid' => $this->course->id]);
+            $this->fail('The Assessments form must be refused while its switch is off.');
+        } catch (moodle_exception $e) {
+            $this->assertSame('assessmentsdisabled', $e->errorcode);
+        }
+    }
+
+    /**
+     * The other way round: with New Theme(s) and New Week(s) off, the Assessments section is still offered.
+     *
+     * @covers ::aiplacement_modgen_output_fragment_form_add_assessments
+     * @covers \aiplacement_modgen\local\permissions::require_build_action
+     */
+    public function test_assessments_entry_works_while_themes_and_weeks_are_off(): void {
+        $context = \context_course::instance($this->course->id);
+        $this->set_toggle('enable_quickadd', 0);
+        $this->set_toggle('enable_assessments', 1);
+
+        \aiplacement_modgen\local\permissions::require_build_action('create_assessments', $context);
+        $this->assertIsString(\aiplacement_modgen_output_fragment_form_add_assessments(['courseid' => $this->course->id]));
+        try {
+            \aiplacement_modgen\local\permissions::require_build_action('create_themes', $context);
+            $this->fail('New Theme(s) must be refused while its switch is off.');
+        } catch (moodle_exception $e) {
+            $this->assertSame('quickadddisabled', $e->errorcode);
+        }
     }
 
     /**

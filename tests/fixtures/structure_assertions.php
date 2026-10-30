@@ -47,7 +47,6 @@ trait aiplacement_modgen_structure_assertions {
         set_config('enabled', 1, 'aiplacement_modgen');
         set_config('enable_quickadd', 1, 'aiplacement_modgen');
         set_config('enable_structurefromfile', 1, 'aiplacement_modgen');
-        \aiplacement_modgen\local\settings_helper::clear_cache();
     }
 
     /**

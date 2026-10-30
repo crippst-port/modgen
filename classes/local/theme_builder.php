@@ -1064,8 +1064,11 @@ class theme_builder {
             }
             return;
         }
-        if (!in_array($format, course_formats::CORE_FORMATS, true)) {
-            throw new \moodle_exception('errorformatnotsupported', 'aiplacement_modgen');
+        if (!in_array($format, course_formats::supported_formats(), true)) {
+            throw new \moodle_exception(
+                settings_helper::is_coreformats_enabled() ? 'errorformatnotsupported' : 'errorformatflexsectionsonly',
+                'aiplacement_modgen'
+            );
         }
     }
 

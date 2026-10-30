@@ -10,6 +10,7 @@ Feature: Building in Custom sections and Weekly sections
       | enable_ai                | 0 | aiplacement_modgen |
       | enable_quickadd          | 1 | aiplacement_modgen |
       | enable_structurefromfile | 1 | aiplacement_modgen |
+      | enable_coreformats       | 1 | aiplacement_modgen |
     And subsections are enabled
     And the following "courses" exist:
       | fullname | shortname | format | numsections |
@@ -60,6 +61,14 @@ Feature: Building in Custom sections and Weekly sections
       | course   | shortname | format |
       | Course 1 | C1        | topics |
       | Course 2 | C2        | weeks  |
+
+  Scenario: With Custom sections and Weekly sections switched off there is no toolbar in those courses
+    Given the following config values are set as admin:
+      | enable_coreformats | 0 | aiplacement_modgen |
+    When I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    Then "nav[aria-label='Module Assistant']" "css_element" should not exist
+    And I should not see "Quick Add"
 
   Scenario: While subsections are switched off the toolbar says why, in place of the Quick Add menu
     Given subsections are disabled

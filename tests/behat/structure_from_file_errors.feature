@@ -98,7 +98,7 @@ Feature: Structure from file refuses what it cannot build
       | aiplacement/modgen:generatefromtemplate | Allow      | editingteacher | Course       | C2        |
     And I log in as "teacher1"
     When I visit the Structure from file page of "C2"
-    Then I should see "only works in courses that use the Custom sections, Weekly sections or Flexible sections format"
+    Then I should see "only works in courses that use the Flexible sections format"
     And I should not see "Upload structure file"
     And the course "C2" should use the "social" format
     And there should be "0" structure jobs in "C2"

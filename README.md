@@ -13,6 +13,10 @@ The plugin never changes a course's format; a course in any other format is refu
 | Flexible sections | Themes, weeks and sessions, nested as sections inside sections. |
 | Custom sections, Weekly sections | Weeks as sections, each with its three sessions as core subsections. No themes: anything with themes (New Theme(s), a theme CSV, a themed AI structure) is refused, as is a week inside another section. |
 
+Custom sections and Weekly sections are off until an administrator turns on **Enable on core Moodle course formats:
+Weekly & Custom sections** in the plugin settings; until then only Flexible sections courses are
+built in, as before 0.9.0.
+
 Builds in Custom sections and Weekly sections need the Subsection activity enabled (Site
 administration > Plugins > Activity modules > Manage activities); while it is off, the toolbar says
 so in place of the Quick Add menu. Core counts subsections towards the site's "Maximum number of
@@ -70,27 +74,31 @@ Nothing is granted by default; assign these in the course (or system) context.
 
 | Capability | Allows |
 |------------|--------|
-| `aiplacement/modgen:managestructure` | Quick Add: New Theme(s) and New Week(s) |
+| `aiplacement/modgen:managestructure` | Quick Add: New Theme(s), New Week(s) and Assessments section |
 | `aiplacement/modgen:generatefromtemplate` | Structure from file (needs Structure from file enabled) |
 | `aiplacement/modgen:generatewithprompt` | Structure from prompt (needs AI enabled) |
 | `aiplacement/modgen:checkstructure` | Check Structure and its repair actions |
 | `aiplacement/modgen:managetemplates` (system) | Managing the CSV template library |
 
-Toolbar entries only appear for users who hold the matching capability. Anyone who can start a build can follow their own build on the job page.
+Toolbar entries only appear for users who hold the matching capability, while the matching feature
+switch is on and the course's format can hold what the entry builds. A user with no entry to use
+gets no toolbar at all; the help links alone do not show it. Anyone who can start a build can follow
+their own build on the job page.
 
 ## Configuration
 
 Site administration > AI > AI placements > Module Assistant (Settings):
 
-- **Feature switches**: AI generation, Quick Add and Structure from file can each be turned off.
-- **AI generation**: base prompt, timeout (default 300 seconds) and a per-user hourly request limit
-  (default 10).
-- **Section limits**: maximum themes or weeks per Quick Add (30), weeks per theme (5), sections in a
-  CSV, and a total section cap per course (default 400) that protects courses from builds that
-  would make Flexible sections very slow.
-- **CSV template library** and **Help links**: manage the shared templates and up to five links
-  shown in the toolbar.
-- **Admin tools**: a link to the site-wide structure diagnostics.
+- **Features**: New Theme(s) and New Week(s), the Assessments section, Structure from file and
+  Structure from prompt can each be switched off. Building in Custom sections and Weekly sections is
+  off by default and can be switched on.
+- **Structure from prompt**: guidance sent to the AI, the time a request may run (default 300
+  seconds) and a per-user hourly request limit (default 10).
+- **Size limits**: most themes or weeks per Quick Add (30), weeks per theme (5), themes and weeks in
+  a CSV file (50), and most sections in a course (400).
+- **CSV structure library**: the shared CSV structures teachers can pick in Structure from file.
+- **Help and Advice menu**: up to five links shown in the toolbar.
+- **Diagnostics**: a link to the site-wide structure diagnostics for Flexible sections courses.
 
 ## Logging and background tasks
 

@@ -404,7 +404,7 @@ final class quick_add_structure_test extends \advanced_testcase {
             \aiplacement_modgen\local\theme_builder::add_assessments_section($course->id);
             $this->fail('A course in a format the plugin does not build in must be refused.');
         } catch (\moodle_exception $e) {
-            $this->assertSame('errorformatnotsupported', $e->errorcode);
+            $this->assertSame('errorformatflexsectionsonly', $e->errorcode);
         }
         $this->assertSame('social', $DB->get_field('course', 'format', ['id' => $course->id]));
         $this->assertSame($before, $DB->count_records('course_sections', ['course' => $course->id]));

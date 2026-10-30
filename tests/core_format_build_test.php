@@ -39,14 +39,66 @@ final class core_format_build_test extends \advanced_testcase {
     use \aiplacement_modgen_structure_assertions;
 
     /**
-     * An administrator to run the jobs as, the placement on and subsections enabled.
+     * An administrator to run the jobs as, the placement and its core formats on, and subsections enabled.
      */
     protected function setUp(): void {
         parent::setUp();
         $this->resetAfterTest();
         $this->setAdminUser();
         $this->enable_placement();
+        $this->set_core_formats(true);
         $this->set_subsections(true);
+    }
+
+    /**
+     * Switch building in Custom sections and Weekly sections on or off.
+     *
+     * @param bool $enabled Whether it is enabled.
+     */
+    private function set_core_formats(bool $enabled): void {
+        set_config('enable_coreformats', $enabled ? 1 : 0, 'aiplacement_modgen');
+    }
+
+    /**
+     * With the core formats switched off, as on a site that has not enabled them, only Flexible sections is
+     * built in: a core course is refused like any other format, and nothing is built in it.
+     *
+     * @dataProvider core_formats_provider
+     * @param string $format Course format.
+     */
+    public function test_core_formats_are_refused_while_switched_off(string $format): void {
+        global $DB;
+        $course = $this->core_course($format);
+        $this->set_core_formats(false);
+
+        $this->assertSame([course_formats::FLEXSECTIONS], course_formats::supported_formats());
+        $this->assertSame('errorformatflexsectionsonly', course_formats::unsupported_reason($course->id));
+        $this->assertNull(course_formats::unsupported_reason($this->flexsections_course()->id));
+        try {
+            theme_builder::create_weeks($course->id, 1, 0, false);
+            $this->fail('A core course must be refused while the core formats are switched off.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('errorformatflexsectionsonly', $e->errorcode);
+        }
+        $this->assertSame(1, $DB->count_records('course_sections', ['course' => $course->id]));
+    }
+
+    /**
+     * A job queued while the core formats were on fails if they are switched off before it runs.
+     */
+    public function test_job_fails_if_core_formats_are_switched_off_after_it_was_queued(): void {
+        global $DB, $USER;
+        $course = $this->core_course();
+        quick_add_service::queue_weeks($course->id, $USER->id, 1, 0, false);
+        $this->set_core_formats(false);
+
+        $this->run_jobs();
+        $this->resetDebugging();
+
+        $job = $this->last_job($course->id);
+        $this->assertSame('failed', $job->status);
+        $this->assertStringContainsString(get_string('errorformatflexsectionsonly', 'aiplacement_modgen'), $job->result);
+        $this->assertSame(1, $DB->count_records('course_sections', ['course' => $course->id]));
     }
 
     /**

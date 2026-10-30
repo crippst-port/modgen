@@ -35,9 +35,30 @@ Feature: Quick Add builds sections in the background
     And I should see "Week 1" in the "region-main" "region"
     And I should see "Week 2" in the "region-main" "region"
 
-  Scenario: Quick Add can be switched off by the administrator
+  Scenario: New Theme(s) and New Week(s) can be switched off, leaving the Assessments section
     Given the following config values are set as admin:
       | enable_quickadd | 0 | aiplacement_modgen |
+    When I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    And I click on "Quick Add" "link"
+    Then I should see "Assessments section"
+    And I should not see "New Theme(s)"
+    And I should not see "New Week(s)"
+
+  Scenario: The Assessments section can be switched off on its own
+    Given the following config values are set as admin:
+      | enable_assessments | 0 | aiplacement_modgen |
+    When I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    And I click on "Quick Add" "link"
+    Then I should see "New Week(s)"
+    And I should not see "Assessments section"
+
+  Scenario: With every Quick Add entry switched off there is no Quick Add menu
+    Given the following config values are set as admin:
+      | enable_quickadd          | 0 | aiplacement_modgen |
+      | enable_assessments       | 0 | aiplacement_modgen |
+      | enable_structurefromfile | 0 | aiplacement_modgen |
     When I am on the "Course 1" "course" page logged in as "teacher1"
     And I turn editing mode on
     Then I should not see "Quick Add"

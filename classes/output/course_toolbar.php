@@ -32,71 +32,29 @@ use moodle_url;
 
 /**
  * Course toolbar renderable.
+ *
+ * Shows the entries it is given: aiplacement_modgen_toolbar_entries() decides what a user may use.
  */
 class course_toolbar implements renderable, templatable {
     /** @var int Course ID */
     private $courseid;
 
-    /** @var bool Whether to show AI prompt generator button */
-    private $showgenerator;
-
-    /** @var bool Whether to show manage structure buttons (themes/weeks) */
-    private $showmanagestructure;
-
-    /** @var bool Whether to show template from file button */
-    private $showtemplatefromfile;
-
-    /** @var bool Whether to show the Quick add options (New theme / New week) */
-    private $showquickadd;
-
-    /** @var bool Whether the toolbar is at the top of the course, where New Theme and Assessments are offered */
-    private $showaddtheme;
-
-    /** @var bool Whether the course's format can hold themes (Flexible sections) */
-    private $supportsthemes;
+    /** @var bool[] Entries to show, keyed as aiplacement_modgen_toolbar_entries() returns them */
+    private $entries;
 
     /** @var string Why nothing can be built in the course, shown in place of the menus; empty when it can */
     private $unavailable = '';
-
-    /** @var bool Whether to show template from prompt button */
-    private $showtemplatefromptompt;
-
-    /** @var bool Whether to show check structure button */
-    private $showcheckstructure;
 
     /**
      * Constructor.
      *
      * @param int $courseid Course ID
-     * @param bool $showgenerator Whether to show generator button (legacy, use showtemplatefromptompt)
-     * @param bool $showmanagestructure Whether to show structure management buttons
-     * @param bool $showtemplatefromfile Whether to show template from file button
-     * @param bool $showtemplatefromptompt Whether to show template from prompt button
-     * @param bool $showcheckstructure Whether to show check structure button
-     * @param bool $showquickadd Whether to show the Quick add options
-     * @param bool $showaddtheme Whether the toolbar is at the top of the course (New Theme and Assessments)
-     * @param bool $supportsthemes Whether the course's format can hold themes, and weeks inside other sections
+     * @param bool[] $entries Entries to show: newtheme, newweek, assessments, fromfile, fromprompt, checkstructure
      */
-    public function __construct(
-        int $courseid,
-        bool $showgenerator = false,
-        bool $showmanagestructure = false,
-        bool $showtemplatefromfile = false,
-        bool $showtemplatefromptompt = false,
-        bool $showcheckstructure = false,
-        bool $showquickadd = false,
-        bool $showaddtheme = true,
-        bool $supportsthemes = true
-    ) {
+    public function __construct(int $courseid, array $entries) {
         $this->courseid = $courseid;
-        $this->showgenerator = $showgenerator || $showtemplatefromptompt; // Legacy support.
-        $this->showmanagestructure = $showmanagestructure;
-        $this->showtemplatefromfile = $showtemplatefromfile;
-        $this->showtemplatefromptompt = $showtemplatefromptompt;
-        $this->showcheckstructure = $showcheckstructure;
-        $this->showquickadd = $showquickadd;
-        $this->showaddtheme = $showaddtheme;
-        $this->supportsthemes = $supportsthemes;
+        $names = ['newtheme', 'newweek', 'assessments', 'fromfile', 'fromprompt', 'checkstructure'];
+        $this->entries = array_map(fn($name) => !empty($entries[$name]), array_combine($names, $names));
     }
 
     /**
@@ -117,25 +75,21 @@ class course_toolbar implements renderable, templatable {
     public function export_for_template(renderer_base $output): stdClass {
         $data = new stdClass();
         $data->logourl = $output->image_url('compact_logo', 'aiplacement_modgen')->out(false);
-        $data->showgenerator = $this->showgenerator;
-        $data->showmanagestructure = $this->showmanagestructure;
-        $data->showtemplatefromfile = $this->showtemplatefromfile;
-        $data->showtemplatefromptompt = $this->showtemplatefromptompt;
-        $data->showcheckstructure = $this->showcheckstructure;
-        $data->showquickadd = $this->showquickadd;
-        $data->showaddtheme = $this->showaddtheme;
-        // Themes need Flexible sections. So does a week inside another section: in a core format the week's
-        // sessions are subsections, which cannot go any deeper.
-        $data->shownewtheme = $this->showaddtheme && $this->supportsthemes;
-        $data->shownewweek = $this->showaddtheme || $this->supportsthemes;
-        // The Quick Add menu also holds Structure from file and the AI generator, so it shows if any entry does.
-        $data->showquickaddmenu = $this->showquickadd || $this->showtemplatefromfile || $this->showgenerator;
+        $data->shownewtheme = $this->entries['newtheme'];
+        $data->shownewweek = $this->entries['newweek'];
+        $data->showassessments = $this->entries['assessments'];
+        $data->showquickadd = $data->shownewtheme || $data->shownewweek || $data->showassessments;
+        $data->showtemplatefromfile = $this->entries['fromfile'];
+        $data->showgenerator = $this->entries['fromprompt'];
+        $data->showcheckstructure = $this->entries['checkstructure'];
+        // The Quick Add menu holds every entry but Check Structure, so it shows if any of them does.
+        $data->showquickaddmenu = $data->showquickadd || $data->showtemplatefromfile || $data->showgenerator;
         // Every entry in it builds: when nothing can be built, the reason takes its place.
         if ($this->unavailable !== '' && $data->showquickaddmenu) {
             $data->showquickaddmenu = false;
             $data->unavailable = $this->unavailable;
         }
-        if ($this->showcheckstructure) {
+        if ($data->showcheckstructure) {
             $checkstructureurl = new moodle_url(
                 '/ai/placement/modgen/check_structure.php',
                 ['id' => $this->courseid, 'check' => 1]

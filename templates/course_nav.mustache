@@ -23,8 +23,8 @@
     * logourl - URL of the logo drawn faintly behind the bar
     * unavailable - Why nothing can be built in this course, shown in place of the Quick Add menu (optional)
     * showquickaddmenu - Whether the Quick Add menu is shown
-    * showquickadd - Whether New Theme(s) and New Week(s) are offered
-    * showaddtheme - Whether the Assessments section is offered (only at the top of the course)
+    * showquickadd - Whether any of New Theme(s), New Week(s) and Assessments section is offered
+    * showassessments - Whether the Assessments section is offered (only at the top of the course)
     * shownewtheme - Whether New Theme(s) is offered (top of the course, Flexible sections only)
     * shownewweek - Whether New Week(s) is offered (anywhere in Flexible sections, the top of the course otherwise)
     * showtemplatefromfile - Whether Structure from file is offered
@@ -40,7 +40,7 @@
         "logourl": "https://example.com/theme/image.php/boost/aiplacement_modgen/1/compact_logo",
         "showquickaddmenu": true,
         "showquickadd": true,
-        "showaddtheme": true,
+        "showassessments": true,
         "shownewtheme": true,
         "shownewweek": true,
         "showtemplatefromfile": true,
@@ -104,25 +104,25 @@
                     <i class="fas fa-calendar" aria-hidden="true"></i> {{#str}}newweek, aiplacement_modgen{{/str}}
                 </a>
           {{/shownewweek}}
-          {{#showaddtheme}}
+          {{#showassessments}}
                 <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" role="button" data-form="add_assessments" data-title="{{#str}}newassessments, aiplacement_modgen{{/str}}">
                     <i class="fas fa-clipboard-check" aria-hidden="true"></i> {{#str}}newassessments, aiplacement_modgen{{/str}}
                 </a>
-          {{/showaddtheme}}
+          {{/showassessments}}
           {{/showquickadd}}
                
                 {{! "Structure from file" opens the generator form (CSV/template upload).
                     It needs the generate-from-template capability, NOT AI, so it is
                     gated on showtemplatefromfile rather than showgenerator. }}
                 {{#showtemplatefromfile}}
-                <div class="dropdown-divider"></div>
+                {{#showquickadd}}<div class="dropdown-divider"></div>{{/showquickadd}}
           <a href="{{generatorurl}}" class=" aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="open-generator">
                     <i class="fa fa-plus-circle" aria-hidden="true"></i> {{#str}}generatorlabel, aiplacement_modgen{{/str}}
                 </a>
                 {{/showtemplatefromfile}}
                 {{#showgenerator}}
-                {{! Add a divider before the AI option only if the file option above did not already add one. }}
-                {{^showtemplatefromfile}}<div class="dropdown-divider"></div>{{/showtemplatefromfile}}
+                {{! A divider before the AI option only if the file option did not already add one, and something is above. }}
+                {{^showtemplatefromfile}}{{#showquickadd}}<div class="dropdown-divider"></div>{{/showquickadd}}{{/showtemplatefromfile}}
                 <a href="#" class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" data-action="quick-add" role="button" data-form="template_from_prompt" data-title="{{#str}}templatefromprompt, aiplacement_modgen{{/str}}">
                     <i class="fas fa-bolt" aria-hidden="true"></i> {{#str}}templatefromprompt, aiplacement_modgen{{/str}}
                 </a>

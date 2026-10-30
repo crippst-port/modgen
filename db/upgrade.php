@@ -231,5 +231,17 @@ function xmldb_aiplacement_modgen_upgrade($oldversion) {
         upgrade_plugin_savepoint(true, 2026102700, 'aiplacement', 'modgen');
     }
 
+    // The Assessments section entry has its own switch. Until now it followed the New Theme(s) and
+    // New Week(s) switch, so it starts as that is: a site that had them off does not gain the entry.
+    if ($oldversion < 2026103002) {
+        if (get_config('aiplacement_modgen', 'enable_assessments') === false) {
+            $quickadd = get_config('aiplacement_modgen', 'enable_quickadd');
+            set_config('enable_assessments', $quickadd === false ? 1 : (int) !empty($quickadd), 'aiplacement_modgen');
+        }
+
+        // Savepoint reached.
+        upgrade_plugin_savepoint(true, 2026103002, 'aiplacement', 'modgen');
+    }
+
     return true;
 }

@@ -357,7 +357,7 @@ final class transaction_handling_test extends \advanced_testcase {
             theme_builder::create_themes($course->id, 1, 1, 0);
             $this->fail('A build in a course in an unsupported format must be refused.');
         } catch (\moodle_exception $e) {
-            $this->assertSame('errorformatnotsupported', $e->errorcode);
+            $this->assertSame('errorformatflexsectionsonly', $e->errorcode);
         }
 
         $this->assertSame('social', $DB->get_field('course', 'format', ['id' => $course->id]));

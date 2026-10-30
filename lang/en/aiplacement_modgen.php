@@ -148,10 +148,10 @@ $string['learningactivity_section'] = 'Section';
 $string['aipolicyacceptance'] = 'AI statement Acceptance Required';
 $string['acceptaipolicy'] = 'I agree to the terms of AI use in this system';
 $string['aipolicyinfo'] = 'This tool does not currently include active AI functionality. It is designated as AI-enabled to allow for potential future enhancements. Please accept to continue.';
-$string['timeout'] = 'AI Request Timeout (seconds)';
-$string['timeout_desc'] = 'Maximum time to wait for AI responses before timing out. Default is 300 seconds (5 minutes).';
-$string['airatelimit'] = 'AI Request Rate Limit (per hour)';
-$string['airatelimit_desc'] = 'Maximum number of AI generation requests a user can make per hour. This helps prevent API quota exhaustion and abuse. Default is 10 requests per hour. Set to 0 for unlimited (not recommended).';
+$string['timeout'] = 'Time allowed for generation (seconds)';
+$string['timeout_desc'] = 'How long a Structure from prompt request may run on the server before it is stopped. Set it longer than your AI provider usually takes to reply; the provider\'s own limits are set in Site administration > AI. Default: 300 (5 minutes).';
+$string['airatelimit'] = 'Prompt requests per user per hour';
+$string['airatelimit_desc'] = 'How many times each person can ask the AI for a structure in an hour; further requests are refused until the hour is up. This limits cost and stops one person using up the provider\'s quota. 0 means no limit (not recommended). Default: 10.';
 $string['cachedef_ai_requests'] = 'How many AI generation requests each user has made in the current hour, for the rate limit';
 $string['processing'] = 'Processing your request, this may take several minutes...';
 $string['longquery'] = 'Long queries may take up to 5 minutes to process.';
@@ -168,8 +168,8 @@ $string['moduletype_help'] = 'Choose how to structure your module:
 $string['selectoruploadtemplate'] = 'Select or Upload Structure File';
 
 // CSV Template Library.
-$string['csvtemplatelibrary'] = 'CSV Structure Library';
-$string['csvtemplatelibrary_desc'] = 'Manage pre-made CSV structures that users can select when generating modules.';
+$string['csvtemplatelibrary'] = 'CSV structure library';
+$string['csvtemplatelibrary_desc'] = 'Pre-made CSV structures that teachers can pick in Structure from file instead of uploading their own.';
 $string['managetemplates'] = 'Manage CSV Structure files';
 $string['managetemplates_desc'] = 'Upload, edit, and organise CSV structures. <a href="{$a}">Manage templates</a>';
 $string['templatename'] = 'Structure name';
@@ -196,10 +196,8 @@ $string['templatedescription_help'] = 'Optionally provide a brief description of
 $string['generatorintroduction'] = 'This page allows you to create your course structure in several ways. You can upload a CSV structure file to define sections, weeks, or themes, or optionally select a pre-made structure from the library. When you upload a structure file, the form will read its contents and create your course layout. You can edit titles and descriptions after the structure has been created on your module.';
 
 // AI enable/disable setting.
-$string['aienabledheading'] = 'AI Integration';
-$string['aienabledheading_desc'] = 'Control whether the plugin uses AI to generate module structures or processes uploaded files directly.';
-$string['enableai'] = 'Enable AI generation';
-$string['enableai_desc'] = 'When enabled, uploaded files are processed exactly as specified, and you can make additional adjustments via the prompt field When disabled, only uploaded CSV files are processed with no AI adjustments available.';
+$string['enableai'] = 'Enable Structure from prompt';
+$string['enableai_desc'] = 'Offer Structure from prompt, which asks the site\'s AI provider to suggest a module structure from a teacher\'s description; nothing is built until the teacher approves it. Teachers also need the aiplacement/modgen:generatewithprompt capability, and Site administration > AI must have a provider offering Generate text that is enabled for the Module Assistant. The other features do not use AI and are not affected.';
 
 // Placement options.
 $string['contentplacement'] = 'Content placement';
@@ -211,10 +209,10 @@ $string['createsummaryactivitiesai_help'] = 'When enabled, a Learning Activity "
 Note: if you are generating with AI, turning this off means any learning-design details the AI produced (durations, learning types, instructions) will not be added to the course — only the section structure is created.';
 
 // AI prompt configuration.
-$string['aipromptheading'] = 'AI Generation Settings';
-$string['aipromptheading_desc'] = 'Configure the pedagogical guidance and institutional context sent to the AI for module generation. The JSON schema and technical requirements are managed by the system and cannot be modified here.';
-$string['baseprompt'] = 'Pedagogical Guidance';
-$string['baseprompt_desc'] = 'This guidance is sent to the AI to establish pedagogical context, institutional approach, and quality standards. Include information about your institution\'s teaching philosophy, any mandatory pedagogical frameworks, accessibility requirements, or specific learning design principles. The system automatically appends the technical JSON schema requirements to this guidance.';
+$string['aipromptheading'] = 'Structure from prompt';
+$string['aipromptheading_desc'] = 'What is sent to the AI, and limits on its use. The plugin adds its own instructions on the structure the AI must return.';
+$string['baseprompt'] = 'Guidance for the AI';
+$string['baseprompt_desc'] = 'Sent to the AI with every request, before the teacher\'s description. Use it for your institution\'s teaching approach, any frameworks modules must follow, and accessibility or quality expectations. The plugin adds its own instructions on the structure to return, so they do not need to go here.';
 
 // Validation error strings.
 $string['generationfailed'] = 'Generation Failed';
@@ -282,6 +280,7 @@ $string['errorunexpected'] = 'Something unexpected happened. Please go back to t
 $string['invalidparameters'] = 'The request is missing the job or course it is about.';
 $string['sectionnotfound'] = 'Section not found in course';
 $string['errorformatnotflexsections'] = 'Check Structure only repairs courses that use the Flexible sections format.';
+$string['errorformatflexsectionsonly'] = 'The Module Assistant only works in courses that use the Flexible sections format.';
 $string['errorformatnotsupported'] = 'The Module Assistant only works in courses that use the Custom sections, Weekly sections or Flexible sections format.';
 $string['errorflexsectionstooold'] = 'The Module Assistant needs Flexible sections 4.1.4 or later. Ask your site administrator to update it.';
 $string['errorsubsectionsdisabled'] = 'The Module Assistant builds each week\'s sessions as subsections, and subsections are switched off on this site. Ask your site administrator to enable the Subsection activity (Site administration > Plugins > Activity modules > Manage activities).';
@@ -308,36 +307,41 @@ $string['weeksection'] = 'Week';
 
 // Help and Advice Links.
 $string['helpandadvice'] = 'Help and Advice';
-$string['helplinksheading'] = 'Help and Advice Links';
-$string['helplinksheading_desc'] = 'Configure up to 5 external help links that will appear in the Module Assistant toolbar dropdown menu. Links will only appear if both text and URL are provided.';
-$string['helplinktext'] = 'Help Link {$a} Text';
-$string['helplinktext_desc'] = 'Display text for the help link';
-$string['helplinkurl'] = 'Help Link {$a} URL';
-$string['helplinkurl_desc'] = 'Full URL for the help resource (must start with http:// or https://)';
+$string['helplinksheading'] = 'Help and Advice menu';
+$string['helplinksheading_desc'] = 'Up to five links shown in the toolbar\'s Help and Advice menu. A link appears only when it has both text and an address; with none, the menu is not shown.';
+$string['helplinktext'] = 'Link {$a} text';
+$string['helplinktext_desc'] = 'What the link says in the menu.';
+$string['helplinkurl'] = 'Link {$a} address';
+$string['helplinkurl_desc'] = 'The full web address, starting with http:// or https://. It opens in a new tab.';
 
 // Section Creation Limits.
-$string['sectionlimitsheading'] = 'Section Creation Limits';
-$string['sectionlimitsheading_desc'] = 'Configure maximum number of sections that can be created at once through quick-add forms and CSV file uploads. These limits help prevent accidental creation of excessive course structure.';
-$string['featuretoggleheading'] = 'Feature availability';
-$string['featuretoggleheading_desc'] = 'Turn individual Module Assistant features on or off for the whole site. Capabilities still apply on top of these: a feature switched off here is unavailable to everyone, regardless of role.';
-$string['enablequickadd'] = 'Enable Quick add';
-$string['enablequickadd_desc'] = 'Show the "New theme" and "New week" options in the Quick add menu, which create single sections directly without going through the generator. Turning this off removes both options and closes the forms behind them. The rest of the Quick add menu is unaffected.';
+$string['sectionlimitsheading'] = 'Size limits';
+$string['sectionlimitsheading_desc'] = 'How much one request can build, and how large a course can get. They stop a mistyped number or an oversized file filling a course with sections.';
+$string['featuretoggleheading'] = 'Features';
+$string['featuretoggleheading_desc'] = 'Switch each part of the Module Assistant on or off for the whole site. A feature that is on is still only offered to people with its capability.';
+$string['enablequickadd'] = 'Enable New Theme(s) and New Week(s)';
+$string['enablequickadd_desc'] = 'Offer New Theme(s) and New Week(s) in the Quick Add menu. They add empty themes and weeks, each week with its pre-session, session and post-session sections, without AI. Turning this off removes both entries and closes the forms behind them; the other Quick Add entries have their own settings.';
+$string['enableassessments'] = 'Enable Assessments section';
+$string['enableassessments_desc'] = 'Offer Assessments section in the Quick Add menu, at the top of the course. It adds one section named Assessments straight after the first section, once per course. Turning this off removes the entry; it does not affect New Theme(s) and New Week(s).';
+$string['enablecoreformats'] = 'Enable on core Moodle course formats: Weekly & Custom sections';
+$string['enablecoreformats_desc'] = 'Let the Module Assistant build in courses that use the Custom sections or Weekly sections format, as well as Flexible sections. Each week is built as a section with its pre-session, session and post-session as subsections, so the Subsection activity must be enabled. Themes still need Flexible sections. Moodle counts subsections towards its own "Maximum number of sections" (52 by default), so a course in these formats holds about 13 weeks. When this is off, the Module Assistant only works in Flexible sections courses.';
 $string['enablestructurefromfile'] = 'Enable Structure from file';
-$string['enablestructurefromfile_desc'] = 'Allow module structures to be built from a CSV file - the "Structure from file" option, the CSV template chooser and the file upload on the generator form. Turning this off leaves AI generation from a prompt available, which is controlled separately by the AI generation setting above.';
-$string['quickadddisabled'] = 'Quick add is currently disabled. An administrator can enable it in the Module Assistant plugin settings.';
+$string['enablestructurefromfile_desc'] = 'Offer Structure from file, which builds a module from a CSV file that a teacher uploads or picks from the CSV structure library. It does not use AI. Teachers also need the aiplacement/modgen:generatefromtemplate capability.';
+$string['quickadddisabled'] = 'New Theme(s) and New Week(s) are switched off. An administrator can turn them on in the Module Assistant plugin settings.';
+$string['assessmentsdisabled'] = 'The Assessments section entry is switched off. An administrator can turn it on in the Module Assistant plugin settings.';
 $string['aidisabled'] = 'AI generation is currently disabled. An administrator can enable it in the Module Assistant plugin settings.';
 $string['generationdisabled'] = 'Building a structure is not available to you here: the routes you have permission for are disabled. An administrator can enable them in the Module Assistant plugin settings.';
 $string['structurefromfiledisabled'] = 'Building a structure from a file is currently disabled. An administrator can enable it in the Module Assistant plugin settings.';
-$string['maxquicksections'] = 'Maximum themes or weeks';
-$string['maxquicksections_desc'] = 'Maximum number of themes OR weeks that can be created at once using the quick-add forms. This applies when creating standalone themes or standalone weeks. Default: 30';
-$string['maxweeksperTheme'] = 'Maximum weeks per theme';
-$string['maxweeksperTheme_desc'] = 'Maximum number of weeks that can be created within EACH theme when using the themed structure. For example, creating 10 themes with 5 weeks each would create 50 total sections (10 parent themes + 40 child weeks). Set this lower than the maximum themes/weeks to control total section creation. Default: 5';
-$string['maxcsvsections'] = 'Maximum CSV sections';
-$string['maxcsvsections_desc'] = 'Maximum total number of sections (themes + weeks) that can be created from a CSV file upload. Set to 0 for unlimited (not recommended). Default: 50';
+$string['maxquicksections'] = 'Most themes or weeks per Quick Add';
+$string['maxquicksections_desc'] = 'The largest number a teacher can enter in New Theme(s) or New Week(s). Default: 30.';
+$string['maxweeksperTheme'] = 'Most weeks per theme in Quick Add';
+$string['maxweeksperTheme_desc'] = 'The largest number of weeks a teacher can ask New Theme(s) to put in each theme. Every week also gets its three session sections, so 10 themes of 5 weeks is 210 sections: 10 themes, 50 weeks and 150 sessions. Default: 5.';
+$string['maxcsvsections'] = 'Most themes and weeks in a CSV file';
+$string['maxcsvsections_desc'] = 'The most theme and week rows Structure from file accepts in one file. Session sections are not counted, so 50 weeks builds 200 sections. This does not apply to Structure from prompt; every build is held to the course limit below. 0 means no limit (not recommended). Default: 50.';
 $string['csvlimitexceeded'] = 'CSV file contains {$a->count} sections, which exceeds the maximum allowed limit of {$a->max}. Please reduce the number of sections in your CSV file.';
 $string['csvweekbeforetheme'] = 'Row {$a->row} of the CSV file adds the week "{$a->value}" before any theme. Add a "Theme:" row above it, or use the weekly format.';
-$string['maxtotalsections'] = 'Maximum total sections per course';
-$string['maxtotalsections_desc'] = 'Hard safety limit on the total number of sections a course may contain (existing sections plus those a generation would add). The flexsections format renumbers and rebuilds the whole course on every section insert, so creation slows down quadratically as a course grows and very large courses can exhaust memory. Generation is refused before it starts if it would push the course past this limit. Raise it only if your server has ample memory and you accept slower generation. Default: 400';
+$string['maxtotalsections'] = 'Most sections in a course';
+$string['maxtotalsections_desc'] = 'No build may take a course past this many sections, counting the sections it already has and every theme, week and session the build adds; a build that would is refused before it starts. Large Flexible sections courses get slow to build and edit, and very large ones can run out of memory. In Custom sections and Weekly sections, Moodle\'s own "Maximum number of sections" (Course default settings) also applies and is usually lower. Default: 400.';
 $string['sectionlimitexceeded'] = 'That\'s too many sections to create at once. This would take the course to {$a->total} sections, but the limit is {$a->max} (it already has {$a->existing}). Please try again with fewer themes or weeks.';
 
 // Loading indicator strings.
@@ -515,8 +519,8 @@ $string['setparent_error_wouldcreatecycle'] = 'That change would create a new ci
 $string['setparent_error_maxdepthexceeded'] = 'That change would nest the section deeper than this course format allows, so it was not applied.';
 
 // Settings page external link.
-$string['admintools_link'] = 'Admin Diagnostic Tools';
-$string['admintools_link_desc'] = 'Open the admin-level diagnostic and repair tools for the Module Generator plugin. <a href="{$a}">Admin Diagnostic Tools</a>';
+$string['admintools_link'] = 'Diagnostics';
+$string['admintools_link_desc'] = 'Check and repair the section hierarchy of Flexible sections courses across the site. <a href="{$a}">Open the diagnostic tools</a>';
 
 // Export strings.
 $string['quickexport'] = 'Quick Hierarchy Export';

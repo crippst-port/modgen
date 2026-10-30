@@ -30,7 +30,8 @@ namespace aiplacement_modgen\local;
  * Flexible sections nests sections to any depth, so it takes every structure: themes, their weeks
  * and each week's sessions. Custom sections and Weekly sections nest one level, with core
  * subsections, so they take weeks with their sessions as subsections and nothing that needs
- * themes. The plugin never changes a course's format: a course in any other format is refused.
+ * themes; they are only offered while the administrator has enabled them ('enable_coreformats').
+ * The plugin never changes a course's format: a course in any other format is refused.
  */
 class course_formats {
     /** @var string Flexible sections. */
@@ -81,6 +82,21 @@ class course_formats {
     }
 
     /**
+     * The formats the Module Assistant builds in on this site.
+     *
+     * Custom sections and Weekly sections only while the administrator has enabled them.
+     *
+     * @return string[]
+     */
+    public static function supported_formats(): array {
+        $formats = [self::FLEXSECTIONS];
+        if (settings_helper::is_coreformats_enabled()) {
+            $formats = array_merge($formats, self::CORE_FORMATS);
+        }
+        return $formats;
+    }
+
+    /**
      * Whether the Subsection activity is enabled on the site.
      *
      * @return bool
@@ -104,6 +120,10 @@ class course_formats {
                 return 'errorflexsectionstooold';
             }
             return null;
+        }
+
+        if (!settings_helper::is_coreformats_enabled()) {
+            return 'errorformatflexsectionsonly';
         }
 
         if (in_array($format, self::CORE_FORMATS, true)) {

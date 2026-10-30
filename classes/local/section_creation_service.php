@@ -61,9 +61,15 @@ class section_creation_service {
         $activitywarnings = [];
         $needscacherefresh = false;
 
+        // Refuse a course that cannot take the build, or a structure with themes in a course that cannot hold
+        // them, before anything else: the course may have changed format since the job was queued.
+        course_formats::require_supported($courseid);
+        course_formats::require_structure_fits($courseid, $moduletype, $json);
+
         // Refuse before doing any work if this structure would push the course past
         // the section limit (flexsections section creation is ~O(n^2) in total
-        // sections). Fails fast and cheap, before locking or creating anything.
+        // sections; core formats also have the site's own cap). Fails fast and cheap,
+        // before locking or creating anything.
         $projectedsections = \aiplacement_modgen\local\theme_builder::count_projected_sections_from_json($json, $moduletype);
         \aiplacement_modgen\local\theme_builder::enforce_section_limit($courseid, $projectedsections);
 
@@ -74,14 +80,16 @@ class section_creation_service {
         $locks = \aiplacement_modgen\local\theme_builder::acquire_build_locks($courseid, $projectedsections);
 
         try {
-            // Check the course uses flexsections, and name section 0.
+            // Check the format again now the locks are held, and name section 0.
             \aiplacement_modgen\local\theme_builder::prepare_course_for_build($courseid);
+            course_formats::require_structure_fits($courseid, $moduletype, $json);
 
             $course = get_course($courseid, true);
             $courseformat = course_get_format($course);
 
             // Start transaction for entire JSON processing operation.
             // This ensures all sections and activities are created atomically - all or nothing.
+            $wasintransaction = $DB->is_transaction_started();
             $transaction = $DB->start_delegated_transaction();
 
             try {
@@ -124,7 +132,7 @@ class section_creation_service {
                 \aiplacement_modgen\local\theme_builder::renumber_into_hierarchy_order($courseid, true);
             } catch (\Throwable $e) {
                 // Roll back explicitly: delegated transactions do not do it on their own.
-                \aiplacement_modgen\local\theme_builder::rollback_quietly($transaction, $e);
+                \aiplacement_modgen\local\theme_builder::rollback_build($transaction, $e, $wasintransaction);
                 // Kept as it is when a retry could succeed, so the task can tell.
                 if (\aiplacement_modgen\local\theme_builder::is_transient_failure($e)) {
                     throw $e;

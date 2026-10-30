@@ -64,7 +64,6 @@ final class learningactivity_summary_test extends advanced_testcase {
         $this->setAdminUser();
         set_config('enabled', 1, 'aiplacement_modgen');
         set_config('enable_quickadd', 1, 'aiplacement_modgen');
-        local\settings_helper::clear_cache();
 
         $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
         theme_builder::prepare_course_for_build($this->course->id);

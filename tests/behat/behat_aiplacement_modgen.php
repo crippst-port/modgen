@@ -89,17 +89,21 @@ class behat_aiplacement_modgen extends behat_base {
     }
 
     /**
-     * Check that a course satisfies every Flexible sections rule: numbering, parents, order, depth, modules.
+     * Check that a course satisfies every rule for its format: numbering, parents or subsections, order,
+     * depth, modules. Flexible sections courses also go through the plugin's integrity checker.
      *
      * @Then /^the course "(?P<course_string>[^"]*)" structure should be sound$/
      * @param string $shortname Course short name.
      */
     public function the_course_structure_should_be_sound(string $shortname): void {
+        global $DB;
         $courseid = $this->course_id($shortname);
         $problems = aiplacement_modgen_structure_snapshot::problems($courseid);
-        $check = \aiplacement_modgen\local\integrity_checker::check($courseid);
-        if ($check['has_issues']) {
-            $problems[] = "The plugin's integrity checker reports issues: " . json_encode($check['counts']);
+        if ($DB->get_field('course', 'format', ['id' => $courseid]) === 'flexsections') {
+            $check = \aiplacement_modgen\local\integrity_checker::check($courseid);
+            if ($check['has_issues']) {
+                $problems[] = "The plugin's integrity checker reports issues: " . json_encode($check['counts']);
+            }
         }
         if ($problems) {
             throw new Exception("The structure of '$shortname' is not sound:\n" . implode("\n", $problems));
@@ -223,6 +227,17 @@ class behat_aiplacement_modgen extends behat_base {
         if ($actual !== $format) {
             throw new Exception("'$shortname' uses the '$actual' format, expected '$format'.");
         }
+    }
+
+    /**
+     * Switch the Subsection activity on or off, which builds in Custom sections and Weekly sections need.
+     *
+     * @Given /^subsections are (?P<state_string>enabled|disabled)$/
+     * @param string $state enabled or disabled.
+     */
+    public function subsections_are(string $state): void {
+        \core\plugininfo\mod::enable_plugin('subsection', $state === 'enabled' ? 1 : 0);
+        \core_plugin_manager::reset_caches();
     }
 
     /**

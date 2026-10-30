@@ -57,12 +57,13 @@ $PAGE->set_context($context);
 $PAGE->set_course(get_course($courseid));
 
 // The plugin never changes a course's format. This page can be reached by its address (a bookmark),
-// so a course in another format gets a plain page saying so rather than an error.
-if (!\aiplacement_modgen\local\theme_builder::uses_flexsections($courseid)) {
+// so a course it cannot build in gets a plain page saying why rather than an error.
+$unsupportedreason = \aiplacement_modgen\local\course_formats::unsupported_reason($courseid);
+if ($unsupportedreason !== null) {
     $PAGE->set_title(get_string('pluginname', 'aiplacement_modgen'));
     $PAGE->set_heading(get_string('pluginname', 'aiplacement_modgen'));
     echo $OUTPUT->header();
-    echo $OUTPUT->notification(get_string('errorformatnotflexsections', 'aiplacement_modgen'), 'warning', false);
+    echo $OUTPUT->notification(get_string($unsupportedreason, 'aiplacement_modgen'), 'warning', false);
     echo $OUTPUT->continue_button(new moodle_url('/course/view.php', ['id' => $courseid]));
     echo $OUTPUT->footer();
     exit;
@@ -397,13 +398,15 @@ if ($approveform && ($adata = $approveform->get_data())) {
 
     // Refuse now rather than queue a job that is certain to fail in the background.
     try {
+        // The structure came back from the browser: check again that the course can hold it.
+        \aiplacement_modgen\local\course_formats::require_structure_fits($courseid, $moduletype, $json);
         \aiplacement_modgen\local\theme_builder::enforce_section_limit(
             $courseid,
             \aiplacement_modgen\local\theme_builder::count_projected_sections_from_json($json, $moduletype)
         );
     } catch (\moodle_exception $e) {
         if ($ajax) {
-            \aiplacement_modgen\local\ajax_response::error($e->getMessage(), 'sectionlimitexceeded');
+            \aiplacement_modgen\local\ajax_response::error($e->getMessage(), $e->errorcode);
         }
         // On a full page, go back to the form with the reason rather than showing an error page.
         redirect($PAGE->url, $e->getMessage(), null, \core\output\notification::NOTIFY_ERROR);
@@ -529,6 +532,10 @@ if ($pdata = $promptform->get_data()) {
         if (!is_array($json)) {
             throw new \moodle_exception('templateprocessorempty', 'aiplacement_modgen');
         }
+
+        // A file can hold themes whatever the course's format is: refuse it before showing a preview of
+        // something that cannot be built here.
+        \aiplacement_modgen\local\course_formats::require_structure_fits($courseid, $moduletype, $json);
     } catch (\Throwable $e) {
         $errorhtml = html_writer::div(
             html_writer::tag('h4', get_string('generationfailed', 'aiplacement_modgen'), ['class' => 'text-danger']) .

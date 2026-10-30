@@ -38,11 +38,32 @@ if ($hassiteconfig) {
 
     // phpcs:ignore Generic.CodeAnalysis.EmptyStatement.DetectedIf
     if ($ADMIN->fulltree) {
-        // AI Enable/Disable Setting.
+        // Features: each can be switched off for the whole site. Capabilities still apply on top.
         $settings->add(new admin_setting_heading(
-            'aiplacement_modgen/aienabledheading',
-            new lang_string('aienabledheading', 'aiplacement_modgen'),
-            new lang_string('aienabledheading_desc', 'aiplacement_modgen')
+            'aiplacement_modgen/featuretoggleheading',
+            new lang_string('featuretoggleheading', 'aiplacement_modgen'),
+            new lang_string('featuretoggleheading_desc', 'aiplacement_modgen')
+        ));
+
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_quickadd',
+            new lang_string('enablequickadd', 'aiplacement_modgen'),
+            new lang_string('enablequickadd_desc', 'aiplacement_modgen'),
+            1
+        ));
+
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_assessments',
+            new lang_string('enableassessments', 'aiplacement_modgen'),
+            new lang_string('enableassessments_desc', 'aiplacement_modgen'),
+            1
+        ));
+
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_structurefromfile',
+            new lang_string('enablestructurefromfile', 'aiplacement_modgen'),
+            new lang_string('enablestructurefromfile_desc', 'aiplacement_modgen'),
+            1
         ));
 
         $settings->add(new admin_setting_configcheckbox(
@@ -52,7 +73,14 @@ if ($hassiteconfig) {
             1
         ));
 
-        // AI Generation Settings.
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_coreformats',
+            new lang_string('enablecoreformats', 'aiplacement_modgen'),
+            new lang_string('enablecoreformats_desc', 'aiplacement_modgen'),
+            0
+        ));
+
+        // Structure from prompt: what is sent to the AI, and limits on its use.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/aipromptheading',
             new lang_string('aipromptheading', 'aiplacement_modgen'),
@@ -90,54 +118,7 @@ if ($hassiteconfig) {
             PARAM_INT
         ));
 
-        // Quick add and Structure-from-file feature controls.
-        $settings->add(new admin_setting_heading(
-            'aiplacement_modgen/featuretoggleheading',
-            new lang_string('featuretoggleheading', 'aiplacement_modgen'),
-            new lang_string('featuretoggleheading_desc', 'aiplacement_modgen')
-        ));
-
-        $settings->add(new admin_setting_configcheckbox(
-            'aiplacement_modgen/enable_quickadd',
-            new lang_string('enablequickadd', 'aiplacement_modgen'),
-            new lang_string('enablequickadd_desc', 'aiplacement_modgen'),
-            1
-        ));
-
-        $settings->add(new admin_setting_configcheckbox(
-            'aiplacement_modgen/enable_structurefromfile',
-            new lang_string('enablestructurefromfile', 'aiplacement_modgen'),
-            new lang_string('enablestructurefromfile_desc', 'aiplacement_modgen'),
-            1
-        ));
-
-        // Help and Advice Links.
-        $settings->add(new admin_setting_heading(
-            'aiplacement_modgen/helplinksheading',
-            new lang_string('helplinksheading', 'aiplacement_modgen'),
-            new lang_string('helplinksheading_desc', 'aiplacement_modgen')
-        ));
-
-        // Add 5 configurable help links.
-        for ($i = 1; $i <= 5; $i++) {
-            $settings->add(new admin_setting_configtext(
-                "aiplacement_modgen/helplink{$i}_text",
-                new lang_string('helplinktext', 'aiplacement_modgen', $i),
-                new lang_string('helplinktext_desc', 'aiplacement_modgen'),
-                '',
-                PARAM_TEXT
-            ));
-
-            $settings->add(new admin_setting_configtext(
-                "aiplacement_modgen/helplink{$i}_url",
-                new lang_string('helplinkurl', 'aiplacement_modgen', $i),
-                new lang_string('helplinkurl_desc', 'aiplacement_modgen'),
-                '',
-                PARAM_URL
-            ));
-        }
-
-        // Section Creation Limits.
+        // Size limits.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/sectionlimitsheading',
             new lang_string('sectionlimitsheading', 'aiplacement_modgen'),
@@ -176,7 +157,7 @@ if ($hassiteconfig) {
             PARAM_INT
         ));
 
-        // CSV Template Library.
+        // CSV structure library.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/csvtemplateheading',
             new lang_string('csvtemplatelibrary', 'aiplacement_modgen'),
@@ -190,7 +171,33 @@ if ($hassiteconfig) {
             new lang_string('managetemplates_desc', 'aiplacement_modgen', $manageurl->out())
         ));
 
-        // Admin diagnostic tools link.
+        // Help and Advice menu.
+        $settings->add(new admin_setting_heading(
+            'aiplacement_modgen/helplinksheading',
+            new lang_string('helplinksheading', 'aiplacement_modgen'),
+            new lang_string('helplinksheading_desc', 'aiplacement_modgen')
+        ));
+
+        // Add 5 configurable help links.
+        for ($i = 1; $i <= 5; $i++) {
+            $settings->add(new admin_setting_configtext(
+                "aiplacement_modgen/helplink{$i}_text",
+                new lang_string('helplinktext', 'aiplacement_modgen', $i),
+                new lang_string('helplinktext_desc', 'aiplacement_modgen'),
+                '',
+                PARAM_TEXT
+            ));
+
+            $settings->add(new admin_setting_configtext(
+                "aiplacement_modgen/helplink{$i}_url",
+                new lang_string('helplinkurl', 'aiplacement_modgen', $i),
+                new lang_string('helplinkurl_desc', 'aiplacement_modgen'),
+                '',
+                PARAM_URL
+            ));
+        }
+
+        // Diagnostics.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/admintoolsheading',
             new lang_string('admintools_link', 'aiplacement_modgen'),
@@ -203,7 +210,5 @@ if ($hassiteconfig) {
             '',
             new lang_string('admintools_link_desc', 'aiplacement_modgen', $admintoolsurl->out())
         ));
-
-        // Add file upload or other settings as needed.
     }
 }

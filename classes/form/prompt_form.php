@@ -46,31 +46,29 @@ class aiplacement_modgen_prompt_form extends moodleform {
         // Warn, without refusing, when the module already has content.
         \aiplacement_modgen\local\existing_content::add_warning($mform, (int) $this->_customdata['courseid']);
 
-        // Add module type selection.
-        $moduletypeoptions = [];
-
-        // Add Connected Curriculum format options if flexsections is installed.
-        $pluginmanager = core_plugin_manager::instance();
-        $flexsectionsplugin = $pluginmanager->get_plugin_info('format_flexsections');
-        if (!empty($flexsectionsplugin)) {
-            $moduletypeoptions['connected_weekly'] = get_string('moduletype_connected_weekly', 'aiplacement_modgen');
-            $moduletypeoptions['connected_theme'] = get_string('moduletype_connected_theme', 'aiplacement_modgen');
+        // Every supported format takes a weekly module; themes need Flexible sections. With only the weekly
+        // module to offer there is nothing to choose, so the type is sent without a field.
+        if (\aiplacement_modgen\local\course_formats::supports_themes((int) $this->_customdata['courseid'])) {
+            // Module type selection, shown as choice cards (amd/src/quick_add_form.js).
+            $mform->addElement(
+                'select',
+                'moduletype',
+                get_string('moduletype', 'aiplacement_modgen'),
+                [
+                    'connected_weekly' => get_string('moduletype_connected_weekly', 'aiplacement_modgen'),
+                    'connected_theme' => get_string('moduletype_connected_theme', 'aiplacement_modgen'),
+                ],
+                \aiplacement_modgen\local\quick_add_ui::choice_attributes([
+                    'connected_weekly' => ['calendar', get_string('moduletypechoice_connected_weekly', 'aiplacement_modgen')],
+                    'connected_theme' => ['book', get_string('moduletypechoice_connected_theme', 'aiplacement_modgen')],
+                ])
+            );
+            $mform->addHelpButton('moduletype', 'moduletype', 'aiplacement_modgen');
+        } else {
+            $mform->addElement('hidden', 'moduletype');
         }
-
-        // Module type selection, shown as choice cards (amd/src/quick_add_form.js).
-        $mform->addElement(
-            'select',
-            'moduletype',
-            get_string('moduletype', 'aiplacement_modgen'),
-            $moduletypeoptions,
-            \aiplacement_modgen\local\quick_add_ui::choice_attributes([
-                'connected_weekly' => ['calendar', get_string('moduletypechoice_connected_weekly', 'aiplacement_modgen')],
-                'connected_theme' => ['book', get_string('moduletypechoice_connected_theme', 'aiplacement_modgen')],
-            ])
-        );
         $mform->setType('moduletype', PARAM_ALPHANUMEXT);
         $mform->setDefault('moduletype', 'connected_weekly');
-        $mform->addHelpButton('moduletype', 'moduletype', 'aiplacement_modgen');
 
         // Main content prompt.
         $mform->addElement('textarea', 'prompt', get_string('prompt', 'aiplacement_modgen'), [

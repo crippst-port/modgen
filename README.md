@@ -1,17 +1,36 @@
 # Module Assistant (aiplacement_modgen)
 
-An AI placement plugin for Moodle 4.5+ that helps teachers build the structure of a module in the
-Flexible sections course format: themes, weeks and the pre-session / session / post-session
-sections inside them.
+An AI placement plugin for Moodle 4.5+ that helps teachers build the structure of a module: weeks
+with pre-session / session / post-session sections inside them, and, in the Flexible sections
+format, themes that hold those weeks.
+
+## Course formats
+
+The plugin never changes a course's format; a course in any other format is refused.
+
+| Format | What is built |
+|--------|---------------|
+| Flexible sections | Themes, weeks and sessions, nested as sections inside sections. |
+| Custom sections, Weekly sections | Weeks as sections, each with its three sessions as core subsections. No themes: anything with themes (New Theme(s), a theme CSV, a themed AI structure) is refused, as is a week inside another section. |
+
+Custom sections and Weekly sections are off until an administrator turns on **Enable on core Moodle course formats:
+Weekly & Custom sections** in the plugin settings; until then only Flexible sections courses are
+built in, as before 0.9.0.
+
+Builds in Custom sections and Weekly sections need the Subsection activity enabled (Site
+administration > Plugins > Activity modules > Manage activities); while it is off, the toolbar says
+so in place of the Quick Add menu. Core counts subsections towards the site's "Maximum number of
+sections" (Course default settings, 52 by default), and each week is four sections, so a build that
+would take a course past it is refused.
 
 ## What it does
 
 All of it is reached from the **Module Assistant** toolbar, which appears at the top of a course
-page when editing is on (course pages using the Flexible sections format only).
+page when editing is on, in the formats above.
 
 - **Quick Add**
   - *New Theme(s)* creates top-level themes, each with a chosen number of weeks. It is only offered
-    at the top of the course, never from inside a section.
+    at the top of the course, never from inside a section, and only in Flexible sections.
   - *New Week(s)* creates standalone weeks, each with its three session sections.
 - **Structure from file** builds a module from a CSV, either uploaded or chosen from a library of
   CSV templates kept by administrators. It does not need AI. The result is always created at the
@@ -20,7 +39,8 @@ page when editing is on (course pages using the Flexible sections format only).
   propose a structure from a prompt and optional CSV. The proposal is shown as a preview and nothing
   is created until the teacher approves it.
 - **Check Structure** diagnoses and repairs problems with the section hierarchy (parents, ordering,
-  orphans, circular references) in Flexible sections courses.
+  orphans, circular references) in Flexible sections courses. It is not offered in other formats,
+  which keep their own hierarchy.
 - **Help and Advice** shows links an administrator configures in the plugin settings.
 
 Creation always runs as a background (ad-hoc) task, so large builds do not time out a web request.
@@ -30,8 +50,11 @@ success. A build that would take the course over the section limit is refused be
 ## Requirements
 
 - Moodle 4.5 or later (PHP 8.1 or later, as Moodle requires).
-- The Flexible sections course format (`format_flexsections` 4.1.4 or later, version 2024120801).
-  It is a hard dependency; the plugin only builds into courses using that format.
+- For Custom sections and Weekly sections courses: the Subsection activity (`mod_subsection`, part of
+  Moodle 4.5), enabled.
+- Optional: the Flexible sections course format (`format_flexsections` 4.1.4 or later, version
+  2024120801), for themes and for Check Structure. Flexible sections courses are refused on an
+  older version, which takes no lock around deleting a section.
 - An AI provider configured in Moodle's AI subsystem, offering *Generate text* and allowed for this
   placement, for *Structure from prompt* only.
 - Optional: the Learning Activity module (`mod_learningactivity`). When it is installed, builds can add
@@ -51,27 +74,31 @@ Nothing is granted by default; assign these in the course (or system) context.
 
 | Capability | Allows |
 |------------|--------|
-| `aiplacement/modgen:managestructure` | Quick Add: New Theme(s) and New Week(s) |
+| `aiplacement/modgen:managestructure` | Quick Add: New Theme(s), New Week(s) and Assessments section |
 | `aiplacement/modgen:generatefromtemplate` | Structure from file (needs Structure from file enabled) |
 | `aiplacement/modgen:generatewithprompt` | Structure from prompt (needs AI enabled) |
 | `aiplacement/modgen:checkstructure` | Check Structure and its repair actions |
 | `aiplacement/modgen:managetemplates` (system) | Managing the CSV template library |
 
-Toolbar entries only appear for users who hold the matching capability. Anyone who can start a build can follow their own build on the job page.
+Toolbar entries only appear for users who hold the matching capability, while the matching feature
+switch is on and the course's format can hold what the entry builds. A user with no entry to use
+gets no toolbar at all; the help links alone do not show it. Anyone who can start a build can follow
+their own build on the job page.
 
 ## Configuration
 
 Site administration > AI > AI placements > Module Assistant (Settings):
 
-- **Feature switches**: AI generation, Quick Add and Structure from file can each be turned off.
-- **AI generation**: base prompt, timeout (default 300 seconds) and a per-user hourly request limit
-  (default 10).
-- **Section limits**: maximum themes or weeks per Quick Add (30), weeks per theme (5), sections in a
-  CSV, and a total section cap per course (default 400) that protects courses from builds that
-  would make Flexible sections very slow.
-- **CSV template library** and **Help links**: manage the shared templates and up to five links
-  shown in the toolbar.
-- **Admin tools**: a link to the site-wide structure diagnostics.
+- **Features**: New Theme(s) and New Week(s), the Assessments section, Structure from file and
+  Structure from prompt can each be switched off. Building in Custom sections and Weekly sections is
+  off by default and can be switched on.
+- **Structure from prompt**: guidance sent to the AI, the time a request may run (default 300
+  seconds) and a per-user hourly request limit (default 10).
+- **Size limits**: most themes or weeks per Quick Add (30), weeks per theme (5), themes and weeks in
+  a CSV file (50), and most sections in a course (400).
+- **CSV structure library**: the shared CSV structures teachers can pick in Structure from file.
+- **Help and Advice menu**: up to five links shown in the toolbar.
+- **Diagnostics**: a link to the site-wide structure diagnostics for Flexible sections courses.
 
 ## Logging and background tasks
 
@@ -151,8 +178,16 @@ npx grunt amd
 - Verify the AI provider is configured in Site administration > AI, and check its credentials and
   quota.
 
+**The toolbar does not appear**
+- Make sure the course uses the Custom sections, Weekly sections or Flexible sections format, and
+  that editing is on.
+
+**The toolbar says subsections are switched off**
+- Enable the Subsection activity in Site administration > Plugins > Activity modules > Manage
+  activities.
+
 **Sections do not appear**
-- Make sure the course uses the Flexible sections format, then purge caches.
+- Make sure cron is running, then purge caches.
 
 ## Changes
 

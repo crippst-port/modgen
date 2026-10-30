@@ -54,7 +54,6 @@ final class job_execution_regression_test extends \advanced_testcase {
         set_config('enable_quickadd', 1, 'aiplacement_modgen');
         set_config('enable_ai', 1, 'aiplacement_modgen');
         set_config('enable_structurefromfile', 1, 'aiplacement_modgen');
-        \aiplacement_modgen\local\settings_helper::clear_cache();
     }
 
     /**
@@ -353,7 +352,6 @@ final class job_execution_regression_test extends \advanced_testcase {
             set_config('enable_quickadd', 0, 'aiplacement_modgen');
         }
         accesslib_clear_all_caches_for_unit_testing();
-        \aiplacement_modgen\local\settings_helper::clear_cache();
 
         $before = $DB->count_records('course_sections', ['course' => $course->id]);
         $this->execute_job($jobid);

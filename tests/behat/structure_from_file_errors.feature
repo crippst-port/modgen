@@ -89,7 +89,7 @@ Feature: Structure from file refuses what it cannot build
   Scenario: A course in another format is refused when the page is reached by its address, and keeps its format
     Given the following "courses" exist:
       | fullname | shortname | format |
-      | Course 2 | C2        | topics |
+      | Course 2 | C2        | social |
     And the following "course enrolments" exist:
       | user     | course | role           |
       | teacher1 | C2     | editingteacher |
@@ -100,5 +100,5 @@ Feature: Structure from file refuses what it cannot build
     When I visit the Structure from file page of "C2"
     Then I should see "only works in courses that use the Flexible sections format"
     And I should not see "Upload structure file"
-    And the course "C2" should use the "topics" format
+    And the course "C2" should use the "social" format
     And there should be "0" structure jobs in "C2"

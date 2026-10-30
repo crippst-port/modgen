@@ -51,6 +51,9 @@ class quick_add_service {
         int $parentsection,
         bool $createsummaryactivities
     ): array {
+        // Themes need Flexible sections, which nests weeks inside them.
+        course_formats::require_themes($courseid);
+
         // Themes are top-level containers: refuse them when the request comes from inside a section.
         if ($parentsection > 0) {
             throw new \moodle_exception('themetoplevelonly', 'aiplacement_modgen');
@@ -99,6 +102,11 @@ class quick_add_service {
         int $parentsection,
         bool $createsummaryactivities
     ): array {
+        // A week holds its sessions as subsections, and core formats nest only one level.
+        if ($parentsection > 0 && !course_formats::is_flexsections($courseid)) {
+            throw new \moodle_exception('errorweekstoplevelonly', 'aiplacement_modgen');
+        }
+
         $maxsections = self::max_quick_sections();
         if ($weekcount < 1 || $weekcount > $maxsections) {
             throw new \moodle_exception('invalidweekcount', 'aiplacement_modgen', '', $maxsections);

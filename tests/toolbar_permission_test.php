@@ -138,7 +138,6 @@ final class toolbar_permission_test extends advanced_testcase {
      */
     public function test_new_theme_is_only_offered_at_the_top_level(): void {
         set_config('enable_quickadd', 1, 'aiplacement_modgen');
-        \aiplacement_modgen\local\settings_helper::clear_cache();
         $this->setUser($this->partiallyauthorizeduser);
         $args = [
             'courseid' => $this->course->id,
@@ -163,7 +162,6 @@ final class toolbar_permission_test extends advanced_testcase {
     public function test_generate_only_user_does_not_see_structure_buttons(): void {
         set_config('enable_quickadd', 1, 'aiplacement_modgen');
         set_config('enable_structurefromfile', 1, 'aiplacement_modgen');
-        \aiplacement_modgen\local\settings_helper::clear_cache();
 
         $roleid = $this->getDataGenerator()->create_role();
         $context = \context_course::instance($this->course->id);

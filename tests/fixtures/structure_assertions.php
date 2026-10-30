@@ -47,7 +47,6 @@ trait aiplacement_modgen_structure_assertions {
         set_config('enabled', 1, 'aiplacement_modgen');
         set_config('enable_quickadd', 1, 'aiplacement_modgen');
         set_config('enable_structurefromfile', 1, 'aiplacement_modgen');
-        \aiplacement_modgen\local\settings_helper::clear_cache();
     }
 
     /**
@@ -78,17 +77,24 @@ trait aiplacement_modgen_structure_assertions {
     }
 
     /**
-     * Assert the course satisfies every Flexible sections rule, and the plugin's and Moodle's own checks.
+     * Assert the course satisfies every rule for its format, and Moodle's own checks.
+     *
+     * Flexible sections courses also go through the plugin's integrity checker, which only checks that format.
      *
      * @param int $courseid Course id.
      */
     protected function assert_sound(int $courseid): void {
-        global $CFG;
+        global $CFG, $DB;
         require_once($CFG->dirroot . '/course/lib.php');
 
         $this->assertSame([], aiplacement_modgen_structure_snapshot::problems($courseid), 'Structural rules are broken.');
-        $check = \aiplacement_modgen\local\integrity_checker::check($courseid);
-        $this->assertFalse($check['has_issues'], "The plugin's integrity checker reports issues: " . json_encode($check['issues']));
+        if ($DB->get_field('course', 'format', ['id' => $courseid]) === 'flexsections') {
+            $check = \aiplacement_modgen\local\integrity_checker::check($courseid);
+            $this->assertFalse(
+                $check['has_issues'],
+                "The plugin's integrity checker reports issues: " . json_encode($check['issues'])
+            );
+        }
         $this->assertSame(
             [],
             course_integrity_check($courseid, null, null, true, true),

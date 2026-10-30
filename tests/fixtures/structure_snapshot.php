@@ -15,8 +15,9 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Reads a course's Flexible sections structure straight from the database and compares it with
- * an expected description, for PHPUnit and Behat tests.
+ * Reads a course's structure straight from the database and compares it with an expected
+ * description, for PHPUnit and Behat tests: Flexible sections, and Custom sections and Weekly
+ * sections with core subsections.
  *
  * @package     aiplacement_modgen
  * @category    test
@@ -43,6 +44,10 @@ class aiplacement_modgen_structure_snapshot {
      */
     public static function rows(int $courseid): array {
         global $DB;
+
+        if (!self::is_flexsections($courseid)) {
+            return self::core_rows($courseid);
+        }
 
         $sections = $DB->get_records('course_sections', ['course' => $courseid], 'section ASC');
         $options = [];
@@ -140,7 +145,12 @@ class aiplacement_modgen_structure_snapshot {
                 $problems[] = "$where: activities are [" . implode(', ', $got['activitynames']) . "], expected [" .
                     implode(', ', $want['activitynames']) . "].";
             }
-            foreach (['collapsed', 'activities', 'depth', 'visible'] as $key) {
+            // Only Flexible sections has a collapsed option.
+            $keys = ['activities', 'depth', 'visible'];
+            if (self::is_flexsections($courseid)) {
+                $keys[] = 'collapsed';
+            }
+            foreach ($keys as $key) {
                 if (isset($want[$key]) && $want[$key] !== '' && (string) $want[$key] !== (string) $got[$key]) {
                     $problems[] = "$where: $key is '{$got[$key]}', expected '{$want[$key]}'.";
                 }
@@ -174,6 +184,10 @@ class aiplacement_modgen_structure_snapshot {
      */
     public static function problems(int $courseid): array {
         global $DB;
+
+        if (!self::is_flexsections($courseid)) {
+            return self::core_problems($courseid);
+        }
 
         $problems = [];
         $sections = $DB->get_records('course_sections', ['course' => $courseid], 'section ASC');
@@ -249,6 +263,21 @@ class aiplacement_modgen_structure_snapshot {
             }
         }
 
+        return array_merge($problems, self::module_problems($courseid, $sections));
+    }
+
+    /**
+     * Rules every course module must satisfy: it is in exactly one section's sequence, and that section
+     * is the one the module row points to.
+     *
+     * @param int $courseid Course id.
+     * @param stdClass[] $sections The course's section records.
+     * @return string[] Problems found.
+     */
+    private static function module_problems(int $courseid, array $sections): array {
+        global $DB;
+
+        $problems = [];
         $sequences = [];
         foreach ($sections as $section) {
             foreach (array_filter(explode(',', (string) $section->sequence)) as $cmid) {
@@ -267,7 +296,177 @@ class aiplacement_modgen_structure_snapshot {
                 $problems[] = "Course module {$cm->id} is in a sequence but points at section id {$cm->section}.";
             }
         }
+        return $problems;
+    }
 
+    /**
+     * Whether the course uses Flexible sections; anything else is read as a core format with subsections.
+     *
+     * @param int $courseid Course id.
+     * @return bool
+     */
+    private static function is_flexsections(int $courseid): bool {
+        global $DB;
+        return $DB->get_field('course', 'format', ['id' => $courseid], MUST_EXIST) === 'flexsections';
+    }
+
+    /**
+     * Rows for a Custom sections or Weekly sections course, in the order the course page shows them.
+     *
+     * Each ordinary section, then a row for each subsection it holds, in the order of its activities.
+     * A subsection's row is its delegated section: parent is the section holding the Subsection
+     * activity, depth 2. 'activities' and 'activitynames' count everything in the section except
+     * Subsection activities, which are the subsection rows themselves. Rows have the keys rows() gives,
+     * with collapsed always '' (core formats have no such option).
+     *
+     * @param int $courseid Course id.
+     * @return array[]
+     */
+    private static function core_rows(int $courseid): array {
+        global $DB;
+
+        $subsectionmodule = $DB->get_field('modules', 'id', ['name' => 'subsection']);
+        $rows = [];
+        foreach ($DB->get_records('course_sections', ['course' => $courseid, 'component' => null], 'section ASC') as $section) {
+            if ((int) $section->section === 0) {
+                continue;
+            }
+            [$own, $subsections] = self::split_sequence($section->sequence, (int) $subsectionmodule);
+            $rows[] = self::core_row($section, '-', 1, $own);
+            foreach ($subsections as $instance) {
+                $delegated = $DB->get_record('course_sections', [
+                    'course' => $courseid,
+                    'component' => 'mod_subsection',
+                    'itemid' => $instance,
+                ]);
+                if ($delegated) {
+                    [$inner] = self::split_sequence($delegated->sequence, (int) $subsectionmodule);
+                    $rows[] = self::core_row($delegated, (string) $section->name, 2, $inner);
+                }
+            }
+        }
+        return $rows;
+    }
+
+    /**
+     * Split a sequence into the ordinary activities and the Subsection activities' instance ids.
+     *
+     * @param string|null $sequence Comma separated course module ids.
+     * @param int $subsectionmodule The Subsection module's id.
+     * @return array [cm ids of other activities, subsection instance ids], each in order.
+     */
+    private static function split_sequence(?string $sequence, int $subsectionmodule): array {
+        global $DB;
+
+        $own = [];
+        $subsections = [];
+        foreach (array_filter(explode(',', (string) $sequence)) as $cmid) {
+            $cm = $DB->get_record('course_modules', ['id' => $cmid], 'id,module,instance');
+            if (!$cm) {
+                continue;
+            }
+            if ((int) $cm->module === $subsectionmodule) {
+                $subsections[] = (int) $cm->instance;
+            } else {
+                $own[] = (int) $cm->id;
+            }
+        }
+        return [$own, $subsections];
+    }
+
+    /**
+     * One row of core_rows().
+     *
+     * @param stdClass $section Section record.
+     * @param string $parent Parent section name, or '-'.
+     * @param int $depth 1 for an ordinary section, 2 for a subsection.
+     * @param int[] $cmids The activities it holds, other than Subsection activities.
+     * @return array
+     */
+    private static function core_row(stdClass $section, string $parent, int $depth, array $cmids): array {
+        return [
+            'section' => (int) $section->section,
+            'id' => (int) $section->id,
+            'name' => (string) $section->name,
+            'parentnumber' => 0,
+            'parent' => $parent,
+            'depth' => $depth,
+            'collapsed' => '',
+            'activities' => count($cmids),
+            'activitynames' => self::activity_names(implode(',', $cmids)),
+            'summary' => trim(html_entity_decode(strip_tags((string) $section->summary))),
+            'visible' => (int) $section->visible,
+        ];
+    }
+
+    /**
+     * Rules every Custom sections or Weekly sections course must satisfy, whatever built it.
+     *
+     * - section numbers run 0..N-1 with no gaps, every ordinary section before every delegated one,
+     *   as core numbers them;
+     * - every delegated section belongs to exactly one Subsection activity, which exists, is in an
+     *   ordinary section (subsections do not nest) and has the section's name;
+     * - every course module is in exactly one section's sequence, the one its row points to;
+     * - the course cache, rebuilt from scratch, shows the sections in the same order as the database.
+     *
+     * @param int $courseid Course id.
+     * @return string[] Problems found; empty when sound.
+     */
+    private static function core_problems(int $courseid): array {
+        global $DB;
+
+        $problems = [];
+        $sections = $DB->get_records('course_sections', ['course' => $courseid], 'section ASC');
+        $numbers = array_values(array_map(fn($s) => (int) $s->section, $sections));
+        if ($numbers !== range(0, count($sections) - 1)) {
+            $problems[] = 'Section numbers are not contiguous from 0: ' . implode(',', $numbers);
+        }
+
+        $lastordinary = -1;
+        $firstdelegated = PHP_INT_MAX;
+        foreach ($sections as $section) {
+            if (empty($section->component)) {
+                $lastordinary = max($lastordinary, (int) $section->section);
+                continue;
+            }
+            $firstdelegated = min($firstdelegated, (int) $section->section);
+            if ($section->component !== 'mod_subsection') {
+                continue;
+            }
+            $cms = $DB->get_records_sql(
+                "SELECT cm.id, cm.section, s.name
+                   FROM {course_modules} cm
+                   JOIN {modules} m ON m.id = cm.module AND m.name = 'subsection'
+                   JOIN {subsection} s ON s.id = cm.instance
+                  WHERE cm.course = :courseid AND cm.instance = :instance",
+                ['courseid' => $courseid, 'instance' => $section->itemid]
+            );
+            if (count($cms) !== 1) {
+                $problems[] = "Delegated section {$section->section} belongs to " . count($cms) . ' Subsection activities.';
+                continue;
+            }
+            $cm = reset($cms);
+            $holder = $sections[$cm->section] ?? null;
+            if (!$holder) {
+                $problems[] = "The Subsection activity for section {$section->section} is in a section that does not exist.";
+            } else if (!empty($holder->component)) {
+                $problems[] = "The Subsection activity for section {$section->section} is inside another subsection.";
+            }
+            if ((string) $cm->name !== (string) $section->name) {
+                $problems[] = "Subsection '{$cm->name}' and its section '{$section->name}' have different names.";
+            }
+        }
+        if ($lastordinary > $firstdelegated) {
+            $problems[] = 'An ordinary section is numbered after a delegated one.';
+        }
+
+        $problems = array_merge($problems, self::module_problems($courseid, $sections));
+
+        get_fast_modinfo($courseid, 0, true);
+        $cached = array_map(fn($s) => (int) $s->id, get_fast_modinfo($courseid)->get_section_info_all());
+        if (array_values($cached) !== array_values(array_map(fn($s) => (int) $s->id, $sections))) {
+            $problems[] = 'The course cache shows the sections in a different order from the database.';
+        }
         return $problems;
     }
 

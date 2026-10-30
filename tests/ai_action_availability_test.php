@@ -138,7 +138,6 @@ final class ai_action_availability_test extends advanced_testcase {
         $this->setAdminUser();
         $context = \context_course::instance($this->getDataGenerator()->create_course()->id);
         set_config('enable_ai', 1, 'aiplacement_modgen');
-        local\settings_helper::clear_cache();
         $this->assertTrue(local\settings_helper::can_generate_with_ai($context));
 
         set_config('generate_text', 0, 'aiplacement_modgen');
@@ -146,10 +145,8 @@ final class ai_action_availability_test extends advanced_testcase {
         set_config('generate_text', 1, 'aiplacement_modgen');
 
         set_config('enable_ai', 0, 'aiplacement_modgen');
-        local\settings_helper::clear_cache();
         $this->assertFalse(local\settings_helper::can_generate_with_ai($context), 'AI switched off in the plugin.');
         set_config('enable_ai', 1, 'aiplacement_modgen');
-        local\settings_helper::clear_cache();
 
         $this->setUser($this->getDataGenerator()->create_user());
         $this->assertFalse(local\settings_helper::can_generate_with_ai($context), 'No capability.');

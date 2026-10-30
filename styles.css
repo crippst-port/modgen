@@ -21,7 +21,7 @@
 .aiplacement-modgen-navbar {
     background: linear-gradient(135deg, #0078B4 0%, #5A1A5D 100%);
     /* A bar set in the page, not one running edge to edge across it. */
-    margin: 0.25rem 1rem 0 1rem;
+    margin: 0.25rem 1rem 0.5rem 1rem;
     padding-top: 0.625rem;
     padding-bottom: 0.625rem;
     border-radius: 0.375rem;

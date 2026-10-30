@@ -374,6 +374,187 @@ final class core_format_build_test extends \advanced_testcase {
         $this->assertSame(1, $DB->count_records('course_sections', ['course' => $course->id]));
     }
 
+    /** @var int Sections created since the failure was armed. */
+    private static $sectionscreated = 0;
+
+    /** @var int The section whose creation fails, counting from 1; 0 for none. */
+    private static $failat = 0;
+
+    /**
+     * Event observer that fails the build when the chosen section is created.
+     *
+     * An \Error, because the event manager swallows an observer's exceptions. It is thrown inside
+     * core's own transactions, which core then leaves open, as any failure there would.
+     *
+     * @param \core\event\course_section_created $event The event.
+     */
+    public static function fail_on_section_created(\core\event\course_section_created $event): void {
+        self::$sectionscreated++;
+        if (self::$sectionscreated === self::$failat) {
+            throw new \Error('Injected failure creating section ' . self::$sectionscreated);
+        }
+    }
+
+    /**
+     * Make builds fail when they create their nth section.
+     *
+     * A week is its section then its three sessions, so 6 is the second week's first session.
+     * PHPUnit's own transaction is committed first: inside it no rollback is ever real.
+     *
+     * @param int $n Section to fail on.
+     */
+    private function fail_on_section(int $n): void {
+        $this->preventResetByRollback();
+        self::$sectionscreated = 0;
+        self::$failat = $n;
+        \core\event\manager::phpunit_replace_observers([[
+            'eventname' => '\core\event\course_section_created',
+            'callback' => self::class . '::fail_on_section_created',
+            'internal' => true,
+        ]]);
+    }
+
+    /**
+     * Assert a failed build left the course exactly as it was, cache included, and no transaction open.
+     *
+     * @param int $courseid Course ID.
+     * @param int $sections Sections it had.
+     */
+    private function assert_untouched(int $courseid, int $sections): void {
+        global $DB;
+        $this->assertFalse($DB->is_transaction_started(), 'The failed build left a transaction open.');
+        $this->assertSame($sections, $DB->count_records('course_sections', ['course' => $courseid]));
+        $this->assertSame(0, $DB->count_records('course_modules', ['course' => $courseid]));
+        $this->assertSame(0, $DB->count_records('subsection', ['course' => $courseid]));
+
+        // The cached course must not keep anything from the build: it was rebuilt inside the transaction.
+        get_fast_modinfo($courseid, 0, true);
+        $modinfo = get_fast_modinfo($courseid);
+        $this->assertCount($sections, $modinfo->get_section_info_all());
+        $this->assertSame([], $modinfo->get_cms());
+        $this->assertSame([], course_integrity_check($courseid, null, null, true));
+    }
+
+    /**
+     * Data provider: every format the plugin builds in.
+     *
+     * @return array
+     */
+    public static function all_formats_provider(): array {
+        return [
+            'Custom sections' => ['topics'],
+            'Weekly sections' => ['weeks'],
+            'Flexible sections' => ['flexsections'],
+        ];
+    }
+
+    /**
+     * A Quick Add build that fails part way, in the second week, leaves nothing behind.
+     *
+     * @dataProvider all_formats_provider
+     * @param string $format Course format.
+     */
+    public function test_failed_quick_add_build_rolls_back_completely(string $format): void {
+        global $DB;
+        $course = $this->getDataGenerator()->create_course(['format' => $format, 'numsections' => 1]);
+        theme_builder::prepare_course_for_build($course->id);
+        $sections = $DB->count_records('course_sections', ['course' => $course->id]);
+        $this->fail_on_section(6);
+
+        try {
+            theme_builder::create_weeks($course->id, 2, 0, false);
+            $this->fail('The injected failure must fail the build.');
+        } catch (\moodle_exception $e) {
+            $this->assertInstanceOf(\aiplacement_modgen\local\structure_write_failed_exception::class, $e);
+        }
+        $this->resetDebugging();
+
+        $this->assertSame(6, self::$sectionscreated);
+        $this->assert_untouched($course->id, $sections);
+    }
+
+    /**
+     * A build from a file or the AI that fails part way leaves nothing behind, and the course builds normally afterwards.
+     */
+    public function test_failed_structure_build_rolls_back_completely(): void {
+        $course = $this->getDataGenerator()->create_course(['format' => 'weeks', 'numsections' => 1]);
+        $json = ['sections' => [['title' => 'Cells', 'summary' => 'About cells'], ['title' => 'Tissues', 'summary' => '']]];
+        $this->fail_on_section(6);
+
+        try {
+            (new \aiplacement_modgen\local\section_creation_service())->create_sections_from_json(
+                \aiplacement_modgen\local\json_sanitiser::clean($json),
+                $course->id,
+                'connected_weekly',
+                false
+            );
+            $this->fail('The injected failure must fail the build.');
+        } catch (\moodle_exception $e) {
+            $this->assertInstanceOf(\aiplacement_modgen\local\structure_write_failed_exception::class, $e);
+        }
+        $this->resetDebugging();
+        $this->assert_untouched($course->id, 2);
+
+        // Nothing left over gets in the way of building again.
+        self::$failat = 0;
+        (new \aiplacement_modgen\local\section_creation_service())->create_sections_from_json(
+            \aiplacement_modgen\local\json_sanitiser::clean($json),
+            $course->id,
+            'connected_weekly',
+            false
+        );
+        $this->assertSame(['', 'Cells', 'Tissues'], array_map('strval', array_keys($this->weeks_with_sessions($course->id))));
+        $this->assertSame([], course_integrity_check($course->id, null, null, true));
+    }
+
+    /**
+     * A queued job that fails part way records that it failed and will retry: the record is not lost
+     * with the build's rollback.
+     */
+    public function test_failed_job_keeps_its_failure_record(): void {
+        global $USER;
+        $course = $this->getDataGenerator()->create_course(['format' => 'topics', 'numsections' => 1]);
+        quick_add_service::queue_weeks($course->id, $USER->id, 2, 0, false);
+        $this->fail_on_section(6);
+
+        try {
+            $this->run_jobs();
+        } catch (\Throwable $e) {
+            // The task rethrows a failure that will be retried.
+            $this->assertInstanceOf(\aiplacement_modgen\local\structure_write_failed_exception::class, $e);
+        }
+        $this->resetDebugging();
+
+        $job = $this->last_job($course->id);
+        $this->assertSame('failed', $job->status);
+        $this->assertTrue(json_decode($job->result, true)['will_retry']);
+        $this->assert_untouched($course->id, 2);
+    }
+
+    /**
+     * Names and summaries go through core's section update: each change is logged, and every subsection
+     * activity has the same name as its section.
+     */
+    public function test_sections_are_named_through_core(): void {
+        global $USER;
+        $course = $this->core_course();
+        $sink = $this->redirectEvents();
+
+        theme_builder::create_weeks($course->id, 1, 0, false);
+
+        $updated = array_filter($sink->get_events(), fn($e) => $e instanceof \core\event\course_section_updated);
+        $sink->close();
+        // Section 0 is named directly when a course is first set up; the week and its three sessions are logged.
+        $this->assertCount(4, $updated);
+
+        get_fast_modinfo($course->id, 0, true);
+        $cms = get_fast_modinfo($course->id)->get_instances_of('subsection');
+        $this->assertCount(3, $cms);
+        foreach ($cms as $cm) {
+            $this->assertSame($cm->get_delegated_section_info()->name, $cm->name);
+        }
+    }
+
     /**
      * Other formats are refused.
      */

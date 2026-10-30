@@ -236,6 +236,7 @@ class theme_builder {
             self::ensure_module_contexts($courseid);
             // Start transaction for entire bulk operation.
             // This ensures all themes and weeks are created atomically - all or nothing.
+            $wasintransaction = $DB->is_transaction_started();
             $transaction = $DB->start_delegated_transaction();
 
             try {
@@ -329,7 +330,7 @@ class theme_builder {
             } catch (\Throwable $e) {
                 // Delegated transactions do NOT roll back by themselves: left open, later writes
                 // (e.g. the task marking the job failed) would be swallowed by the eventual rollback.
-                self::rollback_quietly($transaction, $e);
+                self::rollback_build($transaction, $e, $wasintransaction);
                 // Log technical details for administrators only.
                 debugging('Theme creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), DEBUG_DEVELOPER);
                 // Kept as it is when a retry could succeed, so the task can tell.
@@ -403,6 +404,7 @@ class theme_builder {
 
             // Start transaction for entire bulk operation.
             // This ensures all weeks are created atomically - all or nothing.
+            $wasintransaction = $DB->is_transaction_started();
             $transaction = $DB->start_delegated_transaction();
 
             try {
@@ -461,7 +463,7 @@ class theme_builder {
             } catch (\Throwable $e) {
                 // Delegated transactions do NOT roll back by themselves: left open, later writes
                 // (e.g. the task marking the job failed) would be swallowed by the eventual rollback.
-                self::rollback_quietly($transaction, $e);
+                self::rollback_build($transaction, $e, $wasintransaction);
                 // Log technical details for administrators only.
                 debugging('Week creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), DEBUG_DEVELOPER);
                 // Kept as it is when a retry could succeed, so the task can tell.
@@ -674,6 +676,33 @@ class theme_builder {
         } catch (\Throwable $rethrown) {
             // Expected: rollback() rethrows the cause.
             unset($rethrown);
+        }
+    }
+
+    /**
+     * Roll back a whole build after a failure, including anything core left open inside it.
+     *
+     * Moodle only really rolls back when the transaction being rolled back is the innermost one
+     * still open. Core opens its own transactions inside a build (add_moduleinfo() for every
+     * subsection and summary activity, move_section_to()) and abandons them when something inside
+     * throws, so the build's rollback is then only marked: the database transaction stays open,
+     * and whatever runs next - the task marking the job failed - is written inside it and lost
+     * when cron finally rolls everything back. A permanent failure would also be retried, as cron
+     * treats a task that leaves a transaction open as failed.
+     *
+     * When the build started the transaction, nothing outside it is in one, so everything still
+     * open is the build's and is rolled back here. Inside a caller's transaction that is the
+     * caller's to end.
+     *
+     * @param \moodle_transaction $transaction The build's transaction
+     * @param \Throwable $cause The failure
+     * @param bool $wasintransaction Whether a transaction was already open when the build started its own
+     */
+    public static function rollback_build(\moodle_transaction $transaction, \Throwable $cause, bool $wasintransaction): void {
+        global $DB;
+        self::rollback_quietly($transaction, $cause);
+        if (!$wasintransaction && $DB->is_transaction_started()) {
+            $DB->force_transaction_rollback();
         }
     }
 
@@ -1167,6 +1196,7 @@ class theme_builder {
         }
 
         // Start transaction for atomic operation.
+        $wasintransaction = $DB->is_transaction_started();
         $transaction = $DB->start_delegated_transaction();
 
         try {
@@ -1207,7 +1237,7 @@ class theme_builder {
 
             return $section;
         } catch (\Throwable $e) {
-            self::rollback_quietly($transaction, $e);
+            self::rollback_build($transaction, $e, $wasintransaction);
             // Log technical details for administrators only.
             debugging('Section creation failed: ' . $e->getMessage() . "\n" . $e->getTraceAsString(), DEBUG_DEVELOPER);
 
@@ -1262,15 +1292,14 @@ class theme_builder {
             $sectionid = (int) course_create_section($courseid)->id;
         }
 
-        $DB->update_record('course_sections', (object) [
-            'id' => $sectionid,
+        // Through core's update, as the course page does: it keeps a subsection's own name in step with its
+        // section's, logs the change and refreshes the cached course.
+        $section = $DB->get_record('course_sections', ['id' => $sectionid], '*', MUST_EXIST);
+        course_update_section($courseid, $section, [
             'name' => $name,
             'summary' => $summary, // Kept raw: sanitised when shown.
             'summaryformat' => $summaryformat,
-            'timemodified' => time(),
         ]);
-        // Both paths above rebuilt the cache before the name and summary were written.
-        rebuild_course_cache($courseid, true, true);
 
         return $DB->get_record('course_sections', ['id' => $sectionid], '*', MUST_EXIST);
     }

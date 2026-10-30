@@ -23,6 +23,13 @@
 - Check Structure is only offered in Flexible sections courses.
 - A course in any other format is refused with a message naming the three supported formats.
 
+### Fixed
+
+- A build that failed part way inside one of core's own steps (adding a subsection or summary
+  activity) left its database transaction open, so cron rolled it back only at the end of the task,
+  taking the job's "failed" record with it, and retried even a failure that should not be retried.
+  The build now rolls everything back itself, and the job records the failure.
+
 ## Upgrading to Version 0.8.3 (2026-10-30)
 
 ### Changed

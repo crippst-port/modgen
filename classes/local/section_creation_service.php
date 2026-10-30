@@ -89,6 +89,7 @@ class section_creation_service {
 
             // Start transaction for entire JSON processing operation.
             // This ensures all sections and activities are created atomically - all or nothing.
+            $wasintransaction = $DB->is_transaction_started();
             $transaction = $DB->start_delegated_transaction();
 
             try {
@@ -131,7 +132,7 @@ class section_creation_service {
                 \aiplacement_modgen\local\theme_builder::renumber_into_hierarchy_order($courseid, true);
             } catch (\Throwable $e) {
                 // Roll back explicitly: delegated transactions do not do it on their own.
-                \aiplacement_modgen\local\theme_builder::rollback_quietly($transaction, $e);
+                \aiplacement_modgen\local\theme_builder::rollback_build($transaction, $e, $wasintransaction);
                 // Kept as it is when a retry could succeed, so the task can tell.
                 if (\aiplacement_modgen\local\theme_builder::is_transient_failure($e)) {
                     throw $e;

@@ -49,10 +49,17 @@ Feature: Building in Custom sections and Weekly sections
     And I click on "Create" "button" in the ".modal-footer" "css_element"
     And I should see "Creating 2 standalone week(s)"
     And I run all adhoc tasks
-    Then the course "<shortname>" should have these sections with subsections:
-      | section | subsections                         |
-      | Week 1  | Pre-session, Session, Post-session |
-      | Week 2  | Pre-session, Session, Post-session |
+    Then the course "<shortname>" structure should be:
+      | name         | parent | depth | activities |
+      | Week 1       | -      | 1     | 0          |
+      | Pre-session  | Week 1 | 2     | 0          |
+      | Session      | Week 1 | 2     | 0          |
+      | Post-session | Week 1 | 2     | 0          |
+      | Week 2       | -      | 1     | 0          |
+      | Pre-session  | Week 2 | 2     | 0          |
+      | Session      | Week 2 | 2     | 0          |
+      | Post-session | Week 2 | 2     | 0          |
+    And the course "<shortname>" structure should be sound
     And the course "<shortname>" should use the "<format>" format
     And I am on the "<course>" "course" page
     And I should see "Week 2" in the "region-main" "region"
@@ -100,9 +107,41 @@ Feature: Building in Custom sections and Weekly sections
     And I press "Create"
     And I should see "Creating 3 section(s) from uploaded file"
     And I run all adhoc tasks
-    Then the course "C1" should have these sections with subsections:
-      | section | subsections                         |
-      | Alpha   | Pre-session, Session, Post-session |
-      | Beta    | Pre-session, Session, Post-session |
-      | Gamma   | Pre-session, Session, Post-session |
+    Then the course "C1" structure should be:
+      | name         | parent | depth | summary    |
+      | Alpha        | -      | 1     | First week |
+      | Pre-session  | Alpha  | 2     |            |
+      | Session      | Alpha  | 2     |            |
+      | Post-session | Alpha  | 2     |            |
+      | Beta         | -      | 1     |            |
+      | Pre-session  | Beta   | 2     |            |
+      | Session      | Beta   | 2     |            |
+      | Post-session | Beta   | 2     |            |
+      | Gamma        | -      | 1     |            |
+      | Pre-session  | Gamma  | 2     |            |
+      | Session      | Gamma  | 2     |            |
+      | Post-session | Gamma  | 2     |            |
+    And the course "C1" structure should be sound
     And the course "C1" should use the "topics" format
+
+  Scenario: The Assessments section goes first, before weeks added earlier, and only once
+    Given the course "C1" has "1" standalone weeks
+    And I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    When I click on "Quick Add" "link"
+    And I click on "Assessments section" "link"
+    And I click on "Add section" "button" in the ".modal-footer" "css_element"
+    Then I should see "section has been added"
+    And the course "C1" structure should be:
+      | name         | parent | depth |
+      | Assessments  | -      | 1     |
+      | Week 1       | -      | 1     |
+      | Pre-session  | Week 1 | 2     |
+      | Session      | Week 1 | 2     |
+      | Post-session | Week 1 | 2     |
+    And the course "C1" structure should be sound
+    And I am on the "Course 1" "course" page
+    And I click on "Quick Add" "link"
+    And I click on "Assessments section" "link"
+    And I click on "Add section" "button" in the ".modal-footer" "css_element"
+    And I should see "already has a section called"

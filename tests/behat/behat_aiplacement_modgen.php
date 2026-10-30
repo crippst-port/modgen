@@ -89,17 +89,21 @@ class behat_aiplacement_modgen extends behat_base {
     }
 
     /**
-     * Check that a course satisfies every Flexible sections rule: numbering, parents, order, depth, modules.
+     * Check that a course satisfies every rule for its format: numbering, parents or subsections, order,
+     * depth, modules. Flexible sections courses also go through the plugin's integrity checker.
      *
      * @Then /^the course "(?P<course_string>[^"]*)" structure should be sound$/
      * @param string $shortname Course short name.
      */
     public function the_course_structure_should_be_sound(string $shortname): void {
+        global $DB;
         $courseid = $this->course_id($shortname);
         $problems = aiplacement_modgen_structure_snapshot::problems($courseid);
-        $check = \aiplacement_modgen\local\integrity_checker::check($courseid);
-        if ($check['has_issues']) {
-            $problems[] = "The plugin's integrity checker reports issues: " . json_encode($check['counts']);
+        if ($DB->get_field('course', 'format', ['id' => $courseid]) === 'flexsections') {
+            $check = \aiplacement_modgen\local\integrity_checker::check($courseid);
+            if ($check['has_issues']) {
+                $problems[] = "The plugin's integrity checker reports issues: " . json_encode($check['counts']);
+            }
         }
         if ($problems) {
             throw new Exception("The structure of '$shortname' is not sound:\n" . implode("\n", $problems));
@@ -234,43 +238,6 @@ class behat_aiplacement_modgen extends behat_base {
     public function subsections_are(string $state): void {
         \core\plugininfo\mod::enable_plugin('subsection', $state === 'enabled' ? 1 : 0);
         \core_plugin_manager::reset_caches();
-    }
-
-    /**
-     * Check a course's regular sections and the subsections each holds.
-     *
-     * Rows are section | subsections, in course order after section 0; subsections are comma-separated names.
-     *
-     * @Then /^the course "(?P<course_string>[^"]*)" should have these sections with subsections:$/
-     * @param string $shortname Course short name.
-     * @param \Behat\Gherkin\Node\TableNode $table Expected rows.
-     */
-    public function the_course_should_have_these_sections_with_subsections(
-        string $shortname,
-        \Behat\Gherkin\Node\TableNode $table
-    ): void {
-        // Course ids are reused between scenarios, so a course's cached modinfo can be the last scenario's.
-        $courseid = $this->course_id($shortname);
-        get_fast_modinfo($courseid, 0, true);
-        $modinfo = get_fast_modinfo($courseid);
-        $actual = [];
-        foreach ($modinfo->get_listed_section_info_all() as $section) {
-            if ($section->section == 0) {
-                continue;
-            }
-            $subsections = [];
-            foreach ($modinfo->sections[$section->section] ?? [] as $cmid) {
-                $cm = $modinfo->get_cm($cmid);
-                if ($cm->modname === 'subsection') {
-                    $subsections[] = $cm->get_delegated_section_info()->name;
-                }
-            }
-            $actual[] = [(string) $section->name, implode(', ', $subsections)];
-        }
-        $expected = array_map(fn($row) => [$row['section'], $row['subsections']], $table->getHash());
-        if ($actual !== $expected) {
-            throw new Exception("'$shortname' has these sections:\n" . json_encode($actual, JSON_PRETTY_PRINT));
-        }
     }
 
     /**

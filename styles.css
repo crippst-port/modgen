@@ -20,12 +20,28 @@
  */
 .aiplacement-modgen-navbar {
     background: linear-gradient(135deg, #0078B4 0%, #5A1A5D 100%);
-    margin: -1rem 0 1.5rem 0;
+    /* A bar set in the page, not one running edge to edge across it. */
+    margin: 0.25rem 1rem 0 1rem;
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+    border-radius: 0.375rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
+/* The logo fills the bar behind its contents and is clipped to it; the dropdowns are not, as they are outside this layer. */
 .aiplacement-modgen-navbar .logo-container {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+/* Later positioned siblings paint above the logo layer. */
+.aiplacement-modgen-navbar > :not(.logo-container) {
     position: relative;
 }
 
@@ -38,12 +54,6 @@
     mix-blend-mode: soft-light;
     opacity: .3;
     pointer-events: none;
-}
-
-.aiplacement-modgen-navbar .navbar-brand {
-    font-weight: 600;
-    font-size: 1.1rem;
-    color: white;
 }
 
 .aiplacement-modgen-nav-link {

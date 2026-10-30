@@ -27,7 +27,7 @@ Feature: The Module Assistant toolbar offers only the current features
   Scenario: The toolbar shows the Quick Add entries and Check Structure
     When I am on the "Course 1" "course" page logged in as "teacher1"
     And I turn editing mode on
-    Then I should see "Module Assistant"
+    Then "nav[aria-label='Module Assistant']" "css_element" should exist
     And I should see "Check Structure"
     And I click on "Quick Add" "link"
     And I should see "New Theme(s)"
@@ -37,7 +37,7 @@ Feature: The Module Assistant toolbar offers only the current features
   Scenario: There is no Suggest entry
     When I am on the "Course 1" "course" page logged in as "teacher1"
     And I turn editing mode on
-    Then I should see "Module Assistant"
+    Then "nav[aria-label='Module Assistant']" "css_element" should exist
     And I should not see "Activities from section"
     And I should not see "Suggest"
 
@@ -53,7 +53,7 @@ Feature: The Module Assistant toolbar offers only the current features
   Scenario: There is no Help and Advice menu until a help link is configured
     When I am on the "Course 1" "course" page logged in as "teacher1"
     And I turn editing mode on
-    Then I should see "Module Assistant"
+    Then "nav[aria-label='Module Assistant']" "css_element" should exist
     And I should not see "Help and Advice"
 
   Scenario: A finished job's error is shown as text, not markup

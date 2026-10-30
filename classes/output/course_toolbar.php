@@ -98,6 +98,7 @@ class course_toolbar implements renderable, templatable {
      */
     public function export_for_template(renderer_base $output): stdClass {
         $data = new stdClass();
+        $data->logourl = $output->image_url('compact_logo', 'aiplacement_modgen')->out(false);
         $data->showgenerator = $this->showgenerator;
         $data->showmanagestructure = $this->showmanagestructure;
         $data->showtemplatefromfile = $this->showtemplatefromfile;

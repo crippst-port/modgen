@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Helper class for creating session subsections in flexsections format.
+ * Helper class for creating session subsections.
  *
  * This class provides shared functionality for creating pre-session, session,
  * and post-session subsections used by both theme and weekly generation modes.
@@ -37,14 +37,14 @@ class session_creator {
     /**
      * Create pre-session, session, and post-session subsections under a parent section.
      *
-     * @param object $courseformat The course format object (must be flexsections)
+     * @param object $courseformat The course format object
      * @param int $parentsectionnum The parent section number to create subsections under
      * @param int $courseid The course ID
      * @param array|null $sessiondata Optional session data with 'presession', 'session', 'postsession' keys
      * @param bool $createsummaryactivities Whether to create the learningactivity summary module in each session
      * @return array Associative array mapping session type to section number
      *               ['presession' => N, 'session' => N, 'postsession' => N]
-     * @throws \Exception If course format is not flexsections or method is missing
+     * @throws \moodle_exception If the course format is not supported
      */
     public static function create_session_subsections(
         $courseformat,
@@ -55,18 +55,12 @@ class session_creator {
     ) {
         global $DB;
 
-        // Validate course format.
-        if (!$courseformat || get_class($courseformat) !== 'format_flexsections') {
-            throw new \moodle_exception('errorformatnotflexsections', 'aiplacement_modgen');
-        }
+        // The format is checked by theme_builder::create_section_with_parent(), which writes each session:
+        // a child section in Flexible sections, a core subsection in Custom sections and Weekly sections.
 
-        if (!method_exists($courseformat, 'create_new_section')) {
-            throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
-        }
-
-        // Pin the parent to its section ID. format_flexsections addresses sections by
+        // Pin the parent to its section ID. Both kinds of format address sections by
         // NUMBER, and numbers are positional: creating each session subsection below
-        // renumbers the course, so the number passed in is only valid until the first
+        // can renumber the course, so the number passed in is only valid until the first
         // write. Hold the id and re-read the number before each use.
         $parentsectionid = \aiplacement_modgen\local\theme_builder::section_id_from_number(
             $courseid,

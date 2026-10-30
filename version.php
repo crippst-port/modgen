@@ -25,24 +25,12 @@
 defined('MOODLE_INTERNAL') || die();
 
 $plugin->component = 'aiplacement_modgen';
-$plugin->release = '0.8.3';
-$plugin->version = 2026102801;
+$plugin->release = '0.9.0';
+$plugin->version = 2026103000;
 $plugin->requires = 2024100700; // Moodle 4.5: needs the core AI subsystem and the aiplacement plugin type.
 $plugin->maturity = MATURITY_BETA;
 
-// This plugin only builds courses in the Flexible sections format: theme_builder refuses
-// anything else with 'errorformatnotflexsections', so the format is a hard requirement
-// rather than an optional integration.
-//
-// The floor is 2024120801 (format_flexsections 4.1.4) for safety, not for API: 4.1.3
-// already has every method called here (create_new_section, move_section,
-// can_move_section_to, get_max_section_depth, delete_section_with_children), so the plugin
-// would run against it without erroring. What 4.1.4 added is the lock around
-// delete_section_with_children ("Use lock when deleting sections to avoid course
-// corruption", upstream #82). theme_builder::acquire_structure_locks() takes that same
-// key to exclude a teacher's section delete from a bulk build; against 4.1.3 nothing on
-// the format side takes it, so the exclusion silently buys nothing and a delete can
-// interleave with a build. Failing the install is better than that happening quietly.
-$plugin->dependencies = [
-    'format_flexsections' => 2024120801,
-];
+// No dependencies: the plugin builds in Custom sections and Weekly sections with core subsections, and
+// in Flexible sections when it is installed. A Flexible sections course is only built in from
+// format_flexsections 4.1.4 on (see course_formats::FLEXSECTIONS_MIN_VERSION): earlier versions take
+// no lock around deleting a section, so a delete could interleave with a build unnoticed.

@@ -49,8 +49,14 @@ class course_toolbar implements renderable, templatable {
     /** @var bool Whether to show the Quick add options (New theme / New week) */
     private $showquickadd;
 
-    /** @var bool Whether to show the New Theme entry (top of the course only) */
+    /** @var bool Whether the toolbar is at the top of the course, where New Theme and Assessments are offered */
     private $showaddtheme;
+
+    /** @var bool Whether the course's format can hold themes (Flexible sections) */
+    private $supportsthemes;
+
+    /** @var string Why nothing can be built in the course, shown in place of the menus; empty when it can */
+    private $unavailable = '';
 
     /** @var bool Whether to show template from prompt button */
     private $showtemplatefromptompt;
@@ -68,7 +74,8 @@ class course_toolbar implements renderable, templatable {
      * @param bool $showtemplatefromptompt Whether to show template from prompt button
      * @param bool $showcheckstructure Whether to show check structure button
      * @param bool $showquickadd Whether to show the Quick add options
-     * @param bool $showaddtheme Whether to show the New Theme entry
+     * @param bool $showaddtheme Whether the toolbar is at the top of the course (New Theme and Assessments)
+     * @param bool $supportsthemes Whether the course's format can hold themes, and weeks inside other sections
      */
     public function __construct(
         int $courseid,
@@ -78,7 +85,8 @@ class course_toolbar implements renderable, templatable {
         bool $showtemplatefromptompt = false,
         bool $showcheckstructure = false,
         bool $showquickadd = false,
-        bool $showaddtheme = true
+        bool $showaddtheme = true,
+        bool $supportsthemes = true
     ) {
         $this->courseid = $courseid;
         $this->showgenerator = $showgenerator || $showtemplatefromptompt; // Legacy support.
@@ -88,6 +96,16 @@ class course_toolbar implements renderable, templatable {
         $this->showcheckstructure = $showcheckstructure;
         $this->showquickadd = $showquickadd;
         $this->showaddtheme = $showaddtheme;
+        $this->supportsthemes = $supportsthemes;
+    }
+
+    /**
+     * Say why nothing can be built in the course: the toolbar shows this instead of its menus.
+     *
+     * @param string $reason Reason, as plain text.
+     */
+    public function set_unavailable(string $reason): void {
+        $this->unavailable = $reason;
     }
 
     /**
@@ -106,8 +124,17 @@ class course_toolbar implements renderable, templatable {
         $data->showcheckstructure = $this->showcheckstructure;
         $data->showquickadd = $this->showquickadd;
         $data->showaddtheme = $this->showaddtheme;
+        // Themes need Flexible sections. So does a week inside another section: in a core format the week's
+        // sessions are subsections, which cannot go any deeper.
+        $data->shownewtheme = $this->showaddtheme && $this->supportsthemes;
+        $data->shownewweek = $this->showaddtheme || $this->supportsthemes;
         // The Quick Add menu also holds Structure from file and the AI generator, so it shows if any entry does.
         $data->showquickaddmenu = $this->showquickadd || $this->showtemplatefromfile || $this->showgenerator;
+        // Every entry in it builds: when nothing can be built, the reason takes its place.
+        if ($this->unavailable !== '' && $data->showquickaddmenu) {
+            $data->showquickaddmenu = false;
+            $data->unavailable = $this->unavailable;
+        }
         if ($this->showcheckstructure) {
             $checkstructureurl = new moodle_url(
                 '/ai/placement/modgen/check_structure.php',

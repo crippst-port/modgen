@@ -96,6 +96,20 @@ class theme_builder {
                 'max' => $max,
             ]);
         }
+
+        // Custom sections and Weekly sections also have the site's own cap, and core counts subsections
+        // against it: once a course's highest section number reaches it, nobody can add a section or a
+        // subsection by hand. Section 0 is not counted.
+        if (course_formats::is_core((int) $courseid)) {
+            $coremax = (int) course_get_format($courseid)->get_max_sections();
+            if ($total - 1 > $coremax) {
+                throw new \moodle_exception('coresectionlimitexceeded', 'aiplacement_modgen', '', (object) [
+                    'existing' => $existing - 1,
+                    'total' => $total - 1,
+                    'max' => $coremax,
+                ]);
+            }
+        }
     }
 
     /**
@@ -194,6 +208,10 @@ class theme_builder {
 
         $messages = [];
 
+        // Themes need Flexible sections: refuse a course that cannot hold them before anything else.
+        course_formats::require_supported((int) $courseid);
+        course_formats::require_themes((int) $courseid);
+
         // Refuse before doing any work if this would push the course past the section limit.
         $projectedsections = self::projected_sections_for_themes((int) $themecount, (int) $weeksperthemecount);
         self::enforce_section_limit($courseid, $projectedsections);
@@ -209,10 +227,9 @@ class theme_builder {
         try {
             $parentsectionid = self::check_parent_still_exists($courseid, $parentsectionid, $parent, $messages);
 
-            // Ensure flexsections format (must be inside try block to ensure lock release).
-            self::prepare_course_for_build($courseid);
+            // Check the format again now the locks are held (must be inside try block to ensure lock release).
+            self::prepare_course_for_build($courseid, true);
 
-            // Get fresh course object after format conversion.
             $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
             $courseformat = course_get_format($course);
             // Give any module an earlier build left without a context one now, so it cannot fail this build.
@@ -369,10 +386,15 @@ class theme_builder {
         try {
             $parentsectionid = self::check_parent_still_exists($courseid, $parentsectionid, $parent, $messages);
 
-            // Ensure flexsections format (must be inside try block to ensure lock release).
+            // Check the format again now the locks are held (must be inside try block to ensure lock release).
             self::prepare_course_for_build($courseid);
 
-            // Get fresh course object after format conversion.
+            // A week holds its sessions as subsections, and core formats nest only one level, so a week
+            // there cannot go inside another section.
+            if ($parentsectionid && !course_formats::is_flexsections((int) $courseid)) {
+                throw new \moodle_exception('errorweekstoplevelonly', 'aiplacement_modgen');
+            }
+
             $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
             $courseformat = course_get_format($course);
 
@@ -500,6 +522,12 @@ class theme_builder {
      */
     public static function renumber_into_hierarchy_order($courseid, $locksheld = false) {
         try {
+            // Core formats keep their own order: a new section goes before the subsections' sections, and
+            // nothing hangs off a section number. All they need is the cache.
+            if (!course_formats::is_flexsections((int) $courseid)) {
+                rebuild_course_cache($courseid, true, true);
+                return;
+            }
             integrity_checker::fix_section_order($courseid, $locksheld);
         } catch (\Throwable $e) {
             self::report_renumber_failure((int) $courseid, $e);
@@ -670,6 +698,9 @@ class theme_builder {
      * structural section creation the lock exists to protect. The real fix is upstream: give
      * delete_section_with_children() a per-course key, then drop the global one here.
      *
+     * The flexsections keys are only taken for a Flexible sections course, so a build in a core
+     * format does not hold up section deletes in Flexible sections courses across the site.
+     *
      * @param int $courseid Course ID
      * @param int $timeout Seconds to wait per lock
      * @return array Held locks (release with release_structure_locks())
@@ -679,9 +710,11 @@ class theme_builder {
         $locks = [];
         $wanted = [
             ['core_course_edit', 'course_edit_' . $courseid],
-            ['format_flexsections_delete_section', 'course_modification_lock'],
-            ['format_flexsections_delete_section', 'course_' . $courseid],
         ];
+        if (course_formats::is_flexsections((int) $courseid)) {
+            $wanted[] = ['format_flexsections_delete_section', 'course_modification_lock'];
+            $wanted[] = ['format_flexsections_delete_section', 'course_' . $courseid];
+        }
         foreach ($wanted as [$type, $key]) {
             $factory = \core\lock\lock_config::get_lock_factory($type);
             $lock = $factory->get_lock($key, $timeout);
@@ -730,16 +763,14 @@ class theme_builder {
     ) {
         global $DB;
 
-        $context = \context_course::instance($courseid);
+        // Fails first, before anything is written, for a course that does not exist.
+        \context_course::instance($courseid);
 
-        // Verify flexsections format.
-        if (!$courseformat || get_class($courseformat) !== 'format_flexsections') {
-            throw new \moodle_exception('errorformatnotflexsections', 'aiplacement_modgen');
+        // Themes hold weeks that hold sessions: only Flexible sections nests that deep.
+        if (!$courseformat || $courseformat->get_format() !== course_formats::FLEXSECTIONS) {
+            throw new \moodle_exception('errorthemesneedflexsections', 'aiplacement_modgen');
         }
-
-        if (!method_exists($courseformat, 'create_new_section')) {
-            throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
-        }
+        self::require_buildable_format($courseformat);
 
         // Store the text as given. FORMAT_PLAIN means Moodle escapes it when the section is shown, so
         // escaping here as well would display '&amp;' and '&lt;i&gt;' literally. Tags in the title are
@@ -789,16 +820,9 @@ class theme_builder {
     ) {
         global $DB;
 
-        $context = \context_course::instance($courseid);
-
-        // Verify flexsections format.
-        if (!$courseformat || get_class($courseformat) !== 'format_flexsections') {
-            throw new \moodle_exception('errorformatnotflexsections', 'aiplacement_modgen');
-        }
-
-        if (!method_exists($courseformat, 'create_new_section')) {
-            throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
-        }
+        // Fails first, before anything is written, for a course that does not exist.
+        \context_course::instance($courseid);
+        self::require_buildable_format($courseformat);
 
         // Store the title as given; it is escaped when shown (see create_theme_section()).
         $weektitle = trim((string) $title);
@@ -922,13 +946,14 @@ class theme_builder {
         $assessmentsname = get_string('assessmentssectionname', 'aiplacement_modgen');
         $locks = self::acquire_build_locks($courseid, 1);
         try {
-            // Only a top-level section counts, in any case: a week inside a theme may share the name.
+            // Only a top-level section counts, in any case: a week inside a theme may share the name, and so may
+            // a core subsection, whose section is delegated to the activity.
             $exists = $DB->record_exists_sql(
                 "SELECT 1
                    FROM {course_sections} cs
               LEFT JOIN {course_format_options} cfo
                      ON cfo.sectionid = cs.id AND cfo.name = 'parent' AND cfo.format = 'flexsections'
-                  WHERE cs.course = :courseid AND cs.section > 0
+                  WHERE cs.course = :courseid AND cs.section > 0 AND cs.component IS NULL
                         AND (cfo.id IS NULL OR " . $DB->sql_compare_text('cfo.value') . " IN ('', '0'))
                         AND " . $DB->sql_equal('cs.name', ':name', false),
                 ['courseid' => $courseid, 'name' => $assessmentsname]
@@ -953,7 +978,11 @@ class theme_builder {
             );
 
             try {
-                $courseformat->move_section($section->section, 0, 1);
+                if ($courseformat->get_format() === course_formats::FLEXSECTIONS) {
+                    $courseformat->move_section($section->section, 0, 1);
+                } else {
+                    move_section_to($courseformat->get_course(), $section->section, 1);
+                }
             } catch (\Throwable $e) {
                 // If move fails, section will remain at end but still be created.
                 debugging('Failed to move Assessments section: ' . $e->getMessage(), DEBUG_DEVELOPER);
@@ -969,42 +998,46 @@ class theme_builder {
     }
 
     /**
-     * Refuse a course that does not use the Flexible sections format.
+     * Get a course ready for a build: check its format can take the build, then name section 0.
      *
-     * The plugin is only offered in Flexible sections courses and never changes a course's format,
-     * so every way into a build checks this: a page or request reached by URL, and a queued job
-     * whose course was switched to another format after it was queued.
+     * The plugin never changes a course's format; see course_formats.
      *
      * @param int $courseid Course ID
-     * @throws \moodle_exception If the course uses another format
+     * @param bool $withthemes Whether the build adds themes, which only Flexible sections can hold
+     * @throws \moodle_exception If the course's format cannot take the build
      */
-    public static function require_flexsections_format($courseid) {
-        if (!self::uses_flexsections($courseid)) {
-            throw new \moodle_exception('errorformatnotflexsections', 'aiplacement_modgen');
+    public static function prepare_course_for_build($courseid, bool $withthemes = false) {
+        course_formats::require_supported((int) $courseid);
+        if ($withthemes) {
+            course_formats::require_themes((int) $courseid);
         }
-    }
-
-    /**
-     * Whether a course uses the Flexible sections format.
-     *
-     * @param int $courseid Course ID
-     * @return bool
-     */
-    public static function uses_flexsections($courseid): bool {
-        global $DB;
-
-        return $DB->get_field('course', 'format', ['id' => $courseid], MUST_EXIST) === 'flexsections';
-    }
-
-    /**
-     * Get a course ready for a build: check it uses Flexible sections, then name section 0.
-     *
-     * @param int $courseid Course ID
-     * @throws \moodle_exception If the course uses another format
-     */
-    public static function prepare_course_for_build($courseid) {
-        self::require_flexsections_format($courseid);
+        // Each session is a Subsection activity there. Checked now, not left to the first session: a refusal
+        // in the middle of a section write would read as a failed write, which is retried.
+        if (course_formats::is_core((int) $courseid)) {
+            $context = \context_course::instance($courseid);
+            require_capability('moodle/course:manageactivities', $context);
+            require_capability('mod/subsection:addinstance', $context);
+        }
         self::initialize_core_sections($courseid);
+    }
+
+    /**
+     * Refuse a course format object the builder cannot write sections through.
+     *
+     * @param object|null $courseformat Course format object
+     * @throws \moodle_exception If the format is not supported
+     */
+    private static function require_buildable_format($courseformat): void {
+        $format = $courseformat ? $courseformat->get_format() : '';
+        if ($format === course_formats::FLEXSECTIONS) {
+            if (!method_exists($courseformat, 'create_new_section')) {
+                throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
+            }
+            return;
+        }
+        if (!in_array($format, course_formats::CORE_FORMATS, true)) {
+            throw new \moodle_exception('errorformatnotsupported', 'aiplacement_modgen');
+        }
     }
 
     /**
@@ -1030,13 +1063,20 @@ class theme_builder {
             throw new \moodle_exception('invalidsectionparent', 'aiplacement_modgen');
         }
 
-        if (!method_exists($courseformat, 'create_new_section')) {
-            throw new \moodle_exception('errorflexsectionsmissingmethod', 'aiplacement_modgen');
-        }
+        self::require_buildable_format($courseformat);
 
         if ($parentsectionnum > 0) {
-            if (!$DB->record_exists('course_sections', ['course' => $courseid, 'section' => $parentsectionnum])) {
+            $parentsection = $DB->get_record('course_sections', ['course' => $courseid, 'section' => $parentsectionnum]);
+            if (!$parentsection) {
                 throw new \moodle_exception('invalidparentsection', 'aiplacement_modgen', '', $parentsectionnum);
+            }
+
+            // Core formats nest one level: a subsection goes in a section, never in another subsection.
+            if ($courseformat->get_format() !== course_formats::FLEXSECTIONS) {
+                if (!empty($parentsection->component)) {
+                    throw new \moodle_exception('maxsectiondepthreached', 'aiplacement_modgen', '', 2);
+                }
+                return;
             }
 
             // The format's depth limit. Worked out from the stored parent links rather than
@@ -1120,10 +1160,22 @@ class theme_builder {
             throw new \moodle_exception('invalidsectionname', 'aiplacement_modgen');
         }
 
+        // Validate summary format - only allow safe formats.
+        if (!in_array($summaryformat, [FORMAT_PLAIN, FORMAT_MARKDOWN, FORMAT_HTML, FORMAT_MOODLE])) {
+            debugging('Invalid summary format ' . $summaryformat . ', defaulting to FORMAT_HTML', DEBUG_DEVELOPER);
+            $summaryformat = FORMAT_HTML;
+        }
+
         // Start transaction for atomic operation.
         $transaction = $DB->start_delegated_transaction();
 
         try {
+            if ($courseformat->get_format() !== course_formats::FLEXSECTIONS) {
+                $section = self::create_core_section($courseid, (int) $parentsectionnum, $name, $summary, $summaryformat);
+                $transaction->allow_commit();
+                return $section;
+            }
+
             // Step 1: Create section at top level first.
             // Note: We create at top level (0) then set parent manually to avoid nested transaction issues.
             $sectionnum = $courseformat->create_new_section(0, null);
@@ -1139,11 +1191,6 @@ class theme_builder {
             // a file would otherwise fail the whole build with a database error.
             $section->name = \core_text::substr(clean_param($name, PARAM_TEXT), 0, 255);
             $section->summary = $summary; // Keep raw - will be sanitized on display.
-            // Validate summary format - only allow safe formats.
-            if (!in_array($summaryformat, [FORMAT_PLAIN, FORMAT_MARKDOWN, FORMAT_HTML, FORMAT_MOODLE])) {
-                debugging('Invalid summary format ' . $summaryformat . ', defaulting to FORMAT_HTML', DEBUG_DEVELOPER);
-                $summaryformat = FORMAT_HTML;
-            }
             $section->summaryformat = $summaryformat;
             $DB->update_record('course_sections', $section);
 
@@ -1168,6 +1215,64 @@ class theme_builder {
             // see structure_write_failed_exception. The user-facing message has no technical details.
             throw new structure_write_failed_exception($name, $e->getMessage());
         }
+    }
+
+    /**
+     * Create a section in Custom sections or Weekly sections.
+     *
+     * At the top level this is an ordinary section. Inside a section it is a core subsection: a
+     * Subsection activity in that section, which holds a section of its own (a delegated section).
+     * Core numbers both kinds itself, putting ordinary sections before delegated ones, so the
+     * caller must hold the result by id, not by number. The caller holds the transaction.
+     *
+     * @param int $courseid Course ID
+     * @param int $parentsectionnum Section number to create the subsection in, 0 for the top level
+     * @param string $name Section name
+     * @param string $summary Section summary
+     * @param int $summaryformat Summary format, already checked
+     * @return \stdClass The new section's record
+     */
+    private static function create_core_section(
+        int $courseid,
+        int $parentsectionnum,
+        string $name,
+        string $summary,
+        int $summaryformat
+    ): \stdClass {
+        global $DB;
+
+        // Strip HTML/JS from names, and keep to the 255 characters the column holds.
+        $name = \core_text::substr(clean_param($name, PARAM_TEXT), 0, 255);
+
+        if ($parentsectionnum > 0) {
+            // The core create_module() checks the user may add a Subsection here, and that the activity is enabled.
+            $module = create_module((object) [
+                'modulename' => 'subsection',
+                'course' => $courseid,
+                'section' => $parentsectionnum,
+                'visible' => 1,
+                'name' => $name,
+            ]);
+            $sectionid = (int) $DB->get_field('course_sections', 'id', [
+                'course' => $courseid,
+                'component' => 'mod_subsection',
+                'itemid' => $module->instance,
+            ], MUST_EXIST);
+        } else {
+            $sectionid = (int) course_create_section($courseid)->id;
+        }
+
+        $DB->update_record('course_sections', (object) [
+            'id' => $sectionid,
+            'name' => $name,
+            'summary' => $summary, // Kept raw: sanitised when shown.
+            'summaryformat' => $summaryformat,
+            'timemodified' => time(),
+        ]);
+        // Both paths above rebuilt the cache before the name and summary were written.
+        rebuild_course_cache($courseid, true, true);
+
+        return $DB->get_record('course_sections', ['id' => $sectionid], '*', MUST_EXIST);
     }
 
     /**

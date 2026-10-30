@@ -80,7 +80,7 @@ require_login($courseid);
 $context = context_course::instance($courseid);
 // Both Quick Add actions share one rule; an unknown action is refused below with the other request errors.
 \aiplacement_modgen\local\permissions::require_build_action('create_weeks', $context);
-\aiplacement_modgen\local\theme_builder::require_flexsections_format($courseid);
+\aiplacement_modgen\local\course_formats::require_supported($courseid);
 
 // Allow extended execution time for large section creation operations.
 core_php_time_limit::raise(600);

@@ -381,13 +381,13 @@ final class quick_add_structure_test extends \advanced_testcase {
     public function test_a_job_fails_if_the_course_changed_format_after_it_was_queued(): void {
         global $DB, $USER;
         quick_add_service::queue_weeks($this->course->id, $USER->id, 1, 0, false);
-        update_course((object) ['id' => $this->course->id, 'format' => 'topics']);
+        update_course((object) ['id' => $this->course->id, 'format' => 'social']);
 
         $this->run_jobs();
 
         $job = $DB->get_records('aiplacement_modgen_jobs', ['courseid' => $this->course->id], 'id DESC', '*', 0, 1);
         $this->assertSame('failed', reset($job)->status);
-        $this->assertSame('topics', $DB->get_field('course', 'format', ['id' => $this->course->id]));
+        $this->assertSame('social', $DB->get_field('course', 'format', ['id' => $this->course->id]));
         $this->assertFalse($DB->record_exists('course_sections', ['course' => $this->course->id, 'name' => 'Week 1']));
         $this->resetDebugging();
     }
@@ -397,16 +397,16 @@ final class quick_add_structure_test extends \advanced_testcase {
      */
     public function test_assessments_entry_refuses_a_course_in_another_format(): void {
         global $DB;
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics', 'numsections' => 3]);
+        $course = $this->getDataGenerator()->create_course(['format' => 'social']);
         $before = $DB->count_records('course_sections', ['course' => $course->id]);
 
         try {
             \aiplacement_modgen\local\theme_builder::add_assessments_section($course->id);
-            $this->fail('A course that is not Flexible sections must be refused.');
+            $this->fail('A course in a format the plugin does not build in must be refused.');
         } catch (\moodle_exception $e) {
-            $this->assertSame('errorformatnotflexsections', $e->errorcode);
+            $this->assertSame('errorformatnotsupported', $e->errorcode);
         }
-        $this->assertSame('topics', $DB->get_field('course', 'format', ['id' => $course->id]));
+        $this->assertSame('social', $DB->get_field('course', 'format', ['id' => $course->id]));
         $this->assertSame($before, $DB->count_records('course_sections', ['course' => $course->id]));
     }
 

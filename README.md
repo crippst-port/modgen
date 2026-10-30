@@ -1,17 +1,32 @@
 # Module Assistant (aiplacement_modgen)
 
-An AI placement plugin for Moodle 4.5+ that helps teachers build the structure of a module in the
-Flexible sections course format: themes, weeks and the pre-session / session / post-session
-sections inside them.
+An AI placement plugin for Moodle 4.5+ that helps teachers build the structure of a module: weeks
+with pre-session / session / post-session sections inside them, and, in the Flexible sections
+format, themes that hold those weeks.
+
+## Course formats
+
+The plugin never changes a course's format; a course in any other format is refused.
+
+| Format | What is built |
+|--------|---------------|
+| Flexible sections | Themes, weeks and sessions, nested as sections inside sections. |
+| Custom sections, Weekly sections | Weeks as sections, each with its three sessions as core subsections. No themes: anything with themes (New Theme(s), a theme CSV, a themed AI structure) is refused, as is a week inside another section. |
+
+Builds in Custom sections and Weekly sections need the Subsection activity enabled (Site
+administration > Plugins > Activity modules > Manage activities); while it is off, the toolbar says
+so in place of the Quick Add menu. Core counts subsections towards the site's "Maximum number of
+sections" (Course default settings, 52 by default), and each week is four sections, so a build that
+would take a course past it is refused.
 
 ## What it does
 
 All of it is reached from the **Module Assistant** toolbar, which appears at the top of a course
-page when editing is on (course pages using the Flexible sections format only).
+page when editing is on, in the formats above.
 
 - **Quick Add**
   - *New Theme(s)* creates top-level themes, each with a chosen number of weeks. It is only offered
-    at the top of the course, never from inside a section.
+    at the top of the course, never from inside a section, and only in Flexible sections.
   - *New Week(s)* creates standalone weeks, each with its three session sections.
 - **Structure from file** builds a module from a CSV, either uploaded or chosen from a library of
   CSV templates kept by administrators. It does not need AI. The result is always created at the
@@ -20,7 +35,8 @@ page when editing is on (course pages using the Flexible sections format only).
   propose a structure from a prompt and optional CSV. The proposal is shown as a preview and nothing
   is created until the teacher approves it.
 - **Check Structure** diagnoses and repairs problems with the section hierarchy (parents, ordering,
-  orphans, circular references) in Flexible sections courses.
+  orphans, circular references) in Flexible sections courses. It is not offered in other formats,
+  which keep their own hierarchy.
 - **Help and Advice** shows links an administrator configures in the plugin settings.
 
 Creation always runs as a background (ad-hoc) task, so large builds do not time out a web request.
@@ -30,8 +46,11 @@ success. A build that would take the course over the section limit is refused be
 ## Requirements
 
 - Moodle 4.5 or later (PHP 8.1 or later, as Moodle requires).
-- The Flexible sections course format (`format_flexsections` 4.1.4 or later, version 2024120801).
-  It is a hard dependency; the plugin only builds into courses using that format.
+- For Custom sections and Weekly sections courses: the Subsection activity (`mod_subsection`, part of
+  Moodle 4.5), enabled.
+- Optional: the Flexible sections course format (`format_flexsections` 4.1.4 or later, version
+  2024120801), for themes and for Check Structure. Flexible sections courses are refused on an
+  older version, which takes no lock around deleting a section.
 - An AI provider configured in Moodle's AI subsystem, offering *Generate text* and allowed for this
   placement, for *Structure from prompt* only.
 - Optional: the Learning Activity module (`mod_learningactivity`). When it is installed, builds can add
@@ -151,8 +170,16 @@ npx grunt amd
 - Verify the AI provider is configured in Site administration > AI, and check its credentials and
   quota.
 
+**The toolbar does not appear**
+- Make sure the course uses the Custom sections, Weekly sections or Flexible sections format, and
+  that editing is on.
+
+**The toolbar says subsections are switched off**
+- Enable the Subsection activity in Site administration > Plugins > Activity modules > Manage
+  activities.
+
 **Sections do not appear**
-- Make sure the course uses the Flexible sections format, then purge caches.
+- Make sure cron is running, then purge caches.
 
 ## Changes
 

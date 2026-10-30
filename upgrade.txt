@@ -1,5 +1,28 @@
 === Module Assistant (aiplacement_modgen) Upgrade Notes ===
 
+## Upgrading to Version 0.9.0 (2026-10-30)
+
+### Added
+
+- Builds in Custom sections and Weekly sections courses. Each week is a section with its pre-session,
+  session and post-session as core subsections. Quick Add's New Week(s) and Assessments section,
+  Structure from file and Structure from prompt all work there; the course's format is never changed.
+
+### Changed
+
+- format_flexsections is no longer a dependency. A Flexible sections course is still only built in
+  from format_flexsections 4.1.4 on, now checked when a build starts rather than at install.
+- Themes need Flexible sections, so in Custom sections and Weekly sections they are refused: New
+  Theme(s) is not offered, the prompt form offers only the weekly module, and a CSV or AI structure
+  with themes is refused before its preview, when approved, and if a queued job's course is switched
+  to one of those formats before it runs. A week cannot go inside another section there either.
+- Builds there need the Subsection activity enabled. While it is off, the toolbar says so in place
+  of the Quick Add menu, and every build is refused.
+- Builds there also respect the site's "Maximum number of sections", which core counts subsections
+  towards, so a teacher can still add sections by hand afterwards.
+- Check Structure is only offered in Flexible sections courses.
+- A course in any other format is refused with a message naming the three supported formats.
+
 ## Upgrading to Version 0.8.3 (2026-10-30)
 
 ### Changed

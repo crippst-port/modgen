@@ -337,29 +337,30 @@ final class transaction_handling_test extends \advanced_testcase {
     }
 
     /**
-     * Test that flexsections format is required.
+     * Test that a supported format is required.
      *
-     * A course in another format is refused, left in its own format, and given no sections.
+     * A course in a format the plugin does not build in is refused, left in its own format, and given
+     * no sections. Themes in Custom sections are covered by core_format_build_test.
      *
      * @covers ::create_themes
      * @covers ::prepare_course_for_build
      */
-    public function test_requires_flexsections_format(): void {
+    public function test_requires_supported_format(): void {
         global $DB;
         $this->resetAfterTest();
         $this->setAdminUser();
 
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
+        $course = $this->getDataGenerator()->create_course(['format' => 'social']);
         $before = $DB->count_records('course_sections', ['course' => $course->id]);
 
         try {
             theme_builder::create_themes($course->id, 1, 1, 0);
-            $this->fail('A build in a course that is not Flexible sections must be refused.');
+            $this->fail('A build in a course in an unsupported format must be refused.');
         } catch (\moodle_exception $e) {
-            $this->assertSame('errorformatnotflexsections', $e->errorcode);
+            $this->assertSame('errorformatnotsupported', $e->errorcode);
         }
 
-        $this->assertSame('topics', $DB->get_field('course', 'format', ['id' => $course->id]));
+        $this->assertSame('social', $DB->get_field('course', 'format', ['id' => $course->id]));
         $this->assertSame($before, $DB->count_records('course_sections', ['course' => $course->id]));
     }
 

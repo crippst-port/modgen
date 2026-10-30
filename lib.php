@@ -60,8 +60,11 @@ function aiplacement_modgen_extend_navigation_course(
         return;
     }
 
-    // Navigation bar - only show in edit mode and on the course page.
-    if ($PAGE->user_is_editing() && $PAGE->pagetype === 'course-view-flexsections') {
+    // Navigation bar - only show in edit mode and on the course page, in a format the plugin builds in.
+    $formats = \aiplacement_modgen\local\course_formats::CORE_FORMATS;
+    $formats[] = \aiplacement_modgen\local\course_formats::FLEXSECTIONS;
+    $coursepages = array_map(fn($format) => 'course-view-' . $format, $formats);
+    if ($PAGE->user_is_editing() && in_array($PAGE->pagetype, $coursepages, true)) {
         // Feature-specific visibility (combine capability + admin setting).
         $aienabled = \aiplacement_modgen\local\settings_helper::is_ai_enabled();
         $showgenerator = $cangenerateprompt && $aienabled;
@@ -149,7 +152,9 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     $showtemplatefromfile = $cangeneratetemplate && \aiplacement_modgen\local\settings_helper::is_structurefromfile_enabled();
     // The New Theme and New Week entries need the structure capability, not just the admin switch.
     $showquickadd = \aiplacement_modgen\local\settings_helper::is_quickadd_enabled() && $canmanagestructure;
-    $showcheckstructure = $cancheckstructure;
+    // Check Structure repairs Flexible sections hierarchies; core formats keep their own.
+    $isflexsections = \aiplacement_modgen\local\course_formats::is_flexsections($courseid);
+    $showcheckstructure = $cancheckstructure && $isflexsections;
 
     // Themes are top-level containers, so New Theme is only offered from the top of the course.
     $showaddtheme = clean_param($args['currentsection'] ?? 0, PARAM_INT) <= 0;
@@ -163,8 +168,16 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
         $showtemplatefromptompt,
         $showcheckstructure,
         $showquickadd,
-        $showaddtheme
+        $showaddtheme,
+        $isflexsections
     );
+
+    // A course the plugin cannot build in (subsections switched off, say) gets the reason in place of the menus,
+    // rather than entries that would each fail with it.
+    $reason = \aiplacement_modgen\local\course_formats::unsupported_reason($courseid);
+    if ($reason !== null) {
+        $toolbar->set_unavailable(get_string($reason, 'aiplacement_modgen'));
+    }
 
     // Get the plugin renderer and render the toolbar.
     $renderer = $PAGE->get_renderer('aiplacement_modgen');
@@ -218,7 +231,8 @@ function aiplacement_modgen_output_fragment_form_add_theme(array $args): string 
 
     // Verify permission.
     require_capability('aiplacement/modgen:managestructure', $context);
-    \aiplacement_modgen\local\theme_builder::require_flexsections_format($courseid);
+    \aiplacement_modgen\local\course_formats::require_supported($courseid);
+    \aiplacement_modgen\local\course_formats::require_themes($courseid);
 
     // Set page context for proper JS/CSS loading.
     $PAGE->set_context($context);
@@ -270,7 +284,7 @@ function aiplacement_modgen_output_fragment_form_add_week(array $args): string {
 
     // Verify permission.
     require_capability('aiplacement/modgen:managestructure', $context);
-    \aiplacement_modgen\local\theme_builder::require_flexsections_format($courseid);
+    \aiplacement_modgen\local\course_formats::require_supported($courseid);
 
     // Set page context for proper JS/CSS loading.
     $PAGE->set_context($context);
@@ -317,7 +331,7 @@ function aiplacement_modgen_output_fragment_form_add_assessments(array $args): s
 
     $context = aiplacement_modgen_fragment_context($courseid, $contextid);
     require_capability('aiplacement/modgen:managestructure', $context);
-    \aiplacement_modgen\local\theme_builder::require_flexsections_format($courseid);
+    \aiplacement_modgen\local\course_formats::require_supported($courseid);
     $PAGE->set_context($context);
 
     require_once(__DIR__ . '/classes/form/add_assessments_form.php');
@@ -356,7 +370,7 @@ function aiplacement_modgen_output_fragment_form_template_from_prompt(array $arg
 
     // Verify permission.
     require_capability('aiplacement/modgen:generatewithprompt', $context);
-    \aiplacement_modgen\local\theme_builder::require_flexsections_format($courseid);
+    \aiplacement_modgen\local\course_formats::require_supported($courseid);
     \aiplacement_modgen\local\settings_helper::require_ai_enabled();
 
     // Set page context for proper JS/CSS loading.

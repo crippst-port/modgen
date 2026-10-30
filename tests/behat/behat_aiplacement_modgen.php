@@ -226,6 +226,54 @@ class behat_aiplacement_modgen extends behat_base {
     }
 
     /**
+     * Switch the Subsection activity on or off, which builds in Custom sections and Weekly sections need.
+     *
+     * @Given /^subsections are (?P<state_string>enabled|disabled)$/
+     * @param string $state enabled or disabled.
+     */
+    public function subsections_are(string $state): void {
+        \core\plugininfo\mod::enable_plugin('subsection', $state === 'enabled' ? 1 : 0);
+        \core_plugin_manager::reset_caches();
+    }
+
+    /**
+     * Check a course's regular sections and the subsections each holds.
+     *
+     * Rows are section | subsections, in course order after section 0; subsections are comma-separated names.
+     *
+     * @Then /^the course "(?P<course_string>[^"]*)" should have these sections with subsections:$/
+     * @param string $shortname Course short name.
+     * @param \Behat\Gherkin\Node\TableNode $table Expected rows.
+     */
+    public function the_course_should_have_these_sections_with_subsections(
+        string $shortname,
+        \Behat\Gherkin\Node\TableNode $table
+    ): void {
+        // Course ids are reused between scenarios, so a course's cached modinfo can be the last scenario's.
+        $courseid = $this->course_id($shortname);
+        get_fast_modinfo($courseid, 0, true);
+        $modinfo = get_fast_modinfo($courseid);
+        $actual = [];
+        foreach ($modinfo->get_listed_section_info_all() as $section) {
+            if ($section->section == 0) {
+                continue;
+            }
+            $subsections = [];
+            foreach ($modinfo->sections[$section->section] ?? [] as $cmid) {
+                $cm = $modinfo->get_cm($cmid);
+                if ($cm->modname === 'subsection') {
+                    $subsections[] = $cm->get_delegated_section_info()->name;
+                }
+            }
+            $actual[] = [(string) $section->name, implode(', ', $subsections)];
+        }
+        $expected = array_map(fn($row) => [$row['section'], $row['subsections']], $table->getHash());
+        if ($actual !== $expected) {
+            throw new Exception("'$shortname' has these sections:\n" . json_encode($actual, JSON_PRETTY_PRINT));
+        }
+    }
+
+    /**
      * Check the most recent structure job in a course.
      *
      * Rows are field | value. Fields: action, status, error, warnings (how many), messages (how many),

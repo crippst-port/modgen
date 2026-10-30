@@ -909,7 +909,8 @@ class theme_builder {
      * Add an 'Assessments' section at the top of the course, straight after section 0.
      *
      * Quick Add's Assessments entry. Runs under the build locks and the section limit, and sets the
-     * course up, like any other build; refuses if the course already has a section with that name.
+     * course up, like any other build; refuses if the course already has a top-level section with
+     * that name, in any case.
      *
      * @param int $courseid Course ID
      * @return \stdClass The new section's record.
@@ -921,7 +922,18 @@ class theme_builder {
         $assessmentsname = get_string('assessmentssectionname', 'aiplacement_modgen');
         $locks = self::acquire_build_locks($courseid, 1);
         try {
-            if ($DB->record_exists('course_sections', ['course' => $courseid, 'name' => $assessmentsname])) {
+            // Only a top-level section counts, in any case: a week inside a theme may share the name.
+            $exists = $DB->record_exists_sql(
+                "SELECT 1
+                   FROM {course_sections} cs
+              LEFT JOIN {course_format_options} cfo
+                     ON cfo.sectionid = cs.id AND cfo.name = 'parent' AND cfo.format = 'flexsections'
+                  WHERE cs.course = :courseid AND cs.section > 0
+                        AND (cfo.id IS NULL OR " . $DB->sql_compare_text('cfo.value') . " IN ('', '0'))
+                        AND " . $DB->sql_equal('cs.name', ':name', false),
+                ['courseid' => $courseid, 'name' => $assessmentsname]
+            );
+            if ($exists) {
                 throw new \moodle_exception('assessmentsexists', 'aiplacement_modgen', '', $assessmentsname);
             }
 

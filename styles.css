@@ -20,12 +20,28 @@
  */
 .aiplacement-modgen-navbar {
     background: linear-gradient(135deg, #0078B4 0%, #5A1A5D 100%);
-    margin: -1rem 0 1.5rem 0;
+    /* A bar set in the page, not one running edge to edge across it. */
+    margin: 0.25rem 1rem 0 1rem;
+    padding-top: 0.625rem;
+    padding-bottom: 0.625rem;
+    border-radius: 0.375rem;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 
-. aiplacement-modgen-navbar .logo-container {
+/* The logo fills the bar behind its contents and is clipped to it; the dropdowns are not, as they are outside this layer. */
+.aiplacement-modgen-navbar .logo-container {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    left: 0;
     overflow: hidden;
+    border-radius: inherit;
+    pointer-events: none;
+}
+
+/* Later positioned siblings paint above the logo layer. */
+.aiplacement-modgen-navbar > :not(.logo-container) {
     position: relative;
 }
 
@@ -38,12 +54,6 @@
     mix-blend-mode: soft-light;
     opacity: .3;
     pointer-events: none;
-}
-
-.aiplacement-modgen-navbar .navbar-brand {
-    font-weight: 600;
-    font-size: 1.1rem;
-    color: white;
 }
 
 .aiplacement-modgen-nav-link {
@@ -211,12 +221,16 @@
     }
 }
 
-/* Progress Header for Multi-Step Workflow */
+/* Progress Header for Multi-Step Workflow, in the theme's colours. */
 .modgen-progress-header {
-    padding: 1rem;
-    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-    border-radius: 0.5rem;
-    border-bottom: 1px solid #dee2e6;
+    --modgen-step-accent: var(--bs-primary, var(--primary, #0f6cbf));
+    --modgen-step-done: var(--bs-success, var(--success, #357a32));
+    --modgen-step-muted: var(--bs-secondary-color, #6a737b);
+    --modgen-step-track: var(--bs-border-color, #dee2e6);
+    padding: 0.25rem 0 1.25rem;
+    background: none;
+    border-radius: 0;
+    border-bottom: 1px solid var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
 }
 
 .modgen-step {
@@ -226,58 +240,61 @@
 }
 
 .modgen-step-icon {
-    width: 2.5rem;
-    height: 2.5rem;
+    width: 2.25rem;
+    height: 2.25rem;
     border-radius: 50%;
     display: flex;
     align-items: center;
     justify-content: center;
     margin: 0 auto;
-    font-size: 1rem;
+    font-size: 0.9rem;
     transition: all 0.3s ease;
 }
 
 .modgen-step-pending .modgen-step-icon {
-    background-color: #e9ecef;
-    color: #6c757d;
-    border: 2px solid #dee2e6;
+    background-color: var(--bs-body-bg, #fff);
+    color: var(--modgen-step-muted);
+    border: 2px solid var(--modgen-step-track);
 }
 
 .modgen-step-pending .modgen-step-label {
-    color: #6c757d;
+    color: var(--modgen-step-muted);
 }
 
 .modgen-step-active .modgen-step-icon {
-    background-color: #0d6efd;
-    color: white;
-    border: 2px solid #0d6efd;
-    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.2);
+    background-color: var(--modgen-step-accent);
+    color: #fff;
+    border: 2px solid var(--modgen-step-accent);
+    box-shadow: 0 0 0 4px rgba(15, 108, 191, 0.15);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--modgen-step-accent) 18%, transparent);
 }
 
 .modgen-step-active .modgen-step-label {
-    color: #0d6efd;
+    color: var(--modgen-step-accent);
     font-weight: 600;
 }
 
 .modgen-step-complete .modgen-step-icon {
-    background-color: #198754;
-    color: white;
-    border: 2px solid #198754;
+    background-color: var(--modgen-step-done);
+    color: #fff;
+    border: 2px solid var(--modgen-step-done);
 }
 
 .modgen-step-complete .modgen-step-label {
-    color: #198754;
+    color: var(--modgen-step-done);
 }
 
 .modgen-step-line {
-    background-color: #dee2e6;
+    background-color: var(--modgen-step-track);
     align-self: center;
+    border-radius: 1px;
 }
 
 .modgen-step-line-complete {
-    background-color: #198754;
+    background-color: var(--modgen-step-done);
     height: 2px;
     align-self: center;
+    border-radius: 1px;
 }
 
 /* Form state transitions */
@@ -1138,13 +1155,10 @@
 .aiplacement-modgen__content form .form-buttons,
 .aiplacement-modgen__content form .form-group:has(button[type="submit"]),
 .aiplacement-modgen__content form .buttons {
-    margin-top: auto;
-    padding-top: 1.5rem;
     border-top: 1px solid #dee2e6;
     background-color: #f8f9fa;
     margin: -1rem -1rem 0 -1rem;
     padding: 1.5rem 1rem;
-    sticky: bottom;
     position: sticky;
     bottom: 0;
 }
@@ -1333,4 +1347,265 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
 /* The prompt is shown as entered, line breaks included. */
 .aiplacement-modgen-preview__prompt-body p {
     white-space: pre-line;
+}
+
+/* ==========================================================================
+   Quick Add modals (New Theme(s), New Week(s), Assessments section).
+   Scoped to .aiplacement-modgen-qa, the class those three forms carry, so other
+   forms in the plugin's modal and the rest of Moodle are unchanged.
+   ========================================================================== */
+.aiplacement-modgen-qa {
+    --modgen-qa-accent: var(--bs-primary, var(--primary, #0f6cbf));
+    --modgen-qa-border: var(--bs-border-color, #dee2e6);
+    --modgen-qa-muted: var(--bs-secondary-color, #6a737b);
+    --modgen-qa-tint: rgba(15, 108, 191, 0.08);
+    --modgen-qa-tint: color-mix(in srgb, var(--modgen-qa-accent) 9%, transparent);
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+}
+
+/* The dialog box takes focus when it opens; it is not a control, so it needs no focus ring. */
+/* Boost draws it on .modal-content when the dialog is focused, so this must outrank theme CSS. */
+.aiplacement-modgen__modal:focus .modal-content,
+.aiplacement-modgen__modal.focus .modal-content {
+    outline: 0;
+    box-shadow: 0 0.75rem 2.5rem rgba(0, 0, 0, 0.18) !important;
+}
+
+.aiplacement-modgen__modal .modal-content {
+    border: 0;
+    border-radius: 0.75rem;
+    box-shadow: 0 0.75rem 2.5rem rgba(0, 0, 0, 0.18);
+}
+
+.aiplacement-modgen__modal .modal-header,
+.aiplacement-modgen__modal .modal-footer {
+    border-color: var(--bs-border-color-translucent, rgba(0, 0, 0, 0.08));
+}
+
+/* Intro: what the form creates, with an icon. */
+.aiplacement-modgen-qa__intro {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.875rem;
+}
+
+.aiplacement-modgen-qa__icon {
+    flex: 0 0 2.5rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    border-radius: 0.625rem;
+    background: var(--modgen-qa-tint);
+    color: var(--modgen-qa-accent);
+    font-size: 1.1rem;
+}
+
+.aiplacement-modgen-qa__intro-text {
+    margin: 0;
+    padding-top: 0.15rem;
+    color: var(--modgen-qa-muted);
+    line-height: 1.5;
+}
+
+/* Labels sit above their fields (full-width-labels); the form spaces the rows with gap. */
+.aiplacement-modgen-qa > .fitem.row {
+    margin-bottom: 0 !important; /* Moodle puts mb-3 on every row. */
+}
+
+.aiplacement-modgen-qa > .fitem > .col-form-label {
+    padding-top: 0;
+    padding-bottom: 0.4rem;
+    align-items: center;
+}
+
+.aiplacement-modgen-qa > .fitem > .col-form-label label {
+    font-weight: 600;
+    flex: 0 1 auto;
+    margin: 0;
+}
+
+/* The checkbox row has an empty label column that full-width-labels does not hide. */
+.aiplacement-modgen-qa > .fitem:has(> .checkbox) > .col-form-label {
+    display: none;
+}
+
+/* Every field has a default, so the required markers are noise here; aria-required stays. */
+.aiplacement-modgen-qa .form-label-addon .text-danger,
+.aiplacement-modgen-qa .fdescription.required {
+    display: none;
+}
+
+/* A field's "between 1 and N" hint sits straight under it. */
+.aiplacement-modgen-qa > .fitem.femptylabel:has([data-name$="_hint"]) {
+    margin-top: -0.85rem !important;
+}
+
+.aiplacement-modgen-qa [data-name$="_hint"] .form-text {
+    margin-top: 0.35rem;
+}
+
+/* Stepper: - [ n ] + */
+.aiplacement-modgen-qa__stepper {
+    display: inline-flex;
+    align-items: stretch;
+    border: 1px solid var(--modgen-qa-border);
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: var(--bs-body-bg, #fff);
+}
+
+.aiplacement-modgen-qa__stepper:focus-within {
+    border-color: var(--modgen-qa-accent);
+    box-shadow: 0 0 0 0.2rem var(--modgen-qa-tint);
+}
+
+.aiplacement-modgen-qa__stepper input.form-control {
+    width: 4.5rem;
+    border: 0;
+    border-radius: 0;
+    text-align: center;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    box-shadow: none;
+}
+
+.aiplacement-modgen-qa__step {
+    flex: 0 0 2.75rem;
+    width: 2.75rem;
+    padding: 0;
+    border: 0;
+    background: var(--bs-tertiary-bg, #f5f6f7);
+    color: var(--bs-body-color, #1d2125);
+    font-size: 1.2rem;
+    line-height: 1;
+    transition: background-color 0.15s ease;
+}
+
+.aiplacement-modgen-qa__step:hover:not(:disabled) {
+    background: var(--modgen-qa-tint);
+    color: var(--modgen-qa-accent);
+}
+
+.aiplacement-modgen-qa__step:focus-visible {
+    outline: 2px solid var(--modgen-qa-accent);
+    outline-offset: -2px;
+}
+
+.aiplacement-modgen-qa__step:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+}
+
+/* The section summary option as a bordered row. */
+.aiplacement-modgen-qa > .fitem:has(> .checkbox) .form-check {
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.8rem 1rem;
+    border: 1px solid var(--modgen-qa-border);
+    border-radius: 0.5rem;
+}
+
+.aiplacement-modgen-qa > .fitem:has(> .checkbox) .form-check-input {
+    position: static;
+    margin: 0 !important; /* Moodle offsets the box into the padding we removed. */
+    float: none;
+    flex: 0 0 auto;
+}
+
+.aiplacement-modgen-qa > .fitem:has(> .checkbox) .form-check label {
+    margin: 0;
+}
+
+/* Live summary of what will be created. */
+.aiplacement-modgen-qa__summary {
+    margin: 0;
+    padding: 0.75rem 1rem;
+    border-radius: 0.5rem;
+    background: var(--modgen-qa-tint);
+    color: var(--bs-body-color, #1d2125);
+}
+
+/* Choice cards (Module format on the From prompt form). */
+.aiplacement-modgen-qa__choices {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+    gap: 0.75rem;
+    width: 100%;
+}
+
+.aiplacement-modgen-qa__choice {
+    position: relative;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    margin: 0;
+    padding: 0.9rem 1rem;
+    border: 1px solid var(--modgen-qa-border);
+    border-radius: 0.625rem;
+    background: var(--bs-body-bg, #fff);
+    cursor: pointer;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background-color 0.15s ease;
+}
+
+.aiplacement-modgen-qa__choice:hover {
+    border-color: var(--modgen-qa-accent);
+}
+
+/* The radio stays in place for keyboard and screen reader users; the card shows its state. */
+.aiplacement-modgen-qa__choice-input {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+}
+
+.aiplacement-modgen-qa__choice.is-selected {
+    border-color: var(--modgen-qa-accent);
+    background: var(--modgen-qa-tint);
+    box-shadow: inset 0 0 0 1px var(--modgen-qa-accent);
+}
+
+.aiplacement-modgen-qa__choice:has(.aiplacement-modgen-qa__choice-input:focus-visible) {
+    outline: 2px solid var(--modgen-qa-accent);
+    outline-offset: 2px;
+}
+
+.aiplacement-modgen-qa__choice-text {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+}
+
+.aiplacement-modgen-qa__choice-title {
+    font-weight: 600;
+}
+
+.aiplacement-modgen-qa__choice-description {
+    color: var(--modgen-qa-muted);
+    font-size: 0.875rem;
+    line-height: 1.4;
+}
+
+/* The prompt box. */
+.aiplacement-modgen-qa textarea.form-control {
+    width: 100%;
+    min-height: 9rem;
+    padding: 0.75rem 0.9rem;
+    border-radius: 0.5rem;
+    line-height: 1.5;
+    resize: vertical;
+}
+
+.aiplacement-modgen-qa textarea.form-control::placeholder {
+    color: var(--modgen-qa-muted);
+    opacity: 0.8;
+}
+
+/* The existing-content warning sits with the form's other parts. */
+.aiplacement-modgen-qa > .alert {
+    margin: 0;
 }

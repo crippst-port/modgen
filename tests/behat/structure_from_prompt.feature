@@ -27,8 +27,12 @@ Feature: Structure from prompt form
 
   Scenario: The form offers both module formats and a required prompt
     Then I should see "Enter prompt"
-    And the "Module format" select box should contain "Connected Weekly"
-    And the "Module format" select box should contain "Connected Themed"
+    And I should see "A week-by-week module" in the ".modal-body" "css_element"
+    And I should see "Themes, each holding its own weeks" in the ".modal-body" "css_element"
+    And I should see "Connected Weekly" in the ".aiplacement-modgen-qa__choice.is-selected" "css_element"
+    When I click on "Connected Themed" "text" in the ".modal-body" "css_element"
+    Then I should see "Connected Themed" in the ".aiplacement-modgen-qa__choice.is-selected" "css_element"
+    And I should not see "Connected Weekly" in the ".aiplacement-modgen-qa__choice.is-selected" "css_element"
 
   Scenario: An empty prompt asks for the AI policy, then is refused and nothing is built
     When I click on "Preview Structure" "button" in the ".modal-footer" "css_element"

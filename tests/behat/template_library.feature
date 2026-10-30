@@ -153,5 +153,5 @@ Feature: The CSV structure library
       | enable_structurefromfile | 0 | aiplacement_modgen |
     And I am on the "Course 1" "course" page logged in as "teacher1"
     And I turn editing mode on
-    Then I should see "Module Assistant"
+    Then "nav[aria-label='Module Assistant']" "css_element" should exist
     And I should not see "Structure from file"

@@ -193,7 +193,7 @@ $string['templatename_help'] = 'Give this structure a descriptive name that user
 $string['templatedescription_help'] = 'Optionally provide a brief description of what this structure contains or when it should be used.';
 
 // Generator introduction.
-$string['generatorintroduction'] = 'This page allows you to create your course structure in several ways. You can upload a CSV structure file to define sections, weeks, or themes, or optionally select a pre-made structure from the library. When you upload a structure file, the form will read its contents and create your course layout. You can edit titles and descriptions after the strucure has been created on your module.';
+$string['generatorintroduction'] = 'This page allows you to create your course structure in several ways. You can upload a CSV structure file to define sections, weeks, or themes, or optionally select a pre-made structure from the library. When you upload a structure file, the form will read its contents and create your course layout. You can edit titles and descriptions after the structure has been created on your module.';
 
 // AI enable/disable setting.
 $string['aienabledheading'] = 'AI Integration';
@@ -238,6 +238,16 @@ $string['summary'] = 'Summary';
 $string['newtheme'] = 'New Theme(s)';
 $string['newweek'] = 'New Week(s)';
 $string['quickadd'] = 'Quick Add';
+$string['promptintro'] = 'Describe the module you want and the Assistant will suggest a structure. Nothing is added to your course until you have reviewed it.';
+$string['promptplaceholder'] = 'For example: a 12-week introduction to marine biology for first-year undergraduates, with a field trip in week 6 and an assessed presentation at the end.';
+$string['moduletypechoice_connected_weekly'] = 'A week-by-week module: each week has pre-session, session and post-session sections.';
+$string['moduletypechoice_connected_theme'] = 'Themes, each holding its own weeks of pre-session, session and post-session sections.';
+$string['quickaddthemeintro'] = 'Add themes to the top of your module. Each theme gets the weeks you choose, and each week gets pre-session, session and post-session sections.';
+$string['quickaddweekintro'] = 'Add weeks to your module, or inside the section you are viewing. Each week gets pre-session, session and post-session sections.';
+$string['quickaddsummarythemes'] = 'This will add {$a->themes} theme(s) with {$a->weeks} week(s) between them: {$a->sections} sections in all.';
+$string['quickaddsummaryweeks'] = 'This will add {$a->weeks} week(s): {$a->sections} sections in all.';
+$string['stepperdecrease'] = 'Decrease {$a}';
+$string['stepperincrease'] = 'Increase {$a}';
 $string['themecount'] = 'How many themes do you want to create?';
 $string['themecount_help'] = 'Enter the number of themes to create. The maximum is set by your site administrator.';
 $string['weekcount'] = 'How many weeks do you want to create?';

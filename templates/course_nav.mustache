@@ -65,6 +65,13 @@
 
     <div class="collapse navbar-collapse" id="aimodgenNavbar">
         <ul class="navbar-nav ml-auto">
+         {{! Left of every button, in a slot of fixed width that is there even while empty, so the icon
+             appearing, changing or going never moves the buttons. }}
+         {{#showreorderstatus}}
+         <li class="nav-item aiplacement-modgen-reorder-slot" data-region="aiplacement-modgen-reorder-status" data-courseid="{{courseid}}" aria-live="polite">
+           {{#reorderstatus}}{{> aiplacement_modgen/reorder_status_icon}}{{/reorderstatus}}
+         </li>
+         {{/showreorderstatus}}
 
 {{#showhelplinks}}
       <li class="nav-item dropdown mx-3">
@@ -88,12 +95,6 @@
              </span>
          </li>
          {{/unavailable}}
-         {{! Sits to the left of the buttons. Empty until there is a status to show. }}
-         {{#showreorderstatus}}
-         <li class="nav-item mr-2 d-flex align-items-center" data-region="aiplacement-modgen-reorder-status" data-courseid="{{courseid}}" aria-live="polite">
-           {{#reorderstatus}}{{> aiplacement_modgen/reorder_status_icon}}{{/reorderstatus}}
-         </li>
-         {{/showreorderstatus}}
          {{#showquickaddmenu}}
          <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle btn btn-secondary btn-sm" href="#" role="button" data-toggle="dropdown" aria-expanded="false">

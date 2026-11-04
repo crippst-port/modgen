@@ -1611,6 +1611,17 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
 }
 
 /* Section reorder status icon on the assistant bar (site administrators only). */
+/* Its slot keeps the icon's width whether or not it holds one, so the buttons never shift. */
+.aiplacement-modgen-reorder-slot {
+    display: flex;
+    flex: 0 0 28px;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    min-height: 28px;
+    margin-right: 0.5rem;
+}
+
 .aiplacement-modgen-reorder-icon {
     display: inline-flex;
     align-items: center;

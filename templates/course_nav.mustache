@@ -138,6 +138,11 @@
         </a>
       </li>
       {{/showcheckstructure}}
+      {{#showreorderstatus}}
+      <li class="nav-item ml-2 d-flex align-items-center" data-region="aiplacement-modgen-reorder-status" data-courseid="{{courseid}}" aria-live="polite">
+        {{#reorderstatus}}{{> aiplacement_modgen/reorder_status_icon}}{{/reorderstatus}}
+      </li>
+      {{/showreorderstatus}}
         </ul>
     </div>
 </nav>

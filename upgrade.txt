@@ -1,5 +1,21 @@
 === Module Assistant (aiplacement_modgen) Upgrade Notes ===
 
+## Upgrading to the next version
+
+### Added
+
+- Automatic section renumbering. About a minute after the last section is added or deleted on a
+  Flexible sections course, an ad hoc task renumbers the course into hierarchy order. It waits while
+  the course cache shows someone is still editing, and logs the outcome. It is on by default and
+  can be switched off with "Renumber sections automatically" in the plugin settings, which stops
+  new tasks being queued, makes queued ones do nothing and hides the status icon.
+- A status icon on the assistant bar, for site administrators only, showing whether a renumber is
+  queued, running, done or refused.
+- A new event, \aiplacement_modgen\event\section_order_blocked, logged when the renumber is
+  refused because the section hierarchy is broken.
+- structure_repaired events can now have via = 'adhoctask'.
+- Event observers in db/events.php for course_section_created and course_section_deleted.
+
 ## Upgrading to Version 0.9.0 (2026-10-30)
 
 ### Added

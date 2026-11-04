@@ -815,13 +815,17 @@ class integrity_checker {
      * @param int $courseid Course ID
      * @param bool $locksheld True when the caller already holds the structure locks (the
      *   post-build tidy-up in theme_builder does), so they must not be acquired again.
+     * @param callable|null $beforewrite Called with no arguments inside the locks, once misordered
+     *   sections have been found and before anything is written. Returning false abandons the
+     *   renumber. Not called when there is nothing to fix or the course cannot be checked.
      * @return array {
      *   fixed: int           number of sections given a new number (0 if already in order)
      *   checkable: bool      false if the ordering could not be determined; nothing was written
      *   blockedby: string|null  'notflexsections' or 'brokenhierarchy' when not checkable
+     *   deferred: bool       true when $beforewrite refused; nothing was written
      * }
      */
-    public static function fix_section_order(int $courseid, bool $locksheld = false): array {
+    public static function fix_section_order(int $courseid, bool $locksheld = false, ?callable $beforewrite = null): array {
         // The check_section_order() call snapshots every section's number and the whole write below
         // is derived from that snapshot. A concurrent format_flexsections delete or move
         // renumbers the same rows, so snapshot and write have to happen under the same
@@ -831,7 +835,7 @@ class integrity_checker {
         $locks = $locksheld ? [] : theme_builder::acquire_structure_locks($courseid);
 
         try {
-            return self::apply_section_order($courseid);
+            return self::apply_section_order($courseid, $beforewrite);
         } finally {
             if (!$locksheld) {
                 theme_builder::release_structure_locks($locks);
@@ -843,17 +847,23 @@ class integrity_checker {
      * Renumber the course into hierarchy order. Caller guarantees the structure locks are held.
      *
      * @param int $courseid Course ID
+     * @param callable|null $beforewrite See fix_section_order()
      * @return array Same shape as fix_section_order()
      */
-    private static function apply_section_order(int $courseid): array {
+    private static function apply_section_order(int $courseid, ?callable $beforewrite = null): array {
         global $DB;
 
         $check = self::check_section_order($courseid);
         if (!$check['checkable']) {
-            return ['fixed' => 0, 'checkable' => false, 'blockedby' => $check['blockedby']];
+            return ['fixed' => 0, 'checkable' => false, 'blockedby' => $check['blockedby'], 'deferred' => false];
         }
         if (empty($check['misordered'])) {
-            return ['fixed' => 0, 'checkable' => true, 'blockedby' => null];
+            return ['fixed' => 0, 'checkable' => true, 'blockedby' => null, 'deferred' => false];
+        }
+
+        // The caller's last chance to refuse, with the locks held and nothing written yet.
+        if ($beforewrite !== null && $beforewrite() === false) {
+            return ['fixed' => 0, 'checkable' => true, 'blockedby' => null, 'deferred' => true];
         }
 
         $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
@@ -918,7 +928,7 @@ class integrity_checker {
             \course_set_marker($courseid, $changemarker);
         }
 
-        return ['fixed' => count($check['misordered']), 'checkable' => true, 'blockedby' => null];
+        return ['fixed' => count($check['misordered']), 'checkable' => true, 'blockedby' => null, 'deferred' => false];
     }
 
     /**

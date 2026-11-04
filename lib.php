@@ -180,6 +180,14 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
         $toolbar->set_unavailable(get_string($reason, 'aiplacement_modgen'));
     }
 
+    // Site administrators get the section reorder status, on Flexible sections courses, while it is switched on.
+    if (
+        \aiplacement_modgen\local\course_formats::is_flexsections($courseid)
+            && \aiplacement_modgen\local\section_reorder_status::can_view()
+    ) {
+        $toolbar->set_reorder_status(\aiplacement_modgen\local\section_reorder_status::get_for_course($courseid));
+    }
+
     // Get the plugin renderer and render the toolbar.
     $renderer = $PAGE->get_renderer('aiplacement_modgen');
     return $renderer->render($toolbar);

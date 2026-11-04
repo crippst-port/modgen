@@ -45,6 +45,12 @@ class course_toolbar implements renderable, templatable {
     /** @var string Why nothing can be built in the course, shown in place of the menus; empty when it can */
     private $unavailable = '';
 
+    /** @var bool Whether to show the section reorder status icon (site administrators only) */
+    private $showreorderstatus = false;
+
+    /** @var array|null Section reorder status for the icon, or null when there is nothing to show */
+    private $reorderstatus = null;
+
     /**
      * Constructor.
      *
@@ -64,6 +70,17 @@ class course_toolbar implements renderable, templatable {
      */
     public function set_unavailable(string $reason): void {
         $this->unavailable = $reason;
+    }
+
+    /**
+     * Show the section reorder status icon, for a site administrator on a Flexible sections course.
+     *
+     * @param array|null $status Status from section_reorder_status::get_for_course(), or null when there is
+     *   nothing to show yet (the icon's region is still added, so it can fill in after an edit)
+     */
+    public function set_reorder_status(?array $status): void {
+        $this->showreorderstatus = true;
+        $this->reorderstatus = $status;
     }
 
     /**
@@ -89,6 +106,9 @@ class course_toolbar implements renderable, templatable {
             $data->showquickaddmenu = false;
             $data->unavailable = $this->unavailable;
         }
+        $data->showreorderstatus = $this->showreorderstatus;
+        $data->reorderstatus = $this->reorderstatus;
+        $data->courseid = $this->courseid;
         if ($data->showcheckstructure) {
             $checkstructureurl = new moodle_url(
                 '/ai/placement/modgen/check_structure.php',

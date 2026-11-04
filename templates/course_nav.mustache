@@ -64,6 +64,23 @@
     </button>
 
     <div class="collapse navbar-collapse" id="aimodgenNavbar">
+        {{! Help and Advice on its own at the left of the bar, away from the building tools on the right. }}
+        {{#showhelplinks}}
+        <ul class="navbar-nav">
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-toggle="dropdown" aria-expanded="false">
+              {{#str}}helpandadvice, aiplacement_modgen{{/str}}
+            </a>
+            <div class="dropdown-menu">
+              {{#helplinks}}
+              <a class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="{{url}}" target="_blank" rel="noopener noreferrer">
+                <i class="fas fa-external-link-alt mr-1" aria-hidden="true"></i>{{text}}
+              </a>
+              {{/helplinks}}
+            </div>
+          </li>
+        </ul>
+        {{/showhelplinks}}
         <ul class="navbar-nav ml-auto">
          {{! Left of every button, in a slot of fixed width that is there even while empty, so the icon
              appearing, changing or going never moves the buttons. }}
@@ -73,20 +90,6 @@
          </li>
          {{/showreorderstatus}}
 
-{{#showhelplinks}}
-      <li class="nav-item dropdown mx-3">
-        <a class="nav-link dropdown-toggle text-white" href="#" role="button" data-toggle="dropdown" aria-expanded="false">
-          {{#str}}helpandadvice, aiplacement_modgen{{/str}}
-        </a>
-        <div class="dropdown-menu">
-          {{#helplinks}}
-          <a class="aiplacement-modgen-nav-link aiplacement-modgen-nav-link--primary" href="{{url}}" target="_blank" rel="noopener noreferrer">
-            <i class="fas fa-external-link-alt mr-1" aria-hidden="true"></i>{{text}}
-          </a>
-          {{/helplinks}}
-        </div>
-      </li>
-{{/showhelplinks}}
 
          {{#unavailable}}
          <li class="nav-item">

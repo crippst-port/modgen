@@ -32,6 +32,9 @@
     * showgenerator - Whether Structure from prompt is offered
     * showcheckstructure - Whether Check Structure is offered
     * checkstructureurl - URL of the Check Structure page
+    * showreorderstatus - Whether the section reorder status region is shown (site administrators only)
+    * reorderstatus - The status for aiplacement_modgen/reorder_status_icon, or null when there is none yet
+    * courseid - Course ID, for the status region's polling
     * showhelplinks - Whether the Help and Advice menu is shown
     * helplinks - Links for that menu, each with text and url
 
@@ -85,6 +88,12 @@
              </span>
          </li>
          {{/unavailable}}
+         {{! Sits to the left of the buttons. Empty until there is a status to show. }}
+         {{#showreorderstatus}}
+         <li class="nav-item mr-2 d-flex align-items-center" data-region="aiplacement-modgen-reorder-status" data-courseid="{{courseid}}" aria-live="polite">
+           {{#reorderstatus}}{{> aiplacement_modgen/reorder_status_icon}}{{/reorderstatus}}
+         </li>
+         {{/showreorderstatus}}
          {{#showquickaddmenu}}
          <li class="nav-item dropdown">
         <a class="nav-link dropdown-toggle btn btn-secondary btn-sm" href="#" role="button" data-toggle="dropdown" aria-expanded="false">
@@ -138,11 +147,6 @@
         </a>
       </li>
       {{/showcheckstructure}}
-      {{#showreorderstatus}}
-      <li class="nav-item ml-2 d-flex align-items-center" data-region="aiplacement-modgen-reorder-status" data-courseid="{{courseid}}" aria-live="polite">
-        {{#reorderstatus}}{{> aiplacement_modgen/reorder_status_icon}}{{/reorderstatus}}
-      </li>
-      {{/showreorderstatus}}
         </ul>
     </div>
 </nav>

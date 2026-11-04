@@ -55,6 +55,12 @@ const render = async(region, status) => {
         region.innerHTML = '';
         return;
     }
+    // The label carries the state and its time, so an unchanged label means an unchanged icon. Leaving it
+    // in place stops the slide-in replaying on every poll.
+    const current = region.querySelector('.aiplacement-modgen-reorder-icon');
+    if (current && current.getAttribute('aria-label') === status.label) {
+        return;
+    }
     const {html, js} = await Templates.renderForPromise('aiplacement_modgen/reorder_status_icon', status);
     Templates.replaceNodeContents(region, html, js);
 };

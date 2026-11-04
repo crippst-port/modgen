@@ -1623,6 +1623,25 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
     color: #fff;
     font-size: 0.8rem;
     text-decoration: none;
+    /* Fades and slides in from the left whenever it appears or changes state. */
+    animation: aiplacement-modgen-reorder-icon-in 0.35s ease-out both;
+}
+
+@keyframes aiplacement-modgen-reorder-icon-in {
+    from {
+        opacity: 0;
+        transform: translateX(-0.5rem);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aiplacement-modgen-reorder-icon {
+        animation: none;
+    }
 }
 
 .aiplacement-modgen-reorder-icon:hover,

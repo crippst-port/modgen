@@ -221,6 +221,28 @@ final class section_reorder_queue_test extends \advanced_testcase {
         $this->assertCount(1, $events);
     }
 
+    /**
+     * The icon reads the outcome from the log, so it must be there before the process ends: a cron
+     * process kept alive between tasks would otherwise show the run before for up to a minute.
+     */
+    public function test_the_outcome_is_in_the_log_straight_away(): void {
+        global $DB;
+        set_config('enabled_stores', 'logstore_standard', 'tool_log');
+        set_config('buffersize', 50, 'logstore_standard');
+        get_log_manager(true);
+
+        section_reorder_queue::record_outcome(
+            $this->course->id,
+            ['fixed' => 0, 'checkable' => true, 'blockedby' => null, 'deferred' => false, 'moved' => []],
+            'adhoctask'
+        );
+
+        $this->assertTrue($DB->record_exists('logstore_standard_log', [
+            'courseid' => $this->course->id,
+            'eventname' => '\\aiplacement_modgen\\event\\section_order_checked',
+        ]));
+    }
+
     public function test_renumber_now_switched_off_does_nothing(): void {
         $this->make_misordered();
         set_config('enable_autoreorder', 0, 'aiplacement_modgen');

@@ -112,6 +112,22 @@ class section_reorder_queue {
                 $event->trigger();
             }
         }
+        self::flush_log();
+    }
+
+    /**
+     * Write the buffered log out now.
+     *
+     * The status icon reads the outcome from the log, and the standard store holds entries until it
+     * has 50 or the process ends. A cron process kept alive between tasks would leave the icon
+     * showing the run before, as would a redirect followed before this request has finished.
+     */
+    private static function flush_log(): void {
+        foreach (get_log_manager()->get_readers() as $reader) {
+            if (method_exists($reader, 'flush')) {
+                $reader->flush();
+            }
+        }
     }
 
     /**

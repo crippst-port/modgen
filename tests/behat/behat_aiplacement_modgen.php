@@ -479,8 +479,8 @@ class behat_aiplacement_modgen extends behat_base {
     /**
      * Run the queued renumber for a course now, as if the course had been quiet for a while.
      *
-     * Makes the task due and the course's last edit old enough, runs the due ad hoc tasks, and
-     * flushes the log so the outcome is readable straight away.
+     * Makes the task due and the course's last edit old enough, runs the course's renumber tasks
+     * as cron would, and flushes the log so the outcome is readable straight away.
      *
      * @When /^the automatic section renumber for "(?P<course_string>[^"]*)" runs$/
      * @param string $shortname Course short name.
@@ -499,7 +499,21 @@ class behat_aiplacement_modgen extends behat_base {
             $DB->set_field('task_adhoc', 'nextruntime', time() - 1, ['id' => $row->id]);
         }
 
-        $this->execute('behat_general::i_run_all_adhoc_tasks');
+        // Only this course's renumber tasks, through cron's own runner: running every due task would
+        // also run whatever else the scenario's set-up queued, and fail on that instead.
+        \core\cron::setup_user();
+        foreach (array_keys($rows) as $taskid) {
+            $task = \core\task\manager::get_adhoc_task($taskid);
+            if (!$task) {
+                throw new Exception("The section renumber task $taskid for '$shortname' is locked.");
+            }
+            ob_start();
+            \core\cron::run_inner_adhoc_task($task);
+            $output = ob_get_clean();
+            if ($DB->record_exists('task_adhoc', ['id' => $taskid])) {
+                throw new Exception("The section renumber task for '$shortname' failed. Its output:\n\n" . $output);
+            }
+        }
         get_log_manager(true);
     }
 
@@ -548,7 +562,7 @@ class behat_aiplacement_modgen extends behat_base {
      *
      * The icon polls every 10 seconds, so this waits longer than the standard timeouts.
      *
-     * @Then /^the section reorder status should show "(?P<state_string>queued|running|renumbered|blocked)"$/
+     * @Then /^the section reorder status should show "(?P<state_string>queued|running|renumbered|checked|blocked)"$/
      * @param string $state Expected state.
      */
     public function the_section_reorder_status_should_show(string $state): void {

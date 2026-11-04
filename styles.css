@@ -1666,7 +1666,8 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
     outline-offset: 2px;
 }
 
-.aiplacement-modgen-reorder-icon--renumbered {
+.aiplacement-modgen-reorder-icon--renumbered,
+.aiplacement-modgen-reorder-icon--checked {
     background: rgba(40, 167, 69, 0.45);
 }
 

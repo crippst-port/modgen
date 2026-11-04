@@ -17,6 +17,7 @@
 namespace aiplacement_modgen;
 
 use aiplacement_modgen\event\section_order_blocked;
+use aiplacement_modgen\event\section_order_checked;
 use aiplacement_modgen\event\section_renumber_failed;
 use aiplacement_modgen\event\structure_repaired;
 use aiplacement_modgen\local\integrity_checker;
@@ -122,15 +123,19 @@ final class reorder_sections_task_test extends \advanced_testcase {
         $events = $this->events_of($sink, structure_repaired::class);
         $this->assertCount(1, $events);
         $this->assertSame('adhoctask', $events[0]->other['via']);
+        $this->assertCount(0, $this->events_of($sink, section_order_checked::class));
         $this->assertSame('fixsectionorder', $events[0]->other['action']);
     }
 
-    public function test_ordered_course_writes_and_logs_nothing(): void {
+    public function test_ordered_course_writes_nothing_and_logs_checked(): void {
         $this->age_cacherev();
         $sink = $this->redirectEvents();
         $this->run_task();
         $this->assertCount(0, $this->events_of($sink, structure_repaired::class));
         $this->assertCount(0, $this->events_of($sink, section_order_blocked::class));
+        $events = $this->events_of($sink, section_order_checked::class);
+        $this->assertCount(1, $events);
+        $this->assertEquals($this->course->id, $events[0]->objectid);
     }
 
     public function test_broken_hierarchy_logs_blocked_and_writes_nothing(): void {

@@ -64,6 +64,10 @@ class section_reorder_status {
         }
 
         foreach (self::get_recent_log_rows($courseid) as $row) {
+            // Carries no other data, so it is matched before the decode below.
+            if ($row->eventname === '\\aiplacement_modgen\\event\\section_order_checked') {
+                return self::build('checked', (int) $row->timecreated, null);
+            }
             $other = json_decode($row->other ?? '', true);
             if (!is_array($other)) {
                 continue;
@@ -96,12 +100,13 @@ class section_reorder_status {
             return $DB->get_records_sql(
                 'SELECT id, eventname, other, timecreated
                    FROM {logstore_standard_log}
-                  WHERE courseid = :courseid AND eventname IN (:repaired, :blocked) AND timecreated >= :since
+                  WHERE courseid = :courseid AND eventname IN (:repaired, :blocked, :checked) AND timecreated >= :since
                ORDER BY timecreated DESC, id DESC',
                 [
                     'courseid' => $courseid,
                     'repaired' => '\\aiplacement_modgen\\event\\structure_repaired',
                     'blocked' => '\\aiplacement_modgen\\event\\section_order_blocked',
+                    'checked' => '\\aiplacement_modgen\\event\\section_order_checked',
                     'since' => time() - self::RECENT_WINDOW,
                 ]
             );
@@ -113,7 +118,7 @@ class section_reorder_status {
     /**
      * Build the template context for one state.
      *
-     * @param string $state queued, running, renumbered or blocked
+     * @param string $state queued, running, renumbered, checked or blocked
      * @param int|null $time When it runs or happened
      * @param string|null $url Where to go for the blocked state
      * @return array
@@ -129,6 +134,9 @@ class section_reorder_status {
             'isrunning' => $state === 'running',
             'isrenumbered' => $state === 'renumbered',
             'isblocked' => $state === 'blocked',
+            'ischecked' => $state === 'checked',
+            // Both finished states show the same tick; the label says which.
+            'isdone' => $state === 'renumbered' || $state === 'checked',
         ];
     }
 }

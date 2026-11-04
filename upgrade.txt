@@ -13,6 +13,8 @@
   queued, running, done or refused.
 - A new event, \aiplacement_modgen\event\section_order_blocked, logged when the renumber is
   refused because the section hierarchy is broken.
+- A new event, \aiplacement_modgen\event\section_order_checked, logged when the renumber runs and
+  finds the sections already in order, so the status icon can show the run finished.
 - structure_repaired events can now have via = 'adhoctask'.
 - Event observers in db/events.php for course_section_created and course_section_deleted.
 

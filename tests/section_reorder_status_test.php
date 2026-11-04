@@ -17,6 +17,7 @@
 namespace aiplacement_modgen;
 
 use aiplacement_modgen\event\section_order_blocked;
+use aiplacement_modgen\event\section_order_checked;
 use aiplacement_modgen\event\structure_repaired;
 use aiplacement_modgen\local\section_reorder_queue;
 use aiplacement_modgen\local\section_reorder_status;
@@ -115,6 +116,26 @@ final class section_reorder_status_test extends \advanced_testcase {
     public function test_renumbered_expires_after_an_hour(): void {
         global $DB;
         $this->log_repair();
+        $DB->set_field('logstore_standard_log', 'timecreated', time() - 3601);
+        $this->assertNull(section_reorder_status::get_for_course($this->course->id));
+    }
+
+    public function test_checked(): void {
+        section_order_checked::for_course($this->course->id)->trigger();
+        $status = section_reorder_status::get_for_course($this->course->id);
+        $this->assertSame('checked', $status['state']);
+        $this->assertTrue($status['isdone']);
+        $this->assertStringContainsString('nothing to change', $status['label']);
+    }
+
+    public function test_renumbered_is_done(): void {
+        $this->log_repair();
+        $this->assertTrue(section_reorder_status::get_for_course($this->course->id)['isdone']);
+    }
+
+    public function test_checked_expires_after_an_hour(): void {
+        global $DB;
+        section_order_checked::for_course($this->course->id)->trigger();
         $DB->set_field('logstore_standard_log', 'timecreated', time() - 3601);
         $this->assertNull(section_reorder_status::get_for_course($this->course->id));
     }

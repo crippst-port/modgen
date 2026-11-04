@@ -45,6 +45,15 @@ Feature: Automatic section renumbering and its status icon
     And the course "C1" structure should be sound
     And there should be "0" section renumbers queued for "C1"
 
+  Scenario: A run that finds the sections already in order still shows it finished
+    Given the course "C1" has "2" themes with "1" weeks each
+    And I am on the "Course 1" "course" page logged in as "admin"
+    And I turn editing mode on
+    And the section reorder status should show "queued"
+    When the automatic section renumber for "C1" runs
+    Then the section reorder status should show "checked"
+    And there should be "0" section renumbers queued for "C1"
+
   # The refusal itself is covered by reorder_sections_task_test. A course whose hierarchy is broken
   # enough to refuse also stops the Flexible sections course page loading, so it is logged here instead.
   Scenario: A refused renumber points at Check Structure

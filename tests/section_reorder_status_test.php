@@ -113,6 +113,37 @@ final class section_reorder_status_test extends \advanced_testcase {
         $this->assertNull(section_reorder_status::get_for_course($this->course->id));
     }
 
+    public function test_last_outcome_however_old_is_kept_for_the_check_structure_page(): void {
+        global $DB;
+        $this->log_repair();
+        $DB->set_field('logstore_standard_log', 'timecreated', time() - 30 * DAYSECS);
+        $status = section_reorder_status::get_for_course($this->course->id, false);
+        $this->assertSame('renumbered', $status['state']);
+        $this->assertStringContainsString(userdate(time() - 30 * DAYSECS), $status['summary']);
+    }
+
+    public function test_newest_of_old_outcomes_wins(): void {
+        global $DB;
+        $this->log_repair();
+        $DB->set_field('logstore_standard_log', 'timecreated', time() - 20 * DAYSECS);
+        section_order_checked::for_course($this->course->id)->trigger();
+        $DB->set_field('logstore_standard_log', 'timecreated', time() - 10 * DAYSECS,
+            ['eventname' => '\\aiplacement_modgen\\event\\section_order_checked']);
+        $this->assertSame('checked', section_reorder_status::get_for_course($this->course->id, false)['state']);
+    }
+
+    public function test_every_state_has_a_summary(): void {
+        global $DB;
+        section_reorder_queue::schedule($this->course->id);
+        $this->assertStringContainsString('queued', section_reorder_status::get_for_course($this->course->id, false)['summary']);
+        $row = array_values(section_reorder_queue::get_task_rows($this->course->id))[0];
+        $DB->set_field('task_adhoc', 'timestarted', time(), ['id' => $row->id]);
+        $this->assertStringContainsString('running', section_reorder_status::get_for_course($this->course->id, false)['summary']);
+        $DB->delete_records('task_adhoc');
+        section_order_blocked::for_course($this->course->id, 'brokenhierarchy')->trigger();
+        $this->assertStringContainsString('refused', section_reorder_status::get_for_course($this->course->id, false)['summary']);
+    }
+
     public function test_renumbered_expires_after_an_hour(): void {
         global $DB;
         $this->log_repair();

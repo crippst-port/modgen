@@ -1678,3 +1678,29 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
 .aiplacement-modgen-reorder-icon--blocked {
     background: rgba(220, 53, 69, 0.55);
 }
+
+/* The same icon on the Check Structure page. The bar's see-through whites vanish on a white page, so
+   each state gets a solid colour that keeps the white icon readable. */
+.aiplacement-modgen-reorder-panel {
+    background: var(--bs-light, #f8f9fa);
+}
+
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon {
+    width: 36px;
+    height: 36px;
+    font-size: 1rem;
+    border-color: transparent;
+}
+
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--queued,
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--running {
+    background: #0f6cbf;
+}
+
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--blocked {
+    background: #c62828;
+}
+
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon:focus-visible {
+    outline-color: #0f6cbf;
+}

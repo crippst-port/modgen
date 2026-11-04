@@ -11,7 +11,8 @@
   can be switched off with "Renumber sections automatically" in the plugin settings, which stops
   new tasks being queued, makes queued ones do nothing and hides the status icon.
 - A status icon on the assistant bar, for site administrators only, showing whether a renumber is
-  queued, running, done or refused.
+  queued, running, done or refused. The Check Structure page shows site administrators the last
+  outcome, however old, with its date.
 - A new event, \aiplacement_modgen\event\section_order_blocked, logged when the renumber is
   refused because the section hierarchy is broken.
 - A new event, \aiplacement_modgen\event\section_order_checked, logged when the renumber runs and

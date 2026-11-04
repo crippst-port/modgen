@@ -32,6 +32,9 @@ class section_reorder_status {
     /** @var int Seconds a finished outcome stays on the icon. */
     public const RECENT_WINDOW = 3600;
 
+    /** @var int Most log rows read when looking for the last outcome, however old. */
+    private const MAX_LOG_ROWS = 50;
+
     /**
      * Whether the current user should see the status icon on a course.
      *
@@ -52,9 +55,11 @@ class section_reorder_status {
      * Get the status for a course, shaped as the icon template's context.
      *
      * @param int $courseid Course ID
+     * @param bool $recentonly Only outcomes from the last RECENT_WINDOW seconds, as the toolbar icon shows.
+     *   False for the last outcome however old, as the Check Structure page shows.
      * @return array|null Null when there is nothing to show
      */
-    public static function get_for_course(int $courseid): ?array {
+    public static function get_for_course(int $courseid, bool $recentonly = true): ?array {
         $rows = section_reorder_queue::get_task_rows($courseid);
 
         foreach ($rows as $row) {
@@ -67,7 +72,8 @@ class section_reorder_status {
             return self::build('queued', $time, null);
         }
 
-        foreach (self::get_recent_log_rows($courseid) as $row) {
+        $since = $recentonly ? time() - self::RECENT_WINDOW : 0;
+        foreach (self::get_log_rows($courseid, $since) as $row) {
             // Carries no other data, so it is matched before the decode below.
             if ($row->eventname === '\\aiplacement_modgen\\event\\section_order_checked') {
                 return self::build('checked', (int) $row->timecreated, null);
@@ -92,12 +98,13 @@ class section_reorder_status {
     }
 
     /**
-     * Read the recent renumber outcomes from the standard log, newest first.
+     * Read the renumber outcomes from the standard log, newest first.
      *
      * @param int $courseid Course ID
+     * @param int $since Earliest time to read from (0 for any)
      * @return array
      */
-    private static function get_recent_log_rows(int $courseid): array {
+    private static function get_log_rows(int $courseid, int $since): array {
         global $DB;
 
         try {
@@ -111,8 +118,10 @@ class section_reorder_status {
                     'repaired' => '\\aiplacement_modgen\\event\\structure_repaired',
                     'blocked' => '\\aiplacement_modgen\\event\\section_order_blocked',
                     'checked' => '\\aiplacement_modgen\\event\\section_order_checked',
-                    'since' => time() - self::RECENT_WINDOW,
-                ]
+                    'since' => $since,
+                ],
+                0,
+                self::MAX_LOG_ROWS
             );
         } catch (\Throwable $e) {
             return [];
@@ -133,6 +142,8 @@ class section_reorder_status {
             'state' => $state,
             'time' => $time,
             'label' => get_string('reorderstatus_' . $state, 'aiplacement_modgen', $formatted),
+            // A sentence with the full date, for the Check Structure page.
+            'summary' => get_string('reorderpanel_' . $state, 'aiplacement_modgen', $time === null ? '' : userdate($time)),
             'url' => $url,
             'isqueued' => $state === 'queued',
             'isrunning' => $state === 'running',

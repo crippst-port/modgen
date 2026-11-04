@@ -300,6 +300,28 @@ echo $OUTPUT->header();
 echo $OUTPUT->heading(get_string('checkstructurepage', 'aiplacement_modgen'), 2);
 echo html_writer::tag('p', get_string('checkstructuredesc', 'aiplacement_modgen'));
 
+// The automatic renumber's last outcome, however old: site administrators only, as on the toolbar.
+if (\aiplacement_modgen\local\section_reorder_status::can_view($courseid)) {
+    $reorderstatus = \aiplacement_modgen\local\section_reorder_status::get_for_course($courseid, false);
+    echo html_writer::start_div(
+        'aiplacement-modgen-reorder-panel d-flex align-items-center mb-4 p-3 border rounded',
+        ['data-region' => 'aiplacement-modgen-reorder-panel']
+    );
+    if ($reorderstatus !== null) {
+        echo html_writer::div(
+            $OUTPUT->render_from_template('aiplacement_modgen/reorder_status_icon', $reorderstatus),
+            'aiplacement-modgen-reorder-panel__icon mr-3'
+        );
+    }
+    echo html_writer::start_div();
+    echo html_writer::tag('strong', get_string('reorderpanel_heading', 'aiplacement_modgen'), ['class' => 'd-block']);
+    echo html_writer::span(
+        $reorderstatus !== null ? $reorderstatus['summary'] : get_string('reorderpanel_none', 'aiplacement_modgen')
+    );
+    echo html_writer::end_div();
+    echo html_writer::end_div();
+}
+
 // Run check button.
 echo html_writer::start_div('mb-4');
 echo html_writer::link(

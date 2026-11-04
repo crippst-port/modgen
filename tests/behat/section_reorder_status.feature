@@ -92,6 +92,28 @@ Feature: Automatic section renumbering and its status icon
     When I post "" to the modgen endpoint "ajax/reorder_status.php" for "C1"
     Then the modgen endpoint response should contain "you do not currently have permissions"
     And the modgen endpoint response should not contain "state"
+  Scenario: The Check Structure page shows the last renumber to an administrator
+    Given the course "C1" has "2" themes with "1" weeks each
+    And the automatic section renumber for "C1" runs
+    And I log in as "admin"
+    When I am on the Check Structure page of "C1"
+    Then I should see "Automatic section renumbering"
+    And I should see "the sections were already in order, so nothing changed"
+
+  Scenario: The Check Structure page says when no renumber has run
+    Given the section renumber queue for "C1" is empty
+    And I log in as "admin"
+    When I am on the Check Structure page of "C1"
+    Then I should see "No automatic renumber has run on this course yet."
+
+  Scenario: Teachers do not see the last renumber on the Check Structure page
+    Given the course "C1" has "2" themes with "1" weeks each
+    And the automatic section renumber for "C1" runs
+    And I log in as "teacher1"
+    When I am on the Check Structure page of "C1"
+    Then I should see "Course Structure Diagnostics"
+    And I should not see "Automatic section renumbering"
+
   Scenario: Teachers do not see the status icon
     Given the automatic section renumber for "C1" is queued
     When I am on the "Course 1" "course" page logged in as "teacher1"

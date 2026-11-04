@@ -24,6 +24,13 @@
 
 namespace aiplacement_modgen\task;
 
+use aiplacement_modgen\event\section_order_blocked;
+use aiplacement_modgen\event\section_renumber_failed;
+use aiplacement_modgen\event\structure_repaired;
+use aiplacement_modgen\local\integrity_checker;
+use aiplacement_modgen\local\section_reorder_queue;
+use aiplacement_modgen\local\settings_helper;
+
 /**
  * Renumbers one course's sections once the course has been quiet for a while.
  */
@@ -61,8 +68,96 @@ class reorder_sections_task extends \core\task\adhoc_task {
 
     /**
      * Execute the task.
+     *
+     * Waits for the course to go quiet, renumbers it if it is out of order, and logs the outcome.
+     * Switching the setting off makes a task that was queued earlier do nothing.
      */
     public function execute() {
-        // Filled in by the renumber step.
+        global $DB;
+
+        if (!settings_helper::is_autoreorder_enabled()) {
+            return;
+        }
+
+        $courseid = (int) ($this->get_custom_data()->courseid ?? 0);
+        $course = $DB->get_record('course', ['id' => $courseid], 'id, format, cacherev');
+        if (!$course || $course->format !== 'flexsections') {
+            return;
+        }
+
+        // Someone is still editing if the course cache was rebuilt in the last DELAY seconds. A
+        // cacherev ahead of the clock (a big build can leave it minutes in the future) lands here too.
+        $startrev = (int) $course->cacherev;
+        if ($startrev > time() - section_reorder_queue::DELAY) {
+            section_reorder_queue::schedule($courseid);
+            return;
+        }
+
+        try {
+            $result = $this->run_fix($courseid, $this->beforewrite_guard($courseid, $startrev));
+        } catch (\moodle_exception $e) {
+            if ($e->errorcode === 'erroracquiringlock') {
+                section_reorder_queue::schedule($courseid);
+                return;
+            }
+            $this->log_failure($courseid, $e);
+            return;
+        } catch (\Throwable $e) {
+            $this->log_failure($courseid, $e);
+            return;
+        }
+
+        if ($result['deferred']) {
+            section_reorder_queue::schedule($courseid);
+        } else if ($result['checkable'] && $result['fixed'] > 0) {
+            structure_repaired::for_course($courseid, 'fixsectionorder', (int) $result['fixed'], 'adhoctask')->trigger();
+        } else if (!$result['checkable'] && $result['blockedby'] === 'brokenhierarchy') {
+            $event = section_order_blocked::for_course($courseid, $result['blockedby']);
+            if ($event) {
+                $event->trigger();
+            }
+        }
+    }
+
+    /**
+     * Build the last-chance check: true while the course cache has not been rebuilt since we looked.
+     *
+     * @param int $courseid Course ID
+     * @param int $startrev The cacherev the quiet-period check saw
+     * @return callable
+     */
+    protected function beforewrite_guard(int $courseid, int $startrev): callable {
+        return function () use ($courseid, $startrev): bool {
+            global $DB;
+            return (int) $DB->get_field('course', 'cacherev', ['id' => $courseid]) === $startrev;
+        };
+    }
+
+    /**
+     * Run the renumber. A seam so tests can simulate a lock failure.
+     *
+     * @param int $courseid Course ID
+     * @param callable $beforewrite Guard passed to the renumber
+     * @return array Result of integrity_checker::fix_section_order()
+     */
+    protected function run_fix(int $courseid, callable $beforewrite): array {
+        return integrity_checker::fix_section_order($courseid, false, $beforewrite);
+    }
+
+    /**
+     * Log a failed run. Never throws.
+     *
+     * @param int $courseid Course ID
+     * @param \Throwable $e What went wrong
+     */
+    private function log_failure(int $courseid, \Throwable $e): void {
+        try {
+            $event = section_renumber_failed::build($courseid, $e);
+            if ($event) {
+                $event->trigger();
+            }
+        } catch (\Throwable $ignored) {
+            debugging('Could not log the failed section renumber: ' . $ignored->getMessage(), DEBUG_DEVELOPER);
+        }
     }
 }

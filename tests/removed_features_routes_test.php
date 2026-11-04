@@ -177,9 +177,13 @@ final class removed_features_routes_test extends advanced_testcase {
         global $CFG, $DB;
         $this->assertFalse(class_exists(\aiplacement_modgen\aigen_tracker::class));
         $this->assertFalse(class_exists(\aiplacement_modgen\event\observer::class));
-        foreach (['aigen_list.php', 'ajax/get_aigen.php', 'ajax/toggle_visibility.php', 'db/events.php'] as $path) {
+        foreach (['aigen_list.php', 'ajax/get_aigen.php', 'ajax/toggle_visibility.php'] as $path) {
             $this->assertFileDoesNotExist($CFG->dirroot . '/ai/placement/modgen/' . $path);
         }
+        // db/events.php now exists for the section renumber; the marker observers must not be in it.
+        $events = file_get_contents($CFG->dirroot . '/ai/placement/modgen/db/events.php');
+        $this->assertStringNotContainsString('course_module_updated', $events);
+        $this->assertStringNotContainsString('course_module_deleted', $events);
         $this->assertFalse($DB->get_manager()->table_exists('aiplacement_modgen_aigen'));
     }
 

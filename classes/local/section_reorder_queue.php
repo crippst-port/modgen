@@ -69,13 +69,10 @@ class section_reorder_queue {
      * @return array<int,int> Old section number => new, for every section that moved (empty if none)
      */
     public static function renumber_now(int $courseid, string $via = 'check_structure'): array {
-        global $DB;
-
         if (!settings_helper::is_autoreorder_enabled()) {
             return [];
         }
 
-        $before = $DB->get_records_menu('course_sections', ['course' => $courseid], '', 'id, section');
         try {
             $result = integrity_checker::fix_section_order($courseid);
         } catch (\moodle_exception $e) {
@@ -86,17 +83,7 @@ class section_reorder_queue {
             return [];
         }
         self::record_outcome($courseid, $result, $via);
-        if (empty($result['fixed'])) {
-            return [];
-        }
-
-        $moved = [];
-        foreach ($DB->get_records_menu('course_sections', ['course' => $courseid], '', 'id, section') as $id => $num) {
-            if (isset($before[$id]) && (int) $before[$id] !== (int) $num) {
-                $moved[(int) $before[$id]] = (int) $num;
-            }
-        }
-        return $moved;
+        return $result['moved'];
     }
 
     /**

@@ -379,6 +379,40 @@ final class section_order_test extends advanced_testcase {
     }
 
     /**
+     * A course already in order is only read: the locks, one of them site-wide, are not taken.
+     *
+     * The check is two queries (the course, then its sections); taking the locks costs more.
+     *
+     * @covers ::fix_section_order
+     */
+    public function test_an_ordered_course_is_checked_without_taking_the_locks(): void {
+        global $DB;
+
+        $courseformat = \course_get_format($this->course->id);
+        theme_builder::create_theme_section($this->course->id, $courseformat, 'A', 'Desc A');
+        $before = $DB->perf_get_queries();
+        $result = integrity_checker::fix_section_order($this->course->id);
+        $this->assertSame(2, $DB->perf_get_queries() - $before);
+        $this->assertSame(0, $result['fixed']);
+        $this->assertTrue($result['checkable']);
+        $this->assertSame([], $result['moved']);
+    }
+
+    /**
+     * A misordered course reports which section numbers moved where.
+     *
+     * @covers ::fix_section_order
+     */
+    public function test_fix_reports_what_moved(): void {
+        global $DB;
+
+        $this->make_misordered_course();
+        $b = (int) $DB->get_field('course_sections', 'section', ['course' => $this->course->id, 'name' => 'B']);
+        $c = (int) $DB->get_field('course_sections', 'section', ['course' => $this->course->id, 'name' => 'C']);
+        $this->assertSame([$b => $c, $c => $b], integrity_checker::fix_section_order($this->course->id)['moved']);
+    }
+
+    /**
      * The repair renumbers into hierarchy order while preserving the tree.
      *
      * @covers ::fix_section_order

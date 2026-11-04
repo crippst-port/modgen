@@ -736,9 +736,23 @@ class integrity_checker {
      *   checkable: bool      false if the ordering could not be determined; nothing was written
      *   blockedby: string|null  'notflexsections' or 'brokenhierarchy' when not checkable
      *   deferred: bool       true when $beforewrite refused; nothing was written
+     *   moved: array<int,int>  old section number => new, for every section renumbered
      * }
      */
     public static function fix_section_order(int $courseid, bool $locksheld = false, ?callable $beforewrite = null): array {
+        // Read-only first, without the locks. Most runs find the course already in order (or not
+        // checkable), and the locks include format_flexsections' site-wide one, so they are only
+        // taken when there is something to write. The check is repeated under them below.
+        if (!$locksheld) {
+            $check = self::check_section_order($courseid);
+            if (!$check['checkable'] || empty($check['misordered'])) {
+                return [
+                    'fixed' => 0, 'checkable' => $check['checkable'], 'blockedby' => $check['blockedby'],
+                    'deferred' => false, 'moved' => [],
+                ];
+            }
+        }
+
         // The check_section_order() call snapshots every section's number and the whole write below
         // is derived from that snapshot. A concurrent format_flexsections delete or move
         // renumbers the same rows, so snapshot and write have to happen under the same
@@ -768,15 +782,15 @@ class integrity_checker {
 
         $check = self::check_section_order($courseid);
         if (!$check['checkable']) {
-            return ['fixed' => 0, 'checkable' => false, 'blockedby' => $check['blockedby'], 'deferred' => false];
+            return ['fixed' => 0, 'checkable' => false, 'blockedby' => $check['blockedby'], 'deferred' => false, 'moved' => []];
         }
         if (empty($check['misordered'])) {
-            return ['fixed' => 0, 'checkable' => true, 'blockedby' => null, 'deferred' => false];
+            return ['fixed' => 0, 'checkable' => true, 'blockedby' => null, 'deferred' => false, 'moved' => []];
         }
 
         // The caller's last chance to refuse, with the locks held and nothing written yet.
         if ($beforewrite !== null && $beforewrite() === false) {
-            return ['fixed' => 0, 'checkable' => true, 'blockedby' => null, 'deferred' => true];
+            return ['fixed' => 0, 'checkable' => true, 'blockedby' => null, 'deferred' => true, 'moved' => []];
         }
 
         $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
@@ -841,7 +855,10 @@ class integrity_checker {
             \course_set_marker($courseid, $changemarker);
         }
 
-        return ['fixed' => count($check['misordered']), 'checkable' => true, 'blockedby' => null, 'deferred' => false];
+        return [
+            'fixed' => count($check['misordered']), 'checkable' => true, 'blockedby' => null, 'deferred' => false,
+            'moved' => $renumber,
+        ];
     }
 
     /**

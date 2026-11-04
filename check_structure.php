@@ -70,6 +70,31 @@ if ($course->format !== 'flexsections') {
 // different parent again, unlike the bulk fix actions below.
 $noconfirmactions = ['setparent', 'setparentall'];
 
+/**
+ * Renumber straight after a repair that changed parents, and carry the redirect's section numbers across.
+ *
+ * The flash table of just-reparented sections rides the redirect as section numbers, which the
+ * renumber changes: they are translated so each row still names the same section and suggestion.
+ *
+ * @param int $courseid Course ID
+ * @param array $params Redirect URL parameters, possibly with reparented and reparentedsuggestions
+ * @return array The parameters, with those numbers translated
+ */
+function aiplacement_modgen_renumber_after_repair(int $courseid, array $params): array {
+    $moved = \aiplacement_modgen\local\section_reorder_queue::renumber_now($courseid);
+    foreach (['reparented', 'reparentedsuggestions'] as $key) {
+        if (empty($params[$key])) {
+            continue;
+        }
+        // 0 is top level, or no suggestion: section 0 never moves.
+        $params[$key] = implode(',', array_map(
+            fn($num) => (string) ($moved[(int) $num] ?? (int) $num),
+            explode(',', $params[$key])
+        ));
+    }
+    return $params;
+}
+
 // Handle fix actions — all require sesskey.
 if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
     require_sesskey();
@@ -100,6 +125,9 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
                     '',
                     PARAM_SEQUENCE
                 );
+            }
+            if ($result['success']) {
+                $redirecturlparams = aiplacement_modgen_renumber_after_repair($courseid, $redirecturlparams);
             }
 
             redirect(
@@ -144,6 +172,9 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
                     PARAM_SEQUENCE
                 );
             }
+            if ($applied > 0) {
+                $redirecturlparams = aiplacement_modgen_renumber_after_repair($courseid, $redirecturlparams);
+            }
 
             redirect(
                 new moodle_url('/ai/placement/modgen/check_structure.php', $redirecturlparams),
@@ -161,15 +192,19 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
             $msg = $result['fixed'] > 0
                 ? get_string('fixintegrity_done', 'aiplacement_modgen', $result['fixed'])
                 : get_string('fixintegrity_none', 'aiplacement_modgen');
+            $redirecturlparams = [
+                'id' => $courseid, 'check' => 1,
+                'reparented' => implode(',', array_column($result['reparented'], 'section')),
+                'reparentedsuggestions' => implode(',', array_map(
+                    fn($r) => (string) ($r['suggestedparent'] ?? 0),
+                    $result['reparented']
+                )),
+            ];
+            if ($result['fixed'] > 0) {
+                $redirecturlparams = aiplacement_modgen_renumber_after_repair($courseid, $redirecturlparams);
+            }
             redirect(
-                new moodle_url('/ai/placement/modgen/check_structure.php', [
-                    'id' => $courseid, 'check' => 1,
-                    'reparented' => implode(',', array_column($result['reparented'], 'section')),
-                    'reparentedsuggestions' => implode(',', array_map(
-                        fn($r) => (string) ($r['suggestedparent'] ?? 0),
-                        $result['reparented']
-                    )),
-                ]),
+                new moodle_url('/ai/placement/modgen/check_structure.php', $redirecturlparams),
                 $msg,
                 null,
                 \core\output\notification::NOTIFY_SUCCESS
@@ -190,11 +225,15 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
                 fn($r) => (string) ($r['suggestedparent'] ?? 0),
                 $result['reparented']
             ));
+            $redirecturlparams = [
+                'id' => $courseid, 'check' => 1, 'reparented' => $reparentedparam,
+                'reparentedsuggestions' => $reparentedsuggestionsparam,
+            ];
+            if ($result['fixed'] > 0) {
+                $redirecturlparams = aiplacement_modgen_renumber_after_repair($courseid, $redirecturlparams);
+            }
             redirect(
-                new moodle_url('/ai/placement/modgen/check_structure.php', [
-                    'id' => $courseid, 'check' => 1, 'reparented' => $reparentedparam,
-                    'reparentedsuggestions' => $reparentedsuggestionsparam,
-                ]),
+                new moodle_url('/ai/placement/modgen/check_structure.php', $redirecturlparams),
                 $msg,
                 null,
                 \core\output\notification::NOTIFY_SUCCESS

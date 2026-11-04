@@ -24,10 +24,7 @@
 
 namespace aiplacement_modgen\task;
 
-use aiplacement_modgen\event\section_order_blocked;
-use aiplacement_modgen\event\section_order_checked;
 use aiplacement_modgen\event\section_renumber_failed;
-use aiplacement_modgen\event\structure_repaired;
 use aiplacement_modgen\local\integrity_checker;
 use aiplacement_modgen\local\section_reorder_queue;
 use aiplacement_modgen\local\settings_helper;
@@ -108,19 +105,8 @@ class reorder_sections_task extends \core\task\adhoc_task {
 
         if ($result['deferred']) {
             section_reorder_queue::schedule($courseid);
-        } else if ($result['checkable'] && $result['fixed'] > 0) {
-            structure_repaired::for_course($courseid, 'fixsectionorder', (int) $result['fixed'], 'adhoctask')->trigger();
-        } else if ($result['checkable']) {
-            // Already in order. Logged anyway, so the status icon can say the run finished.
-            $event = section_order_checked::for_course($courseid);
-            if ($event) {
-                $event->trigger();
-            }
-        } else if (!$result['checkable'] && $result['blockedby'] === 'brokenhierarchy') {
-            $event = section_order_blocked::for_course($courseid, $result['blockedby']);
-            if ($event) {
-                $event->trigger();
-            }
+        } else {
+            section_reorder_queue::record_outcome($courseid, $result, 'adhoctask');
         }
     }
 

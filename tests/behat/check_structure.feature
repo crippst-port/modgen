@@ -148,10 +148,8 @@ Feature: Checking and repairing a course's structure
     When I set the field with xpath "//select[@aria-label='New parent for section 2']" to "6: Theme 2"
     And I click on "//tr[td[2][@title='Theme 1 - Week 1']]//button" "xpath_element"
     Then I should see "Section 2 reparented."
-    # Reparenting does not renumber; the page then offers to.
-    And I should see "Renumber Sections"
-    And I click on "Renumber Sections" "link"
-    And I click on "Continue" "button"
+    # The page renumbers straight after, so there is nothing left to offer.
+    And I should not see "Renumber Sections"
     And the course "C1" structure should be:
       | name             | parent           | depth |
       | Theme 1          | -                | 1     |

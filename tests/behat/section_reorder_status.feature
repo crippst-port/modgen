@@ -122,7 +122,7 @@ Feature: Automatic section renumbering and its status icon
     And the section reorder status should show "queued"
 
   # Sections share names, and every row's dropdown lists them all, so rows are found by the dropdown's label.
-  Scenario: Reparenting a section on Check Structure queues a renumber that puts the sections back in order
+  Scenario: Reparenting a section on Check Structure renumbers the sections straight away
     Given the course "C1" has "2" themes with "1" weeks each
     And the section renumber queue for "C1" is empty
     And I log in as "admin"
@@ -131,11 +131,8 @@ Feature: Automatic section renumbering and its status icon
     When I set the field with xpath "//select[@aria-label='New parent for section 7']" to "1: Theme 1"
     And I click on "//form[.//select[@aria-label='New parent for section 7']]//button" "xpath_element"
     Then I should see "Section 7 reparented."
-    And I should see "A renumber is queued and will run at"
-    And there should be "1" section renumbers queued for "C1"
-    And the automatic section renumber for "C1" runs
-    And I am on the Check Structure page of "C1"
     And I should see "the sections were renumbered into hierarchy order"
+    And there should be "0" section renumbers queued for "C1"
     And the course "C1" structure should be sound
 
   Scenario: Renumber now on Check Structure renumbers straight away

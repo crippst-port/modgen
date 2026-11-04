@@ -5,7 +5,9 @@
 ### Added
 
 - Automatic section renumbering. About a minute after the last section is added or deleted on a
-  Flexible sections course, or a section is reparented or repaired on Check Structure, an ad hoc task renumbers the course into hierarchy order. It waits while
+  Flexible sections course, or a section is reparented or repaired from the admin tools page, an ad hoc
+  task renumbers the course into hierarchy order. A reparent or repair on Check Structure renumbers
+  straight away instead, in the same request. The task waits while
   the standard log shows someone edited the course in the last minute (or, without the standard log,
   while the course cache was rebuilt in the last minute), and logs the outcome. It is on by default and
   can be switched off with "Renumber sections automatically" in the plugin settings, which stops
@@ -19,7 +21,8 @@
   finds the sections already in order, so the status icon can show the run finished.
 - structure_repaired events can now have via = 'adhoctask'.
 - Event observers in db/events.php for course_section_created, course_section_deleted and
-  \aiplacement_modgen\event\structure_repaired (every action except fixsectionorder).
+  \aiplacement_modgen\event\structure_repaired (every action except fixsectionorder, and nothing from
+  Check Structure, which renumbers itself).
 
 ### Removed
 

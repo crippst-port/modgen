@@ -47,12 +47,13 @@ class section_reorder_observer {
      *
      * Reparenting and the other repairs write parent links directly and never renumber, so
      * they leave sections out of hierarchy order. The renumber itself is skipped, as is the
-     * automatic task's own repaired event, which is a renumber too.
+     * automatic task's own repaired event, which is a renumber too. So are repairs made on
+     * Check Structure, which renumbers straight after them (section_reorder_queue::renumber_now()).
      *
      * @param \aiplacement_modgen\event\structure_repaired $event
      */
     public static function structure_repaired(\aiplacement_modgen\event\structure_repaired $event): void {
-        if (($event->other['action'] ?? '') === 'fixsectionorder') {
+        if (($event->other['action'] ?? '') === 'fixsectionorder' || ($event->other['via'] ?? '') === 'check_structure') {
             return;
         }
         self::queue((int) $event->courseid);

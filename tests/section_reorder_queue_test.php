@@ -16,8 +16,12 @@
 
 namespace aiplacement_modgen;
 
+use aiplacement_modgen\event\section_order_checked;
+use aiplacement_modgen\event\structure_repaired;
+use aiplacement_modgen\local\integrity_checker;
 use aiplacement_modgen\local\section_reorder_queue;
 use aiplacement_modgen\local\settings_helper;
+use aiplacement_modgen\local\theme_builder;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -120,7 +124,7 @@ final class section_reorder_queue_test extends \advanced_testcase {
     }
 
     /**
-     * Repairs on Check Structure that change parents.
+     * Repairs that change parents.
      *
      * @return array
      */
@@ -137,20 +141,31 @@ final class section_reorder_queue_test extends \advanced_testcase {
      * @dataProvider parent_repair_provider
      * @param string $action Repair action
      */
-    public function test_repair_queues_task(string $action): void {
-        \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, $action, 1)->trigger();
+    public function test_repair_from_admin_tools_queues_task(string $action): void {
+        \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, $action, 1, 'admin_tools')->trigger();
         $this->assertCount(1, section_reorder_queue::get_task_rows($this->course->id));
     }
 
-    public function test_reparenting_one_row_at_a_time_shares_one_task(): void {
+    /**
+     * Check Structure renumbers straight after its repairs, so nothing is queued for them.
+     *
+     * @dataProvider parent_repair_provider
+     * @param string $action Repair action
+     */
+    public function test_repair_on_check_structure_queues_nothing(string $action): void {
+        \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, $action, 1, 'check_structure')->trigger();
+        $this->assertCount(0, section_reorder_queue::get_task_rows($this->course->id));
+    }
+
+    public function test_repairs_one_at_a_time_share_one_task(): void {
         foreach ([1, 2, 3] as $ignored) {
-            \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, 'setparent', 1)->trigger();
+            \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, 'fixintegrity', 1, 'admin_tools')->trigger();
         }
         $this->assertCount(1, section_reorder_queue::get_task_rows($this->course->id));
     }
 
     public function test_renumber_does_not_queue_another(): void {
-        \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, 'fixsectionorder', 3)->trigger();
+        \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, 'fixsectionorder', 3, 'admin_tools')->trigger();
         \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, 'fixsectionorder', 3, 'adhoctask')
             ->trigger();
         $this->assertCount(0, section_reorder_queue::get_task_rows($this->course->id));
@@ -158,8 +173,59 @@ final class section_reorder_queue_test extends \advanced_testcase {
 
     public function test_switched_off_repair_queues_nothing(): void {
         set_config('enable_autoreorder', 0, 'aiplacement_modgen');
-        \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, 'setparent', 1)->trigger();
+        \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, 'fixintegrity', 1, 'admin_tools')->trigger();
         $this->assertCount(0, section_reorder_queue::get_task_rows($this->course->id));
+    }
+
+    /**
+     * Make C a child of A, so it should sit before B.
+     *
+     * @return int[] Section ids of A, B and C
+     */
+    private function make_misordered(): array {
+        global $DB;
+        $format = \course_get_format($this->course->id);
+        $a = (int) theme_builder::create_theme_section($this->course->id, $format, 'A', 'Desc A');
+        $b = (int) theme_builder::create_theme_section($this->course->id, $format, 'B', 'Desc B');
+        $c = (int) theme_builder::create_theme_section($this->course->id, $format, 'C', 'Desc C');
+        $this->assertTrue(integrity_checker::set_parent($this->course->id, $c, $a)['success']);
+        $DB->delete_records('task_adhoc');
+        return array_map(
+            fn($num) => (int) $DB->get_field('course_sections', 'id', ['course' => $this->course->id, 'section' => $num]),
+            [$a, $b, $c]
+        );
+    }
+
+    public function test_renumber_now_renumbers_logs_and_says_what_moved(): void {
+        global $DB;
+        [$aid, $bid, $cid] = $this->make_misordered();
+        $oldb = (int) $DB->get_field('course_sections', 'section', ['id' => $bid]);
+        $oldc = (int) $DB->get_field('course_sections', 'section', ['id' => $cid]);
+        $sink = $this->redirectEvents();
+
+        $moved = section_reorder_queue::renumber_now($this->course->id);
+
+        $this->assertSame([], integrity_checker::check_section_order($this->course->id)['misordered']);
+        $this->assertSame([$oldb => $oldc, $oldc => $oldb], $moved);
+        $events = array_values(array_filter($sink->get_events(), fn($e) => $e instanceof structure_repaired));
+        $this->assertCount(1, $events);
+        $this->assertSame('fixsectionorder', $events[0]->other['action']);
+        $this->assertSame('check_structure', $events[0]->other['via']);
+        $this->assertCount(0, section_reorder_queue::get_task_rows($this->course->id));
+    }
+
+    public function test_renumber_now_on_an_ordered_course_logs_checked(): void {
+        $sink = $this->redirectEvents();
+        $this->assertSame([], section_reorder_queue::renumber_now($this->course->id));
+        $events = array_values(array_filter($sink->get_events(), fn($e) => $e instanceof section_order_checked));
+        $this->assertCount(1, $events);
+    }
+
+    public function test_renumber_now_switched_off_does_nothing(): void {
+        $this->make_misordered();
+        set_config('enable_autoreorder', 0, 'aiplacement_modgen');
+        $this->assertSame([], section_reorder_queue::renumber_now($this->course->id));
+        $this->assertNotEmpty(integrity_checker::check_section_order($this->course->id)['misordered']);
     }
 
     public function test_unsaved_setting_counts_as_on(): void {

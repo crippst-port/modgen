@@ -42,8 +42,8 @@ page when editing is on, in the formats above.
   leftover options, circular references) in Flexible sections courses. It is not offered in other formats,
   which keep their own hierarchy.
 - **Automatic section renumbering** renumbers a Flexible sections course into hierarchy order, in a
-  background task, about a minute after the last section is added or deleted, or after a section is
-  reparented or repaired on Check Structure. Site administrators see a status icon on the assistant bar,
+  background task, about a minute after the last section is added or deleted, and straight after a
+  section is reparented or repaired on Check Structure. Site administrators see a status icon on the assistant bar,
   and the last outcome and a "Renumber now" button on Check Structure. It can be turned off in the plugin settings.
 - **Help and Advice** shows links an administrator configures in the plugin settings.
 

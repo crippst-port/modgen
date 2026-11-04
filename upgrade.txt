@@ -34,6 +34,11 @@
   structure is approved (local\structure_edits). A cleared title gives the section its default name.
 - "Add a section summary activity to each section" is asked on the preview, beside Approve and
   create, instead of on the Structure from file form; the prompt route now offers it too.
+- Themes and weeks can be added to the structure on the preview (Add week in each theme or at the end
+  of a weekly structure, Add theme at the end of a themed one), removed again before approval, and
+  folded away one at a time or all together (amd/src/preview_editor.js). New weeks have the same
+  sessions a week from a file has (csv_parser::blank_week()). Enter in a title no longer submits the
+  approval form.
 
 ### Removed
 

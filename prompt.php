@@ -625,6 +625,16 @@ if ($pdata = $promptform->get_data()) {
         // Plain text: the template escapes it, and the stylesheet keeps its line breaks.
         'prompttext' => $prompt,
         'hasprompt' => trim($prompt) !== '',
+        // Blank cards for the Add theme and Add week buttons; amd/src/preview_editor.js puts a new key in place of __KEY__.
+        'newtheme' => [
+            'key' => '__KEY__', 'isnew' => true, 'rawtitle' => '', 'summary' => '', 'weeks' => [],
+            'placeholder' => get_string('themefallback', 'aiplacement_modgen'),
+        ],
+        'newweek' => [
+            'key' => '__KEY__', 'isnew' => true, 'rawtitle' => '', 'summary' => '',
+            'hassessions' => false, 'hasactivities' => false,
+            'placeholder' => get_string('weekfallback', 'aiplacement_modgen'),
+        ],
     ];
 
     // The preview is rendered inside the approval form, so its title and description fields go with it.
@@ -667,7 +677,8 @@ if ($pdata = $promptform->get_data()) {
         exit;
     }
 
-    // For non-AJAX, use the normal response with form buttons.
+    // For non-AJAX, use the normal response with form buttons. In the modal, modal_generator_reactive starts this.
+    $PAGE->requires->js_call_amd('aiplacement_modgen/preview_editor', 'init');
     $footeractions = [];
     aiplacement_modgen_output_response($bodyhtml, $footeractions, $ajax, get_string('pluginname', 'aiplacement_modgen'));
     exit;

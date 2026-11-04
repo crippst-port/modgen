@@ -20,6 +20,7 @@
     Preview of a proposed module structure, shown for approval before anything is created. Rendered
     inside the approval form: every theme and week has a title and a description field, named by
     where it sits in the structure (see structure_edits), which are applied when it is approved.
+    amd/src/preview_editor.js shows the buttons that fold cards and add themes and weeks.
 
     Context variables required for this template:
     * hasprompt - Whether the prompt is shown
@@ -28,6 +29,8 @@
       weekcount. A theme has key, number, rawtitle, placeholder, summary, hasweeks and weeks; a week
       has key, number, rawtitle, placeholder, summary, hassessions and sessions (each with label and
       activities), and hasactivities and activities (each with name and type)
+    * newtheme, newweek - The blank theme and week the Add buttons copy, keyed __KEY__ (see
+      aiplacement_modgen/prompt_preview_theme and aiplacement_modgen/prompt_preview_week)
     * hasjson - Whether the structure can be downloaded
     * json - The structure as URL-encoded JSON, for the download link
 
@@ -65,10 +68,15 @@
     </div>
 
     {{#modulepreview}}
-    <ul class="aiplacement-modgen-preview__counts">
-        {{#hasthemes}}<li><i class="fa fa-book" aria-hidden="true"></i> {{#str}}previewcountthemes, aiplacement_modgen, {{themecount}}{{/str}}</li>{{/hasthemes}}
-        <li><i class="fa fa-calendar" aria-hidden="true"></i> {{#str}}previewcountweeks, aiplacement_modgen, {{weekcount}}{{/str}}</li>
-    </ul>
+    <div class="aiplacement-modgen-preview__toolbar">
+        <ul class="aiplacement-modgen-preview__counts">
+            {{#hasthemes}}<li><i class="fa fa-book" aria-hidden="true"></i> {{#str}}previewcountthemes, aiplacement_modgen, <span data-count="themes">{{themecount}}</span>{{/str}}</li>{{/hasthemes}}
+            <li><i class="fa fa-calendar" aria-hidden="true"></i> {{#str}}previewcountweeks, aiplacement_modgen, <span data-count="weeks">{{weekcount}}</span>{{/str}}</li>
+        </ul>
+        <button type="button" class="btn btn-link btn-sm aiplacement-modgen-preview__toggleall" data-action="toggleall"
+            data-state="expanded" data-collapselabel="{{#str}}previewcollapseall, aiplacement_modgen{{/str}}"
+            data-expandlabel="{{#str}}previewexpandall, aiplacement_modgen{{/str}}" data-preview-control data-keep-in-form hidden>{{#str}}previewcollapseall, aiplacement_modgen{{/str}}</button>
+    </div>
     {{/modulepreview}}
 
     {{#hasprompt}}
@@ -80,38 +88,30 @@
 
     {{#modulepreview}}
     <div class="aiplacement-modgen-preview__structure">
-        {{#themes}}
-        <section class="aiplacement-modgen-preview__card aiplacement-modgen-preview__card--theme">
-            <div class="aiplacement-modgen-preview__card-head">
-                <span class="aiplacement-modgen-preview__badge aiplacement-modgen-preview__badge--theme">
-                    <i class="fa fa-book" aria-hidden="true"></i> {{#str}}previewbadgetheme, aiplacement_modgen, {{number}}{{/str}}
-                </span>
-                <label class="sr-only" for="aiplacement-modgen-title-t{{key}}">{{#str}}previewtitlelabeltheme, aiplacement_modgen, {{number}}{{/str}}</label>
-                <input type="text" class="form-control aiplacement-modgen-preview__title" id="aiplacement-modgen-title-t{{key}}"
-                    name="titles[t{{key}}]" value="{{rawtitle}}" placeholder="{{placeholder}}" maxlength="255">
-            </div>
-            <label class="sr-only" for="aiplacement-modgen-summary-t{{key}}">{{#str}}previewsummarylabeltheme, aiplacement_modgen, {{number}}{{/str}}</label>
-            <textarea class="form-control aiplacement-modgen-preview__summary" id="aiplacement-modgen-summary-t{{key}}"
-                name="summaries[t{{key}}]" rows="2"
-                placeholder="{{#str}}previewsummaryplaceholder, aiplacement_modgen{{/str}}">{{summary}}</textarea>
-            {{#hasweeks}}
-            <div class="aiplacement-modgen-preview__weeks">
-                {{#weeks}}{{> aiplacement_modgen/prompt_preview_week }}{{/weeks}}
-            </div>
-            {{/hasweeks}}
-        </section>
-        {{/themes}}
-
-        {{^hasthemes}}
-        {{#weeks}}{{> aiplacement_modgen/prompt_preview_week }}{{/weeks}}
+        {{#hasthemes}}
+        {{#themes}}{{> aiplacement_modgen/prompt_preview_theme }}{{/themes}}
+        <button type="button" class="btn btn-link aiplacement-modgen-preview__add" data-action="addtheme" data-preview-control data-keep-in-form hidden>
+            <i class="fa fa-plus" aria-hidden="true"></i> {{#str}}previewaddtheme, aiplacement_modgen{{/str}}
+        </button>
         {{/hasthemes}}
 
         {{^hasthemes}}
+        {{#hasweeks}}
+        {{#weeks}}{{> aiplacement_modgen/prompt_preview_week }}{{/weeks}}
+        <button type="button" class="btn btn-link aiplacement-modgen-preview__add" data-action="addweek" data-themekey=""
+            data-preview-control data-keep-in-form hidden>
+            <i class="fa fa-plus" aria-hidden="true"></i> {{#str}}previewaddweek, aiplacement_modgen{{/str}}
+        </button>
+        {{/hasweeks}}
         {{^hasweeks}}
         <p class="alert alert-warning">{{#str}}previewnostructure, aiplacement_modgen{{/str}}</p>
         {{/hasweeks}}
         {{/hasthemes}}
     </div>
+
+    {{! Blank cards the Add buttons copy, with __KEY__ where the new key goes. }}
+    {{#hasthemes}}{{#newtheme}}<template data-preview-template="theme">{{> aiplacement_modgen/prompt_preview_theme }}</template>{{/newtheme}}{{/hasthemes}}
+    {{#newweek}}<template data-preview-template="week">{{> aiplacement_modgen/prompt_preview_week }}</template>{{/newweek}}
     {{/modulepreview}}
 
     {{#hasjson}}

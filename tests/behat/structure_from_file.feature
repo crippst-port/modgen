@@ -112,6 +112,93 @@ Feature: Building a module from a CSV file
       | Post-session | Gamma  | 0         | 2     |            |
     And the course "C1" structure should be sound
 
+  Scenario: A week added on the preview is built at the end, and one added then removed is not
+    Given I open the Structure from file form in "C1" as "teacher1"
+    When I upload "ai/placement/modgen/tests/fixtures/csv/weekly.csv" file to "Upload structure file" filemanager
+    And I press "Preview Structure"
+    And I should see "3 week(s)"
+    And I press "Add week"
+    And I set the field "Title of the new week" to "Delta"
+    And I set the field "Description of the new week" to "An extra week"
+    Then I should see "4 week(s)"
+    And I press "Add week"
+    And I should see "5 week(s)"
+    And I click on "(//button[@data-action='remove'])[2]" "xpath_element"
+    And I should see "4 week(s)"
+    And I press "Create"
+    And I should see "Creating 4 section(s) from uploaded file"
+    And I run all adhoc tasks
+    And the course "C1" structure should be:
+      | name         | parent | depth | summary       |
+      | Alpha        | -      | 1     | First week    |
+      | Pre-session  | Alpha  | 2     |               |
+      | Session      | Alpha  | 2     |               |
+      | Post-session | Alpha  | 2     |               |
+      | Beta         | -      | 1     |               |
+      | Pre-session  | Beta   | 2     |               |
+      | Session      | Beta   | 2     |               |
+      | Post-session | Beta   | 2     |               |
+      | Gamma        | -      | 1     |               |
+      | Pre-session  | Gamma  | 2     |               |
+      | Session      | Gamma  | 2     |               |
+      | Post-session | Gamma  | 2     |               |
+      | Delta        | -      | 1     | An extra week |
+      | Pre-session  | Delta  | 2     |               |
+      | Session      | Delta  | 2     |               |
+      | Post-session | Delta  | 2     |               |
+    And the course "C1" structure should be sound
+
+  Scenario: A theme added on the preview, with a week of its own, is built after the others
+    Given I open the Structure from file form in "C1" as "teacher1"
+    When I upload "ai/placement/modgen/tests/fixtures/csv/themes_described.csv" file to "Upload structure file" filemanager
+    And I press "Preview Structure"
+    And I press "Add theme"
+    And I set the field "Title of the new theme" to "Review"
+    And I click on "//section[.//label[text()='Title of the new theme']]//button[@data-action='addweek']" "xpath_element"
+    And I set the field "Title of the new week" to "Revision"
+    Then I should see "3 theme(s)"
+    And I should see "4 week(s)"
+    And I press "Create"
+    And I run all adhoc tasks
+    And the course "C1" structure should be:
+      | name         | parent       | depth |
+      | Foundations  | -            | 1     |
+      | Introduction | Foundations  | 2     |
+      | Pre-session  | Introduction | 3     |
+      | Session      | Introduction | 3     |
+      | Post-session | Introduction | 3     |
+      | Methods      | Foundations  | 2     |
+      | Pre-session  | Methods      | 3     |
+      | Session      | Methods      | 3     |
+      | Post-session | Methods      | 3     |
+      | Application  | -            | 1     |
+      | Practice     | Application  | 2     |
+      | Pre-session  | Practice     | 3     |
+      | Session      | Practice     | 3     |
+      | Post-session | Practice     | 3     |
+      | Review       | -            | 1     |
+      | Revision     | Review       | 2     |
+      | Pre-session  | Revision     | 3     |
+      | Session      | Revision     | 3     |
+      | Post-session | Revision     | 3     |
+    And the course "C1" structure should be sound
+
+  Scenario: Themes and weeks on the preview fold away, one at a time or all together
+    Given I open the Structure from file form in "C1" as "teacher1"
+    When I upload "ai/placement/modgen/tests/fixtures/csv/themes_described.csv" file to "Upload structure file" filemanager
+    And I press "Preview Structure"
+    And "Description of week 1" "field" should be visible
+    And I click on "//div[@id='aiplacement-modgen-body-w0_0']/preceding-sibling::div//button[@data-action='toggle']" "xpath_element"
+    Then "Description of week 1" "field" should not be visible
+    And "Description of week 2" "field" should be visible
+    And the field "Title of week 1" matches value "Introduction"
+    And I press "Collapse all"
+    And "Description of theme 1" "field" should not be visible
+    And "Description of theme 2" "field" should not be visible
+    And I press "Expand all"
+    And "Description of week 1" "field" should be visible
+    And "Description of theme 2" "field" should be visible
+
   Scenario: Titles and descriptions edited on the preview are the ones built
     Given I open the Structure from file form in "C1" as "teacher1"
     When I upload "ai/placement/modgen/tests/fixtures/csv/weekly.csv" file to "Upload structure file" filemanager

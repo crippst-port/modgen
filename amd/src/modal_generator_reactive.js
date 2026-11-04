@@ -83,6 +83,7 @@ import Templates from 'core/templates';
 import {get_string as getString, get_strings as getStrings} from 'core/str';
 import * as LoadingIndicator from 'aiplacement_modgen/loading_indicator';
 import * as QuickAddForm from 'aiplacement_modgen/quick_add_form';
+import * as PreviewEditor from 'aiplacement_modgen/preview_editor';
 
 // =============================================================================
 // CONSTANTS & EVENT TYPES
@@ -479,7 +480,8 @@ class ModalGeneratorComponent extends BaseComponent {
     // =========================================================================
 
     /**
-     * Add steppers, choice cards and the live summary to a form in the modal.
+     * Add steppers, choice cards and the live summary to a form in the modal, and the structure
+     * preview's fold and add buttons.
      *
      * Runs before updateFooterFromForm(): the stepper buttons are marked to stay in the form.
      *
@@ -489,6 +491,8 @@ class ModalGeneratorComponent extends BaseComponent {
         const body = modal.getBody();
         const bodyNode = body && body.length ? body.get(0) : null;
         const form = bodyNode ? bodyNode.querySelector('form') : null;
+        // The structure preview: folding cards, and adding themes and weeks.
+        PreviewEditor.enhance(bodyNode);
         if (form) {
             const pendingPromise = new Pending('aiplacement_modgen/modal_generator_reactive:enhance');
             QuickAddForm.enhance(form)

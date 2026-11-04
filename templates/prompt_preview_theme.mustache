@@ -1,0 +1,77 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template aiplacement_modgen/prompt_preview_theme
+
+    One theme on the structure preview: its title and description fields, its weeks, and a button to
+    add a week. The fold, add and remove buttons are hidden until amd/src/preview_editor.js shows them.
+
+    Context variables required for this template:
+    * key - Where the theme sits in the structure, for the field names (__KEY__ in the blank copy)
+    * number - Its place among the themes, from 1
+    * isnew - Whether it is the blank copy that the Add theme button adds
+    * rawtitle - Its title as given, possibly empty
+    * placeholder - What it is called when it has no title
+    * summary - Its description
+    * weeks - Its weeks, for aiplacement_modgen/prompt_preview_week
+
+    Example context (json):
+    {
+        "key": "0",
+        "number": 1,
+        "isnew": false,
+        "rawtitle": "Rivers",
+        "placeholder": "Theme",
+        "summary": "",
+        "weeks": []
+    }
+}}
+<section class="aiplacement-modgen-preview__card aiplacement-modgen-preview__card--theme">
+    <div class="aiplacement-modgen-preview__card-head">
+        <button type="button" class="aiplacement-modgen-preview__toggle" data-action="toggle" data-preview-control data-keep-in-form
+            aria-expanded="true" aria-controls="aiplacement-modgen-body-t{{key}}" hidden>
+            <i class="fa fa-chevron-down" aria-hidden="true"></i>
+            <span class="sr-only">{{#str}}previewtoggle, aiplacement_modgen{{/str}}</span>
+        </button>
+        <span class="aiplacement-modgen-preview__badge aiplacement-modgen-preview__badge--theme">
+            <i class="fa fa-book" aria-hidden="true"></i>
+            {{#isnew}}{{#str}}previewbadgenewtheme, aiplacement_modgen{{/str}}{{/isnew}}{{^isnew}}{{#str}}previewbadgetheme, aiplacement_modgen, {{number}}{{/str}}{{/isnew}}
+        </span>
+        <label class="sr-only" for="aiplacement-modgen-title-t{{key}}">{{#isnew}}{{#str}}previewtitlelabelnewtheme, aiplacement_modgen{{/str}}{{/isnew}}{{^isnew}}{{#str}}previewtitlelabeltheme, aiplacement_modgen, {{number}}{{/str}}{{/isnew}}</label>
+        <input type="text" class="form-control aiplacement-modgen-preview__title" id="aiplacement-modgen-title-t{{key}}"
+            name="titles[t{{key}}]" value="{{rawtitle}}" placeholder="{{placeholder}}" maxlength="255">
+        {{#isnew}}
+        <button type="button" class="aiplacement-modgen-preview__remove" data-action="remove" data-preview-control data-keep-in-form hidden>
+            <i class="fa fa-trash" aria-hidden="true"></i>
+            <span class="sr-only">{{#str}}previewremovetheme, aiplacement_modgen{{/str}}</span>
+        </button>
+        {{/isnew}}
+    </div>
+    <div class="aiplacement-modgen-preview__card-body" id="aiplacement-modgen-body-t{{key}}">
+        <label class="sr-only" for="aiplacement-modgen-summary-t{{key}}">{{#isnew}}{{#str}}previewsummarylabelnewtheme, aiplacement_modgen{{/str}}{{/isnew}}{{^isnew}}{{#str}}previewsummarylabeltheme, aiplacement_modgen, {{number}}{{/str}}{{/isnew}}</label>
+        <textarea class="form-control aiplacement-modgen-preview__summary" id="aiplacement-modgen-summary-t{{key}}"
+            name="summaries[t{{key}}]" rows="2"
+            placeholder="{{#str}}previewsummaryplaceholder, aiplacement_modgen{{/str}}">{{summary}}</textarea>
+        <div class="aiplacement-modgen-preview__weeks">
+            {{#weeks}}{{> aiplacement_modgen/prompt_preview_week }}{{/weeks}}
+            <button type="button" class="btn btn-link btn-sm aiplacement-modgen-preview__add" data-action="addweek"
+                data-themekey="{{key}}" data-preview-control data-keep-in-form hidden>
+                <i class="fa fa-plus" aria-hidden="true"></i> {{#str}}previewaddweek, aiplacement_modgen{{/str}}
+            </button>
+        </div>
+    </div>
+</section>

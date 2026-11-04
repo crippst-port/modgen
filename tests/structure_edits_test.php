@@ -93,6 +93,36 @@ final class structure_edits_test extends \basic_testcase {
         $this->assertSame("Fish &amp; chips<br>\nby the sea", $json['sections'][0]['summary']);
     }
 
+    public function test_weeks_and_themes_added_on_the_preview_are_created_in_order(): void {
+        $json = structure_edits::apply(
+            $this->themes(),
+            // As the page sends them: a week for theme 0, a new theme, then a week in that new theme.
+            ['w0_n1' => 'Estuaries', 'tn2' => 'Oceans', 'wn2_n3' => 'Tides'],
+            ['w0_n1' => 'Where rivers end', 'wn2_n3' => '']
+        );
+        $this->assertCount(2, $json['themes'][0]['weeks']);
+        $this->assertSame('Estuaries', $json['themes'][0]['weeks'][1]['title']);
+        $this->assertSame('Where rivers end', $json['themes'][0]['weeks'][1]['summary']);
+        // A new week has the sessions every week from a file has.
+        $this->assertSame(['presession', 'session', 'postsession'], array_keys($json['themes'][0]['weeks'][1]['sessions']));
+        $this->assertCount(3, $json['themes']);
+        $this->assertSame('Oceans', $json['themes'][2]['title']);
+        $this->assertSame('Tides', $json['themes'][2]['weeks'][0]['title']);
+        $this->assertSame(range(0, 2), array_keys($json['themes']), 'Themes stay a list.');
+    }
+
+    public function test_a_new_week_with_no_title_is_still_created_and_named_by_the_build(): void {
+        $json = structure_edits::apply(['sections' => [['title' => 'A']]], ['wn1' => ''], ['wn1' => 'Notes & more']);
+        $this->assertCount(2, $json['sections']);
+        $this->assertArrayNotHasKey('title', $json['sections'][1]);
+        $this->assertSame('Notes &amp; more', $json['sections'][1]['summary']);
+    }
+
+    public function test_a_weekly_structure_cannot_be_given_a_theme(): void {
+        $weekly = ['sections' => [['title' => 'A']]];
+        $this->assertSame($weekly, structure_edits::apply($weekly, ['tn1' => 'Theme', 'wn1_n2' => 'Week'], []));
+    }
+
     public function test_fields_that_name_nothing_are_ignored(): void {
         $themes = $this->themes();
         $this->assertSame($themes, structure_edits::apply($themes, ['t9' => 'X', 'w0_5' => 'X', 'w0' => 'X', 'zz' => 'X'], []));

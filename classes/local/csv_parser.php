@@ -231,6 +231,45 @@ class csv_parser {
     }
 
     /**
+     * A week with nothing in it yet: a description, and its three sessions with empty learning
+     * activity details. The shape every week from a file has, and what the preview adds.
+     *
+     * @param bool $weekly For a weekly structure, whose sessions also carry weekly learning outcomes
+     * @return array The week, without a title
+     */
+    public static function blank_week(bool $weekly): array {
+        $session = [
+            'description' => '',
+            'learningactivity_metadata' => [
+                'name' => '',
+                'activityicon' => '',
+                'instructions' => '',
+                'duration' => null,
+                'learningmode' => null,
+                'groupactivity' => null,
+                'learningtypes' => null,
+            ],
+            'activities' => [],
+        ];
+        if ($weekly) {
+            $session['learningactivity_metadata']['learningoutcomes_weekly'] = '';
+        }
+        return [
+            'summary' => '',
+            'learningactivity_metadata' => [
+                'name' => '',
+                'activityicon' => '',
+                'instructions' => '',
+            ],
+            'sessions' => [
+                'presession' => $session,
+                'session' => $session,
+                'postsession' => $session,
+            ],
+        ];
+    }
+
+    /**
      * Parse CSV for simple themed structure.
      * Format: Title:,Course Title
      *         Theme:,Theme Name
@@ -287,56 +326,7 @@ class csv_parser {
                     ]);
                 }
                 // Add week to current theme.
-                $week = [
-                    'title' => $value,
-                    'summary' => '',
-                    'learningactivity_metadata' => [
-                        'name' => '',
-                        'activityicon' => '',
-                        'instructions' => '',
-                    ],
-                    'sessions' => [
-                        'presession' => [
-                            'description' => '',
-                            'learningactivity_metadata' => [
-                                'name' => '',
-                                'activityicon' => '',
-                                'instructions' => '',
-                                'duration' => null,
-                                'learningmode' => null,
-                                'groupactivity' => null,
-                                'learningtypes' => null,
-                            ],
-                            'activities' => [],
-                        ],
-                        'session' => [
-                            'description' => '',
-                            'learningactivity_metadata' => [
-                                'name' => '',
-                                'activityicon' => '',
-                                'instructions' => '',
-                                'duration' => null,
-                                'learningmode' => null,
-                                'groupactivity' => null,
-                                'learningtypes' => null,
-                            ],
-                            'activities' => [],
-                        ],
-                        'postsession' => [
-                            'description' => '',
-                            'learningactivity_metadata' => [
-                                'name' => '',
-                                'activityicon' => '',
-                                'instructions' => '',
-                                'duration' => null,
-                                'learningmode' => null,
-                                'groupactivity' => null,
-                                'learningtypes' => null,
-                            ],
-                            'activities' => [],
-                        ],
-                    ],
-                ];
+                $week = ['title' => $value] + self::blank_week(false);
                 $currenttheme['weeks'][] = $week;
                 // Mark that we just added a week (for description tracking).
                 $currentweek = true; // Just a flag, not a reference.
@@ -382,59 +372,7 @@ class csv_parser {
                 }
             } else if (stripos($label, 'Week') === 0 || stripos($label, 'Section') === 0) {
                 // Add week/section.
-                $section = [
-                    'title' => $value,
-                    'summary' => '',
-                    'learningactivity_metadata' => [
-                        'name' => '',
-                        'activityicon' => '',
-                        'instructions' => '',
-                    ],
-                    'sessions' => [
-                        'presession' => [
-                            'description' => '',
-                            'learningactivity_metadata' => [
-                                'name' => '',
-                                'activityicon' => '',
-                                'instructions' => '',
-                                'duration' => null,
-                                'learningmode' => null,
-                                'groupactivity' => null,
-                                'learningtypes' => null,
-                                'learningoutcomes_weekly' => '',
-                            ],
-                            'activities' => [],
-                        ],
-                        'session' => [
-                            'description' => '',
-                            'learningactivity_metadata' => [
-                                'name' => '',
-                                'activityicon' => '',
-                                'instructions' => '',
-                                'duration' => null,
-                                'learningmode' => null,
-                                'groupactivity' => null,
-                                'learningtypes' => null,
-                                'learningoutcomes_weekly' => '',
-                            ],
-                            'activities' => [],
-                        ],
-                        'postsession' => [
-                            'description' => '',
-                            'learningactivity_metadata' => [
-                                'name' => '',
-                                'activityicon' => '',
-                                'instructions' => '',
-                                'duration' => null,
-                                'learningmode' => null,
-                                'groupactivity' => null,
-                                'learningtypes' => null,
-                                'learningoutcomes_weekly' => '',
-                            ],
-                            'activities' => [],
-                        ],
-                    ],
-                ];
+                $section = ['title' => $value] + self::blank_week(true);
                 $sections[] = $section;
                 // Store reference to last section for description updates.
                 $currentsection = &$sections[count($sections) - 1];

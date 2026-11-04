@@ -215,6 +215,19 @@ $string['tryagain'] = 'Try Again';
 
 // Module preview display strings.
 $string['creatingstructurewait'] = 'Creating the structure... please wait.';
+$string['previewaddtheme'] = 'Add theme';
+$string['previewaddweek'] = 'Add week';
+$string['previewbadgenewtheme'] = 'New theme';
+$string['previewbadgenewweek'] = 'New week';
+$string['previewcollapseall'] = 'Collapse all';
+$string['previewexpandall'] = 'Expand all';
+$string['previewremovetheme'] = 'Remove this theme';
+$string['previewremoveweek'] = 'Remove this week';
+$string['previewsummarylabelnewtheme'] = 'Description of the new theme';
+$string['previewsummarylabelnewweek'] = 'Description of the new week';
+$string['previewtitlelabelnewtheme'] = 'Title of the new theme';
+$string['previewtitlelabelnewweek'] = 'Title of the new week';
+$string['previewtoggle'] = 'Show or hide';
 $string['previewbadgetheme'] = 'Theme {$a}';
 $string['previewbadgeweek'] = 'Week {$a}';
 $string['previewcontents'] = 'Sessions and activities';

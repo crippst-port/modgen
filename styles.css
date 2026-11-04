@@ -753,6 +753,90 @@
     font-size: 0.875rem;
 }
 
+/* Counts on the left, Collapse all on the right. */
+.aiplacement-modgen-preview__toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+
+.aiplacement-modgen-preview__toggleall {
+    padding: 0;
+    color: var(--modgen-pv-muted);
+    font-size: 0.85rem;
+}
+
+/* Fold a card; the chevron turns while it is folded. */
+.aiplacement-modgen-preview__toggle,
+.aiplacement-modgen-preview__remove {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 1.75rem;
+    height: 1.75rem;
+    padding: 0;
+    border: 0;
+    border-radius: 0.4rem;
+    background: transparent;
+    color: var(--modgen-pv-muted);
+}
+
+.aiplacement-modgen-preview__toggle:hover,
+.aiplacement-modgen-preview__toggle:focus-visible {
+    background: var(--modgen-pv-tint);
+    color: var(--modgen-pv-accent);
+}
+
+.aiplacement-modgen-preview__remove:hover,
+.aiplacement-modgen-preview__remove:focus-visible {
+    background: rgba(198, 40, 40, 0.1);
+    color: #c62828;
+}
+
+.aiplacement-modgen-preview__toggle i {
+    transition: transform 0.15s ease;
+}
+
+.aiplacement-modgen-preview__card--collapsed > .aiplacement-modgen-preview__card-head .aiplacement-modgen-preview__toggle i {
+    transform: rotate(-90deg);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aiplacement-modgen-preview__toggle i {
+        transition: none;
+    }
+}
+
+.aiplacement-modgen-preview__card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.aiplacement-modgen-preview__card-body[hidden] {
+    display: none;
+}
+
+/* Add week and Add theme sit under what they add to. */
+.aiplacement-modgen-preview .aiplacement-modgen-preview__add {
+    align-self: flex-start;
+    padding-left: 0.25rem;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.aiplacement-modgen-preview .aiplacement-modgen-preview__add:hover {
+    text-decoration: underline;
+}
+
+/* A theme or week added here, until it is built. */
+.aiplacement-modgen-preview__card:has(> .aiplacement-modgen-preview__card-head .aiplacement-modgen-preview__remove) {
+    border-style: dashed;
+}
+
 /* The summary activity option, under the structure. */
 .aiplacement-modgen-approve .fitem_fcheckbox,
 .aiplacement-modgen-approve .fitem:has(> .checkbox),

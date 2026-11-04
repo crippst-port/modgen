@@ -29,7 +29,9 @@ namespace aiplacement_modgen\local;
  *
  * The preview names each field by where its theme or week sits in the structure (see
  * preview_generator): a theme by its key, a week in a theme by the theme key and week key joined
- * by _, and a week of a weekly structure by its section key. Fields that name nothing are ignored.
+ * by _, and a week of a weekly structure by its section key. A theme or week added on the preview
+ * has a key of n and a number (amd/src/preview_editor.js), and is created here, at the end of its
+ * theme or of the structure, in the order the fields arrive. Fields that name nothing are ignored.
  */
 class structure_edits {
     /** @var int Longest section name Moodle stores. */
@@ -45,9 +47,14 @@ class structure_edits {
      */
     public static function apply(array $json, array $titles, array $summaries): array {
         $istheme = !empty($json['themes']) && is_array($json['themes']);
+        if (!$istheme && (empty($json['sections']) || !is_array($json['sections']))) {
+            return $json;
+        }
+        // Where each new theme and week was put, by its key from the preview.
+        $created = [];
         foreach (['title' => $titles, 'summary' => $summaries] as $field => $values) {
             foreach ($values as $fieldkey => $value) {
-                $path = self::path($json, (string) $fieldkey, $istheme);
+                $path = self::path($json, (string) $fieldkey, $istheme, $created);
                 if ($path === null) {
                     continue;
                 }
@@ -58,27 +65,74 @@ class structure_edits {
     }
 
     /**
-     * Find the theme or week a field names.
+     * Find the theme or week a field names, creating it when it was added on the preview.
      *
-     * @param array $json The structure
+     * @param array $json The structure, changed in place when something is created
      * @param string $fieldkey 't' . theme key, or 'w' . week key
      * @param bool $istheme Whether the structure is themes of weeks
+     * @param array $created New key => index of what has been created so far, changed in place
      * @return array|null Keys down to the item, or null when it names nothing
      */
-    private static function path(array $json, string $fieldkey, bool $istheme): ?array {
+    private static function path(array &$json, string $fieldkey, bool $istheme, array &$created): ?array {
         $kind = substr($fieldkey, 0, 1);
         $key = substr($fieldkey, 1);
-        if ($istheme && $kind === 't' && isset($json['themes'][$key]) && is_array($json['themes'][$key])) {
-            return ['themes', $key];
+        if ($istheme && $kind === 't') {
+            $theme = self::theme($json, $key, $created);
+            return $theme === null ? null : ['themes', $theme];
         }
-        if ($istheme && $kind === 'w' && preg_match('/^([^_]+)_([^_]+)$/', $key, $m)
-                && isset($json['themes'][$m[1]]['weeks'][$m[2]]) && is_array($json['themes'][$m[1]]['weeks'][$m[2]])) {
-            return ['themes', $m[1], 'weeks', $m[2]];
+        if ($istheme && $kind === 'w' && preg_match('/^([^_]+)_([^_]+)$/', $key, $m)) {
+            $theme = self::theme($json, $m[1], $created);
+            if ($theme === null) {
+                return null;
+            }
+            $week = self::item($json['themes'][$theme]['weeks'], $m[2], 'w' . $m[1] . '_', $created, false);
+            return $week === null ? null : ['themes', $theme, 'weeks', $week];
         }
-        if (!$istheme && $kind === 'w' && isset($json['sections'][$key]) && is_array($json['sections'][$key])) {
-            return ['sections', $key];
+        if (!$istheme && $kind === 'w') {
+            $week = self::item($json['sections'], $key, 'w', $created, true);
+            return $week === null ? null : ['sections', $week];
         }
         return null;
+    }
+
+    /**
+     * Find a theme by its key, creating it when it was added on the preview.
+     *
+     * @param array $json The structure, changed in place when the theme is created
+     * @param string $key Theme key
+     * @param array $created New key => index, changed in place
+     * @return int|string|null Its key in the structure, or null when there is none
+     */
+    private static function theme(array &$json, string $key, array &$created) {
+        $theme = self::item($json['themes'], $key, 't', $created, null);
+        if ($theme !== null && (!isset($json['themes'][$theme]['weeks']) || !is_array($json['themes'][$theme]['weeks']))) {
+            $json['themes'][$theme]['weeks'] = [];
+        }
+        return $theme;
+    }
+
+    /**
+     * Find a theme or week in a list, creating it at the end when its key is a new one.
+     *
+     * @param mixed $list The themes, a theme's weeks, or the sections, changed in place
+     * @param string $key Its key: an existing key, or n and a number for a new one
+     * @param string $scope What the key is unique within, so new keys of different lists do not meet
+     * @param array $created New key => index, changed in place
+     * @param bool|null $weekly For a week, whether it is in a weekly structure; null for a theme
+     * @return int|string|null Its key in the list, or null when there is none
+     */
+    private static function item(&$list, string $key, string $scope, array &$created, ?bool $weekly) {
+        if (!is_array($list)) {
+            return null;
+        }
+        if (!preg_match('/^n\d+$/', $key)) {
+            return isset($list[$key]) && is_array($list[$key]) ? $key : null;
+        }
+        if (!isset($created[$scope . $key])) {
+            $list[] = $weekly === null ? ['summary' => '', 'weeks' => []] : csv_parser::blank_week($weekly);
+            $created[$scope . $key] = array_key_last($list);
+        }
+        return $created[$scope . $key];
     }
 
     /**

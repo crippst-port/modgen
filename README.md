@@ -21,6 +21,9 @@ page when editing is on (course pages using the Flexible sections format only).
   is created until the teacher approves it.
 - **Check Structure** diagnoses and repairs problems with the section hierarchy (parents, ordering,
   orphans, circular references) in Flexible sections courses.
+- **Automatic section renumbering** renumbers a Flexible sections course into hierarchy order, in a
+  background task, about a minute after the last section is added or deleted. Site administrators see
+  a status icon on the assistant bar. It can be turned off in the plugin settings.
 - **Help and Advice** shows links an administrator configures in the plugin settings.
 
 Creation always runs as a background (ad-hoc) task, so large builds do not time out a web request.
@@ -63,7 +66,8 @@ Toolbar entries only appear for users who hold the matching capability. Anyone w
 
 Site administration > AI > AI placements > Module Assistant (Settings):
 
-- **Feature switches**: AI generation, Quick Add and Structure from file can each be turned off.
+- **Feature switches**: AI generation, Quick Add, Structure from file and Automatic section
+  renumbering can each be turned off. Automatic section renumbering is on by default.
 - **AI generation**: base prompt, timeout (default 300 seconds) and a per-user hourly request limit
   (default 10).
 - **Section limits**: maximum themes or weeks per Quick Add (30), weeks per theme (5), sections in a
@@ -78,7 +82,8 @@ Site administration > AI > AI placements > Module Assistant (Settings):
 The plugin writes standard Moodle events, so actions appear in the logs report:
 
 - structure job queued, completed and failed (with the action and the outcome);
-- structure repaired (Check Structure and the admin tools);
+- structure repaired (Check Structure, the admin tools and the automatic section renumber);
+- automatic section renumber refused because the section hierarchy is broken;
 - template added, updated, deleted and moved.
 
 Scheduled tasks:

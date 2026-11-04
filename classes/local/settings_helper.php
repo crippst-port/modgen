@@ -146,6 +146,23 @@ class settings_helper {
     }
 
     /**
+     * Check whether sections are renumbered automatically after sections are added or deleted.
+     *
+     * On unless an administrator has switched it off. A site that has never saved the setting
+     * (get_config() returns false) counts as on, so upgrading starts the behaviour without
+     * anyone having to visit the settings page first.
+     *
+     * @return bool True if the automatic section renumber is enabled
+     */
+    public static function is_autoreorder_enabled(): bool {
+        if (!isset(self::$cache['enable_autoreorder'])) {
+            $value = get_config('aiplacement_modgen', 'enable_autoreorder');
+            self::$cache['enable_autoreorder'] = $value === false || !empty($value);
+        }
+        return self::$cache['enable_autoreorder'];
+    }
+
+    /**
      * Get a boolean setting value with caching.
      *
      * @param string $name Setting name

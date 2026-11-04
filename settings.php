@@ -111,6 +111,20 @@ if ($hassiteconfig) {
             1
         ));
 
+        // Automatic section renumbering controls.
+        $settings->add(new admin_setting_heading(
+            'aiplacement_modgen/autoreorderheading',
+            new lang_string('autoreorderheading', 'aiplacement_modgen'),
+            new lang_string('autoreorderheading_desc', 'aiplacement_modgen')
+        ));
+
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_autoreorder',
+            new lang_string('enableautoreorder', 'aiplacement_modgen'),
+            new lang_string('enableautoreorder_desc', 'aiplacement_modgen'),
+            1
+        ));
+
         // Help and Advice Links.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/helplinksheading',

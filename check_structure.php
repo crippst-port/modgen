@@ -176,23 +176,6 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
             );
             break;
 
-        case 'fixcleanup':
-            $result = integrity_checker::cleanup_orphaned($courseid);
-            if ($result['deleted'] > 0) {
-                \aiplacement_modgen\event\structure_repaired::for_course($courseid, 'fixcleanup', (int) $result['deleted'])
-                    ->trigger();
-            }
-            $msg = $result['deleted'] > 0
-                ? get_string('fixcleanup_done', 'aiplacement_modgen', $result['deleted'])
-                : get_string('fixcleanup_none', 'aiplacement_modgen');
-            redirect(
-                new moodle_url('/ai/placement/modgen/check_structure.php', ['id' => $courseid, 'check' => 1]),
-                $msg,
-                null,
-                \core\output\notification::NOTIFY_SUCCESS
-            );
-            break;
-
         case 'fixcircular':
             $result = integrity_checker::fix_circular($courseid);
             if ($result['fixed'] > 0) {
@@ -253,7 +236,6 @@ if ($action && !$confirm) {
 
     $confirmstrings = [
         'fixintegrity' => 'fixintegrity_confirm',
-        'fixcleanup'   => 'fixcleanup_confirm',
         'fixcircular'  => 'fixcircular_confirm',
         'fixsectionorder' => 'fixsectionorder_confirm',
     ];
@@ -527,7 +509,6 @@ if ($diag !== null) {
             'missing_parents',
             'duplicate_sections',
             'circular_refs',
-            'orphaned_sections',
             'section_order',
         ];
         foreach ($checkkeys as $key) {
@@ -553,9 +534,6 @@ if ($diag !== null) {
     }
     if ($diag['counts']['circular_refs'] > 0) {
         echo $OUTPUT->notification(get_string('checkstructure_circularwarning', 'aiplacement_modgen'), 'error');
-    }
-    if ($diag['counts']['orphaned_sections'] > 0) {
-        echo $OUTPUT->notification(get_string('checkstructure_orphanwarning', 'aiplacement_modgen'), 'warning');
     }
     if ($diag['counts']['section_order'] > 0) {
         echo $OUTPUT->notification(get_string('checkstructure_orderwarning', 'aiplacement_modgen'), 'error');
@@ -744,20 +722,6 @@ if ($diag !== null) {
             ]),
             get_string('fixintegrity_label', 'aiplacement_modgen'),
             ['class' => 'btn btn-warning mb-4']
-        );
-    }
-
-    if ($diag['counts']['orphaned_sections'] > 0) {
-        echo $OUTPUT->heading(get_string('fixcleanup_label', 'aiplacement_modgen'), 4);
-        echo html_writer::tag('p', get_string('fixcleanup_desc', 'aiplacement_modgen'), ['class' => 'text-muted']);
-        echo html_writer::link(
-            new moodle_url('/ai/placement/modgen/check_structure.php', [
-                'id'      => $courseid,
-                'action'  => 'fixcleanup',
-                'sesskey' => sesskey(),
-            ]),
-            get_string('fixcleanup_label', 'aiplacement_modgen'),
-            ['class' => 'btn btn-danger mb-4']
         );
     }
 

@@ -29,7 +29,6 @@
  * - Course integrity checking and repair
  * - Hierarchy analysis and visualization
  * - Circular reference detection and fixing
- * - Section cleanup utilities
  * - Data export (JSON/HTML/Text)
  *
  * @package    aiplacement_modgen
@@ -98,16 +97,6 @@ if ($action) {
 
                     echo html_writer::link(
                         new moodle_url('/ai/placement/modgen/admin_tools.php', [
-                            'action' => 'cleanup',
-                            'courseid' => $courseid,
-                            'sesskey' => sesskey(),
-                        ]),
-                        get_string('cleanup', 'aiplacement_modgen'),
-                        ['class' => 'btn btn-danger mr-2']
-                    );
-
-                    echo html_writer::link(
-                        new moodle_url('/ai/placement/modgen/admin_tools.php', [
                             'action' => 'checkintegrity',
                             'courseid' => $courseid,
                             'sesskey' => sesskey(),
@@ -137,17 +126,7 @@ if ($action) {
                         'sesskey' => sesskey(),
                     ]),
                     get_string('recheck', 'aiplacement_modgen'),
-                    ['class' => 'btn btn-info mr-2']
-                );
-
-                echo html_writer::link(
-                    new moodle_url('/ai/placement/modgen/admin_tools.php', [
-                        'action' => 'cleanup',
-                        'courseid' => $courseid,
-                        'sesskey' => sesskey(),
-                    ]),
-                    get_string('cleanup', 'aiplacement_modgen'),
-                    ['class' => 'btn btn-danger']
+                    ['class' => 'btn btn-info']
                 );
                 echo html_writer::end_div();
             } else if ($courseid > 0) {
@@ -156,40 +135,6 @@ if ($action) {
                     get_string('confirmfixintegrity', 'aiplacement_modgen'),
                     new moodle_url('/ai/placement/modgen/admin_tools.php', [
                         'action' => 'fixintegrity',
-                        'courseid' => $courseid,
-                        'confirm' => 1,
-                        'sesskey' => sesskey(),
-                    ]),
-                    new moodle_url('/ai/placement/modgen/admin_tools.php')
-                );
-                echo $OUTPUT->footer();
-                die();
-            }
-            break;
-
-        case 'cleanup':
-            if ($courseid > 0 && $confirm) {
-                echo $OUTPUT->heading(get_string('cleaningup', 'aiplacement_modgen'), 3);
-                cleanup_orphaned_sections($courseid);
-
-                // Show action buttons after cleanup.
-                echo html_writer::start_div('mt-3');
-                echo html_writer::link(
-                    new moodle_url('/ai/placement/modgen/admin_tools.php', [
-                        'action' => 'checkintegrity',
-                        'courseid' => $courseid,
-                        'sesskey' => sesskey(),
-                    ]),
-                    get_string('recheck', 'aiplacement_modgen'),
-                    ['class' => 'btn btn-info']
-                );
-                echo html_writer::end_div();
-            } else if ($courseid > 0) {
-                // Show confirmation.
-                echo $OUTPUT->confirm(
-                    get_string('confirmcleanup', 'aiplacement_modgen'),
-                    new moodle_url('/ai/placement/modgen/admin_tools.php', [
-                        'action' => 'cleanup',
                         'courseid' => $courseid,
                         'confirm' => 1,
                         'sesskey' => sesskey(),
@@ -367,12 +312,6 @@ function display_dashboard($courseid = 0) {
         'value' => 'fixintegrity',
         'class' => 'btn btn-warning mr-2',
     ]);
-    echo html_writer::tag('button', get_string('cleanup', 'aiplacement_modgen'), [
-        'type' => 'submit',
-        'name' => 'action',
-        'value' => 'cleanup',
-        'class' => 'btn btn-danger mr-2',
-    ]);
     echo html_writer::tag('button', get_string('analyzehierarchy', 'aiplacement_modgen'), [
         'type' => 'submit',
         'name' => 'action',
@@ -475,7 +414,7 @@ function display_statistics() {
 }
 
 /**
- * Check course integrity for orphaned sections and invalid parents.
+ * Check course integrity for invalid parents and other broken structure.
  *
  * @param int $courseid Course ID
  * @param bool $fix Whether to fix issues automatically
@@ -536,7 +475,6 @@ function render_integrity_results(array $diag): void {
         'missing_parents',
         'duplicate_sections',
         'circular_refs',
-        'orphaned_sections',
         'section_order',
     ];
 
@@ -561,34 +499,6 @@ function render_integrity_results(array $diag): void {
     echo html_writer::end_tag('tbody');
     echo html_writer::end_tag('table');
     echo html_writer::end_div();
-}
-
-/**
- * Cleanup orphaned sections in a course.
- *
- * @param int $courseid Course ID
- */
-function cleanup_orphaned_sections($courseid) {
-    global $OUTPUT;
-
-    $result = integrity_checker::cleanup_orphaned($courseid);
-    if ($result['deleted'] > 0) {
-        \aiplacement_modgen\event\structure_repaired::for_course(
-            $courseid,
-            'fixcleanup',
-            (int) $result['deleted'],
-            'admin_tools'
-        )->trigger();
-    }
-
-    if ($result['deleted'] === 0) {
-        echo $OUTPUT->notification(get_string('nosectionstoclean', 'aiplacement_modgen'), 'info');
-    } else {
-        echo $OUTPUT->notification(
-            get_string('sectionsdeleted', 'aiplacement_modgen', $result['deleted']),
-            'success'
-        );
-    }
 }
 
 /**

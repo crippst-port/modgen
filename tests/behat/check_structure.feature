@@ -31,6 +31,14 @@ Feature: Checking and repairing a course's structure
     And I should not see "Renumber Sections"
     And the course "C1" structure should be sound
 
+  Scenario: A hidden empty section is not reported as a problem
+    Given the course "C1" has "1" themes with "1" weeks each
+    And section "Pre-session" of "C1" is hidden in the database
+    And I log in as "teacher1"
+    When I am on the Check Structure page of "C1"
+    Then I should see "No structural issues detected."
+    And I should not see "Orphaned"
+
   Scenario: A section with a parent that does not exist is found, shown and repaired
     Given the course "C1" has "2" themes with "1" weeks each
     And section "Theme 1 - Week 1" of "C1" has parent "99"

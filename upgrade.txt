@@ -21,6 +21,15 @@
 - Event observers in db/events.php for course_section_created, course_section_deleted and
   \aiplacement_modgen\event\structure_repaired (every action except fixsectionorder).
 
+### Removed
+
+- The orphaned sections check and its clean-up, on Check Structure (Remove Orphaned Sections) and on
+  the admin tools page (Delete Hidden Empty Sections). It matched any hidden section with no activities
+  and no summary, whatever its parent, so it flagged and permanently deleted teachers' hidden
+  placeholders and empty sections moved under a hidden parent. Sections that really are disconnected
+  are still found by the invalid parent and circular reference checks.
+  integrity_checker::cleanup_orphaned() and the orphaned_sections keys of check() are gone.
+
 ## Upgrading to Version 0.9.0 (2026-10-30)
 
 ### Added

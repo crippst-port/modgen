@@ -45,7 +45,6 @@ final class repair_guards_test extends advanced_testcase {
     public static function repair_provider(): array {
         return [
             'fix integrity' => [fn(int $courseid) => integrity_checker::fix_integrity($courseid)],
-            'clean up' => [fn(int $courseid) => integrity_checker::cleanup_orphaned($courseid)],
             'fix circular' => [fn(int $courseid) => integrity_checker::fix_circular($courseid)],
             'set parent' => [fn(int $courseid) => integrity_checker::set_parent($courseid, 2, 1)],
             'set parents' => [fn(int $courseid) => integrity_checker::set_parents_bulk($courseid, [2], [1])],

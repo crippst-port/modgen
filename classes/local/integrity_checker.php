@@ -75,7 +75,6 @@ class integrity_checker {
                 'missing_parents'      => 0,
                 'duplicate_sections'   => 0,
                 'circular_refs'        => 0,
-                'orphaned_sections'    => 0,
                 'section_order'        => 0,
             ],
             'issues'     => [
@@ -86,7 +85,6 @@ class integrity_checker {
                 'missing_parents'      => [],
                 'duplicate_sections'   => [],
                 'circular_refs'        => [],
-                'orphaned_sections'    => [],
                 'section_order'        => [],
             ],
             'sections'   => [],
@@ -201,15 +199,7 @@ class integrity_checker {
             $result['has_issues'] = true;
         }
 
-        // Check 8: Orphaned sections (hidden and empty: the cleanup target).
-        $rows = self::find_orphaned_sections($courseid);
-        if (!empty($rows)) {
-            $result['issues']['orphaned_sections'] = array_values($rows);
-            $result['counts']['orphaned_sections'] = count($rows);
-            $result['has_issues'] = true;
-        }
-
-        // Check 9: Section numbering order (see check_section_order() for what "order" means
+        // Check 8: Section numbering order (see check_section_order() for what "order" means
         // here and why it can only be judged on an otherwise-sound hierarchy). Runs last
         // because it is the one check that is meaningless while any of the checks above are
         // reporting — it declines to judge in exactly those cases.
@@ -246,7 +236,6 @@ class integrity_checker {
         $invalids  = array_column($result['issues']['invalid_parents'], null, 'id');
         $nulls     = array_column($result['issues']['null_parents'], null, 'id');
         $missing   = array_column($result['issues']['missing_parents'], null, 'id');
-        $orphsects = array_column($result['issues']['orphaned_sections'], null, 'id');
         $misordered = array_column($result['issues']['section_order'], null, 'id');
 
         // Build set of circular root sections.
@@ -277,9 +266,6 @@ class integrity_checker {
             if (isset($circularsections[$s->section])) {
                 $rowissues[] = get_string('row_circularref', 'aiplacement_modgen');
             }
-            if (isset($orphsects[$s->id])) {
-                $rowissues[] = get_string('row_orphaned', 'aiplacement_modgen');
-            }
             if (isset($misordered[$s->id])) {
                 $rowissues[] = get_string('row_wrongorder', 'aiplacement_modgen', $misordered[$s->id]->expected);
             }
@@ -295,8 +281,8 @@ class integrity_checker {
 
     /**
      * Fix all repairable integrity issues: orphaned format options, invalid/null/missing
-     * parents, section-0-with-parent. Does NOT fix circular refs or orphaned sections
-     * (those have separate methods).
+     * parents, section-0-with-parent. Does NOT fix circular refs
+     * (that has its own method).
      *
      * @param int $courseid Course ID
      * @return array ['fixed' => int, 'details' => string[], 'reparented' => array{id:int,
@@ -437,51 +423,6 @@ class integrity_checker {
     }
 
     /**
-     * Delete hidden course sections with no activities (orphaned sections cleanup).
-     *
-     * @param int $courseid Course ID
-     * @return array ['deleted' => int]
-     */
-    public static function cleanup_orphaned(int $courseid): array {
-        return self::with_structure_locks($courseid, fn() => self::cleanup_orphaned_unlocked($courseid), true);
-    }
-
-    /**
-     * cleanup_orphaned() for a caller that already holds the structure locks.
-     *
-     * @param int $courseid Course ID
-     * @return array As cleanup_orphaned()
-     */
-    private static function cleanup_orphaned_unlocked(int $courseid): array {
-        global $DB;
-
-        $course = $DB->get_record('course', ['id' => $courseid], '*', MUST_EXIST);
-
-        // Highest number first, so deleting one does not renumber those still to come.
-        $sections = array_reverse(self::find_orphaned_sections($courseid), true);
-
-        if (empty($sections)) {
-            return ['deleted' => 0];
-        }
-
-        // Delete through the format rather than from the tables: it renumbers the sections that
-        // follow (a gap in the numbers breaks the course) and keeps their parent references right.
-        // A section that still has subsections is left alone, as deleting it would orphan them.
-        $format = course_get_format($course);
-        $deleted = 0;
-        foreach ($sections as $section) {
-            $info = get_fast_modinfo($courseid)->get_section_info_by_id((int) $section->id);
-            if (!$info || $format->get_subsections($info)) {
-                continue;
-            }
-            [$deletedsections] = $format->delete_section_with_children($info);
-            $deleted += count($deletedsections);
-        }
-
-        return ['deleted' => $deleted];
-    }
-
-    /**
      * Sort the course's stored parent values into the two kinds the checks and fixes deal with.
      *
      * Done in PHP rather than with a SQL cast: the value column is text, and one odd value (such as
@@ -523,34 +464,6 @@ class integrity_checker {
             }
         }
         return $result;
-    }
-
-    /**
-     * Hidden sections with nothing in them: no activities and no summary.
-     *
-     * These are what Clean up deletes, so a section with any content of its own - a teacher's
-     * hidden placeholder week with notes in its summary, say - must never match.
-     *
-     * @param int $courseid Course ID
-     * @return \stdClass[] Sections (id, section, name), keyed by id, in section order
-     */
-    private static function find_orphaned_sections(int $courseid): array {
-        global $DB;
-
-        $summaryempty = $DB->sql_isempty('course_sections', 'cs.summary', true, true);
-        return $DB->get_records_sql(
-            "SELECT cs.id, cs.section, cs.name
-               FROM {course_sections} cs
-              WHERE cs.course = ?
-                AND cs.visible = 0
-                AND cs.section > 0
-                AND (cs.summary IS NULL OR {$summaryempty})
-                AND NOT EXISTS (
-                    SELECT 1 FROM {course_modules} cm WHERE cm.section = cs.id
-                )
-           ORDER BY cs.section ASC",
-            [$courseid]
-        );
     }
 
     /**

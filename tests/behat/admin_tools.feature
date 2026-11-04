@@ -19,7 +19,7 @@ Feature: The administrator's structure tools
     And I should see "Integrity Checker"
     And I should see "Check Integrity"
     And I should see "Repair Invalid Parents"
-    And I should see "Delete Hidden Empty Sections"
+    And I should not see "Delete Hidden Empty Sections"
     And I should see "Analyze Hierarchy"
     And I should see "Quick Hierarchy Export"
     And I should see "Download as JSON (Machine Readable)"
@@ -70,15 +70,11 @@ Feature: The administrator's structure tools
     And I should see "Structure data repaired."
     And I should see "No integrity issues found."
 
-  Scenario: A hidden empty section is reported and can be deleted
+  Scenario: A hidden empty section is not reported
     Given section "Pre-session" of "C1" is hidden in the database
     When I set the field "Course ID" to the id of course "C1"
     And I press "Check Integrity"
-    Then I should see "Orphaned empty sections"
-    And I click on "Delete Hidden Empty Sections" "link"
-    And I click on "Continue" "button"
-    And I should see "1 orphaned section(s) deleted."
-    And the course "C1" structure should be sound
+    Then I should see "No integrity issues found."
 
   Scenario: The hierarchy can be analysed
     When I set the field "Course ID" to the id of course "C1"

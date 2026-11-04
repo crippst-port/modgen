@@ -86,10 +86,8 @@ class reorder_sections_task extends \core\task\adhoc_task {
             return;
         }
 
-        // Someone is still editing if the course cache was rebuilt in the last DELAY seconds. A
-        // cacherev ahead of the clock (a big build can leave it minutes in the future) lands here too.
         $startrev = (int) $course->cacherev;
-        if ($startrev > time() - section_reorder_queue::DELAY) {
+        if ($this->edited_recently($courseid, $startrev)) {
             section_reorder_queue::schedule($courseid);
             return;
         }
@@ -124,6 +122,35 @@ class reorder_sections_task extends \core\task\adhoc_task {
                 $event->trigger();
             }
         }
+    }
+
+    /**
+     * Whether someone has edited the course in the last DELAY seconds.
+     *
+     * Read from the standard log, which has the real time of every edit. cacherev cannot be used as a
+     * clock: once it is ahead of the time, each cache purge adds a second to it, so a busy editing
+     * session can leave it many minutes in the future and the renumber would wait all that time. It is
+     * only the fallback for a site without the standard log.
+     *
+     * @param int $courseid Course ID
+     * @param int $cacherev The course's cacherev
+     * @return bool
+     */
+    protected function edited_recently(int $courseid, int $cacherev): bool {
+        global $DB;
+
+        $since = time() - section_reorder_queue::DELAY;
+        $stores = explode(',', (string) get_config('tool_log', 'enabled_stores'));
+        if (!in_array('logstore_standard', $stores, true)) {
+            return $cacherev > $since;
+        }
+
+        // Any create, update or delete in the course, by anyone.
+        return $DB->record_exists_select(
+            'logstore_standard_log',
+            'courseid = :courseid AND timecreated > :since AND crud <> :read',
+            ['courseid' => $courseid, 'since' => $since, 'read' => 'r']
+        );
     }
 
     /**

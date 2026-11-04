@@ -60,7 +60,7 @@ final class reorder_sections_task_test extends \advanced_testcase {
     private $course;
 
     /**
-     * Create a Flexible sections course with an empty adhoc queue.
+     * Create a Flexible sections course with an empty adhoc queue, logging edits to the standard log.
      */
     protected function setUp(): void {
         global $DB;
@@ -68,6 +68,11 @@ final class reorder_sections_task_test extends \advanced_testcase {
         $this->preventResetByRollback();
         $this->resetAfterTest(true);
         $this->setAdminUser();
+
+        // The task reads the time of the course's last edit from the standard log.
+        set_config('enabled_stores', 'logstore_standard', 'tool_log');
+        set_config('buffersize', 0, 'logstore_standard');
+        get_log_manager(true);
 
         $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
         $DB->delete_records('task_adhoc');
@@ -87,13 +92,14 @@ final class reorder_sections_task_test extends \advanced_testcase {
     }
 
     /**
-     * Pretend the last edit was a while ago.
+     * Pretend the last edit was a while ago, in the log and in the course cache revision.
      *
      * @param int $seconds How long ago
      */
-    private function age_cacherev(int $seconds = 120): void {
+    private function age_edits(int $seconds = 120): void {
         global $DB;
         $DB->set_field('course', 'cacherev', time() - $seconds, ['id' => $this->course->id]);
+        $DB->set_field('logstore_standard_log', 'timecreated', time() - $seconds, ['courseid' => $this->course->id]);
     }
 
     /**
@@ -116,7 +122,7 @@ final class reorder_sections_task_test extends \advanced_testcase {
 
     public function test_misordered_course_is_renumbered_and_logged(): void {
         $this->make_misordered();
-        $this->age_cacherev();
+        $this->age_edits();
         $sink = $this->redirectEvents();
         $this->run_task();
         $this->assertSame([], integrity_checker::check_section_order($this->course->id)['misordered']);
@@ -128,7 +134,7 @@ final class reorder_sections_task_test extends \advanced_testcase {
     }
 
     public function test_ordered_course_writes_nothing_and_logs_checked(): void {
-        $this->age_cacherev();
+        $this->age_edits();
         $sink = $this->redirectEvents();
         $this->run_task();
         $this->assertCount(0, $this->events_of($sink, structure_repaired::class));
@@ -148,7 +154,7 @@ final class reorder_sections_task_test extends \advanced_testcase {
         $DB->set_field('course_format_options', 'value', (string) $b, ['sectionid' => $aid, 'name' => 'parent']);
         $DB->set_field('course_format_options', 'value', (string) $a, ['sectionid' => $bid, 'name' => 'parent']);
         $before = $DB->get_records_menu('course_sections', ['course' => $this->course->id], '', 'id, section');
-        $this->age_cacherev();
+        $this->age_edits();
 
         $sink = $this->redirectEvents();
         $this->run_task();
@@ -166,20 +172,50 @@ final class reorder_sections_task_test extends \advanced_testcase {
         $this->assertCount(1, section_reorder_queue::get_task_rows($this->course->id));
     }
 
-    public function test_future_cacherev_defers(): void {
+    public function test_cacherev_ahead_of_the_clock_does_not_hold_back_a_quiet_course(): void {
         global $DB;
         $this->make_misordered();
-        $DB->set_field('course', 'cacherev', time() + 300, ['id' => $this->course->id]);
+        $this->age_edits();
+        // A busy editing session leaves cacherev far ahead of the time; the log says the course is quiet.
+        $DB->set_field('course', 'cacherev', time() + 1200, ['id' => $this->course->id]);
         $sink = $this->redirectEvents();
+        $this->run_task();
+        $this->assertSame([], integrity_checker::check_section_order($this->course->id)['misordered']);
+        $this->assertCount(1, $this->events_of($sink, structure_repaired::class));
+        $this->assertCount(0, section_reorder_queue::get_task_rows($this->course->id));
+    }
+
+    public function test_reading_the_course_is_not_an_edit(): void {
+        $this->make_misordered();
+        $this->age_edits();
+        \core\event\course_viewed::create(['context' => \context_course::instance($this->course->id)])->trigger();
+        $this->run_task();
+        $this->assertSame([], integrity_checker::check_section_order($this->course->id)['misordered']);
+    }
+
+    public function test_without_the_standard_log_a_fresh_cacherev_defers(): void {
+        set_config('enabled_stores', '', 'tool_log');
+        get_log_manager(true);
+        $this->make_misordered();
+        $this->age_edits();
+        \rebuild_course_cache($this->course->id, true);
         $this->run_task();
         $this->assertNotEmpty(integrity_checker::check_section_order($this->course->id)['misordered']);
         $this->assertCount(1, section_reorder_queue::get_task_rows($this->course->id));
-        $this->assertCount(0, $this->events_of($sink, section_renumber_failed::class));
+    }
+
+    public function test_without_the_standard_log_an_old_cacherev_runs(): void {
+        set_config('enabled_stores', '', 'tool_log');
+        get_log_manager(true);
+        $this->make_misordered();
+        $this->age_edits();
+        $this->run_task();
+        $this->assertSame([], integrity_checker::check_section_order($this->course->id)['misordered']);
     }
 
     public function test_beforewrite_guard_refuses_after_cacherev_changes(): void {
         global $DB;
-        $this->age_cacherev();
+        $this->age_edits();
         $start = (int) $DB->get_field('course', 'cacherev', ['id' => $this->course->id]);
         $guard = (new testable_reorder_sections_task())->guard($this->course->id, $start);
         $this->assertTrue($guard());
@@ -188,7 +224,7 @@ final class reorder_sections_task_test extends \advanced_testcase {
     }
 
     public function test_lock_failure_requeues(): void {
-        $this->age_cacherev();
+        $this->age_edits();
         $task = new class extends reorder_sections_task {
             // phpcs:ignore moodle.Commenting.MissingDocblock.Missing
             protected function run_fix(int $courseid, callable $beforewrite): array {
@@ -203,7 +239,7 @@ final class reorder_sections_task_test extends \advanced_testcase {
     }
 
     public function test_other_failure_is_logged_not_thrown(): void {
-        $this->age_cacherev();
+        $this->age_edits();
         $task = new class extends reorder_sections_task {
             // phpcs:ignore moodle.Commenting.MissingDocblock.Missing
             protected function run_fix(int $courseid, callable $beforewrite): array {
@@ -230,7 +266,7 @@ final class reorder_sections_task_test extends \advanced_testcase {
         global $DB;
         $DB->set_field('course', 'format', 'topics', ['id' => $this->course->id]);
         \rebuild_course_cache($this->course->id, true);
-        $this->age_cacherev();
+        $this->age_edits();
         $sink = $this->redirectEvents();
         $this->run_task();
         $this->assertCount(0, $this->events_of($sink, structure_repaired::class));
@@ -239,7 +275,7 @@ final class reorder_sections_task_test extends \advanced_testcase {
 
     public function test_switched_off_task_does_nothing(): void {
         $this->make_misordered();
-        $this->age_cacherev();
+        $this->age_edits();
         set_config('enable_autoreorder', 0, 'aiplacement_modgen');
         $sink = $this->redirectEvents();
         $this->run_task();

@@ -6,7 +6,8 @@
 
 - Automatic section renumbering. About a minute after the last section is added or deleted on a
   Flexible sections course, an ad hoc task renumbers the course into hierarchy order. It waits while
-  the course cache shows someone is still editing, and logs the outcome. It is on by default and
+  the standard log shows someone edited the course in the last minute (or, without the standard log,
+  while the course cache was rebuilt in the last minute), and logs the outcome. It is on by default and
   can be switched off with "Renumber sections automatically" in the plugin settings, which stops
   new tasks being queued, makes queued ones do nothing and hides the status icon.
 - A status icon on the assistant bar, for site administrators only, showing whether a renumber is

@@ -495,6 +495,9 @@ class behat_aiplacement_modgen extends behat_base {
         }
         $wait = \aiplacement_modgen\local\section_reorder_queue::DELAY * 2;
         $DB->set_field('course', 'cacherev', time() - $wait, ['id' => $courseid]);
+        // The task reads the last edit from the standard log: write out what set-up logged, then age it.
+        get_log_manager(true);
+        $DB->set_field('logstore_standard_log', 'timecreated', time() - $wait, ['courseid' => $courseid]);
         foreach ($rows as $row) {
             $DB->set_field('task_adhoc', 'nextruntime', time() - 1, ['id' => $row->id]);
         }

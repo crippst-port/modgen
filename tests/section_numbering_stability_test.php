@@ -233,7 +233,6 @@ final class section_numbering_stability_test extends advanced_testcase {
         // Queued jobs recheck the switches queueing needed.
         set_config('enabled', 1, 'aiplacement_modgen');
         set_config('enable_quickadd', 1, 'aiplacement_modgen');
-        \aiplacement_modgen\local\settings_helper::clear_cache();
         $course = $this->make_course(4);
         $courseformat = course_get_format($course);
 

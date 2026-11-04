@@ -75,7 +75,7 @@ final class integrity_cleanup_test extends \advanced_testcase {
 
         $this->assertSame(['deleted' => 1], $result);
         $names = array_column(\aiplacement_modgen_structure_snapshot::rows($this->course->id), 'name');
-        $this->assertCount(10, $names, 'One of the eleven sections is gone.');
+        $this->assertCount(9, $names, 'One of the ten sections is gone.');
         $this->assert_sound($this->course->id);
     }
 

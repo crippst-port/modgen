@@ -74,7 +74,7 @@ Feature: Structure from file refuses what it cannot build
     And I press "Create"
     Then I should see "That's too many sections to create at once"
     And there should be "0" structure jobs in "C1"
-    And the course "C1" should have "6" sections
+    And the course "C1" should have "5" sections
 
   Scenario Outline: Files that are not CSV files are not accepted by the file picker
     Given I open the Structure from file form in "C1" as "teacher1"
@@ -85,3 +85,20 @@ Feature: Structure from file refuses what it cannot build
       | file       | message                                                  |
       | notes.txt  | filetype cannot be accepted                              |
       | plan_noext | filetype cannot be accepted                              |
+
+  Scenario: A course in another format is refused when the page is reached by its address, and keeps its format
+    Given the following "courses" exist:
+      | fullname | shortname | format |
+      | Course 2 | C2        | social |
+    And the following "course enrolments" exist:
+      | user     | course | role           |
+      | teacher1 | C2     | editingteacher |
+    And the following "permission overrides" exist:
+      | capability                              | permission | role           | contextlevel | reference |
+      | aiplacement/modgen:generatefromtemplate | Allow      | editingteacher | Course       | C2        |
+    And I log in as "teacher1"
+    When I visit the Structure from file page of "C2"
+    Then I should see "only works in courses that use the Flexible sections format"
+    And I should not see "Upload structure file"
+    And the course "C2" should use the "social" format
+    And there should be "0" structure jobs in "C2"

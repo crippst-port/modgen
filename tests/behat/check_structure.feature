@@ -48,7 +48,6 @@ Feature: Checking and repairing a course's structure
     And the course "C1" structure should be sound
     And the course "C1" structure should be:
       | name             | parent           | depth |
-      | Assessments      | -                | 1     |
       | Theme 1          | -                | 1     |
       | Theme 1 - Week 1 | -                | 1     |
       | Pre-session      | Theme 1 - Week 1 | 2     |
@@ -62,7 +61,6 @@ Feature: Checking and repairing a course's structure
     And I click on "Apply" "button" in the "Theme 1 - Week 1" "table_row"
     And the course "C1" structure should be:
       | name             | parent           | depth |
-      | Assessments      | -                | 1     |
       | Theme 1          | -                | 1     |
       | Theme 1 - Week 1 | Theme 1          | 2     |
       | Pre-session      | Theme 1 - Week 1 | 3     |
@@ -89,7 +87,6 @@ Feature: Checking and repairing a course's structure
     And the course "C1" structure should be sound
     And the course "C1" structure should be:
       | name             | parent           | depth |
-      | Assessments      | -                | 1     |
       | Theme 1          | -                | 1     |
       | Theme 1 - Week 1 | Theme 1          | 2     |
       | Pre-session      | Theme 1 - Week 1 | 3     |
@@ -117,8 +114,8 @@ Feature: Checking and repairing a course's structure
 
   Scenario: Sections that point at each other are found and the loop broken
     Given the course "C1" has "1" themes with "1" weeks each
-    And section "Theme 1" of "C1" has parent "3"
-    And section "Theme 1 - Week 1" of "C1" has parent "2"
+    And section "Theme 1" of "C1" has parent "2"
+    And section "Theme 1 - Week 1" of "C1" has parent "1"
     And I log in as "teacher1"
     When I am on the Check Structure page of "C1"
     Then I should see "Circular"
@@ -130,7 +127,6 @@ Feature: Checking and repairing a course's structure
     And the course "C1" structure should be sound
     And the course "C1" structure should be:
       | name             | parent           | depth |
-      | Assessments      | -                | 1     |
       | Theme 1          | -                | 1     |
       | Theme 1 - Week 1 | -                | 1     |
       | Pre-session      | Theme 1 - Week 1 | 2     |
@@ -141,16 +137,15 @@ Feature: Checking and repairing a course's structure
     Given the course "C1" has "2" themes with "1" weeks each
     And I log in as "teacher1"
     And I am on the Check Structure page of "C1"
-    When I set the field with xpath "//select[@aria-label='New parent for section 3']" to "7: Theme 2"
+    When I set the field with xpath "//select[@aria-label='New parent for section 2']" to "6: Theme 2"
     And I click on "//tr[td[2][@title='Theme 1 - Week 1']]//button" "xpath_element"
-    Then I should see "Section 3 reparented."
+    Then I should see "Section 2 reparented."
     # Reparenting does not renumber; the page then offers to.
     And I should see "Renumber Sections"
     And I click on "Renumber Sections" "link"
     And I click on "Continue" "button"
     And the course "C1" structure should be:
       | name             | parent           | depth |
-      | Assessments      | -                | 1     |
       | Theme 1          | -                | 1     |
       | Theme 2          | -                | 1     |
       | Theme 1 - Week 1 | Theme 2          | 2     |

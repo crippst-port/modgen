@@ -18,12 +18,12 @@
  * AJAX endpoint for creating course sections (themes/weeks).
  *
  * This endpoint handles the quick-add creation of course structure via AJAX.
- * It supports two actions: creating themes (with optional nested weeks) and
- * creating standalone weeks.
+ * It supports three actions: creating themes (with optional nested weeks),
+ * creating standalone weeks, and adding the Assessments section.
  *
  * Expected POST parameters:
  * - courseid (int): Course ID
- * - action (string): 'create_themes' or 'create_weeks'
+ * - action (string): 'create_themes', 'create_weeks' or 'create_assessments'
  * - sesskey (string): Session key for CSRF protection
  * - parentsection (int, optional): Parent section number for nested structure
  *
@@ -60,9 +60,8 @@ use aiplacement_modgen\local\quick_add_service;
 // Require login and valid session.
 require_login();
 
-// Master switch: Site admin > AI > AI placements.
+// Master switch: Site admin > AI > AI placements. Each action's own switch is checked with its capability below.
 \aiplacement_modgen\local\settings_helper::require_placement_enabled();
-\aiplacement_modgen\local\settings_helper::require_quickadd_enabled();
 
 require_sesskey();
 
@@ -78,8 +77,14 @@ $createsummaryactivities = optional_param('createsummaryactivities', 0, PARAM_BO
 // Verify course access (enrolment, visibility and suspension, not just roles) and permissions.
 require_login($courseid);
 $context = context_course::instance($courseid);
-// Both Quick Add actions share one rule; an unknown action is refused below with the other request errors.
-\aiplacement_modgen\local\permissions::require_build_action('create_weeks', $context);
+// Each action's switch and capability. An unknown action is held to New Week(s)'s rule here, and refused
+// below with the other request errors.
+$quickaddactions = ['create_themes', 'create_weeks', 'create_assessments'];
+\aiplacement_modgen\local\permissions::require_build_action(
+    in_array($action, $quickaddactions, true) ? $action : 'create_weeks',
+    $context
+);
+\aiplacement_modgen\local\course_formats::require_supported($courseid);
 
 // Allow extended execution time for large section creation operations.
 core_php_time_limit::raise(600);
@@ -106,6 +111,16 @@ try {
             $parentsection,
             $createsummaryactivities
         );
+    } else if ($action === 'create_assessments') {
+        // Added at the top of the course, so refused from inside a section, as New Theme is.
+        if ($parentsection > 0) {
+            throw new \moodle_exception('assessmentstoplevelonly', 'aiplacement_modgen');
+        }
+        // One section, so it is added straight away rather than queued.
+        $section = \aiplacement_modgen\local\theme_builder::add_assessments_section($courseid);
+        ajax_response::success([
+            'message' => get_string('assessmentsadded', 'aiplacement_modgen', $section->name),
+        ]);
     } else {
         ajax_response::error(get_string('invalidaction', 'aiplacement_modgen'), 'invalidaction');
     }

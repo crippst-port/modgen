@@ -58,11 +58,11 @@ final class parent_field_test extends advanced_testcase {
         $this->setAdminUser();
 
         // Create course and convert to flexsections format.
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
         $courseformat = \course_get_format($course->id);
 
         // Convert to flexsections if needed.
-        theme_builder::ensure_flexsections_format($course->id);
+        theme_builder::prepare_course_for_build($course->id);
         $courseformat = \course_get_format($course->id);
 
         // Create a theme section.
@@ -114,8 +114,8 @@ final class parent_field_test extends advanced_testcase {
         $this->setAdminUser();
 
         // Create course and convert to flexsections format.
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
         $courseformat = \course_get_format($course->id);
 
         // Create a theme section.
@@ -184,8 +184,8 @@ final class parent_field_test extends advanced_testcase {
         $this->setAdminUser();
 
         // Create course and convert to flexsections format.
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
         $courseformat = \course_get_format($course->id);
 
         // Create a theme section.
@@ -264,8 +264,8 @@ final class parent_field_test extends advanced_testcase {
         $this->setAdminUser();
 
         // Create course and convert to flexsections format.
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
         $courseformat = \course_get_format($course->id);
 
         // Create a theme section.
@@ -369,8 +369,8 @@ final class parent_field_test extends advanced_testcase {
         $this->setAdminUser();
 
         // Create course and convert to flexsections format.
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
         $courseformat = \course_get_format($course->id);
 
         // Create theme and week.
@@ -419,8 +419,8 @@ final class parent_field_test extends advanced_testcase {
         $this->setAdminUser();
 
         // Create course and convert to flexsections format.
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
         $courseformat = \course_get_format($course->id);
 
         // Create a theme section.
@@ -472,8 +472,8 @@ final class parent_field_test extends advanced_testcase {
         $this->setAdminUser();
 
         // Create course and convert to flexsections format.
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
         $courseformat = \course_get_format($course->id);
 
         // Create 2 themes with 2 weeks each.

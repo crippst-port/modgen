@@ -62,13 +62,11 @@ final class fix_integrity_all_issues_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($this->course->id);
 
-        // Converting from 'topics' format leaves the default topic sections without a
-        // 'parent' format option (a flexsections-only concept) until something sets one —
-        // normalise that ambient state here so the test below can assert an exact count
-        // for the five corruptions it introduces deliberately.
+        // Normalise any ambient state the generated course has, so the test below can assert
+        // an exact count for the five corruptions it introduces deliberately.
         integrity_checker::fix_integrity($this->course->id);
     }
 
@@ -169,5 +167,31 @@ final class fix_integrity_all_issues_test extends advanced_testcase {
         // A second run must find nothing left to fix.
         $rerun = integrity_checker::fix_integrity($this->course->id);
         $this->assertSame(0, $rerun['fixed']);
+    }
+
+    /**
+     * Editing section 0 makes Moodle store the format's default parent, 0 (top level): not a parent.
+     *
+     * Core's update_format_options() writes every option's default for a section that has none,
+     * so any edit of section 0 - its name in the section form, say - leaves parent = 0 behind.
+     * A later build then adds Assessments, which made this look like the build's doing.
+     *
+     * @covers ::check
+     * @covers ::fix_integrity
+     */
+    public function test_section0_default_parent_is_not_an_issue(): void {
+        global $DB;
+
+        $section0 = $DB->get_record('course_sections', [
+            'course' => $this->course->id, 'section' => 0,
+        ], '*', MUST_EXIST);
+        course_update_section($this->course->id, $section0, ['name' => 'Renamed by the teacher']);
+        $this->assertSame('0', $DB->get_field('course_format_options', 'value', [
+            'sectionid' => $section0->id, 'name' => 'parent',
+        ]), 'Moodle stores the default parent when section 0 is edited');
+
+        $result = integrity_checker::check($this->course->id);
+        $this->assertSame(0, $result['counts']['section0_with_parent']);
+        $this->assertSame(0, integrity_checker::fix_integrity($this->course->id)['fixed']);
     }
 }

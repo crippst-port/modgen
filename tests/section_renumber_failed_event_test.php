@@ -61,8 +61,8 @@ final class section_renumber_failed_event_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
         $courseid = (int) $course->id;
 
         // Warm the context cache before the course row goes, so building the event can still
@@ -103,8 +103,8 @@ final class section_renumber_failed_event_test extends advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
 
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($course->id);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($course->id);
 
         $sink = $this->redirectEvents();
         theme_builder::renumber_into_hierarchy_order($course->id);

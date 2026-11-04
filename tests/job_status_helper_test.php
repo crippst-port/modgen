@@ -61,8 +61,8 @@ final class job_status_helper_test extends advanced_testcase {
         $this->setAdminUser();
 
         $generator = $this->getDataGenerator();
-        $this->course = $generator->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $generator->create_course(['format' => 'flexsections']);
+        theme_builder::prepare_course_for_build($this->course->id);
 
         $this->owner = $generator->create_user();
         $this->otheruser = $generator->create_user();

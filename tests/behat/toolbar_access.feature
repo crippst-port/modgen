@@ -66,3 +66,47 @@ Feature: The toolbar respects permissions and the master switch
     Then I should see "Structure from file"
     And I should not see "New Theme(s)"
     And I should not see "New Week(s)"
+
+  Scenario Outline: There is no toolbar when the teacher's only permission has nothing to show
+    Given the following config values are set as admin:
+      | enabled                  | 1                         | aiplacement_modgen |
+      | enable_quickadd          | 1                         | aiplacement_modgen |
+      | enable_structurefromfile | 1                         | aiplacement_modgen |
+      | enable_ai                | 1                         | aiplacement_modgen |
+      | enable_assessments       | 0                         | aiplacement_modgen |
+      | <setting>                | 0                         | aiplacement_modgen |
+      | helplink1_text           | Module design guide       | aiplacement_modgen |
+      | helplink1_url            | https://example.com/guide | aiplacement_modgen |
+    And the following "permission overrides" exist:
+      | capability                         | permission | role           | contextlevel | reference |
+      | aiplacement/modgen:managestructure | Prevent    | editingteacher | Course       | C1        |
+      | aiplacement/modgen:<capability>    | Allow      | editingteacher | Course       | C1        |
+    When I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    Then "nav[aria-label='Module Assistant']" "css_element" should not exist
+    And I should not see "Help and Advice"
+
+    Examples:
+      | capability           | setting                  |
+      | managestructure      | enable_quickadd          |
+      | generatefromtemplate | enable_structurefromfile |
+      | generatewithprompt   | enable_ai                |
+
+  Scenario: There is no toolbar in Custom sections for a teacher who may only use Check Structure
+    Given the following config values are set as admin:
+      | enabled            | 1 | aiplacement_modgen |
+      | enable_coreformats | 1 | aiplacement_modgen |
+    And the following "courses" exist:
+      | fullname | shortname | format |
+      | Course 2 | C2        | topics |
+    And the following "course enrolments" exist:
+      | user     | course | role           |
+      | teacher1 | C2     | editingteacher |
+    And the following "permission overrides" exist:
+      | capability                        | permission | role           | contextlevel | reference |
+      | aiplacement/modgen:checkstructure | Allow      | editingteacher | Course       | C2        |
+    When I am on the "Course 2" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    Then "nav[aria-label='Module Assistant']" "css_element" should not exist
+    And I am on the "Course 1" "course" page
+    And "nav[aria-label='Module Assistant']" "css_element" should exist

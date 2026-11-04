@@ -17,8 +17,6 @@
 namespace aiplacement_modgen;
 
 use aiplacement_modgen\local\section_reorder_queue;
-use aiplacement_modgen\local\settings_helper;
-use aiplacement_modgen\local\theme_builder;
 use aiplacement_modgen\output\course_toolbar;
 
 defined('MOODLE_INTERNAL') || die();
@@ -50,10 +48,8 @@ final class course_toolbar_reorder_status_test extends \advanced_testcase {
         $this->resetAfterTest(true);
         $this->setAdminUser();
         set_config('enabled', 1, 'aiplacement_modgen');
-        settings_helper::clear_cache();
 
-        $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
         $DB->delete_records('task_adhoc');
     }
 
@@ -78,10 +74,18 @@ final class course_toolbar_reorder_status_test extends \advanced_testcase {
             'state' => 'queued', 'time' => time() + 60, 'label' => 'x', 'url' => null,
             'isqueued' => true, 'isrunning' => false, 'isrenumbered' => false, 'isblocked' => false,
         ];
-        $toolbar = new course_toolbar($this->course->id, false, false, false, false, true, false, true, true, $status);
+        $toolbar = new course_toolbar($this->course->id, ['checkstructure' => true]);
+        $toolbar->set_reorder_status($status);
         $data = $toolbar->export_for_template($PAGE->get_renderer('core'));
         $this->assertTrue($data->showreorderstatus);
         $this->assertSame('queued', $data->reorderstatus['state']);
+    }
+
+    public function test_export_leaves_status_out_by_default(): void {
+        global $PAGE;
+        $toolbar = new course_toolbar($this->course->id, ['checkstructure' => true]);
+        $data = $toolbar->export_for_template($PAGE->get_renderer('core'));
+        $this->assertFalse($data->showreorderstatus);
     }
 
     public function test_fragment_shows_status_region_for_admin(): void {
@@ -110,7 +114,6 @@ final class course_toolbar_reorder_status_test extends \advanced_testcase {
     public function test_fragment_hides_status_when_switched_off(): void {
         section_reorder_queue::schedule($this->course->id);
         set_config('enable_autoreorder', 0, 'aiplacement_modgen');
-        settings_helper::clear_cache();
         $this->assertStringNotContainsString('aiplacement-modgen-reorder-status', $this->fragment());
     }
 }

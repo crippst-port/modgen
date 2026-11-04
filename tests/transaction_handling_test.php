@@ -258,7 +258,6 @@ final class transaction_handling_test extends \advanced_testcase {
         $sectionsafter = $DB->count_records('course_sections', ['course' => $course->id]);
 
         // We expect sections to be created. Don't check exact count since:
-        // - initialize_core_sections() may create Assessments section
         // - Section 0 always exists
         // Just verify that sections WERE created (more than before).
         $this->assertGreaterThan($sectionsbefore, $sectionsafter, 'Sections should have been created');
@@ -317,7 +316,6 @@ final class transaction_handling_test extends \advanced_testcase {
         $sectionsafter = $DB->count_records('course_sections', ['course' => $course->id]);
 
         // We expect sections to be created. Don't check exact count since:
-        // - initialize_core_sections() may create Assessments section
         // Just verify that sections WERE created (more than before).
         $this->assertGreaterThan($sectionsbefore, $sectionsafter, 'Weeks should have been created');
 
@@ -339,29 +337,31 @@ final class transaction_handling_test extends \advanced_testcase {
     }
 
     /**
-     * Test that flexsections format is required.
+     * Test that a supported format is required.
      *
-     * Creating sections should fail gracefully if course is not using flexsections.
+     * A course in a format the plugin does not build in is refused, left in its own format, and given
+     * no sections. Themes in Custom sections are covered by core_format_build_test.
      *
      * @covers ::create_themes
-     * @covers ::ensure_flexsections_format
+     * @covers ::prepare_course_for_build
      */
-    public function test_requires_flexsections_format(): void {
+    public function test_requires_supported_format(): void {
+        global $DB;
         $this->resetAfterTest();
         $this->setAdminUser();
 
-        // Create course with non-flexsections format.
-        $course = $this->getDataGenerator()->create_course(['format' => 'topics']);
+        $course = $this->getDataGenerator()->create_course(['format' => 'social']);
+        $before = $DB->count_records('course_sections', ['course' => $course->id]);
 
-        // Attempt to create themes should convert to flexsections automatically.
-        $result = theme_builder::create_themes($course->id, 1, 1, 0);
+        try {
+            theme_builder::create_themes($course->id, 1, 1, 0);
+            $this->fail('A build in a course in an unsupported format must be refused.');
+        } catch (\moodle_exception $e) {
+            $this->assertSame('errorformatflexsectionsonly', $e->errorcode);
+        }
 
-        // Should succeed after auto-conversion.
-        $this->assertTrue($result['success']);
-
-        // Verify format was converted.
-        $updatedcourse = \get_course($course->id);
-        $this->assertEquals('flexsections', $updatedcourse->format);
+        $this->assertSame('social', $DB->get_field('course', 'format', ['id' => $course->id]));
+        $this->assertSame($before, $DB->count_records('course_sections', ['course' => $course->id]));
     }
 
     /**

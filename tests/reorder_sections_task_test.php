@@ -21,7 +21,6 @@ use aiplacement_modgen\event\section_renumber_failed;
 use aiplacement_modgen\event\structure_repaired;
 use aiplacement_modgen\local\integrity_checker;
 use aiplacement_modgen\local\section_reorder_queue;
-use aiplacement_modgen\local\settings_helper;
 use aiplacement_modgen\local\theme_builder;
 use aiplacement_modgen\task\reorder_sections_task;
 
@@ -68,10 +67,8 @@ final class reorder_sections_task_test extends \advanced_testcase {
         $this->preventResetByRollback();
         $this->resetAfterTest(true);
         $this->setAdminUser();
-        settings_helper::clear_cache();
 
-        $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
         $DB->delete_records('task_adhoc');
     }
 
@@ -239,7 +236,6 @@ final class reorder_sections_task_test extends \advanced_testcase {
         $this->make_misordered();
         $this->age_cacherev();
         set_config('enable_autoreorder', 0, 'aiplacement_modgen');
-        settings_helper::clear_cache();
         $sink = $this->redirectEvents();
         $this->run_task();
         $this->assertNotEmpty(integrity_checker::check_section_order($this->course->id)['misordered']);

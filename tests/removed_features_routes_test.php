@@ -72,10 +72,10 @@ final class removed_features_routes_test extends advanced_testcase {
         set_config('enable_structurefromfile', 1, 'aiplacement_modgen');
 
         $generator = $this->getDataGenerator();
-        $this->course = $generator->create_course(['format' => 'topics', 'numsections' => 0]);
-        $this->other = $generator->create_course(['format' => 'topics', 'numsections' => 0]);
-        theme_builder::ensure_flexsections_format($this->course->id);
-        theme_builder::ensure_flexsections_format($this->other->id);
+        $this->course = $generator->create_course(['format' => 'flexsections', 'numsections' => 0]);
+        $this->other = $generator->create_course(['format' => 'flexsections', 'numsections' => 0]);
+        theme_builder::prepare_course_for_build($this->course->id);
+        theme_builder::prepare_course_for_build($this->other->id);
     }
 
     /**

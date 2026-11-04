@@ -44,7 +44,7 @@ class section_reorder_observer {
             if (empty($courseid) || $courseid === SITEID) {
                 return;
             }
-            if (get_course($courseid)->format !== 'flexsections') {
+            if (!course_formats::is_flexsections($courseid)) {
                 return;
             }
             section_reorder_queue::schedule($courseid);

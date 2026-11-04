@@ -18,7 +18,6 @@ namespace aiplacement_modgen;
 
 use aiplacement_modgen\local\section_reorder_queue;
 use aiplacement_modgen\local\settings_helper;
-use aiplacement_modgen\local\theme_builder;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -49,10 +48,8 @@ final class section_reorder_queue_test extends \advanced_testcase {
         $this->preventResetByRollback();
         $this->resetAfterTest(true);
         $this->setAdminUser();
-        settings_helper::clear_cache();
 
-        $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
         $DB->delete_records('task_adhoc');
     }
 
@@ -118,14 +115,12 @@ final class section_reorder_queue_test extends \advanced_testcase {
 
     public function test_switched_off_queues_nothing(): void {
         set_config('enable_autoreorder', 0, 'aiplacement_modgen');
-        settings_helper::clear_cache();
         \course_create_section($this->course->id, 0);
         $this->assertCount(0, section_reorder_queue::get_task_rows($this->course->id));
     }
 
     public function test_unsaved_setting_counts_as_on(): void {
         unset_config('enable_autoreorder', 'aiplacement_modgen');
-        settings_helper::clear_cache();
         $this->assertTrue(settings_helper::is_autoreorder_enabled());
         \course_create_section($this->course->id, 0);
         $this->assertCount(1, section_reorder_queue::get_task_rows($this->course->id));

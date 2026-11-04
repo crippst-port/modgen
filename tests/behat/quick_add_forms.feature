@@ -111,3 +111,23 @@ Feature: The Quick Add forms
     And I click on "New Theme(s)" "link"
     And I click on "Help with How many themes do you want to create?" "icon"
     Then I should see "Enter the number of themes to create. The maximum is set by your site administrator."
+
+  Scenario: The steppers change the counts within their limits, and the summary follows
+    Given the following config values are set as admin:
+      | maxweeksperTheme | 2 | aiplacement_modgen |
+    And I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    When I click on "Quick Add" "link"
+    And I click on "New Theme(s)" "link"
+    Then I should see "This will add 1 theme(s) with 1 week(s) between them: 5 sections in all."
+    And the "Decrease How many themes do you want to create?" "button" should be disabled
+    And I click on "Increase How many themes do you want to create?" "button"
+    And I click on "Increase How many weeks per theme?" "button"
+    And the field "How many themes do you want to create?" matches value "2"
+    And the field "How many weeks per theme?" matches value "2"
+    And the "Increase How many weeks per theme?" "button" should be disabled
+    And I should see "This will add 2 theme(s) with 4 week(s) between them: 18 sections in all."
+    And I set the field "How many themes do you want to create?" to "3"
+    And I should see "This will add 3 theme(s) with 6 week(s) between them: 27 sections in all."
+    And I click on "Create" "button" in the ".modal-footer" "css_element"
+    And I should see "Creating 3 theme(s) with 2 week(s) each"

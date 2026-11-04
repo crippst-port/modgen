@@ -63,6 +63,7 @@ if (!$hasprompt && !$hastemplate) {
         'error'
     );
 }
+\aiplacement_modgen\local\course_formats::require_supported($courseid);
 
 // Set page context.
 global $PAGE, $OUTPUT;

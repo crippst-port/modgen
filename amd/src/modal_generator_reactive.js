@@ -82,6 +82,7 @@ import Pending from 'core/pending';
 import Templates from 'core/templates';
 import {get_string as getString, get_strings as getStrings} from 'core/str';
 import * as LoadingIndicator from 'aiplacement_modgen/loading_indicator';
+import * as QuickAddForm from 'aiplacement_modgen/quick_add_form';
 
 // =============================================================================
 // CONSTANTS & EVENT TYPES
@@ -460,6 +461,9 @@ class ModalGeneratorComponent extends BaseComponent {
                 this.setupFormSubmission(modal, formName);
                 this.reactive.dispatch('formLoaded');
 
+                // Steppers, choice cards and the live summary on the Quick Add and prompt forms.
+                this.enhanceQuickAddForm(modal);
+
                 // Extract and display form buttons in the modal footer
                 this.updateFooterFromForm(modal);
 
@@ -473,6 +477,25 @@ class ModalGeneratorComponent extends BaseComponent {
     // =========================================================================
     // FOOTER BUTTON MANAGEMENT
     // =========================================================================
+
+    /**
+     * Add steppers, choice cards and the live summary to a form in the modal.
+     *
+     * Runs before updateFooterFromForm(): the stepper buttons are marked to stay in the form.
+     *
+     * @param {Object} modal The modal instance
+     */
+    enhanceQuickAddForm(modal) {
+        const body = modal.getBody();
+        const bodyNode = body && body.length ? body.get(0) : null;
+        const form = bodyNode ? bodyNode.querySelector('form') : null;
+        if (form) {
+            const pendingPromise = new Pending('aiplacement_modgen/modal_generator_reactive:enhance');
+            QuickAddForm.enhance(form)
+                .catch(Notification.exception)
+                .finally(() => pendingPromise.resolve());
+        }
+    }
 
     /**
      * Extract form buttons and display them in the modal footer.
@@ -643,7 +666,7 @@ class ModalGeneratorComponent extends BaseComponent {
         formData.append('sesskey', M.cfg.sesskey);
 
         // POST to prompt.php. Pending until settled, so Behat waits for the job to be queued.
-        const pendingPromise = new Pending('aiplacement_modgen/prompt_submission');
+        const pendingPromise = new Pending('aiplacement_modgen/modal_generator_reactive:prompt_submission');
         fetch(M.cfg.wwwroot + '/ai/placement/modgen/prompt.php', {
             method: 'POST',
             body: formData,
@@ -672,6 +695,8 @@ class ModalGeneratorComponent extends BaseComponent {
 
                     // Add progress header to body
                     modal.setBody(this.buildProgressHeader(step) + data.body);
+                    // An invalid prompt comes back as the prompt form; give it its cards again.
+                    this.enhanceQuickAddForm(modal);
 
                     // Handle footer - prefer server-driven buttons, then HTML footer, then extract from form
                     if (data.buttons && data.buttons.length > 0) {
@@ -743,6 +768,7 @@ class ModalGeneratorComponent extends BaseComponent {
         });
         modal.setBody(this.buildProgressHeader(STEPS.PROMPT) + html);
         this.setupFormSubmission(modal, 'template_from_prompt');
+        this.enhanceQuickAddForm(modal);
         this.updateFooterFromForm(modal);
     }
 
@@ -1066,7 +1092,7 @@ class ModalGeneratorComponent extends BaseComponent {
     /**
      * Setup form submission handler for modal forms.
      *
-     * Handles form submission for non-AI workflows (add_theme, add_week):
+     * Handles form submission for non-AI workflows (add_theme, add_week, add_assessments):
      * 1. Intercepts form submit event
      * 2. Determines which button was clicked (submit vs cancel)
      * 3. POSTs to create_sections.php AJAX endpoint
@@ -1104,7 +1130,10 @@ class ModalGeneratorComponent extends BaseComponent {
             if (bodyNode) {
                 const form = bodyNode.querySelector('form');
                 if (form) {
-                    const buttons = form.querySelectorAll('button, input[type="submit"], input[type="button"]');
+                    // Skip buttons that stay in the form (the Quick Add steppers), as the footer does.
+                    const buttons = form.querySelectorAll(
+                        'button:not([data-keep-in-form]), input[type="submit"], input[type="button"]'
+                    );
                     const originalButton = buttons[index];
                     if (originalButton) {
                         clickedButton = originalButton.getAttribute('name');
@@ -1139,7 +1168,8 @@ class ModalGeneratorComponent extends BaseComponent {
                 return;
             }
             // Determine action based on form name
-            const action = formName === 'add_theme' ? 'create_themes' : 'create_weeks';
+            const actions = {add_theme: 'create_themes', add_assessments: 'create_assessments'};
+            const action = actions[formName] || 'create_weeks';
 
             // Build params object - start with required params
             const params = {
@@ -1166,7 +1196,7 @@ class ModalGeneratorComponent extends BaseComponent {
             window.modgenCreationInProgress = true;
 
             // POST to AJAX endpoint. Pending until settled, so Behat waits for the job to be queued.
-            const pendingPromise = new Pending('aiplacement_modgen/create_sections');
+            const pendingPromise = new Pending('aiplacement_modgen/modal_generator_reactive:create_sections');
             fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/create_sections.php', {
                 method: 'POST',
                 headers: {
@@ -1216,6 +1246,7 @@ class ModalGeneratorComponent extends BaseComponent {
 
                                 // Re-setup form submission and footer
                                 this.setupFormSubmission(modal, formName);
+                                this.enhanceQuickAddForm(modal);
                                 this.updateFooterFromForm(modal);
                                 return html;
                             })
@@ -1235,6 +1266,7 @@ class ModalGeneratorComponent extends BaseComponent {
                         .then((html) => {
                             modal.setBody(html);
                             this.setupFormSubmission(modal, formName);
+                            this.enhanceQuickAddForm(modal);
                             this.updateFooterFromForm(modal);
                             Notification.exception(error);
                             return html;

@@ -15,7 +15,7 @@
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
 /**
- * Settings helper for cached plugin configuration access.
+ * Settings helper for the plugin's switches.
  *
  * @package    aiplacement_modgen
  * @copyright  2025 Tom Cripps <tom.cripps@port.ac.uk>
@@ -25,12 +25,12 @@
 namespace aiplacement_modgen\local;
 
 /**
- * Helper class for accessing plugin settings with caching.
+ * Helper class for the plugin's switches.
+ *
+ * Read through get_config() every time, which Moodle already caches: a copy of its own here would
+ * outlive a change of setting in the same process (a long cron run, or one test after another).
  */
 class settings_helper {
-    /** @var array Cache for settings values */
-    private static $cache = [];
-
     /**
      * Check whether this placement is switched on in Site admin > AI > AI placements.
      *
@@ -103,7 +103,7 @@ class settings_helper {
     }
 
     /**
-     * Check whether the Quick add options ("New theme" / "New week") are enabled.
+     * Check whether Quick Add's New Theme(s) and New Week(s) entries are enabled.
      *
      * @return bool True if quick add is enabled
      */
@@ -146,6 +146,40 @@ class settings_helper {
     }
 
     /**
+     * Check whether Quick Add's Assessments section entry is enabled.
+     *
+     * Separate from is_quickadd_enabled(), which covers New Theme(s) and New Week(s).
+     *
+     * @return bool True if the Assessments section entry is enabled
+     */
+    public static function is_assessments_enabled(): bool {
+        return self::get_bool('enable_assessments');
+    }
+
+    /**
+     * Stop with a "disabled" error unless the Assessments section entry is enabled.
+     *
+     * @throws \moodle_exception if it is disabled
+     */
+    public static function require_assessments_enabled(): void {
+        if (!self::is_assessments_enabled()) {
+            throw new \moodle_exception('assessmentsdisabled', 'aiplacement_modgen');
+        }
+    }
+
+    /**
+     * Check whether building in Custom sections and Weekly sections courses is enabled.
+     *
+     * Off, the plugin works in Flexible sections courses only, as it did before it could build with
+     * core subsections. See course_formats.
+     *
+     * @return bool True if the core formats are enabled
+     */
+    public static function is_coreformats_enabled(): bool {
+        return self::get_bool('enable_coreformats');
+    }
+
+    /**
      * Check whether sections are renumbered automatically after sections are added or deleted.
      *
      * On unless an administrator has switched it off. A site that has never saved the setting
@@ -155,33 +189,16 @@ class settings_helper {
      * @return bool True if the automatic section renumber is enabled
      */
     public static function is_autoreorder_enabled(): bool {
-        if (!isset(self::$cache['enable_autoreorder'])) {
-            $value = get_config('aiplacement_modgen', 'enable_autoreorder');
-            self::$cache['enable_autoreorder'] = $value === false || !empty($value);
-        }
-        return self::$cache['enable_autoreorder'];
+        $value = get_config('aiplacement_modgen', 'enable_autoreorder');
+        return $value === false || !empty($value);
     }
-
     /**
-     * Get a boolean setting value with caching.
+     * Get a boolean setting value.
      *
      * @param string $name Setting name
      * @return bool Setting value
      */
     private static function get_bool(string $name): bool {
-        if (!isset(self::$cache[$name])) {
-            self::$cache[$name] = !empty(get_config('aiplacement_modgen', $name));
-        }
-        return self::$cache[$name];
-    }
-
-    /**
-     * Clear the settings cache.
-     * Useful after settings have been updated.
-     *
-     * @return void
-     */
-    public static function clear_cache(): void {
-        self::$cache = [];
+        return !empty(get_config('aiplacement_modgen', $name));
     }
 }

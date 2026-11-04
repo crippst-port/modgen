@@ -42,6 +42,15 @@ Feature: Building a module from a CSV file
     And the field "Add a section summary activity to each section" matches value ""
     And "Preview Structure" "button" should exist
     And I should not see "Select a pre-made structure"
+    And I should not see "we advise deleting the existing content"
+
+  Scenario: The form warns, but still offers the build, when the module already has content
+    Given the following "activities" exist:
+      | activity | name        | course | section |
+      | page     | Course page | C1     | 0       |
+    When I open the Structure from file form in "C1" as "teacher1"
+    Then I should see "we advise deleting the existing content"
+    And "Preview Structure" "button" should exist
 
   Scenario: A theme file is previewed and then built as themes, weeks and sessions
     Given I open the Structure from file form in "C1" as "teacher1"
@@ -58,7 +67,6 @@ Feature: Building a module from a CSV file
     And I run all adhoc tasks
     And the course "C1" structure should be:
       | name         | parent       | collapsed | depth | summary           |
-      | Assessments  | -            | 0         | 1     |                   |
       | Foundations  | -            | 1         | 1     | About foundations |
       | Introduction | Foundations  | 1         | 2     | Intro week        |
       | Pre-session  | Introduction | 0         | 3     |                   |
@@ -87,7 +95,6 @@ Feature: Building a module from a CSV file
     And I run all adhoc tasks
     And the course "C1" structure should be:
       | name         | parent | collapsed | depth | summary    |
-      | Assessments  | -      | 0         | 1     |            |
       | Alpha        | -      | 1         | 1     | First week |
       | Pre-session  | Alpha  | 0         | 2     |            |
       | Session      | Alpha  | 0         | 2     |            |
@@ -111,7 +118,6 @@ Feature: Building a module from a CSV file
     And I run all adhoc tasks
     Then the course "C1" structure should be:
       | name         | parent | activities | activitynames         |
-      | Assessments  | -      | 0          |                       |
       | Alpha        | -      | 1          | Alpha                 |
       | Pre-session  | Alpha  | 1          | Pre-session activity  |
       | Session      | Alpha  | 1          | Session activity      |
@@ -133,7 +139,6 @@ Feature: Building a module from a CSV file
     And I run all adhoc tasks
     Then the course "C1" structure should be:
       | name         | parent      | depth |
-      | Assessments  | -           | 1     |
       | Foundations  | -           | 1     |
       | Introduction | Foundations | 2     |
       | Pre-session  | Introduction | 3    |
@@ -162,7 +167,6 @@ Feature: Building a module from a CSV file
     And I run all adhoc tasks
     And the course "C1" structure should be:
       | name         | parent       | depth |
-      | Assessments  | -            | 1     |
       | Café studies | -            | 1     |
       | Intro        | Café studies | 2     |
       | Pre-session  | Intro        | 3     |
@@ -191,7 +195,6 @@ Feature: Building a module from a CSV file
     And I run all adhoc tasks
     Then the course "C1" structure should be:
       | name              | parent |
-      | Assessments       | -      |
       | Bold & beautiful  | -      |
       | Pre-session       | Bold & beautiful |
       | Session           | Bold & beautiful |
@@ -220,16 +223,17 @@ Feature: Building a module from a CSV file
     And I press "Preview Structure"
     And I press "Create"
     And I run all adhoc tasks
-    Then the course "C1" should have "13" sections
+    Then the course "C1" should have "12" sections
     And the course "C1" structure should be sound
 
   Scenario: Building into a course that already has structure adds to it
     Given the course "C1" has "1" themes with "1" weeks each
     And I open the Structure from file form in "C1" as "teacher1"
+    And I should see "we advise deleting the existing content"
     When I upload "ai/placement/modgen/tests/fixtures/csv/weekly.csv" file to "Upload structure file" filemanager
     And I press "Preview Structure"
     And I press "Create"
     And I run all adhoc tasks
-    Then the course "C1" should have "18" sections
+    Then the course "C1" should have "17" sections
     And the course "C1" structure should be sound
 

@@ -20,8 +20,6 @@ use aiplacement_modgen\event\section_order_blocked;
 use aiplacement_modgen\event\structure_repaired;
 use aiplacement_modgen\local\section_reorder_queue;
 use aiplacement_modgen\local\section_reorder_status;
-use aiplacement_modgen\local\settings_helper;
-use aiplacement_modgen\local\theme_builder;
 
 defined('MOODLE_INTERNAL') || die();
 
@@ -50,14 +48,12 @@ final class section_reorder_status_test extends \advanced_testcase {
         $this->preventResetByRollback();
         $this->resetAfterTest(true);
         $this->setAdminUser();
-        settings_helper::clear_cache();
 
         set_config('enabled_stores', 'logstore_standard', 'tool_log');
         set_config('buffersize', 0, 'logstore_standard');
         get_log_manager(true);
 
-        $this->course = $this->getDataGenerator()->create_course(['format' => 'topics']);
-        theme_builder::ensure_flexsections_format($this->course->id);
+        $this->course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
         $DB->delete_records('task_adhoc');
         $DB->delete_records('logstore_standard_log');
     }
@@ -157,7 +153,6 @@ final class section_reorder_status_test extends \advanced_testcase {
 
     public function test_nobody_can_view_when_switched_off(): void {
         set_config('enable_autoreorder', 0, 'aiplacement_modgen');
-        settings_helper::clear_cache();
         $this->assertFalse(section_reorder_status::can_view());
     }
 }

@@ -46,8 +46,15 @@ class aiplacement_modgen_add_theme_form extends moodleform {
             $maxweeksperthemecount = 5;
         }
 
-        // Number of themes to create (text input).
-        $mform->addElement('text', 'themecount', get_string('themecount', 'aiplacement_modgen'), ['size' => 5]);
+        \aiplacement_modgen\local\quick_add_ui::add_intro($mform, 'book', get_string('quickaddthemeintro', 'aiplacement_modgen'));
+
+        // Number of themes to create (text input, shown as a stepper).
+        $mform->addElement(
+            'text',
+            'themecount',
+            get_string('themecount', 'aiplacement_modgen'),
+            \aiplacement_modgen\local\quick_add_ui::stepper_attributes($maxsections)
+        );
         $mform->setType('themecount', PARAM_INT);
         $mform->setDefault('themecount', 1);
         $mform->addRule('themecount', null, 'required', null, 'client');
@@ -62,8 +69,13 @@ class aiplacement_modgen_add_theme_form extends moodleform {
             html_writer::tag('small', $hinttext, ['class' => 'form-text text-muted'])
         );
 
-        // Number of weeks per theme (text input).
-        $mform->addElement('text', 'weeksperTheme', get_string('weeksperTheme', 'aiplacement_modgen'), ['size' => 5]);
+        // Number of weeks per theme (text input, shown as a stepper).
+        $mform->addElement(
+            'text',
+            'weeksperTheme',
+            get_string('weeksperTheme', 'aiplacement_modgen'),
+            \aiplacement_modgen\local\quick_add_ui::stepper_attributes($maxweeksperthemecount)
+        );
         $mform->setType('weeksperTheme', PARAM_INT);
         $mform->setDefault('weeksperTheme', 1);
         $mform->addRule('weeksperTheme', null, 'required', null, 'client');
@@ -93,6 +105,8 @@ class aiplacement_modgen_add_theme_form extends moodleform {
                 ? 'createsummaryactivitiesai' : 'createsummaryactivities';
             $mform->addHelpButton('createsummaryactivities', $summaryhelp, 'aiplacement_modgen');
         }
+
+        \aiplacement_modgen\local\quick_add_ui::add_summary($mform, 'themes');
 
         // Action buttons.
         $this->add_action_buttons(true, get_string('generatorbutton', 'aiplacement_modgen'));

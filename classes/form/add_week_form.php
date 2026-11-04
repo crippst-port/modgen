@@ -42,8 +42,19 @@ class aiplacement_modgen_add_week_form extends moodleform {
             $maxsections = 30;
         }
 
-        // Number of weeks to create (text input).
-        $mform->addElement('text', 'weekcount', get_string('weekcount', 'aiplacement_modgen'), ['size' => 5]);
+        \aiplacement_modgen\local\quick_add_ui::add_intro(
+            $mform,
+            'calendar',
+            get_string('quickaddweekintro', 'aiplacement_modgen')
+        );
+
+        // Number of weeks to create (text input, shown as a stepper).
+        $mform->addElement(
+            'text',
+            'weekcount',
+            get_string('weekcount', 'aiplacement_modgen'),
+            \aiplacement_modgen\local\quick_add_ui::stepper_attributes($maxsections)
+        );
         $mform->setType('weekcount', PARAM_INT);
         $mform->setDefault('weekcount', 1);
         $mform->addRule('weekcount', null, 'required', null, 'client');
@@ -73,6 +84,8 @@ class aiplacement_modgen_add_week_form extends moodleform {
                 ? 'createsummaryactivitiesai' : 'createsummaryactivities';
             $mform->addHelpButton('createsummaryactivities', $summaryhelp, 'aiplacement_modgen');
         }
+
+        \aiplacement_modgen\local\quick_add_ui::add_summary($mform, 'weeks');
 
         // Action buttons.
         $this->add_action_buttons(true, get_string('generatorbutton', 'aiplacement_modgen'));

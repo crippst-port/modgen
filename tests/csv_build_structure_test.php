@@ -128,7 +128,6 @@ final class csv_build_structure_test extends \advanced_testcase {
         $this->build('weeks.csv', "Week 1,Alpha\n", true);
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->week_rows('Alpha', '-', 1)
         ));
     }
@@ -140,13 +139,12 @@ final class csv_build_structure_test extends \advanced_testcase {
         $this->build('plan.csv', self::THEME_CSV);
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows('Foundations', ['Introduction', 'Methods'], 0, 'About foundations'),
             $this->theme_rows('Application', ['Practice'], 0)
         ));
         $rows = \aiplacement_modgen_structure_snapshot::rows($this->course->id);
-        $this->assertSame('Intro week', $rows[2]['summary']);
-        $this->assertSame('', $rows[6]['summary'], 'A week with no description has no summary.');
+        $this->assertSame('Intro week', $rows[1]['summary']);
+        $this->assertSame('', $rows[5]['summary'], 'A week with no description has no summary.');
         $this->assert_sound($this->course->id);
     }
 
@@ -159,9 +157,9 @@ final class csv_build_structure_test extends \advanced_testcase {
         $this->build('plan.csv', self::THEME_CSV);
 
         $rows = \aiplacement_modgen_structure_snapshot::rows($this->course->id);
-        $this->assertSame('Foundations', $rows[1]['name']);
-        $this->assertSame('About foundations', $rows[1]['summary']);
-        $this->assertSame('Intro week', $rows[2]['summary']);
+        $this->assertSame('Foundations', $rows[0]['name']);
+        $this->assertSame('About foundations', $rows[0]['summary']);
+        $this->assertSame('Intro week', $rows[1]['summary']);
         $this->assert_sound($this->course->id);
     }
 
@@ -172,7 +170,6 @@ final class csv_build_structure_test extends \advanced_testcase {
         $this->build('plan.csv', self::THEME_CSV, true);
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows('Foundations', ['Introduction', 'Methods'], 1),
             $this->theme_rows('Application', ['Practice'], 1)
         ));
@@ -186,7 +183,6 @@ final class csv_build_structure_test extends \advanced_testcase {
         $this->build('weeks.csv', "Week 1,Alpha\nDescription,First\nWeek 2,Beta\nSection 3,Gamma\n");
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->week_rows('Alpha', '-', 0, 'First'),
             $this->week_rows('Beta', '-', 0),
             $this->week_rows('Gamma', '-', 0)
@@ -201,7 +197,6 @@ final class csv_build_structure_test extends \advanced_testcase {
         $this->build('weeks.csv', "Week 1,Alpha\nWeek 2,Beta\n", true);
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->week_rows('Alpha', '-', 1),
             $this->week_rows('Beta', '-', 1)
         ));
@@ -237,7 +232,6 @@ final class csv_build_structure_test extends \advanced_testcase {
         $this->build($filename, "Theme 1,Foundations\nWeek 1,Introduction\n");
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows('Foundations', ['Introduction'], 0)
         ));
         $this->assert_sound($this->course->id);
@@ -271,7 +265,6 @@ final class csv_build_structure_test extends \advanced_testcase {
         $this->build('plan.csv', $content);
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows("Caf\u{e9} studies", ['Intro', 'Practice'], 0)
         ));
         $this->assert_sound($this->course->id);
@@ -302,7 +295,7 @@ final class csv_build_structure_test extends \advanced_testcase {
         $this->build('plan.csv', "Week 1,Alpha\nDescription,\"Line one\nLine <i>two</i>\"\n");
 
         $rows = \aiplacement_modgen_structure_snapshot::rows($this->course->id);
-        $this->assertSame("Line one\nLine two", $rows[1]['summary']);
+        $this->assertSame("Line one\nLine two", $rows[0]['summary']);
     }
 
     /**
@@ -329,7 +322,6 @@ final class csv_build_structure_test extends \advanced_testcase {
         $this->build('two.csv', "Theme 1,Beta\nWeek 1,Gamma\n");
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->week_rows('Alpha', '-', 0),
             $this->theme_rows('Beta', ['Gamma'], 0)
         ));
@@ -346,7 +338,6 @@ final class csv_build_structure_test extends \advanced_testcase {
         $this->run_jobs();
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows('Foundations', ['Introduction'], 0),
             $this->week_rows('Week 1', '-', 0)
         ));
@@ -368,8 +359,8 @@ final class csv_build_structure_test extends \advanced_testcase {
 
         $this->build('large.csv', $csv);
 
-        // Assessments + 12 themes + 48 weeks + 144 sessions.
-        $this->assertCount(1 + 12 + 48 + 144, \aiplacement_modgen_structure_snapshot::rows($this->course->id));
+        // 12 themes + 48 weeks + 144 sessions.
+        $this->assertCount(12 + 48 + 144, \aiplacement_modgen_structure_snapshot::rows($this->course->id));
         $this->assert_sound($this->course->id);
     }
 
@@ -457,7 +448,6 @@ final class csv_build_structure_test extends \advanced_testcase {
         $this->approve($this->read(0, $templateid), false);
 
         $this->assert_structure($this->course->id, array_merge(
-            [$this->assessments_row()],
             $this->theme_rows('Library theme', ['Library week'], 0)
         ));
         $this->assert_sound($this->course->id);

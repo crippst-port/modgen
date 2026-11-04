@@ -1670,6 +1670,14 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
     background: rgba(220, 53, 69, 0.55);
 }
 
+/* Finished: Font Awesome's circled tick fills the slot on its own, so no circle behind it. */
+.aiplacement-modgen-reorder-icon--renumbered,
+.aiplacement-modgen-reorder-icon--checked {
+    background: transparent;
+    border-color: transparent;
+    font-size: 28px;
+}
+
 /* The same icon on the Check Structure page. The bar's see-through whites vanish on a white page, so
    each state gets a solid colour that keeps the white icon readable. */
 .aiplacement-modgen-reorder-panel {
@@ -1690,6 +1698,13 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
 
 .aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--blocked {
     background: #c62828;
+}
+
+/* White would vanish on the white page, so the finished tick is green here. */
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--renumbered,
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--checked {
+    color: #16a34a;
+    font-size: 36px;
 }
 
 /* On the bar the finished tick is plain white like the other states; here it needs a colour to show. */

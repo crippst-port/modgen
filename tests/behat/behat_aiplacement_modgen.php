@@ -424,4 +424,117 @@ class behat_aiplacement_modgen extends behat_base {
             throw new Exception("The endpoint response does not contain '$text'. It was: " . substr($body, 0, 300));
         }
     }
+
+    /**
+     * Queue the automatic section renumber for a course, as a section add or delete would.
+     *
+     * @Given /^the automatic section renumber for "(?P<course_string>[^"]*)" is queued$/
+     * @param string $shortname Course short name.
+     */
+    public function the_automatic_section_renumber_is_queued(string $shortname): void {
+        \aiplacement_modgen\local\section_reorder_queue::schedule($this->course_id($shortname));
+    }
+
+    /**
+     * Mark the queued renumber for a course as started, as cron does when it picks it up.
+     *
+     * @Given /^the automatic section renumber for "(?P<course_string>[^"]*)" is running$/
+     * @param string $shortname Course short name.
+     */
+    public function the_automatic_section_renumber_is_running(string $shortname): void {
+        global $DB;
+
+        $rows = \aiplacement_modgen\local\section_reorder_queue::get_task_rows($this->course_id($shortname));
+        if (!$rows) {
+            throw new Exception("There is no section renumber queued for '$shortname'.");
+        }
+        $DB->set_field('task_adhoc', 'timestarted', time(), ['id' => reset($rows)->id]);
+    }
+
+    /**
+     * Run the queued renumber for a course now, as if the course had been quiet for a while.
+     *
+     * Makes the task due and the course's last edit old enough, runs the due ad hoc tasks, and
+     * flushes the log so the outcome is readable straight away.
+     *
+     * @When /^the automatic section renumber for "(?P<course_string>[^"]*)" runs$/
+     * @param string $shortname Course short name.
+     */
+    public function the_automatic_section_renumber_runs(string $shortname): void {
+        global $DB;
+
+        $courseid = $this->course_id($shortname);
+        $rows = \aiplacement_modgen\local\section_reorder_queue::get_task_rows($courseid);
+        if (!$rows) {
+            throw new Exception("There is no section renumber queued for '$shortname'.");
+        }
+        $wait = \aiplacement_modgen\local\section_reorder_queue::DELAY * 2;
+        $DB->set_field('course', 'cacherev', time() - $wait, ['id' => $courseid]);
+        foreach ($rows as $row) {
+            $DB->set_field('task_adhoc', 'nextruntime', time() - 1, ['id' => $row->id]);
+        }
+
+        $this->execute('behat_general::i_run_all_adhoc_tasks');
+        get_log_manager(true);
+    }
+
+    /**
+     * Log a refused renumber for a course, as the task does when the section hierarchy is broken.
+     *
+     * @Given /^the automatic section renumber for "(?P<course_string>[^"]*)" was refused$/
+     * @param string $shortname Course short name.
+     */
+    public function the_automatic_section_renumber_was_refused(string $shortname): void {
+        \aiplacement_modgen\event\section_order_blocked::for_course($this->course_id($shortname), 'brokenhierarchy')->trigger();
+        get_log_manager(true);
+    }
+
+    /**
+     * Drop any renumber tasks queued for a course, such as the one creating the course queued.
+     *
+     * @Given /^the section renumber queue for "(?P<course_string>[^"]*)" is empty$/
+     * @param string $shortname Course short name.
+     */
+    public function the_section_renumber_queue_is_empty(string $shortname): void {
+        global $DB;
+
+        $rows = \aiplacement_modgen\local\section_reorder_queue::get_task_rows($this->course_id($shortname));
+        if ($rows) {
+            $DB->delete_records_list('task_adhoc', 'id', array_keys($rows));
+        }
+    }
+
+    /**
+     * Check how many renumber tasks are waiting for a course.
+     *
+     * @Then /^there should be "(?P<count_number>\d+)" section renumbers queued for "(?P<course_string>[^"]*)"$/
+     * @param int $count Expected number of task rows.
+     * @param string $shortname Course short name.
+     */
+    public function there_should_be_section_renumbers_queued_for(int $count, string $shortname): void {
+        $actual = count(\aiplacement_modgen\local\section_reorder_queue::get_task_rows($this->course_id($shortname)));
+        if ($actual !== $count) {
+            throw new Exception("Expected $count section renumber(s) queued for '$shortname', found $actual.");
+        }
+    }
+
+    /**
+     * Wait for the assistant bar's section reorder icon to show a state.
+     *
+     * The icon polls every 10 seconds, so this waits longer than the standard timeouts.
+     *
+     * @Then /^the section reorder status should show "(?P<state_string>queued|running|renumbered|blocked)"$/
+     * @param string $state Expected state.
+     */
+    public function the_section_reorder_status_should_show(string $state): void {
+        $selector = '[data-region="aiplacement-modgen-reorder-status"] .aiplacement-modgen-reorder-icon--' . $state;
+        $this->spin(
+            function () use ($selector) {
+                return $this->getSession()->getPage()->find('css', $selector) !== null;
+            },
+            [],
+            30,
+            new Exception("The section reorder status did not show \"$state\" within 30 seconds.")
+        );
+    }
 }

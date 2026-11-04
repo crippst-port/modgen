@@ -25,6 +25,7 @@ import Fragment from 'core/fragment';
 import Notification from 'core/notification';
 import {get_string as getString} from 'core/str';
 import {init as initModalComponent} from 'aiplacement_modgen/modal_generator_reactive';
+import {init as initReorderStatus} from 'aiplacement_modgen/reorder_status';
 
 /**
  * Escape text for HTML: notifications render their message as HTML, and job results carry
@@ -155,6 +156,9 @@ export const init = (config) => {
 
             // Setup quick add buttons for theme/week forms.
             setupQuickAddButtons();
+
+            // Site administrators get a status icon for the automatic section renumber.
+            initReorderStatus(config.courseid);
 
             // Attach event listener to generator button if present
             if (config.showgenerator) {

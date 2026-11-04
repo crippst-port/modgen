@@ -1334,3 +1334,37 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
 .aiplacement-modgen-preview__prompt-body p {
     white-space: pre-line;
 }
+
+/* Section reorder status icon on the assistant bar (site administrators only). */
+.aiplacement-modgen-reorder-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.16);
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    color: #fff;
+    font-size: 0.8rem;
+    text-decoration: none;
+}
+
+.aiplacement-modgen-reorder-icon:hover,
+.aiplacement-modgen-reorder-icon:focus {
+    color: #fff;
+    text-decoration: none;
+}
+
+.aiplacement-modgen-reorder-icon:focus-visible {
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+}
+
+.aiplacement-modgen-reorder-icon--renumbered {
+    background: rgba(40, 167, 69, 0.45);
+}
+
+.aiplacement-modgen-reorder-icon--blocked {
+    background: rgba(220, 53, 69, 0.55);
+}

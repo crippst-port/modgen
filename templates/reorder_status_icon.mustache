@@ -1,0 +1,50 @@
+{{!
+    This file is part of Moodle - http://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
+}}
+{{!
+    @template aiplacement_modgen/reorder_status_icon
+
+    Status icon for the automatic section renumber, shown to site administrators on the assistant bar.
+
+    Context variables required for this template:
+    * state - queued, running, renumbered or blocked
+    * label - Text for the tooltip and screen readers
+    * url - Check Structure link, only for the blocked state
+    * isqueued, isrunning, isrenumbered, isblocked - Booleans for the state
+
+    Example context (json):
+    {
+        "state": "queued",
+        "label": "Section reorder queued · runs 14:32",
+        "url": null,
+        "isqueued": true,
+        "isrunning": false,
+        "isrenumbered": false,
+        "isblocked": false
+    }
+}}
+{{#isblocked}}
+<a href="{{url}}" class="aiplacement-modgen-reorder-icon aiplacement-modgen-reorder-icon--blocked" role="img" aria-label="{{label}}" title="{{label}}" data-toggle="tooltip">
+    <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+</a>
+{{/isblocked}}
+{{^isblocked}}
+<span class="aiplacement-modgen-reorder-icon aiplacement-modgen-reorder-icon--{{state}}" tabindex="0" role="img" aria-label="{{label}}" title="{{label}}" data-toggle="tooltip">
+    {{#isqueued}}<i class="fa fa-clock" aria-hidden="true"></i>{{/isqueued}}
+    {{#isrunning}}<i class="fa fa-sync fa-spin" aria-hidden="true"></i>{{/isrunning}}
+    {{#isrenumbered}}<i class="fa fa-check" aria-hidden="true"></i>{{/isrenumbered}}
+</span>
+{{/isblocked}}

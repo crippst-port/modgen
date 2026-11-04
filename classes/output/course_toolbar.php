@@ -58,6 +58,12 @@ class course_toolbar implements renderable, templatable {
     /** @var bool Whether to show check structure button */
     private $showcheckstructure;
 
+    /** @var bool Whether to show the section reorder status icon (site administrators only) */
+    private $showreorderstatus;
+
+    /** @var array|null Section reorder status for the icon, or null when there is nothing to show */
+    private $reorderstatus;
+
     /**
      * Constructor.
      *
@@ -69,6 +75,8 @@ class course_toolbar implements renderable, templatable {
      * @param bool $showcheckstructure Whether to show check structure button
      * @param bool $showquickadd Whether to show the Quick add options
      * @param bool $showaddtheme Whether to show the New Theme entry
+     * @param bool $showreorderstatus Whether to show the section reorder status icon
+     * @param array|null $reorderstatus Status from section_reorder_status::get_for_course()
      */
     public function __construct(
         int $courseid,
@@ -78,7 +86,9 @@ class course_toolbar implements renderable, templatable {
         bool $showtemplatefromptompt = false,
         bool $showcheckstructure = false,
         bool $showquickadd = false,
-        bool $showaddtheme = true
+        bool $showaddtheme = true,
+        bool $showreorderstatus = false,
+        ?array $reorderstatus = null
     ) {
         $this->courseid = $courseid;
         $this->showgenerator = $showgenerator || $showtemplatefromptompt; // Legacy support.
@@ -88,6 +98,8 @@ class course_toolbar implements renderable, templatable {
         $this->showcheckstructure = $showcheckstructure;
         $this->showquickadd = $showquickadd;
         $this->showaddtheme = $showaddtheme;
+        $this->showreorderstatus = $showreorderstatus;
+        $this->reorderstatus = $reorderstatus;
     }
 
     /**
@@ -105,6 +117,9 @@ class course_toolbar implements renderable, templatable {
         $data->showcheckstructure = $this->showcheckstructure;
         $data->showquickadd = $this->showquickadd;
         $data->showaddtheme = $this->showaddtheme;
+        $data->showreorderstatus = $this->showreorderstatus;
+        $data->reorderstatus = $this->reorderstatus;
+        $data->courseid = $this->courseid;
         // The Quick Add menu also holds Structure from file and the AI generator, so it shows if any entry does.
         $data->showquickaddmenu = $this->showquickadd || $this->showtemplatefromfile || $this->showgenerator;
         if ($this->showcheckstructure) {

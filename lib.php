@@ -150,6 +150,9 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     // The New Theme and New Week entries need the structure capability, not just the admin switch.
     $showquickadd = \aiplacement_modgen\local\settings_helper::is_quickadd_enabled() && $canmanagestructure;
     $showcheckstructure = $cancheckstructure;
+    // Site administrators only, on Flexible sections courses, while the automatic renumber is on.
+    $showreorderstatus = $course->format === 'flexsections' && \aiplacement_modgen\local\section_reorder_status::can_view();
+    $reorderstatus = $showreorderstatus ? \aiplacement_modgen\local\section_reorder_status::get_for_course($courseid) : null;
 
     // Themes are top-level containers, so New Theme is only offered from the top of the course.
     $showaddtheme = clean_param($args['currentsection'] ?? 0, PARAM_INT) <= 0;
@@ -163,7 +166,9 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
         $showtemplatefromptompt,
         $showcheckstructure,
         $showquickadd,
-        $showaddtheme
+        $showaddtheme,
+        $showreorderstatus,
+        $reorderstatus
     );
 
     // Get the plugin renderer and render the toolbar.

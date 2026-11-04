@@ -331,6 +331,54 @@ final class section_order_test extends advanced_testcase {
     }
 
     /**
+     * A beforewrite callback that refuses leaves the course untouched and reports it deferred.
+     *
+     * @covers ::fix_section_order
+     */
+    public function test_fix_defers_when_beforewrite_refuses(): void {
+        global $DB;
+
+        $this->make_misordered_course();
+        $before = $DB->get_records_menu('course_sections', ['course' => $this->course->id], '', 'id, section');
+
+        $result = integrity_checker::fix_section_order($this->course->id, false, fn() => false);
+
+        $this->assertTrue($result['deferred']);
+        $this->assertSame(0, $result['fixed']);
+        $this->assertEquals($before, $DB->get_records_menu('course_sections', ['course' => $this->course->id], '', 'id, section'));
+    }
+
+    /**
+     * A beforewrite callback that allows lets the renumber go ahead.
+     *
+     * @covers ::fix_section_order
+     */
+    public function test_fix_proceeds_when_beforewrite_allows(): void {
+        $this->make_misordered_course();
+        $called = 0;
+
+        $result = integrity_checker::fix_section_order($this->course->id, false, function () use (&$called) {
+            $called++;
+            return true;
+        });
+
+        $this->assertSame(1, $called);
+        $this->assertFalse($result['deferred']);
+        $this->assertGreaterThan(0, $result['fixed']);
+    }
+
+    /**
+     * Put the course out of order: C is made a child of A, so it should sit before B.
+     */
+    private function make_misordered_course(): void {
+        $courseformat = \course_get_format($this->course->id);
+        $a = (int) theme_builder::create_theme_section($this->course->id, $courseformat, 'A', 'Desc A');
+        theme_builder::create_theme_section($this->course->id, $courseformat, 'B', 'Desc B');
+        $c = (int) theme_builder::create_theme_section($this->course->id, $courseformat, 'C', 'Desc C');
+        $this->assertTrue(integrity_checker::set_parent($this->course->id, $c, $a)['success']);
+    }
+
+    /**
      * The repair renumbers into hierarchy order while preserving the tree.
      *
      * @covers ::fix_section_order

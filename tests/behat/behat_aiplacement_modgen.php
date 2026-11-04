@@ -563,7 +563,8 @@ class behat_aiplacement_modgen extends behat_base {
     /**
      * Wait for the assistant bar's section reorder icon to show a state.
      *
-     * The icon polls every 10 seconds, so this waits longer than the standard timeouts.
+     * The icon polls every 10 seconds while a renumber is queued or running and every 30 seconds otherwise,
+     * so this waits longer than the standard timeouts.
      *
      * @Then /^the section reorder status should show "(?P<state_string>queued|running|renumbered|checked|blocked)"$/
      * @param string $state Expected state.
@@ -575,8 +576,8 @@ class behat_aiplacement_modgen extends behat_base {
                 return $this->getSession()->getPage()->find('css', $selector) !== null;
             },
             [],
-            30,
-            new Exception("The section reorder status did not show \"$state\" within 30 seconds.")
+            45,
+            new Exception("The section reorder status did not show \"$state\" within 45 seconds.")
         );
     }
 }

@@ -1666,9 +1666,13 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
     outline-offset: 2px;
 }
 
+/* Solid, not translucent: a see-through green over the blue-purple bar turns a murky teal. #16a34a
+   keeps the white tick at 3.3:1, and the soft ring lifts it off the bar. */
 .aiplacement-modgen-reorder-icon--renumbered,
 .aiplacement-modgen-reorder-icon--checked {
-    background: rgba(40, 167, 69, 0.45);
+    background: #16a34a;
+    border-color: rgba(255, 255, 255, 0.7);
+    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.3);
 }
 
 .aiplacement-modgen-reorder-icon--blocked {

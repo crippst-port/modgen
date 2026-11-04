@@ -575,6 +575,27 @@ class behat_aiplacement_modgen extends behat_base {
     }
 
     /**
+     * Check how many renumbers that changed something the standard log holds for a course.
+     *
+     * @Then /^the modgen log for "(?P<course_string>[^"]*)" should have "(?P<count_number>\d+)" renumbers?$/
+     * @param string $shortname Course short name.
+     * @param int $count Expected number of renumbers.
+     */
+    public function the_modgen_log_should_have_renumbers(string $shortname, int $count): void {
+        global $DB;
+
+        get_log_manager(true);
+        $rows = $DB->get_records('logstore_standard_log', [
+            'courseid' => $this->course_id($shortname),
+            'eventname' => '\\aiplacement_modgen\\event\\structure_repaired',
+        ], '', 'id, other');
+        $actual = count(array_filter($rows, fn($row) => (json_decode($row->other, true)['action'] ?? '') === 'fixsectionorder'));
+        if ($actual !== $count) {
+            throw new Exception("Expected $count renumber(s) in the log for '$shortname', found $actual.");
+        }
+    }
+
+    /**
      * Wait for the assistant bar's section reorder icon to show a state.
      *
      * The icon polls every 10 seconds while a renumber is queued or running and every 30 seconds otherwise,

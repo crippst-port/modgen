@@ -497,8 +497,11 @@ $string['setparentall_done_withfailures'] = '{$a->applied} section(s) reparented
 
 // Per-section parent picker.
 $string['checkstructure_toplevel'] = '(Top level)';
+$string['setparents_done'] = '{$a} section(s) given a new parent.';
+$string['setparents_done_withfailures'] = '{$a->applied} section(s) given a new parent; {$a->failed} could not be changed, because the change would make a loop or nest a section too deeply.';
+$string['setparents_none'] = 'No parents were changed.';
+$string['setparents_submit'] = 'Set new parents';
 $string['setparent_current'] = 'Current: {$a}';
-$string['setparent_apply'] = 'Set';
 $string['setparent_done'] = 'Section {$a} reparented.';
 $string['setparent_error_section0'] = 'Section 0 cannot have a parent.';
 $string['setparent_error_selfparent'] = 'A section cannot be its own parent.';

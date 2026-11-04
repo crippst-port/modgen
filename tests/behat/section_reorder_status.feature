@@ -129,10 +129,24 @@ Feature: Automatic section renumbering and its status icon
     And I am on the Check Structure page of "C1"
     And I set the field "Show all sections (including clean ones)" to "1"
     When I set the field with xpath "//select[@aria-label='New parent for section 7']" to "1: Theme 1"
-    And I click on "//form[.//select[@aria-label='New parent for section 7']]//button" "xpath_element"
-    Then I should see "Section 7 reparented."
+    And I press "Set new parents"
+    Then I should see "1 section(s) given a new parent."
     And I should see "the sections were renumbered into hierarchy order"
     And there should be "0" section renumbers queued for "C1"
+    And the course "C1" structure should be sound
+
+  Scenario: Several sections given new parents in one go are renumbered once
+    Given the course "C1" has "2" themes with "1" weeks each
+    And the section renumber queue for "C1" is empty
+    And I log in as "admin"
+    And I am on the Check Structure page of "C1"
+    And I set the field "Show all sections (including clean ones)" to "1"
+    When I set the field with xpath "//select[@aria-label='New parent for section 2']" to "6: Theme 2"
+    And I set the field with xpath "//select[@aria-label='New parent for section 7']" to "1: Theme 1"
+    And I press "Set new parents"
+    Then I should see "2 section(s) given a new parent."
+    And I should see "the sections were renumbered into hierarchy order"
+    And the modgen log for "C1" should have "1" renumber
     And the course "C1" structure should be sound
 
   Scenario: Renumber now on Check Structure renumbers straight away

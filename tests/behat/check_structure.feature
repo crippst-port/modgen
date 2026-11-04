@@ -146,8 +146,8 @@ Feature: Checking and repairing a course's structure
     And I log in as "teacher1"
     And I am on the Check Structure page of "C1"
     When I set the field with xpath "//select[@aria-label='New parent for section 2']" to "6: Theme 2"
-    And I click on "//tr[td[2][@title='Theme 1 - Week 1']]//button" "xpath_element"
-    Then I should see "Section 2 reparented."
+    And I press "Set new parents"
+    Then I should see "1 section(s) given a new parent."
     # The page renumbers straight after, so there is nothing left to offer.
     And I should not see "Renumber Sections"
     And the course "C1" structure should be:
@@ -162,6 +162,24 @@ Feature: Checking and repairing a course's structure
       | Pre-session      | Theme 2 - Week 1 | 3     |
       | Session          | Theme 2 - Week 1 | 3     |
       | Post-session     | Theme 2 - Week 1 | 3     |
+    And the course "C1" structure should be sound
+
+  Scenario: Setting new parents leaves rows that were not changed alone
+    Given the course "C1" has "2" themes with "1" weeks each
+    And section "Theme 1 - Week 1" of "C1" has parent "99"
+    And I log in as "teacher1"
+    And I am on the Check Structure page of "C1"
+    When I set the field with xpath "//select[@aria-label='New parent for section 7']" to "1: Theme 1"
+    And I press "Set new parents"
+    Then I should see "1 section(s) given a new parent."
+    And I should see "Invalid parent references"
+
+  Scenario: Setting new parents with nothing changed changes nothing
+    Given the course "C1" has "2" themes with "1" weeks each
+    And I log in as "teacher1"
+    And I am on the Check Structure page of "C1"
+    When I press "Set new parents"
+    Then I should see "No parents were changed."
     And the course "C1" structure should be sound
 
   @javascript

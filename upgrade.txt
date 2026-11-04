@@ -24,6 +24,12 @@
   \aiplacement_modgen\event\structure_repaired (every action except fixsectionorder, and nothing from
   Check Structure, which renumbers itself).
 
+### Changed
+
+- The Check Structure details table has one "Set new parents" button under it instead of a Set button
+  on every row. Every changed row is applied together and the course renumbered once; rows left
+  as they were, including ones whose stored parent the dropdown cannot show, are not touched.
+
 ### Removed
 
 - The orphaned sections check and its clean-up, on Check Structure (Remove Orphaned Sections) and on

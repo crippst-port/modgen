@@ -68,7 +68,7 @@ if ($course->format !== 'flexsections') {
 // Actions that apply immediately without a separate confirmation click: each one only
 // touches a single, explicitly-chosen section and is trivially reversible by picking a
 // different parent again, unlike the bulk fix actions below.
-$noconfirmactions = ['setparent', 'setparentall'];
+$noconfirmactions = ['setparent', 'setparentall', 'setparents'];
 
 /**
  * Renumber straight after a repair that changed parents, and carry the redirect's section numbers across.
@@ -176,6 +176,52 @@ if ($action && ($confirm || in_array($action, $noconfirmactions, true))) {
                 $redirecturlparams = aiplacement_modgen_renumber_after_repair($courseid, $redirecturlparams);
             }
 
+            redirect(
+                new moodle_url('/ai/placement/modgen/check_structure.php', $redirecturlparams),
+                $msg,
+                null,
+                $type
+            );
+            break;
+        case 'setparents':
+            // The details table: every row's dropdown in one submit. Only rows moved off what their
+            // dropdown opened on are changed, so an untouched row whose stored parent the dropdown
+            // cannot show (missing, or itself) is not quietly sent to the top level.
+            $newparents = optional_param_array('newparents', [], PARAM_INT);
+            $shownparents = optional_param_array('shownparents', [], PARAM_INT);
+            $changed = [];
+            foreach ($newparents as $sectionnum => $newparent) {
+                if (array_key_exists($sectionnum, $shownparents) && (int) $shownparents[$sectionnum] !== (int) $newparent) {
+                    $changed[(int) $sectionnum] = (int) $newparent;
+                }
+            }
+
+            $redirecturlparams = ['id' => $courseid, 'check' => 1];
+            if (!$changed) {
+                redirect(
+                    new moodle_url('/ai/placement/modgen/check_structure.php', $redirecturlparams),
+                    get_string('setparents_none', 'aiplacement_modgen'),
+                    null,
+                    \core\output\notification::NOTIFY_INFO
+                );
+            }
+
+            $batchresult = integrity_checker::set_parents_bulk($courseid, array_keys($changed), array_values($changed));
+            $applied = $batchresult['applied'];
+            $failed = $batchresult['failed'];
+            if ($applied > 0) {
+                \aiplacement_modgen\event\structure_repaired::for_course($courseid, 'setparent', (int) $applied)->trigger();
+                aiplacement_modgen_renumber_after_repair($courseid, $redirecturlparams);
+            }
+            if ($failed > 0) {
+                $msg = get_string('setparents_done_withfailures', 'aiplacement_modgen', (object) [
+                    'applied' => $applied, 'failed' => $failed,
+                ]);
+                $type = \core\output\notification::NOTIFY_WARNING;
+            } else {
+                $msg = get_string('setparents_done', 'aiplacement_modgen', $applied);
+                $type = \core\output\notification::NOTIFY_SUCCESS;
+            }
             redirect(
                 new moodle_url('/ai/placement/modgen/check_structure.php', $redirecturlparams),
                 $msg,
@@ -627,6 +673,15 @@ if ($diag !== null) {
         true
     );
 
+    // One form for the whole table: parents are changed together and the course renumbered once,
+    // so no row's section number moves while the others are still being chosen.
+    echo html_writer::start_tag('form', [
+        'method' => 'post',
+        'action' => new moodle_url('/ai/placement/modgen/check_structure.php'),
+    ]);
+    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'id', 'value' => $courseid]);
+    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action', 'value' => 'setparents']);
+    echo html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
     echo html_writer::start_div('table-responsive mb-4', ['id' => 'checkstructure-sectiontablewrap']);
     echo html_writer::start_tag('table', [
         'id'    => 'checkstructure-sectiontable',
@@ -682,19 +737,28 @@ if ($diag !== null) {
             unset($rowoptions[(string) $s->section]); // A section can't be its own parent.
 
             $select = html_writer::start_tag('select', [
-                'name'  => 'newparent',
+                'name'  => 'newparents[' . $s->section . ']',
                 'aria-label' => get_string('newparentfor', 'aiplacement_modgen', $s->section),
                 'class' => 'form-control form-control-sm d-inline-block',
                 'style' => 'max-width: 260px;',
             ]);
+            // What the dropdown opens on: the current parent, or the first option when the stored
+            // value has none (missing, or the section itself). Only a row moved off it is changed.
+            $shown = array_key_first($rowoptions);
             foreach ($rowoptions as $optionvalue => $option) {
                 $optionattrs = ['value' => $optionvalue, 'title' => $option['full']];
                 if ((string) $optionvalue === (string) $currentparent) {
                     $optionattrs['selected'] = 'selected';
+                    $shown = $optionvalue;
                 }
                 $select .= html_writer::tag('option', $option['short'], $optionattrs);
             }
             $select .= html_writer::end_tag('select');
+            $select .= html_writer::empty_tag('input', [
+                'type' => 'hidden',
+                'name' => 'shownparents[' . $s->section . ']',
+                'value' => $shown,
+            ]);
 
             // Show the raw stored value as plain text too — the dropdown alone can't represent
             // a self-parent (its own section number is deliberately excluded from the options),
@@ -703,23 +767,7 @@ if ($diag !== null) {
                 'class' => 'small text-muted',
             ]);
 
-            $form = $currentlabel . html_writer::start_tag('form', [
-                'method' => 'post',
-                'action' => new moodle_url('/ai/placement/modgen/check_structure.php'),
-                'class'  => 'form-inline',
-            ]);
-            $form .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'id', 'value' => $courseid]);
-            $form .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'action', 'value' => 'setparent']);
-            $form .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'section', 'value' => $s->section]);
-            $form .= html_writer::empty_tag('input', ['type' => 'hidden', 'name' => 'sesskey', 'value' => sesskey()]);
-            $form .= $select . ' ';
-            $form .= html_writer::tag('button', get_string('setparent_apply', 'aiplacement_modgen'), [
-                'type'  => 'submit',
-                'class' => 'btn btn-primary btn-sm ml-1',
-            ]);
-            $form .= html_writer::end_tag('form');
-
-            echo html_writer::tag('td', $form);
+            echo html_writer::tag('td', $currentlabel . $select);
         }
         echo html_writer::tag('td', $s->depth);
         echo html_writer::tag('td', $s->visible ? get_string('yes') : get_string('no'));
@@ -738,7 +786,12 @@ if ($diag !== null) {
 
     echo html_writer::end_tag('tbody');
     echo html_writer::end_tag('table');
+    echo html_writer::tag('button', get_string('setparents_submit', 'aiplacement_modgen'), [
+        'type'  => 'submit',
+        'class' => 'btn btn-primary',
+    ]);
     echo html_writer::end_div();
+    echo html_writer::end_tag('form');
 
     // Fix sections — shown only when relevant issues exist, always last on the page so the
     // admin sees the full diagnostic picture before being offered a destructive action.

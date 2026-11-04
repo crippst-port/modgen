@@ -56,6 +56,10 @@ class preview_generator {
             $preview = self::build_weekly_preview($moduledata, $preview);
         }
 
+        $preview['themecount'] = count($preview['themes']);
+        $preview['weekcount'] = count($preview['weeks'])
+            + array_sum(array_map(fn($theme) => count($theme['weeks']), $preview['themes']));
+
         return $preview;
     }
 
@@ -72,28 +76,33 @@ class preview_generator {
         }
 
         $preview['hasthemes'] = true;
+        $weeknumber = 0;
 
-        foreach ($moduledata['themes'] as $theme) {
+        foreach ($moduledata['themes'] as $themekey => $theme) {
             if (!is_array($theme)) {
                 continue;
             }
 
+            $fallback = get_string('themefallback', 'aiplacement_modgen');
             $themeitem = [
-                'title' => !empty($theme['title'])
-                    ? self::text($theme['title']) : get_string('themefallback', 'aiplacement_modgen'),
+                // Where it sits in the structure, so an edit made on the preview finds it again.
+                'key' => (string) $themekey,
+                'number' => count($preview['themes']) + 1,
+                'title' => !empty($theme['title']) ? self::text($theme['title']) : $fallback,
+                'rawtitle' => self::text($theme['title'] ?? ''),
+                'placeholder' => $fallback,
                 'summary' => !empty($theme['summary']) ? self::text($theme['summary']) : '',
                 'weeks' => [],
                 'hasweeks' => false,
             ];
 
             if (!empty($theme['weeks']) && is_array($theme['weeks'])) {
-                foreach ($theme['weeks'] as $week) {
+                foreach ($theme['weeks'] as $weekkey => $week) {
                     if (!is_array($week)) {
                         continue;
                     }
 
-                    $weekitem = self::build_week_item($week);
-                    $themeitem['weeks'][] = $weekitem;
+                    $themeitem['weeks'][] = self::build_week_item($week, $themekey . '_' . $weekkey, ++$weeknumber);
                 }
             }
 
@@ -121,13 +130,12 @@ class preview_generator {
 
         $preview['hasweeks'] = true;
 
-        foreach ($moduledata['sections'] as $section) {
+        foreach ($moduledata['sections'] as $sectionkey => $section) {
             if (!is_array($section)) {
                 continue;
             }
 
-            $weekitem = self::build_week_item($section);
-            $preview['weeks'][] = $weekitem;
+            $preview['weeks'][] = self::build_week_item($section, (string) $sectionkey, count($preview['weeks']) + 1);
         }
 
         return $preview;
@@ -139,12 +147,18 @@ class preview_generator {
      * Handles both session-based and outline-based structures.
      *
      * @param array $weekdata The week or section data.
+     * @param string $key Where it sits in the structure: its section key, or theme key and week key joined by _
+     * @param int $number Its place among all the weeks, from 1
      * @return array Structured week item with activities.
      */
-    private static function build_week_item(array $weekdata): array {
+    private static function build_week_item(array $weekdata, string $key = '', int $number = 0): array {
+        $fallback = get_string('weekfallback', 'aiplacement_modgen');
         $weekitem = [
-            'title' => !empty($weekdata['title'])
-                ? self::text($weekdata['title']) : get_string('weekfallback', 'aiplacement_modgen'),
+            'key' => $key,
+            'number' => $number,
+            'title' => !empty($weekdata['title']) ? self::text($weekdata['title']) : $fallback,
+            'rawtitle' => self::text($weekdata['title'] ?? ''),
+            'placeholder' => $fallback,
             'summary' => !empty($weekdata['summary']) ? self::text($weekdata['summary']) : '',
             'activities' => [],
             'hasactivities' => false,

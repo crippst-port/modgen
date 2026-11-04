@@ -49,9 +49,6 @@ class aiplacement_modgen_generator_form extends moodleform
         // Warn, without refusing, when the module already has content.
         \aiplacement_modgen\local\existing_content::add_warning($mform, (int) $this->_customdata['courseid']);
 
-        // Check if AI is enabled early so we can control visibility.
-        $aienabled = get_config('aiplacement_modgen', 'enable_ai');
-
         // Select or upload template file section. The whole CSV route - template chooser,
         // download button and the upload field further down - is behind the
         // 'enable_structurefromfile' setting. validation() reads both fields with !empty(),
@@ -107,24 +104,7 @@ class aiplacement_modgen_generator_form extends moodleform
             $mform->addHelpButton('supportingfiles', 'supportingfiles', 'aiplacement_modgen');
         }
 
-        // Content placement header, shown only when there is something to place.
-        // Checkbox to add the learningactivity "section summary" placeholder to each section, offered
-        // only when mod_learningactivity is installed. The help text only mentions the AI-metadata
-        // caveat when AI is enabled.
-        if (\aiplacement_modgen\activitytype\learningactivity::is_available()) {
-            $mform->addElement('header', 'contentplacementheader', get_string('contentplacement', 'aiplacement_modgen'));
-            $mform->setExpanded('contentplacementheader', true);
-            $mform->addElement(
-                'advcheckbox',
-                'createsummaryactivities',
-                get_string('createsummaryactivities', 'aiplacement_modgen')
-            );
-            $summaryhelp = $aienabled ? 'createsummaryactivitiesai' : 'createsummaryactivities';
-            $mform->addHelpButton('createsummaryactivities', $summaryhelp, 'aiplacement_modgen');
-            $mform->setType('createsummaryactivities', PARAM_BOOL);
-            $mform->setDefault('createsummaryactivities', 0);
-        }
-
+        // Whether to add a section summary activity is asked on the preview, with the structure in view.
         $mform->closeHeaderBefore('buttonar');
 
         $buttonarray = [];

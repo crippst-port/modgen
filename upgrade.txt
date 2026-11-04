@@ -29,6 +29,11 @@
 - The Check Structure details table has one "Set new parents" button under it instead of a Set button
   on every row. Every changed row is applied together and the course renumbered once; rows left
   as they were, including ones whose stored parent the dropdown cannot show, are not touched.
+- The structure preview (Structure from file and from prompt) is restyled to match the Quick Add
+  modals, and every theme and week on it has an editable title and description, applied when the
+  structure is approved (local\structure_edits). A cleared title gives the section its default name.
+- "Add a section summary activity to each section" is asked on the preview, beside Approve and
+  create, instead of on the Structure from file form; the prompt route now offers it too.
 
 ### Removed
 

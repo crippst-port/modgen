@@ -32,7 +32,7 @@ Feature: The structure generator offers only the current options
     And I click on "acceptpolicy" "checkbox"
     And I press "Accept"
     Then I should see "Upload structure file"
-    And I should see "Add a section summary activity to each section"
+    And I should not see "Add a section summary activity to each section"
     And I should not see "Base on existing module"
     And I should not see "Expand on themes"
     And I should not see "Generate example content"

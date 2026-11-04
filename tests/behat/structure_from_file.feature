@@ -34,12 +34,11 @@ Feature: Building a module from a CSV file
     And I should see "Select or Upload Structure File"
     And I should see "Upload structure file"
 
-  Scenario: The form offers an upload, the summary option and a preview button
+  Scenario: The form offers an upload and a preview button, and leaves the summary option to the preview
     Given I open the Structure from file form in "C1" as "teacher1"
     Then I should see "Select or Upload Structure File"
     And I should see "Upload structure file"
-    And I should see "Content placement"
-    And the field "Add a section summary activity to each section" matches value ""
+    And I should not see "Add a section summary activity to each section"
     And "Preview Structure" "button" should exist
     And I should not see "Select a pre-made structure"
     And I should not see "we advise deleting the existing content"
@@ -56,12 +55,16 @@ Feature: Building a module from a CSV file
     Given I open the Structure from file form in "C1" as "teacher1"
     When I upload "ai/placement/modgen/tests/fixtures/csv/themes_described.csv" file to "Upload structure file" filemanager
     And I press "Preview Structure"
-    Then I should see "Module Structure"
-    And I should see "Foundations"
-    And I should see "Introduction"
-    And I should see "Methods"
-    And I should see "Application"
-    And I should see "Practice"
+    Then I should see "Check your module structure"
+    And I should see "2 theme(s)"
+    And I should see "3 week(s)"
+    And the field "Title of theme 1" matches value "Foundations"
+    And the field "Description of theme 1" matches value "About foundations"
+    And the field "Title of week 1" matches value "Introduction"
+    And the field "Title of week 2" matches value "Methods"
+    And the field "Title of theme 2" matches value "Application"
+    And the field "Title of week 3" matches value "Practice"
+    And the field "Add a section summary activity to each section" matches value ""
     And I press "Create"
     And I should see "Creating 5 section(s) from uploaded file"
     And I run all adhoc tasks
@@ -87,9 +90,9 @@ Feature: Building a module from a CSV file
     Given I open the Structure from file form in "C1" as "teacher1"
     When I upload "ai/placement/modgen/tests/fixtures/csv/weekly.csv" file to "Upload structure file" filemanager
     And I press "Preview Structure"
-    Then I should see "Alpha"
-    And I should see "Beta"
-    And I should see "Gamma"
+    Then the field "Title of week 1" matches value "Alpha"
+    And the field "Title of week 2" matches value "Beta"
+    And the field "Title of week 3" matches value "Gamma"
     And I press "Create"
     And I should see "Creating 3 section(s) from uploaded file"
     And I run all adhoc tasks
@@ -109,11 +112,35 @@ Feature: Building a module from a CSV file
       | Post-session | Gamma  | 0         | 2     |            |
     And the course "C1" structure should be sound
 
+  Scenario: Titles and descriptions edited on the preview are the ones built
+    Given I open the Structure from file form in "C1" as "teacher1"
+    When I upload "ai/placement/modgen/tests/fixtures/csv/weekly.csv" file to "Upload structure file" filemanager
+    And I press "Preview Structure"
+    And I set the field "Title of week 2" to "Beta revised"
+    And I set the field "Description of week 1" to "First week, & more"
+    And I set the field "Description of week 3" to "Gamma notes"
+    And I press "Create"
+    And I run all adhoc tasks
+    Then the course "C1" structure should be:
+      | name         | parent       | depth | summary            |
+      | Alpha        | -            | 1     | First week, & more |
+      | Pre-session  | Alpha        | 2     |                    |
+      | Session      | Alpha        | 2     |                    |
+      | Post-session | Alpha        | 2     |                    |
+      | Beta revised | -            | 1     |                    |
+      | Pre-session  | Beta revised | 2     |                    |
+      | Session      | Beta revised | 2     |                    |
+      | Post-session | Beta revised | 2     |                    |
+      | Gamma        | -            | 1     | Gamma notes        |
+      | Pre-session  | Gamma        | 2     |                    |
+      | Session      | Gamma        | 2     |                    |
+      | Post-session | Gamma        | 2     |                    |
+
   Scenario: The summary option adds an activity to every week and session
     Given I open the Structure from file form in "C1" as "teacher1"
     When I upload "ai/placement/modgen/tests/fixtures/csv/weekly.csv" file to "Upload structure file" filemanager
-    And I set the field "Add a section summary activity to each section" to "1"
     And I press "Preview Structure"
+    And I set the field "Add a section summary activity to each section" to "1"
     And I press "Create"
     And I run all adhoc tasks
     Then the course "C1" structure should be:
@@ -162,7 +189,7 @@ Feature: Building a module from a CSV file
     Given I open the Structure from file form in "C1" as "teacher1"
     When I upload "ai/placement/modgen/tests/fixtures/csv/<file>" file to "Upload structure file" filemanager
     And I press "Preview Structure"
-    Then I should see "Café studies"
+    Then the field "Title of theme 1" matches value "Café studies"
     And I press "Create"
     And I run all adhoc tasks
     And the course "C1" structure should be:
@@ -212,8 +239,8 @@ Feature: Building a module from a CSV file
     Given I open the Structure from file form in "C1" as "teacher1"
     When I upload "ai/placement/modgen/tests/fixtures/csv/ampersand_hash_percent.csv" file to "Upload structure file" filemanager
     And I press "Preview Structure"
-    Then I should see "Q&A on C# basics"
-    And I should see "Rivers: 100% coverage"
+    Then the field "Title of week 1" matches value "Q&A on C# basics"
+    And the field "Title of week 2" matches value "Rivers: 100% coverage"
     And I should not see "&amp;"
     And the "href" attribute of "Download as JSON" "link" should contain "C%23%20basics"
     And the "href" attribute of "Download as JSON" "link" should contain "100%25%20coverage"

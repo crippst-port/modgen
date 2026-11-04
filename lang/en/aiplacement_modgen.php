@@ -72,12 +72,7 @@ $string['templatefromprompt'] = 'Structure from prompt';
 $string['prompt'] = 'Additional context or requests for the Assistant';
 $string['submit'] = 'Preview Structure';
 
-$string['generationresultssummaryheading'] = 'What will be created';
 $string['generationresultspromptheading'] = 'Your prompt';
-$string['generationresultsprompttoggle'] = 'Show prompt details';
-$string['generationresultsjsonheading'] = 'Full module JSON';
-$string['generationresultsjsondescription'] = 'Review or share the structured JSON output from the generator.';
-$string['generationresultsjsonnote'] = 'Keep a copy if you may need to regenerate the same structure later.';
 $string['generationresultsfallbacksummary_weekly'] = 'The plan creates {$sections} weekly sections with around {$outlineitems} suggested activities and resources.';
 $string['generationresultsfallbacksummary_theme'] = 'The plan creates {$themes} themed sections spanning approximately {$weeks} delivery weeks.';
 $string['aigensummary'] = 'AI Generated Summary';
@@ -200,7 +195,6 @@ $string['enableai'] = 'Enable Structure from prompt';
 $string['enableai_desc'] = 'Offer Structure from prompt, which asks the site\'s AI provider to suggest a module structure from a teacher\'s description; nothing is built until the teacher approves it. Teachers also need the aiplacement/modgen:generatewithprompt capability, and Site administration > AI must have a provider offering Generate text that is enabled for the Module Assistant. The other features do not use AI and are not affected.';
 
 // Placement options.
-$string['contentplacement'] = 'Content placement';
 $string['createsummaryactivities'] = 'Add a section summary activity to each section';
 $string['createsummaryactivities_help'] = 'When enabled, a Learning Activity "section summary" is added to the top of each week and session to hold learning design details (duration, learning type, instructions). Leave it off for a lighter structure of empty sections you can fill in later, which also makes large structures noticeably faster to create.';
 $string['createsummaryactivitiesai'] = 'Add a section summary activity to each section';
@@ -221,14 +215,24 @@ $string['tryagain'] = 'Try Again';
 
 // Module preview display strings.
 $string['creatingstructurewait'] = 'Creating the structure... please wait.';
+$string['previewbadgetheme'] = 'Theme {$a}';
+$string['previewbadgeweek'] = 'Week {$a}';
+$string['previewcontents'] = 'Sessions and activities';
+$string['previewcountthemes'] = '{$a} theme(s)';
+$string['previewcountweeks'] = '{$a} week(s)';
+$string['previewheading'] = 'Check your module structure';
+$string['previewintro'] = 'This is what will be created. Change any title or add a description now, before anything is built.';
 $string['previewnoactivities'] = 'No activities';
-$string['previewnoactivitiesweek'] = 'No activities in this week';
 $string['previewnostructure'] = 'No module structure was found in the response. It may be incomplete.';
+$string['previewsummarylabeltheme'] = 'Description of theme {$a}';
+$string['previewsummarylabelweek'] = 'Description of week {$a}';
+$string['previewsummaryplaceholder'] = 'Add a description (optional)';
+$string['previewtitlelabeltheme'] = 'Title of theme {$a}';
+$string['previewtitlelabelweek'] = 'Title of week {$a}';
 $string['themes'] = 'Themes';
 $string['weeks'] = 'Weeks';
 $string['activities'] = 'Activities';
 $string['regenerate'] = 'Regenerate';
-$string['modulestructureinfo'] = 'This preview shows the structure and organisation of the module that will be created. It is a schematic representation and does not reflect how the content will appear in Moodle. Click "Create" below to proceed with creating the module in your course.';
 
 // Quick add forms.
 $string['title'] = 'Title';
@@ -301,9 +305,7 @@ $string['successicon'] = 'Success';
 $string['showdetailsaria'] = 'Show creation details';
 
 $string['sectiontype'] = 'Type';
-$string['themesection'] = 'Theme';
 $string['parentsection'] = 'Parent';
-$string['weeksection'] = 'Week';
 
 // Help and Advice Links.
 $string['helpandadvice'] = 'Help and Advice';
@@ -582,8 +584,6 @@ $string['aivalidation_weeknotarray'] = 'Week structure is not an array';
 $string['aivalidation_weeksnotarray'] = 'Theme "weeks" is not an array';
 $string['templateprocessorempty'] = 'The template processor did not return a usable structure.';
 $string['themetoplevelonly'] = 'New themes can only be added from the top level of the module.';
-$string['modulestructureheading'] = 'Module Structure';
-$string['previewkey'] = 'Key:';
 $string['togglenav'] = 'Toggle navigation';
 
 // Creation warnings and job results.

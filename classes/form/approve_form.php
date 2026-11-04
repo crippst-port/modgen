@@ -55,7 +55,24 @@ class aiplacement_modgen_approve_form extends moodleform {
         $mform->addElement('hidden', 'generatedsummary', $this->_customdata['generatedsummary']);
         $mform->setType('generatedsummary', PARAM_RAW);
         $mform->setDefault('generatedsummary', $this->_customdata['generatedsummary']);
-        $mform->addElement('hidden', 'createsummaryactivities', $this->_customdata['createsummaryactivities'] ?? 0);
+        // The preview goes inside the form: its title and description fields are submitted with it.
+        if (!empty($this->_customdata['previewhtml'])) {
+            $mform->addElement('html', $this->_customdata['previewhtml']);
+        }
+
+        // Chosen here, with the structure in view, rather than on the form before it. Only offered
+        // when mod_learningactivity is installed.
+        if (\aiplacement_modgen\activitytype\learningactivity::is_available()) {
+            $mform->addElement(
+                'advcheckbox',
+                'createsummaryactivities',
+                get_string('createsummaryactivities', 'aiplacement_modgen')
+            );
+            $summaryhelp = !empty($this->_customdata['usedaioptions']) ? 'createsummaryactivitiesai' : 'createsummaryactivities';
+            $mform->addHelpButton('createsummaryactivities', $summaryhelp, 'aiplacement_modgen');
+        } else {
+            $mform->addElement('hidden', 'createsummaryactivities');
+        }
         $mform->setType('createsummaryactivities', PARAM_BOOL);
         $mform->setDefault('createsummaryactivities', $this->_customdata['createsummaryactivities'] ?? 0);
 

@@ -96,14 +96,14 @@ Feature: Building in Custom sections and Weekly sections
     When I upload "ai/placement/modgen/tests/fixtures/csv/themes_described.csv" file to "Upload structure file" filemanager
     And I press "Preview Structure"
     Then I should see "This structure uses themes, which need the Flexible sections format"
-    And I should not see "Module Structure"
+    And I should not see "Check your module structure"
     And there should be "0" structure jobs in "C1"
 
   Scenario: A weekly file is built as weeks with their sessions as subsections
     Given I open the Structure from file form in "C1" as "teacher1"
     When I upload "ai/placement/modgen/tests/fixtures/csv/weekly.csv" file to "Upload structure file" filemanager
     And I press "Preview Structure"
-    And I should see "Module Structure"
+    And I should see "Check your module structure"
     And I press "Create"
     And I should see "Creating 3 section(s) from uploaded file"
     And I run all adhoc tasks

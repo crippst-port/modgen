@@ -377,6 +377,13 @@ if ($approveform && ($adata = $approveform->get_data())) {
     // Sanitise every string in the structure: it came back from the browser, so it is untrusted.
     $json = \aiplacement_modgen\local\json_sanitiser::clean(is_array($json) ? $json : []);
 
+    // The titles and descriptions edited on the preview. Cleaned as plain text by structure_edits.
+    $json = \aiplacement_modgen\local\structure_edits::apply(
+        $json,
+        optional_param_array('titles', [], PARAM_RAW),
+        optional_param_array('summaries', [], PARAM_RAW)
+    );
+
     $moduletype = !empty($adata->moduletype) ? $adata->moduletype : 'connected_weekly';
     $createsummaryactivities = !empty($adata->createsummaryactivities);
 
@@ -604,8 +611,23 @@ if ($pdata = $promptform->get_data()) {
     // For fresh generation (start from scratch), skip re-encoding module data for summary
     // Just use a simple generated fallback summary instead.
     $summarytext = aiplacement_modgen_generate_fallback_summary($json, $moduletype);
-    $summaryformatted = $summarytext !== '' ? nl2br(s($summarytext)) : '';
 
+    // Build module preview from the generated JSON.
+    $modulepreview = aiplacement_modgen_build_module_preview($json, $moduletype);
+    // Ensure modulepreview is always included (will be truthy if it has themes or weeks).
+    $modulepreview['showmodulepreview'] = !empty($modulepreview['hasthemes']) || !empty($modulepreview['hasweeks']);
+
+    $previewdata = [
+        'modulepreview' => $modulepreview['showmodulepreview'] ? $modulepreview : false,
+        'hasjson' => !empty($jsonstr),
+        // URL-encoded for the data: download link, where '#' or '%' would otherwise cut or corrupt the file.
+        'json' => rawurlencode($jsonstr),
+        // Plain text: the template escapes it, and the stylesheet keeps its line breaks.
+        'prompttext' => $prompt,
+        'hasprompt' => trim($prompt) !== '',
+    ];
+
+    // The preview is rendered inside the approval form, so its title and description fields go with it.
     $approveform = new aiplacement_modgen_approve_form(null, [
         'courseid' => $courseid,
         'approvedjson' => $jsonstr,
@@ -614,40 +636,12 @@ if ($pdata = $promptform->get_data()) {
         'createsummaryactivities' => $createsummaryactivities ? 1 : 0,
         'embedded' => $embedded ? 1 : 0,
         'usedaioptions' => !empty($prompt) ? 1 : 0,
-    ]);
+        'previewhtml' => $OUTPUT->render_from_template('aiplacement_modgen/prompt_preview', $previewdata),
+    ], 'post', '', ['class' => 'aiplacement-modgen-approve']);
 
     ob_start();
     $approveform->display();
-    $formhtml = ob_get_clean();
-
-    // Build module preview from the generated JSON.
-    $modulepreview = aiplacement_modgen_build_module_preview($json, $moduletype);
-    // Ensure modulepreview is always included (will be truthy if it has themes or weeks).
-    $modulepreview['showmodulepreview'] = !empty($modulepreview['hasthemes']) || !empty($modulepreview['hasweeks']);
-
-    $previewdata = [
-        'hassummary' => $summarytext !== '',
-        'summaryheading' => get_string('generationresultssummaryheading', 'aiplacement_modgen'),
-        'summary' => $summaryformatted,
-        'modulepreview' => $modulepreview['showmodulepreview'] ? $modulepreview : false,
-        'modulestructureinfo' => get_string('modulestructureinfo', 'aiplacement_modgen'),
-        'hasjson' => !empty($jsonstr),
-        'jsonheading' => get_string('generationresultsjsonheading', 'aiplacement_modgen'),
-        'jsondescription' => get_string('generationresultsjsondescription', 'aiplacement_modgen'),
-        // URL-encoded for the data: download link, where '#' or '%' would otherwise cut or corrupt the file.
-        'json' => rawurlencode($jsonstr),
-        'jsonnote' => get_string('generationresultsjsonnote', 'aiplacement_modgen'),
-        'downloadjsontext' => get_string('downloadjson', 'aiplacement_modgen'),
-        'form' => $formhtml,
-        'promptheading' => get_string('generationresultspromptheading', 'aiplacement_modgen'),
-        'prompttoggle' => get_string('generationresultsprompttoggle', 'aiplacement_modgen'),
-        // Plain text: the template escapes it, and the stylesheet keeps its line breaks.
-        'prompttext' => $prompt,
-        'hasprompt' => trim($prompt) !== '',
-    ];
-
-    $bodyhtml = $OUTPUT->render_from_template('aiplacement_modgen/prompt_preview', $previewdata);
-    $bodyhtml = html_writer::div($bodyhtml, 'aiplacement-modgen__content');
+    $bodyhtml = html_writer::div(ob_get_clean(), 'aiplacement-modgen__content');
 
     // Define footer buttons for the preview step - server-driven approach.
     if ($ajax) {

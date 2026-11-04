@@ -113,7 +113,7 @@ Feature: The CSV structure library
     And the "Select a pre-made structure" select box should contain "Standard module - Twelve week plan"
     And I set the field "Select a pre-made structure" to "Standard module - Twelve week plan"
     And I press "Preview Structure"
-    And I should see "Foundations"
+    And the field "Title of theme 1" matches value "Foundations"
     And I press "Create"
     And I run all adhoc tasks
     And the course "C1" structure should be:
@@ -145,7 +145,7 @@ Feature: The CSV structure library
     And I set the field "Select a pre-made structure" to "Library plan"
     And I upload "ai/placement/modgen/tests/fixtures/csv/weekly.csv" file to "Upload structure file" filemanager
     And I press "Preview Structure"
-    Then I should see "Alpha"
+    Then the field "Title of week 1" matches value "Alpha"
     And I should not see "Foundations"
 
   Scenario: The library is not offered when Structure from file is switched off

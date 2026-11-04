@@ -451,6 +451,19 @@ class behat_aiplacement_modgen extends behat_base {
     }
 
     /**
+     * Check the body returned by the last "I post ... to the modgen endpoint" step leaves something out.
+     *
+     * @Then /^the modgen endpoint response should not contain "(?P<text_string>[^"]*)"$/
+     * @param string $text Text that must not appear.
+     */
+    public function the_modgen_endpoint_response_should_not_contain(string $text): void {
+        $body = (string) $this->getSession()->evaluateScript('return window.modgenPostResponse;');
+        if (strpos($body, $text) !== false) {
+            throw new Exception("The endpoint response contains '$text'. It was: " . substr($body, 0, 300));
+        }
+    }
+
+    /**
      * Queue the automatic section renumber for a course, as a section add or delete would.
      *
      * @Given /^the automatic section renumber for "(?P<course_string>[^"]*)" is queued$/

@@ -183,7 +183,7 @@ function aiplacement_modgen_output_fragment_course_toolbar(array $args): string 
     // Site administrators get the section reorder status, on Flexible sections courses, while it is switched on.
     if (
         \aiplacement_modgen\local\course_formats::is_flexsections($courseid)
-            && \aiplacement_modgen\local\section_reorder_status::can_view()
+            && \aiplacement_modgen\local\section_reorder_status::can_view($courseid)
     ) {
         $toolbar->set_reorder_status(\aiplacement_modgen\local\section_reorder_status::get_for_course($courseid));
     }

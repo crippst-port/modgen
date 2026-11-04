@@ -40,8 +40,8 @@ require_sesskey();
 
 try {
     // Site administrators only, and only while the automatic renumber is switched on.
-    if (!section_reorder_status::can_view()) {
-        throw new required_capability_exception(context_system::instance(), 'moodle/site:config', 'nopermissions', '');
+    if (!section_reorder_status::can_view($courseid)) {
+        throw new required_capability_exception(context_course::instance($courseid), 'moodle/site:config', 'nopermissions', '');
     }
     ajax_response::success(['status' => section_reorder_status::get_for_course($courseid)]);
 } catch (\Throwable $e) {

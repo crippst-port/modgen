@@ -163,17 +163,17 @@ final class section_reorder_status_test extends \advanced_testcase {
     }
 
     public function test_admin_can_view(): void {
-        $this->assertTrue(section_reorder_status::can_view());
+        $this->assertTrue(section_reorder_status::can_view($this->course->id));
     }
 
     public function test_teacher_cannot_view(): void {
         $teacher = $this->getDataGenerator()->create_and_enrol($this->course, 'editingteacher');
         $this->setUser($teacher);
-        $this->assertFalse(section_reorder_status::can_view());
+        $this->assertFalse(section_reorder_status::can_view($this->course->id));
     }
 
     public function test_nobody_can_view_when_switched_off(): void {
         set_config('enable_autoreorder', 0, 'aiplacement_modgen');
-        $this->assertFalse(section_reorder_status::can_view());
+        $this->assertFalse(section_reorder_status::can_view($this->course->id));
     }
 }

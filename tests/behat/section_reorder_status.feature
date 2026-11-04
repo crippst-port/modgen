@@ -75,6 +75,23 @@ Feature: Automatic section renumbering and its status icon
     And I click on "[data-region='aiplacement-modgen-reorder-status'] a" "css_element"
     And I should see "Course Structure Diagnostics"
 
+  Scenario: An administrator who switches to a teacher role no longer sees the status icon
+    Given the automatic section renumber for "C1" is queued
+    And I am on the "Course 1" "course" page logged in as "admin"
+    And I turn editing mode on
+    And the section reorder status should show "queued"
+    When I follow "Switch role to..." in the user menu
+    And I press "Teacher"
+    And I turn editing mode on
+    Then I should see "Check Structure"
+    And "[data-region='aiplacement-modgen-reorder-status']" "css_element" should not exist
+
+  Scenario: A teacher asking the status endpoint directly is refused
+    Given the automatic section renumber for "C1" is queued
+    And I am on the "Course 1" "course" page logged in as "teacher1"
+    When I post "" to the modgen endpoint "ajax/reorder_status.php" for "C1"
+    Then the modgen endpoint response should contain "you do not currently have permissions"
+    And the modgen endpoint response should not contain "state"
   Scenario: Teachers do not see the status icon
     Given the automatic section renumber for "C1" is queued
     When I am on the "Course 1" "course" page logged in as "teacher1"

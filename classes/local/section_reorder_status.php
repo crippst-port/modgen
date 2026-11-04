@@ -33,15 +33,19 @@ class section_reorder_status {
     public const RECENT_WINDOW = 3600;
 
     /**
-     * Whether the current user should see the status icon at all.
+     * Whether the current user should see the status icon on a course.
      *
-     * Site administrators only, and only while the automatic renumber is switched on.
+     * Site administrators only, and only while the automatic renumber is switched on. Checked in the
+     * course, not the system context: an administrator who has switched role in the course is then
+     * judged by that role, as everything else on the page is. A site administrator holds the
+     * capability everywhere, so without a switch the result is the same.
      *
+     * @param int $courseid Course the icon is shown on
      * @return bool
      */
-    public static function can_view(): bool {
+    public static function can_view(int $courseid): bool {
         return settings_helper::is_autoreorder_enabled()
-            && has_capability('moodle/site:config', \context_system::instance());
+            && has_capability('moodle/site:config', \context_course::instance($courseid));
     }
 
     /**

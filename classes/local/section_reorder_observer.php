@@ -25,22 +25,51 @@
 namespace aiplacement_modgen\local;
 
 /**
- * Reacts to section create and delete events on Flexible sections courses.
+ * Reacts to section create and delete events, and to Check Structure repairs, on Flexible sections courses.
  */
 class section_reorder_observer {
     /**
      * Queue a renumber when a section is added to or deleted from a Flexible sections course.
+     *
+     * Flexible sections renumbers on every add, but two overlapping requests on a slow site can
+     * each renumber from numbers the other is changing, and leave the course out of order.
      *
      * Never throws: a failure here must not break the teacher's edit.
      *
      * @param \core\event\base $event course_section_created or course_section_deleted
      */
     public static function section_changed(\core\event\base $event): void {
+        self::queue((int) $event->courseid);
+    }
+
+    /**
+     * Queue a renumber after a Check Structure repair.
+     *
+     * Reparenting and the other repairs write parent links directly and never renumber, so
+     * they leave sections out of hierarchy order. The renumber itself is skipped, as is the
+     * automatic task's own repaired event, which is a renumber too.
+     *
+     * @param \aiplacement_modgen\event\structure_repaired $event
+     */
+    public static function structure_repaired(\aiplacement_modgen\event\structure_repaired $event): void {
+        if (($event->other['action'] ?? '') === 'fixsectionorder') {
+            return;
+        }
+        self::queue((int) $event->courseid);
+    }
+
+    /**
+     * Queue a renumber for a Flexible sections course, when the feature is on.
+     *
+     * Never throws: a failure here must not break the edit that triggered it.
+     *
+     * @param int $courseid Course ID
+     */
+    private static function queue(int $courseid): void {
         try {
             if (!settings_helper::is_autoreorder_enabled()) {
                 return;
             }
-            $courseid = (int) $event->courseid;
             if (empty($courseid) || $courseid === SITEID) {
                 return;
             }

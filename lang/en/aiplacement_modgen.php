@@ -644,6 +644,7 @@ $string['reorderstatus_blocked'] = 'Automatic reorder refused at {$a}: needs Che
 $string['reorderpanel_heading'] = 'Automatic section renumbering';
 $string['reorderpanel_none'] = 'No automatic renumber has run on this course yet.';
 $string['reorderpanel_queued'] = 'A renumber is queued and will run at {$a}, once nobody has edited the course for a minute.';
+$string['reorderpanel_runnow'] = 'Renumber now';
 $string['reorderpanel_running'] = 'A renumber is running now.';
 $string['reorderpanel_renumbered'] = 'Last run {$a}: the sections were renumbered into hierarchy order.';
 $string['reorderpanel_checked'] = 'Last run {$a}: the sections were already in order, so nothing changed.';

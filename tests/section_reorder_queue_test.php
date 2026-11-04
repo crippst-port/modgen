@@ -119,6 +119,49 @@ final class section_reorder_queue_test extends \advanced_testcase {
         $this->assertCount(0, section_reorder_queue::get_task_rows($this->course->id));
     }
 
+    /**
+     * Repairs on Check Structure that change parents.
+     *
+     * @return array
+     */
+    public static function parent_repair_provider(): array {
+        return [
+            'setparent' => ['setparent'],
+            'setparentall' => ['setparentall'],
+            'fixintegrity' => ['fixintegrity'],
+            'fixcircular' => ['fixcircular'],
+        ];
+    }
+
+    /**
+     * @dataProvider parent_repair_provider
+     * @param string $action Repair action
+     */
+    public function test_repair_queues_task(string $action): void {
+        \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, $action, 1)->trigger();
+        $this->assertCount(1, section_reorder_queue::get_task_rows($this->course->id));
+    }
+
+    public function test_reparenting_one_row_at_a_time_shares_one_task(): void {
+        foreach ([1, 2, 3] as $ignored) {
+            \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, 'setparent', 1)->trigger();
+        }
+        $this->assertCount(1, section_reorder_queue::get_task_rows($this->course->id));
+    }
+
+    public function test_renumber_does_not_queue_another(): void {
+        \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, 'fixsectionorder', 3)->trigger();
+        \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, 'fixsectionorder', 3, 'adhoctask')
+            ->trigger();
+        $this->assertCount(0, section_reorder_queue::get_task_rows($this->course->id));
+    }
+
+    public function test_switched_off_repair_queues_nothing(): void {
+        set_config('enable_autoreorder', 0, 'aiplacement_modgen');
+        \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, 'setparent', 1)->trigger();
+        $this->assertCount(0, section_reorder_queue::get_task_rows($this->course->id));
+    }
+
     public function test_unsaved_setting_counts_as_on(): void {
         unset_config('enable_autoreorder', 'aiplacement_modgen');
         $this->assertTrue(settings_helper::is_autoreorder_enabled());

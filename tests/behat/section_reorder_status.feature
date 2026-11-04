@@ -92,6 +92,63 @@ Feature: Automatic section renumbering and its status icon
     When I post "" to the modgen endpoint "ajax/reorder_status.php" for "C1"
     Then the modgen endpoint response should contain "you do not currently have permissions"
     And the modgen endpoint response should not contain "state"
+
+  Scenario: Adding a section shows the renumber finishing, and adding another queues it again, without a page reload
+    Given the course "C1" has "2" themes with "1" weeks each
+    And the section renumber queue for "C1" is empty
+    And I am on the "Course 1" "course" page logged in as "admin"
+    And I turn editing mode on
+    When I click on "Add section" "link" in the "li#section-0" "css_element"
+    And I wait until the page is ready
+    Then the section reorder status should show "queued"
+    And the automatic section renumber for "C1" runs
+    And the section reorder status should show "checked"
+    And I click on "Add section" "link" in the "li#section-0" "css_element"
+    And I wait until the page is ready
+    And the section reorder status should show "queued"
+    And there should be "1" section renumbers queued for "C1"
+
+  Scenario: Adding several sections in a row queues one renumber
+    Given the section renumber queue for "C1" is empty
+    And I am on the "Course 1" "course" page logged in as "admin"
+    And I turn editing mode on
+    When I click on "Add section" "link" in the "li#section-0" "css_element"
+    And I wait until the page is ready
+    And I click on "Add section" "link" in the "li#section-0" "css_element"
+    And I wait until the page is ready
+    And I click on "Add section" "link" in the "li#section-0" "css_element"
+    And I wait until the page is ready
+    Then there should be "1" section renumbers queued for "C1"
+    And the section reorder status should show "queued"
+
+  # Sections share names, and every row's dropdown lists them all, so rows are found by the dropdown's label.
+  Scenario: Reparenting a section on Check Structure queues a renumber that puts the sections back in order
+    Given the course "C1" has "2" themes with "1" weeks each
+    And the section renumber queue for "C1" is empty
+    And I log in as "admin"
+    And I am on the Check Structure page of "C1"
+    And I set the field "Show all sections (including clean ones)" to "1"
+    When I set the field with xpath "//select[@aria-label='New parent for section 7']" to "1: Theme 1"
+    And I click on "//form[.//select[@aria-label='New parent for section 7']]//button" "xpath_element"
+    Then I should see "Section 7 reparented."
+    And I should see "A renumber is queued and will run at"
+    And there should be "1" section renumbers queued for "C1"
+    And the automatic section renumber for "C1" runs
+    And I am on the Check Structure page of "C1"
+    And I should see "the sections were renumbered into hierarchy order"
+    And the course "C1" structure should be sound
+
+  Scenario: Renumber now on Check Structure renumbers straight away
+    Given the course "C1" has "2" themes with "1" weeks each
+    And section "Late week" was added under "Theme 1" in "C1" unnumbered
+    And the section renumber queue for "C1" is empty
+    And I log in as "admin"
+    And I am on the Check Structure page of "C1"
+    When I click on "Renumber now" "link"
+    And I click on "Continue" "button"
+    Then I should see "the sections were renumbered into hierarchy order"
+    And the course "C1" structure should be sound
+
   Scenario: The Check Structure page shows the last renumber to an administrator
     Given the course "C1" has "2" themes with "1" weeks each
     And the automatic section renumber for "C1" runs
@@ -113,6 +170,7 @@ Feature: Automatic section renumbering and its status icon
     When I am on the Check Structure page of "C1"
     Then I should see "Course Structure Diagnostics"
     And I should not see "Automatic section renumbering"
+    And I should not see "Renumber now"
 
   Scenario: Teachers do not see the status icon
     Given the automatic section renumber for "C1" is queued

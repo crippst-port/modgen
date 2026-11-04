@@ -36,4 +36,9 @@ $observers = [
         'callback' => '\aiplacement_modgen\local\section_reorder_observer::section_changed',
         'internal' => false,
     ],
+    [
+        'eventname' => '\aiplacement_modgen\event\structure_repaired',
+        'callback' => '\aiplacement_modgen\local\section_reorder_observer::structure_repaired',
+        'internal' => false,
+    ],
 ];

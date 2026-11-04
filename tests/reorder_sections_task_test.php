@@ -133,6 +133,35 @@ final class reorder_sections_task_test extends \advanced_testcase {
         $this->assertSame('fixsectionorder', $events[0]->other['action']);
     }
 
+    public function test_order_broken_by_overlapping_adds_is_renumbered(): void {
+        global $DB;
+        $format = \course_get_format($this->course->id);
+        $a = $format->create_new_section(0);
+        $child = $format->create_new_section($a);
+        $b = $format->create_new_section(0);
+        $this->assertSame([], integrity_checker::check_section_order($this->course->id)['misordered']);
+        $rows = section_reorder_queue::get_task_rows($this->course->id);
+        $this->assertCount(1, $rows);
+
+        // Two adds on a slow site each renumber from numbers the other is changing, and B ends up
+        // between A and its child.
+        $childid = (int) $DB->get_field('course_sections', 'id', ['course' => $this->course->id, 'section' => $child]);
+        $bid = (int) $DB->get_field('course_sections', 'id', ['course' => $this->course->id, 'section' => $b]);
+        $DB->set_field('course_sections', 'section', -1, ['id' => $childid]);
+        $DB->set_field('course_sections', 'section', $child, ['id' => $bid]);
+        $DB->set_field('course_sections', 'section', $b, ['id' => $childid]);
+        \rebuild_course_cache($this->course->id, true);
+        $this->assertNotEmpty(integrity_checker::check_section_order($this->course->id)['misordered']);
+
+        $this->age_edits();
+        $task = \core\task\manager::adhoc_task_from_record(array_values($rows)[0]);
+        $task->execute();
+
+        $this->assertSame([], integrity_checker::check_section_order($this->course->id)['misordered']);
+        $this->assertEquals($a + 1, $DB->get_field('course_sections', 'section', ['id' => $childid]));
+        $this->assertEquals($a + 2, $DB->get_field('course_sections', 'section', ['id' => $bid]));
+    }
+
     public function test_ordered_course_writes_nothing_and_logs_checked(): void {
         $this->age_edits();
         $sink = $this->redirectEvents();

@@ -319,6 +319,17 @@ if (\aiplacement_modgen\local\section_reorder_status::can_view($courseid)) {
         $reorderstatus !== null ? $reorderstatus['summary'] : get_string('reorderpanel_none', 'aiplacement_modgen')
     );
     echo html_writer::end_div();
+    // Runs the same renumber as the Renumber Sections button below, through its confirmation, without
+    // waiting for the queue or for the check to have been run first.
+    echo html_writer::link(
+        new moodle_url('/ai/placement/modgen/check_structure.php', [
+            'id'      => $courseid,
+            'action'  => 'fixsectionorder',
+            'sesskey' => sesskey(),
+        ]),
+        get_string('reorderpanel_runnow', 'aiplacement_modgen'),
+        ['class' => 'btn btn-secondary ml-auto']
+    );
     echo html_writer::end_div();
 }
 

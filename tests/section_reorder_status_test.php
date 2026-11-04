@@ -108,8 +108,11 @@ final class section_reorder_status_test extends \advanced_testcase {
         $this->assertNull(section_reorder_status::get_for_course($this->course->id));
     }
 
-    public function test_other_repair_action_is_ignored(): void {
+    public function test_other_repair_action_queues_a_renumber_but_is_not_one(): void {
+        global $DB;
         $this->log_repair('fixcircular');
+        $this->assertSame('queued', section_reorder_status::get_for_course($this->course->id)['state']);
+        $DB->delete_records('task_adhoc');
         $this->assertNull(section_reorder_status::get_for_course($this->course->id));
     }
 

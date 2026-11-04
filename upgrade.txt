@@ -5,20 +5,21 @@
 ### Added
 
 - Automatic section renumbering. About a minute after the last section is added or deleted on a
-  Flexible sections course, an ad hoc task renumbers the course into hierarchy order. It waits while
+  Flexible sections course, or a section is reparented or repaired on Check Structure, an ad hoc task renumbers the course into hierarchy order. It waits while
   the standard log shows someone edited the course in the last minute (or, without the standard log,
   while the course cache was rebuilt in the last minute), and logs the outcome. It is on by default and
   can be switched off with "Renumber sections automatically" in the plugin settings, which stops
   new tasks being queued, makes queued ones do nothing and hides the status icon.
 - A status icon on the assistant bar, for site administrators only, showing whether a renumber is
   queued, running, done or refused. The Check Structure page shows site administrators the last
-  outcome, however old, with its date.
+  outcome, however old, with its date, and a "Renumber now" button that renumbers straight away.
 - A new event, \aiplacement_modgen\event\section_order_blocked, logged when the renumber is
   refused because the section hierarchy is broken.
 - A new event, \aiplacement_modgen\event\section_order_checked, logged when the renumber runs and
   finds the sections already in order, so the status icon can show the run finished.
 - structure_repaired events can now have via = 'adhoctask'.
-- Event observers in db/events.php for course_section_created and course_section_deleted.
+- Event observers in db/events.php for course_section_created, course_section_deleted and
+  \aiplacement_modgen\event\structure_repaired (every action except fixsectionorder).
 
 ## Upgrading to Version 0.9.0 (2026-10-30)
 

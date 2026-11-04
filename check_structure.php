@@ -313,7 +313,7 @@ if (\aiplacement_modgen\local\section_reorder_status::can_view($courseid)) {
             'aiplacement-modgen-reorder-panel__icon mr-3'
         );
     }
-    echo html_writer::start_div();
+    echo html_writer::start_div('mr-3');
     echo html_writer::tag('strong', get_string('reorderpanel_heading', 'aiplacement_modgen'), ['class' => 'd-block']);
     echo html_writer::span(
         $reorderstatus !== null ? $reorderstatus['summary'] : get_string('reorderpanel_none', 'aiplacement_modgen')
@@ -328,7 +328,7 @@ if (\aiplacement_modgen\local\section_reorder_status::can_view($courseid)) {
             'sesskey' => sesskey(),
         ]),
         get_string('reorderpanel_runnow', 'aiplacement_modgen'),
-        ['class' => 'btn btn-secondary ml-auto']
+        ['class' => 'btn btn-secondary ml-auto flex-shrink-0 text-nowrap']
     );
     echo html_writer::end_div();
 }

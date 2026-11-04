@@ -1628,11 +1628,11 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
-    height: 28px;
+    width: 22px;
+    height: 22px;
     border-radius: 50%;
     color: #fff;
-    font-size: 28px;
+    font-size: 22px;
     line-height: 1;
     text-decoration: none;
     /* Fades and slides in from the left whenever it appears or changes state. */
@@ -1674,9 +1674,9 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
 }
 
 .aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon {
-    width: 36px;
-    height: 36px;
-    font-size: 36px;
+    width: 28px;
+    height: 28px;
+    font-size: 28px;
 }
 
 .aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--queued,

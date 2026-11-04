@@ -41,13 +41,13 @@
 }}
 {{#isblocked}}
 <a href="{{url}}" class="aiplacement-modgen-reorder-icon aiplacement-modgen-reorder-icon--blocked" role="img" aria-label="{{label}}" title="{{label}}" data-toggle="tooltip">
-    <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+    <i class="fa fa-exclamation-circle" aria-hidden="true"></i>
 </a>
 {{/isblocked}}
 {{^isblocked}}
 <span class="aiplacement-modgen-reorder-icon aiplacement-modgen-reorder-icon--{{state}}" tabindex="0" role="img" aria-label="{{label}}" title="{{label}}" data-toggle="tooltip">
     {{#isqueued}}<i class="fa fa-clock" aria-hidden="true"></i>{{/isqueued}}
-    {{#isrunning}}<i class="fa fa-sync fa-spin" aria-hidden="true"></i>{{/isrunning}}
+    {{#isrunning}}<i class="fa fa-play-circle" aria-hidden="true"></i>{{/isrunning}}
     {{#isdone}}<i class="fa fa-check-circle" aria-hidden="true"></i>{{/isdone}}
 </span>
 {{/isblocked}}

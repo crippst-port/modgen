@@ -1622,6 +1622,8 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
     margin-right: 0.5rem;
 }
 
+/* Each state is one of Font Awesome's solid circled icons, white with its symbol cut out, so the bar
+   shows through the symbol. The icon is the circle: nothing is drawn behind it. */
 .aiplacement-modgen-reorder-icon {
     display: inline-flex;
     align-items: center;
@@ -1629,10 +1631,9 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
     width: 28px;
     height: 28px;
     border-radius: 50%;
-    background: rgba(255, 255, 255, 0.16);
-    border: 1px solid rgba(255, 255, 255, 0.35);
     color: #fff;
-    font-size: 0.8rem;
+    font-size: 28px;
+    line-height: 1;
     text-decoration: none;
     /* Fades and slides in from the left whenever it appears or changes state. */
     animation: aiplacement-modgen-reorder-icon-in 0.35s ease-out both;
@@ -1666,20 +1667,8 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
     outline-offset: 2px;
 }
 
-.aiplacement-modgen-reorder-icon--blocked {
-    background: rgba(220, 53, 69, 0.55);
-}
-
-/* Finished: Font Awesome's circled tick fills the slot on its own, so no circle behind it. */
-.aiplacement-modgen-reorder-icon--renumbered,
-.aiplacement-modgen-reorder-icon--checked {
-    background: transparent;
-    border-color: transparent;
-    font-size: 28px;
-}
-
-/* The same icon on the Check Structure page. The bar's see-through whites vanish on a white page, so
-   each state gets a solid colour that keeps the white icon readable. */
+/* The same icon on the Check Structure page. White would vanish on the white page, so each state
+   has its own colour there. */
 .aiplacement-modgen-reorder-panel {
     background: var(--bs-light, #f8f9fa);
 }
@@ -1687,30 +1676,27 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
 .aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon {
     width: 36px;
     height: 36px;
-    font-size: 1rem;
-    border-color: transparent;
-}
-
-.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--queued,
-.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--running {
-    background: #0f6cbf;
-}
-
-.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--blocked {
-    background: #c62828;
-}
-
-/* White would vanish on the white page, so the finished tick is green here. */
-.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--renumbered,
-.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--checked {
-    color: #16a34a;
     font-size: 36px;
 }
 
-/* On the bar the finished tick is plain white like the other states; here it needs a colour to show. */
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--queued,
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--running,
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--queued:hover,
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--running:hover {
+    color: #0f6cbf;
+}
+
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--blocked,
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--blocked:hover,
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--blocked:focus {
+    color: #c62828;
+}
+
 .aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--renumbered,
-.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--checked {
-    background: #16a34a;
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--checked,
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--renumbered:hover,
+.aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon--checked:hover {
+    color: #16a34a;
 }
 
 .aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon:focus-visible {

@@ -47,6 +47,66 @@ require_once($CFG->dirroot . '/course/lib.php');
  */
 final class lock_handling_test extends advanced_testcase {
     /**
+     * The delete lock key modgen takes is the one the installed format_flexsections locks on.
+     *
+     * Read from format_flexsections' own source, so this fails if a new version changes the key:
+     * a build would then no longer keep a teacher's section delete out.
+     *
+     * @covers \aiplacement_modgen\local\course_formats::flexsections_delete_lock_key
+     */
+    public function test_delete_lock_key_matches_installed_flexsections(): void {
+        $this->resetAfterTest(true);
+        $dir = \core_component::get_component_directory('format_flexsections');
+        if ($dir === null) {
+            $this->markTestSkipped('format_flexsections is not installed.');
+        }
+        $source = file_get_contents($dir . '/lib.php');
+
+        $this->assertMatchesRegularExpression(
+            "/get_lock_factory\('" . local\course_formats::FLEXSECTIONS_DELETE_LOCK_TYPE . "'\)/",
+            $source
+        );
+        $found = preg_match("/->get_lock\('course_modification_lock(_' \. \\\$this->courseid)?'?,/", $source, $match);
+        $this->assertSame(1, $found, 'format_flexsections no longer takes a recognised delete lock.');
+
+        $courseid = 42;
+        $expected = empty($match[1]) ? 'course_modification_lock' : 'course_modification_lock_' . $courseid;
+        $this->assertSame($expected, local\course_formats::flexsections_delete_lock_key($courseid));
+    }
+
+    /**
+     * A build holds the flexsections delete lock while it runs, and lets it go after.
+     *
+     * The lock is re-entrant within one process on some databases, so this checks what is held
+     * rather than trying to take it again; the forked concurrency tests check the exclusion itself.
+     *
+     * @covers \aiplacement_modgen\local\theme_builder::acquire_structure_locks
+     */
+    public function test_build_takes_the_flexsections_delete_lock(): void {
+        $this->resetAfterTest(true);
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        $wanted = local\course_formats::FLEXSECTIONS_DELETE_LOCK_TYPE . '_'
+            . local\course_formats::flexsections_delete_lock_key((int) $course->id);
+
+        $locks = theme_builder::acquire_structure_locks($course->id, 0);
+        try {
+            $keys = array_map(fn($lock) => $lock->get_key(), $locks);
+            $this->assertContains($wanted, $keys);
+        } finally {
+            theme_builder::release_structure_locks($locks);
+        }
+
+        // A core format course takes no flexsections lock at all.
+        $topics = $this->getDataGenerator()->create_course(['format' => 'topics']);
+        $locks = theme_builder::acquire_structure_locks($topics->id, 0);
+        $keys = array_map(fn($lock) => $lock->get_key(), $locks);
+        theme_builder::release_structure_locks($locks);
+        foreach ($keys as $key) {
+            $this->assertStringNotContainsString(local\course_formats::FLEXSECTIONS_DELETE_LOCK_TYPE, $key);
+        }
+    }
+
+    /**
      * Test that lock is acquired before section creation.
      *
      * @covers \aiplacement_modgen\local\section_creation_service::create_sections_from_json

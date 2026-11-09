@@ -714,21 +714,14 @@ class theme_builder {
      * one a bulk build can interleave with a teacher deleting a section - and every
      * section number this code is holding would shift underneath it.
      *
-     * Both flexsections key forms are taken so this works against any build of the plugin:
-     * upstream uses the fixed string, a per-course key is the sane variant.
+     * The flexsections key is the one the installed version locks on
+     * (course_formats::flexsections_delete_lock_key()): per course from 4.1.7. On 4.1.4 to 4.1.6
+     * it has no course id in it, so a build there holds up section deletes in every Flexible
+     * sections course on the site (delete_section_with_children() waits 10s on it, then throws
+     * 'locktimeout'). Nothing can narrow that from here: the key is the one flexsections takes.
      *
-     * KNOWN TRADEOFF - 'course_modification_lock' has no course id in it, so holding it for
-     * the duration of a build blocks section deletion in EVERY course on the site, not just
-     * this one (format_flexsections::delete_section_with_children() waits only 10s on it and
-     * then throws 'locktimeout'). This is deliberate and cannot be fixed from here: upstream
-     * flexsections guards a per-course operation with a global key, and dropping the key is
-     * what would actually remove the exclusion, since the per-course key below is one nothing
-     * else takes. Narrowing the hold does not help either - the whole locked region is the
-     * structural section creation the lock exists to protect. The real fix is upstream: give
-     * delete_section_with_children() a per-course key, then drop the global one here.
-     *
-     * The flexsections keys are only taken for a Flexible sections course, so a build in a core
-     * format does not hold up section deletes in Flexible sections courses across the site.
+     * The flexsections key is only taken for a Flexible sections course, so a build in a core
+     * format does not hold up section deletes in Flexible sections courses.
      *
      * @param int $courseid Course ID
      * @param int $timeout Seconds to wait per lock
@@ -741,8 +734,10 @@ class theme_builder {
             ['core_course_edit', 'course_edit_' . $courseid],
         ];
         if (course_formats::is_flexsections((int) $courseid)) {
-            $wanted[] = ['format_flexsections_delete_section', 'course_modification_lock'];
-            $wanted[] = ['format_flexsections_delete_section', 'course_' . $courseid];
+            $wanted[] = [
+                course_formats::FLEXSECTIONS_DELETE_LOCK_TYPE,
+                course_formats::flexsections_delete_lock_key((int) $courseid),
+            ];
         }
         foreach ($wanted as [$type, $key]) {
             $factory = \core\lock\lock_config::get_lock_factory($type);

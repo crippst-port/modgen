@@ -1,5 +1,16 @@
 === Module Assistant (aiplacement_modgen) Upgrade Notes ===
 
+## Upgrading to the next version
+
+### Fixed
+
+- A build now holds the lock format_flexsections takes around a section delete. From
+  format_flexsections 4.1.7 that lock is per course ('course_modification_lock_' and the course id),
+  and builds took the 4.1.4-4.1.6 key, so on 4.1.7 a teacher's section delete could run in the middle
+  of a build. The key now follows the installed version
+  (course_formats::flexsections_delete_lock_key()), and on 4.1.7 a build no longer holds up section
+  deletes in other courses. Builds stopped taking a 'course_<id>' key, which nothing else took.
+
 ## Upgrading to Version 1.0.0 (2026-11-09)
 
 ### Added

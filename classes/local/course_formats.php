@@ -50,6 +50,34 @@ class course_formats {
      */
     public const FLEXSECTIONS_MIN_VERSION = 2024120801;
 
+    /** @var string Lock factory format_flexsections takes around delete_section_with_children(). */
+    public const FLEXSECTIONS_DELETE_LOCK_TYPE = 'format_flexsections_delete_section';
+
+    /**
+     * @var int First format_flexsections (4.1.7) whose delete lock is per course.
+     *
+     * 4.1.4 to 4.1.6 lock every section delete on the site with the one key 'course_modification_lock';
+     * from 4.1.7 the key is 'course_modification_lock_' followed by the course id.
+     */
+    public const FLEXSECTIONS_PER_COURSE_LOCK_VERSION = 2024120804;
+
+    /**
+     * The key format_flexsections locks a section delete in this course on.
+     *
+     * Holding it keeps a teacher's section delete out of whatever holds it. On 4.1.4 to 4.1.6 the
+     * key is the same for every course, so holding it holds up section deletes across the site.
+     *
+     * @param int $courseid Course ID.
+     * @return string
+     */
+    public static function flexsections_delete_lock_key(int $courseid): string {
+        $plugin = \core_plugin_manager::instance()->get_plugin_info('format_flexsections');
+        if ($plugin && (int) $plugin->versiondisk >= self::FLEXSECTIONS_PER_COURSE_LOCK_VERSION) {
+            return 'course_modification_lock_' . $courseid;
+        }
+        return 'course_modification_lock';
+    }
+
     /**
      * The course's format.
      *

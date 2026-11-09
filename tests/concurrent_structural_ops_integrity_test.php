@@ -84,6 +84,7 @@
 namespace aiplacement_modgen;
 
 use advanced_testcase;
+use aiplacement_modgen\local\course_formats;
 use course_modinfo;
 
 defined('MOODLE_INTERNAL') || die();
@@ -100,12 +101,6 @@ require_once($CFG->dirroot . '/course/lib.php');
  * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
  */
 final class concurrent_structural_ops_integrity_test extends advanced_testcase {
-    /** @var string The lock factory type format_flexsections uses for delete. */
-    private const LOCK_TYPE = 'format_flexsections_delete_section';
-
-    /** @var string The lock resource key format_flexsections uses for delete. */
-    private const LOCK_KEY = 'course_modification_lock';
-
     /**
      * Skip unless the long-test + pcntl prerequisites are met.
      */
@@ -260,12 +255,13 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
     /**
      * Acquire the exact lock format_flexsections' delete path uses.
      *
+     * @param int $courseid Course whose deletes the lock guards.
      * @param int $timeout Seconds to wait (0 == try once).
      * @return \core\lock\lock|false
      */
-    private function grab_delete_lock(int $timeout = 0) {
-        $factory = \core\lock\lock_config::get_lock_factory(self::LOCK_TYPE);
-        return $factory->get_lock(self::LOCK_KEY, $timeout);
+    private function grab_delete_lock(int $courseid, int $timeout = 0) {
+        $factory = \core\lock\lock_config::get_lock_factory(course_formats::FLEXSECTIONS_DELETE_LOCK_TYPE);
+        return $factory->get_lock(course_formats::flexsections_delete_lock_key($courseid), $timeout);
     }
 
     /**
@@ -363,7 +359,7 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
         [$courseid, $bynum] = $this->build_course();
 
         // The parent holds the delete lock for the whole child run.
-        $lock = $this->grab_delete_lock(0);
+        $lock = $this->grab_delete_lock($courseid, 0);
         $this->assertNotFalse($lock, 'Parent should acquire the flexsections delete lock.');
 
         $before = (int) $DB->get_field('course_sections', 'section', ['id' => $bynum[15]]);
@@ -402,7 +398,7 @@ final class concurrent_structural_ops_integrity_test extends advanced_testcase {
 
         [$courseid, $bynum] = $this->build_course();
 
-        $lock = $this->grab_delete_lock(0);
+        $lock = $this->grab_delete_lock($courseid, 0);
         $this->assertNotFalse($lock, 'Parent should acquire the flexsections delete lock.');
 
         $outcome = $this->fork_one(

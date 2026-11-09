@@ -1,0 +1,662 @@
+// This file is part of Moodle - https://moodle.org/
+//
+// Moodle is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// Moodle is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+// GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+
+/**
+ * Hold back each section change on a Flexible sections course until the last one is done.
+ *
+ * Flexible sections renumbers every section on a delete, duplicate, move, merge or add, and two
+ * that overlap leave the course out of order. This covers the page while a change is saved, so
+ * the next cannot start until it is done, and before each change asks the server whether
+ * another (from another tab, another person or a Module Assistant build) is under way, waiting
+ * for it to finish.
+ *
+ * Changes made through the course editor are caught by wrapping its dispatch(), which every
+ * component calls through: Flexible sections replaces the editor's mutations when it loads, so
+ * wrapping those would not last. Duplicate, and the actions Flexible sections still does with a
+ * page load, are links, caught as they are clicked.
+ *
+ * @module     aiplacement_modgen/structure_guard
+ * @copyright  2026 Tom Cripps <tom.cripps@port.ac.uk>
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
+import {getCurrentCourseEditor} from 'core_courseformat/courseeditor';
+import Templates from 'core/templates';
+import Notification from 'core/notification';
+import Pending from 'core/pending';
+import {getString} from 'core/str';
+
+/** @type {Object<string, string>} Course editor mutations that change the section structure, and what each does. */
+const GUARDED_MUTATIONS = {
+    sectionDelete: 'delete',
+    sectionMove: 'move',
+    sectionMoveAfter: 'move',
+    addSection: 'add',
+    sectionMergeUp: 'merge',
+    addSubSection: 'add',
+    insertSubSection: 'add',
+};
+
+/** @type {Object<string, string>} URL parameters of the section changes made with a page load, and what each does. */
+const GUARDED_LINK_PARAMS = {
+    duplicatesection: 'duplicate',
+    addchildsection: 'add',
+    mergeup: 'merge',
+    deletesection: 'delete',
+    movesection: 'move',
+};
+
+/**
+ * @type {Object<string, {working: string, workingmany: ?string, done: ?string, donemany: ?string}>}
+ * The cover's heading for each kind of change while it is saved and once it is: one section, or
+ * several ({$a} is how many). A change that loads a new page shows no tick, so needs no done heading.
+ */
+const ACTION_STRINGS = {
+    delete: {
+        working: 'structureguard_delete', workingmany: 'structureguard_delete_many',
+        done: 'structureguard_deleted', donemany: 'structureguard_deleted_many',
+    },
+    move: {
+        working: 'structureguard_move', workingmany: 'structureguard_move_many',
+        done: 'structureguard_moved', donemany: 'structureguard_moved_many',
+    },
+    add: {working: 'structureguard_add', workingmany: null, done: 'structureguard_added', donemany: null},
+    merge: {working: 'structureguard_merge', workingmany: null, done: 'structureguard_merged', donemany: null},
+    duplicate: {working: 'structureguard_duplicate', workingmany: null, done: null, donemany: null},
+};
+
+/** @type {{kind: ?string, count: number}} The change being made now: its kind (ACTION_STRINGS) and how many sections. */
+let currentAction = {kind: null, count: 1};
+
+/**
+ * The cover's heading for the change being made now, or the general one.
+ *
+ * @param {string} which 'working' or 'done'
+ * @param {string} fallback String identifier to use when the change is not one this knows
+ * @returns {Promise<string>}
+ */
+const actionTitle = (which, fallback) => {
+    const strings = ACTION_STRINGS[currentAction.kind];
+    const many = currentAction.count > 1 ? strings?.[which + 'many'] : null;
+    if (many) {
+        return getString(many, 'aiplacement_modgen', currentAction.count);
+    }
+    return getString(strings?.[which] ?? fallback, 'aiplacement_modgen');
+};
+
+/** @type {number} How often to ask again while the course is busy, in milliseconds. */
+const POLL_INTERVAL = 2000;
+
+/** @type {number} How long to wait for the course before giving up, in milliseconds. */
+const WAIT_LIMIT = 120000;
+
+/** @type {number} The course ID. */
+let courseId = 0;
+
+/** @type {Promise} The change in progress, so the next waits for it. */
+let queue = Promise.resolve();
+
+/** @type {HTMLElement|null} The overlay covering the page while a change is made. */
+let overlay = null;
+
+/** @type {HTMLElement[]} Elements made inert while the overlay is shown. */
+let inertElements = [];
+
+/** @type {boolean} The server said the guard is off for this course now: stop guarding. */
+let switchedOff = false;
+
+/**
+ * A change refused, with the string to tell the user why.
+ */
+class GuardRefusal extends Error {
+    /**
+     * @param {string} stringId String identifier in aiplacement_modgen
+     */
+    constructor(stringId) {
+        super(stringId);
+        this.stringId = stringId;
+    }
+}
+
+/**
+ * A change the server refused. The course editor has already told the user why, so this says nothing more.
+ */
+class ChangeFailed extends Error {}
+
+/** @type {Object<string, {title: string, message: string}>} What the cover says in each state. */
+const STATES = {
+    working: {title: 'structureguard_working_title', message: 'structureguard_working'},
+    stillworking: {title: 'structureguard_working_title', message: 'structureguard_stillworking'},
+    waiting: {title: 'structureguard_waiting_title', message: 'structureguard_waiting'},
+};
+
+/** @type {number} How long a change runs before the cover shows, in milliseconds: quick ones do not flash it. */
+const SHOW_DELAY = 500;
+
+/** @type {number} Least time the spinner stays once shown, in milliseconds, so it never flashes. */
+const MIN_VISIBLE = 800;
+
+/** @type {number} When the spinner faded in (performance.now()), or 0 while it has not. */
+let visibleAt = 0;
+
+/** @type {number} How long a change runs before the cover says it is still working, in milliseconds. */
+const STILL_WORKING_DELAY = 15000;
+
+/** @type {number} How long the tick shows once a change is saved, in milliseconds: long enough to see it drawn and read. */
+const DONE_HOLD = 1100;
+
+/** @type {number} How long the cover takes to fade out after the tick, in milliseconds (matches styles.css). */
+const LEAVE_DURATION = 200;
+
+/** @type {number|null} Timer that fades the cover in. */
+let showTimer = null;
+
+/** @type {number|null} Timer that says the change is still working. */
+let stillWorkingTimer = null;
+
+/** @type {number} Counts uncovers, so a cover asked for before one is dropped. */
+let coverGeneration = 0;
+
+/** @type {Array<{element: Element, top: number, left: number}>} Scroll positions held while covered. */
+let heldScroll = [];
+
+/** @type {Set<string>} Keys that scroll the page. */
+const SCROLL_KEYS = new Set([' ', 'Spacebar', 'PageUp', 'PageDown', 'End', 'Home', 'ArrowUp', 'ArrowDown', 'ArrowLeft',
+    'ArrowRight']);
+
+/**
+ * Put the page back where it was if anything scrolls it while covered (dragging the scrollbar, say).
+ */
+const keepScroll = () => {
+    heldScroll.forEach((held) => {
+        if (held.element.scrollTop !== held.top || held.element.scrollLeft !== held.left) {
+            held.element.scrollTop = held.top;
+            held.element.scrollLeft = held.left;
+        }
+    });
+};
+
+/**
+ * Stop the keys that scroll the page while it is covered.
+ *
+ * @param {KeyboardEvent} event The key press
+ */
+const stopScrollKeys = (event) => {
+    if (SCROLL_KEYS.has(event.key)) {
+        event.preventDefault();
+    }
+};
+
+/**
+ * Stop the page behind the cover scrolling, without touching its layout.
+ *
+ * Setting overflow: hidden on the page would reset where it is scrolled to in themes that make
+ * html and body 100% high, so nothing about the page is changed. A wheel or touch scroll lands
+ * on the cover, which stops it; the scrolling keys are stopped; and anything else that scrolls
+ * the page, such as its scrollbar, is undone. The document scrolls in most themes and #page in
+ * some, so both are held.
+ */
+const lockScroll = () => {
+    const candidates = [document.scrollingElement || document.documentElement, document.getElementById('page')];
+    heldScroll = candidates
+        .filter((element, index) => element && candidates.indexOf(element) === index)
+        .map((element) => ({element, top: element.scrollTop, left: element.scrollLeft}));
+    document.addEventListener('scroll', keepScroll, true);
+    document.addEventListener('keydown', stopScrollKeys, true);
+};
+
+/**
+ * Let the page scroll again.
+ */
+const unlockScroll = () => {
+    document.removeEventListener('scroll', keepScroll, true);
+    document.removeEventListener('keydown', stopScrollKeys, true);
+    heldScroll = [];
+};
+
+/**
+ * Stop a wheel or touch scroll that starts on the cover.
+ *
+ * @param {Event} event The wheel or touchmove event
+ */
+const stopScroll = (event) => {
+    event.preventDefault();
+};
+
+/**
+ * The cover's heading and message for a state.
+ *
+ * While this page's own change is saved the heading names it ("Deleting 3 sections"); waiting
+ * on another change, which this page cannot see, it stays general.
+ *
+ * @param {string} state One of STATES
+ * @returns {Promise<{title: string, message: string}>}
+ */
+const stateText = async(state) => {
+    const [title, message] = await Promise.all([
+        state === 'waiting'
+            ? getString(STATES[state].title, 'aiplacement_modgen')
+            : actionTitle('working', STATES[state].title),
+        getString(STATES[state].message, 'aiplacement_modgen'),
+    ]);
+    return {title, message};
+};
+
+/**
+ * Cover the page, or change what the cover says.
+ *
+ * The cover stops clicks at once, but only fades in once the change has taken SHOW_DELAY, so a
+ * quick change does not flash it. A change still running after STILL_WORKING_DELAY says so.
+ *
+ * @param {string} state One of STATES
+ */
+const showOverlay = async(state) => {
+    const generation = coverGeneration;
+    clearTimeout(stillWorkingTimer);
+    stillWorkingTimer = null;
+    if (state === 'working') {
+        stillWorkingTimer = setTimeout(() => showOverlay('stillworking'), STILL_WORKING_DELAY);
+    }
+    const text = await stateText(state);
+    if (generation !== coverGeneration) {
+        return;
+    }
+
+    if (overlay) {
+        if (state === 'waiting') {
+            overlay.classList.add('is-visible');
+            visibleAt = visibleAt || performance.now();
+        }
+        overlay.querySelector('[data-region="title"]').textContent = text.title;
+        overlay.querySelector('[data-region="message"]').textContent = text.message;
+        return;
+    }
+
+    const {html} = await Templates.renderForPromise('aiplacement_modgen/structure_guard_overlay', text);
+    if (generation !== coverGeneration || overlay || state === 'stillworking') {
+        return;
+    }
+    const holder = document.createElement('div');
+    // Safe: the HTML is a rendered template, its only variables language strings.
+    holder.innerHTML = html;
+    overlay = holder.firstElementChild;
+
+    // Nothing behind the cover can be reached by keyboard or screen reader either.
+    inertElements = [...document.body.children].filter((element) => !element.inert);
+    inertElements.forEach((element) => {
+        element.inert = true;
+    });
+    overlay.addEventListener('wheel', stopScroll, {passive: false});
+    overlay.addEventListener('touchmove', stopScroll, {passive: false});
+    lockScroll();
+    document.body.appendChild(overlay);
+    overlay.querySelector('[role="status"]').focus({preventScroll: true});
+    showTimer = setTimeout(() => {
+        if (overlay) {
+            overlay.classList.add('is-visible');
+            visibleAt = performance.now();
+        }
+    }, SHOW_DELAY);
+};
+
+/**
+ * Uncover the page.
+ */
+const hideOverlay = () => {
+    coverGeneration++;
+    visibleAt = 0;
+    clearTimeout(showTimer);
+    clearTimeout(stillWorkingTimer);
+    showTimer = null;
+    stillWorkingTimer = null;
+    if (!overlay) {
+        return;
+    }
+    overlay.remove();
+    overlay = null;
+    unlockScroll();
+    inertElements.forEach((element) => {
+        element.inert = false;
+    });
+    inertElements = [];
+};
+
+/**
+ * Show that the change is saved, then close the cover.
+ *
+ * The spinner gives way to a tick in a circle, drawn in, with "Changes saved", closing the loop on
+ * a wait the user saw. A change too quick for the spinner to have shown gets no tick: the page
+ * updating is confirmation enough. It closes itself after DONE_HOLD, or at once on a click or key press.
+ *
+ * @returns {Promise<void>} Resolves once the cover has closed
+ */
+const showDone = async() => {
+    if (!overlay) {
+        return;
+    }
+    // Too quick for the spinner to have shown: the page updating is all the confirmation needed.
+    if (!visibleAt) {
+        hideOverlay();
+        return;
+    }
+    const generation = coverGeneration;
+    clearTimeout(showTimer);
+    clearTimeout(stillWorkingTimer);
+    showTimer = null;
+    stillWorkingTimer = null;
+
+    const title = await actionTitle('done', 'structureguard_done_title');
+    if (generation !== coverGeneration || !overlay) {
+        return;
+    }
+    // A spinner that has faded in stays at least MIN_VISIBLE before the tick, so it is never a flash.
+    if (visibleAt) {
+        const left = MIN_VISIBLE - (performance.now() - visibleAt);
+        if (left > 0) {
+            await new Promise((resolve) => setTimeout(resolve, left));
+            if (generation !== coverGeneration || !overlay) {
+                return;
+            }
+        }
+    }
+    const cover = overlay;
+    cover.querySelector('[data-region="title"]').textContent = title;
+    cover.querySelector('[role="status"]').setAttribute('aria-busy', 'false');
+    cover.classList.add('is-visible', 'is-done');
+
+    // Wait out the hold, or less if the user clicks or presses a key: they are in control.
+    await new Promise((resolve) => {
+        const timer = setTimeout(finish, DONE_HOLD);
+        /**
+         * Stop waiting.
+         */
+        function finish() {
+            clearTimeout(timer);
+            cover.removeEventListener('click', finish);
+            document.removeEventListener('keydown', finish, true);
+            resolve();
+        }
+        cover.addEventListener('click', finish);
+        document.addEventListener('keydown', finish, true);
+    });
+    if (generation !== coverGeneration) {
+        return;
+    }
+
+    cover.classList.add('is-leaving');
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    await new Promise((resolve) => setTimeout(resolve, reduced ? 0 : LEAVE_DURATION));
+    if (generation === coverGeneration) {
+        hideOverlay();
+    }
+};
+
+/**
+ * Ask the server whether another change to the course's sections is under way.
+ *
+ * The guard is a safety net, so a check that fails (the request is lost, or the server answers
+ * with an error) lets the change go ahead rather than stopping the user editing. The change still
+ * waits for this page's own last one; only another tab's or person's is then not waited for. If
+ * the session has ended, the change itself fails and says so.
+ *
+ * @returns {Promise<boolean>} True when busy
+ */
+const isBusy = async() => {
+    let data;
+    try {
+        const response = await fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/structure_busy.php?' + new URLSearchParams({
+            courseid: courseId,
+            sesskey: M.cfg.sesskey,
+        }));
+        data = await response.json();
+    } catch (error) {
+        return false;
+    }
+    if (!data || !data.success) {
+        return false;
+    }
+    if (data.guarded === false) {
+        // Switched off since this page loaded: changes from now on go straight through.
+        switchedOff = true;
+        return false;
+    }
+    return !!data.busy;
+};
+
+/**
+ * Wait until no other change to the course's sections is under way.
+ *
+ * Waiting on someone else is not this page's work in progress, so the pending operation is let
+ * go meanwhile, and taken again once the course is free: anything that waits for the page to
+ * settle, such as Behat, is not held up by another person's change.
+ *
+ * @param {Object} work Holds the pending operation for this change, in work.pending
+ * @returns {Promise<void>}
+ */
+const waitUntilFree = async(work) => {
+    // Behat sets a shorter limit, so a test can see the wait give up without waiting two minutes.
+    const limit = (M.cfg.behatsiterunning && window.aiplacementModgenGuardWaitLimit) || WAIT_LIMIT;
+    const giveup = Date.now() + limit;
+    let told = false;
+    while (await isBusy()) {
+        if (Date.now() >= giveup) {
+            throw new GuardRefusal('structureguard_timedout');
+        }
+        if (!told) {
+            await showOverlay('waiting');
+            work.pending.resolve();
+            work.pending = null;
+            told = true;
+        }
+        await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL));
+    }
+    if (told) {
+        work.pending = new Pending('aiplacement_modgen/structure_guard');
+        await showOverlay('working');
+    }
+};
+
+/**
+ * Make one section change, after the one before it and once the course is free.
+ *
+ * @param {Function} change Makes the change; resolves when it is saved
+ * @param {boolean} keepCover Leave the page covered after, as for a change that loads a new page
+ * @param {{kind: ?string, count: number}} action What the change does (ACTION_STRINGS) and to how many sections
+ * @returns {Promise<*>} What the change resolves with
+ */
+const guard = (change, keepCover = false, action = {kind: null, count: 1}) => {
+    if (switchedOff) {
+        return Promise.resolve().then(change);
+    }
+    const run = async() => {
+        currentAction = action;
+        const work = {pending: new Pending('aiplacement_modgen/structure_guard')};
+        let covered = keepCover;
+        try {
+            await showOverlay('working');
+            await waitUntilFree(work);
+            if (switchedOff) {
+                covered = false;
+                hideOverlay();
+            }
+            const result = await change();
+            // A change that loads a new page shows its result there; the rest confirm it here.
+            if (!keepCover) {
+                await showDone();
+            }
+            return result;
+        } catch (error) {
+            covered = false;
+            if (error instanceof ChangeFailed) {
+                // The course editor has shown the error already: close the cover, with no tick.
+                return undefined;
+            }
+            if (error instanceof GuardRefusal) {
+                Notification.addNotification({
+                    message: await getString(error.stringId, 'aiplacement_modgen'),
+                    type: 'error',
+                });
+                return undefined;
+            }
+            throw error;
+        } finally {
+            if (!covered) {
+                hideOverlay();
+            }
+            if (work.pending) {
+                work.pending.resolve();
+            }
+        }
+    };
+    const result = queue.then(run);
+    queue = result.catch(() => undefined);
+    return result;
+};
+
+/**
+ * Send a change through the course editor, and say whether the server refused it.
+ *
+ * The course editor catches a refused change itself: it shows the error and unlocks the page,
+ * and its dispatch() then resolves as if all were well. So for the length of this one change its
+ * mutation is wrapped to see the error on its way to the course editor, which still handles it
+ * exactly as before. Changes go one at a time, so only one mutation is ever wrapped.
+ *
+ * @param {Object} editor The course editor
+ * @param {Function} dispatch Its own dispatch(), bound to it
+ * @param {string} actionName The mutation
+ * @param {Array} params Its parameters
+ * @returns {Promise<void>} Resolves when the change is saved
+ * @throws {ChangeFailed} If the server refused it
+ */
+const dispatchReportingFailure = async(editor, dispatch, actionName, params) => {
+    const mutations = editor.mutations;
+    const mutation = mutations?.[actionName];
+    if (typeof mutation !== 'function') {
+        return dispatch(actionName, ...params);
+    }
+    const own = Object.prototype.hasOwnProperty.call(mutations, actionName);
+    let failed = false;
+    mutations[actionName] = async function(...args) {
+        try {
+            return await mutation.apply(this, args);
+        } catch (error) {
+            failed = true;
+            throw error;
+        }
+    };
+    try {
+        await dispatch(actionName, ...params);
+    } finally {
+        if (own) {
+            mutations[actionName] = mutation;
+        } else {
+            delete mutations[actionName];
+        }
+    }
+    if (failed) {
+        throw new ChangeFailed();
+    }
+    return undefined;
+};
+
+/**
+ * Wrap the course editor's dispatch() so section changes wait for each other.
+ */
+const guardCourseEditor = () => {
+    const editor = getCurrentCourseEditor();
+    if (!editor || editor.aiplacementModgenGuarded) {
+        return;
+    }
+    const dispatch = editor.dispatch.bind(editor);
+    editor.dispatch = (actionName, ...params) => {
+        const kind = GUARDED_MUTATIONS[actionName];
+        if (!kind) {
+            return dispatch(actionName, ...params);
+        }
+        // Delete and move take a list of section ids, which a bulk edit fills with several.
+        const count = Array.isArray(params[0]) ? Math.max(1, params[0].length) : 1;
+        return guard(() => dispatchReportingFailure(editor, dispatch, actionName, params), false, {kind, count});
+    };
+    editor.aiplacementModgenGuarded = true;
+};
+
+/**
+ * The section change a link makes with a page load, or null when it makes none.
+ *
+ * @param {HTMLAnchorElement} link The link
+ * @returns {?string} The kind of change (ACTION_STRINGS)
+ */
+const linkAction = (link) => {
+    let url;
+    try {
+        url = new URL(link.href, window.location.href);
+    } catch (error) {
+        return null;
+    }
+    if (url.origin !== window.location.origin || !url.searchParams.has('sesskey')) {
+        return null;
+    }
+    const param = Object.keys(GUARDED_LINK_PARAMS).find((name) => url.searchParams.has(name));
+    return param ? GUARDED_LINK_PARAMS[param] : null;
+};
+
+/**
+ * Hold back the section changes made by following a link.
+ */
+const guardLinks = () => {
+    document.addEventListener('click', (event) => {
+        if (event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) {
+            return;
+        }
+        const link = event.target.closest('a[href]');
+        const kind = link ? linkAction(link) : null;
+        if (switchedOff || !kind) {
+            return;
+        }
+        // Menu items the course editor or Flexible sections handle in the page are left to them:
+        // their link is only for browsers without JavaScript, and the change reaches dispatch().
+        if (link.dataset.action || link.dataset.actionFlexsections) {
+            return;
+        }
+        event.preventDefault();
+        event.stopPropagation();
+        const href = link.href;
+        // The page stays covered until the next one loads.
+        guard(() => {
+            window.location.assign(href);
+        }, true, {kind, count: 1});
+    }, true);
+
+    // Coming back to this page from the history shows it as it was left: covered.
+    window.addEventListener('pageshow', (event) => {
+        if (event.persisted) {
+            hideOverlay();
+        }
+    });
+};
+
+/**
+ * Start holding back section changes on the course page.
+ *
+ * @param {number} courseid Course ID
+ */
+export const init = (courseid) => {
+    if (courseId) {
+        return;
+    }
+    courseId = courseid;
+    guardCourseEditor();
+    guardLinks();
+};

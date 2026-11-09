@@ -615,4 +615,225 @@ class behat_aiplacement_modgen extends behat_base {
             new Exception("The section reorder status did not show \"$state\" within 45 seconds.")
         );
     }
+
+    /** @var \core\lock\lock[] Locks held by "the sections of ... are being changed elsewhere". */
+    private static array $heldsectionlocks = [];
+
+    /**
+     * Hold the lock Flexible sections takes around a section delete, as another change would.
+     *
+     * Held by the Behat process, so to the site under test it is someone else's change.
+     *
+     * @Given /^the sections of "(?P<course_string>[^"]*)" are being changed elsewhere$/
+     * @param string $shortname Course short name.
+     */
+    public function the_sections_of_are_being_changed_elsewhere(string $shortname): void {
+        $courseid = $this->course_id($shortname);
+        $lock = \core\lock\lock_config::get_lock_factory(
+            \aiplacement_modgen\local\course_formats::FLEXSECTIONS_DELETE_LOCK_TYPE
+        )->get_lock(\aiplacement_modgen\local\course_formats::flexsections_delete_lock_key($courseid), 5);
+        if (!$lock) {
+            throw new Exception("Could not take the section lock of the course '$shortname'.");
+        }
+        self::$heldsectionlocks[$shortname] = $lock;
+    }
+
+    /**
+     * Let go of the lock taken by "the sections of ... are being changed elsewhere".
+     *
+     * @When /^the other change to the sections of "(?P<course_string>[^"]*)" finishes$/
+     * @param string $shortname Course short name.
+     */
+    public function the_other_change_to_the_sections_of_finishes(string $shortname): void {
+        if (empty(self::$heldsectionlocks[$shortname])) {
+            throw new Exception("No change to the sections of '$shortname' is being held.");
+        }
+        self::$heldsectionlocks[$shortname]->release();
+        unset(self::$heldsectionlocks[$shortname]);
+    }
+
+    /**
+     * Let go of any section lock a scenario left held.
+     *
+     * @AfterScenario
+     */
+    public function release_held_section_locks(): void {
+        foreach (self::$heldsectionlocks as $lock) {
+            $lock->release();
+        }
+        self::$heldsectionlocks = [];
+    }
+
+    /**
+     * Start recording what the section change loader does on this page.
+     *
+     * Notes whether the loader ever became visible and every heading it showed while visible, so
+     * a scenario can check what a change said after the loader has gone.
+     *
+     * @When /^I start watching the section change loader$/
+     */
+    public function i_start_watching_the_section_change_loader(): void {
+        $this->getSession()->executeScript('(function() {
+            const log = {appeared: false, headings: []};
+            window.aiplacementModgenLoaderLog = log;
+            const look = () => {
+                const cover = document.querySelector("[data-region=aiplacement-modgen-structure-guard]");
+                if (!cover || !cover.classList.contains("is-visible")) {
+                    return;
+                }
+                log.appeared = true;
+                const title = cover.querySelector("[data-region=title]");
+                const text = title ? title.textContent.trim() : "";
+                if (text && log.headings[log.headings.length - 1] !== text) {
+                    log.headings.push(text);
+                }
+            };
+            new MutationObserver(look).observe(document.body, {
+                subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ["class"],
+            });
+        })();');
+    }
+
+    /**
+     * The loader log started by "I start watching the section change loader".
+     *
+     * @return array{appeared: bool, headings: string[]}
+     */
+    private function section_change_loader_log(): array {
+        $json = $this->getSession()->evaluateScript('return JSON.stringify(window.aiplacementModgenLoaderLog || null);');
+        $log = json_decode((string) $json, true);
+        if (!is_array($log)) {
+            throw new Exception('Nothing is watching the section change loader: start watching it first.');
+        }
+        return $log;
+    }
+
+    /**
+     * Check the loader showed these headings, in this order (others may come between).
+     *
+     * @Then /^the section change loader should have said, in order:$/
+     * @param \Behat\Gherkin\Node\TableNode $table One heading per row.
+     */
+    public function the_section_change_loader_should_have_said_in_order(\Behat\Gherkin\Node\TableNode $table): void {
+        $log = $this->section_change_loader_log();
+        $at = 0;
+        foreach ($table->getRows() as $row) {
+            $found = array_search($row[0], array_slice($log['headings'], $at), true);
+            if ($found === false) {
+                throw new Exception("The loader did not say \"{$row[0]}\" when expected. It said: "
+                    . json_encode($log['headings']));
+            }
+            $at += $found + 1;
+        }
+    }
+
+    /**
+     * Check the loader never showed a heading.
+     *
+     * @Then /^the section change loader should not have said "(?P<heading_string>[^"]*)"$/
+     * @param string $heading The heading.
+     */
+    public function the_section_change_loader_should_not_have_said(string $heading): void {
+        $log = $this->section_change_loader_log();
+        if (in_array($heading, $log['headings'], true)) {
+            throw new Exception("The loader said \"$heading\". It said: " . json_encode($log['headings']));
+        }
+    }
+
+    /**
+     * Check the loader never became visible.
+     *
+     * @Then /^the section change loader should not have appeared$/
+     */
+    public function the_section_change_loader_should_not_have_appeared(): void {
+        $log = $this->section_change_loader_log();
+        if ($log['appeared']) {
+            throw new Exception('The loader appeared. It said: ' . json_encode($log['headings']));
+        }
+    }
+
+    /**
+     * Check the loader is not on the page.
+     *
+     * @Then /^the section change loader should be gone$/
+     */
+    public function the_section_change_loader_should_be_gone(): void {
+        $this->ensure_element_does_not_exist('[data-region="aiplacement-modgen-structure-guard"]', 'css_element');
+    }
+
+    /**
+     * Make the page's check of whether the course is busy fail, as a lost request would.
+     *
+     * @Given /^the section change check fails$/
+     */
+    public function the_section_change_check_fails(): void {
+        $this->getSession()->executeScript('(function() {
+            const fetch = window.fetch.bind(window);
+            window.fetch = (resource, options) => String(resource).includes("/ai/placement/modgen/ajax/structure_busy.php")
+                ? Promise.reject(new TypeError("Failed to fetch"))
+                : fetch(resource, options);
+        })();');
+    }
+
+    /**
+     * Make the page give up waiting for another change sooner than its two minutes.
+     *
+     * @Given /^the section change loader gives up waiting after "(?P<seconds_number>\d+)" seconds$/
+     * @param int $seconds Seconds.
+     */
+    public function the_section_change_loader_gives_up_waiting_after(int $seconds): void {
+        $this->getSession()->executeScript('window.aiplacementModgenGuardWaitLimit = ' . ($seconds * 1000) . ';');
+    }
+
+    /** @var string|null The error a held-back section change failed with, once closed. */
+    private static ?string $sectionchangeerror = null;
+
+    /**
+     * Let the other change finish, and wait for the change it held back to fail with an error.
+     *
+     * The error dialog is read and closed in this same step: Behat stops at any error dialog left
+     * on the page, and this scenario expects one.
+     *
+     * @When /^the other change to the sections of "(?P<course_string>[^"]*)" finishes and the held-back change fails$/
+     * @param string $shortname Course short name.
+     */
+    public function the_other_change_finishes_and_the_held_back_change_fails(string $shortname): void {
+        self::$sectionchangeerror = null;
+        if (empty(self::$heldsectionlocks[$shortname])) {
+            throw new Exception("No change to the sections of '$shortname' is being held.");
+        }
+        self::$heldsectionlocks[$shortname]->release();
+        unset(self::$heldsectionlocks[$shortname]);
+
+        $session = $this->getSession();
+        $message = $this->spin(function () use ($session) {
+            $text = $session->evaluateScript('return (function() {
+                const error = document.querySelector("[data-rel=fatalerror]");
+                return error ? error.textContent.trim() : "";
+            })();');
+            return $text !== '' ? $text : false;
+        }, [], 30, new Exception('The held-back change did not fail with an error.'), true);
+        self::$sectionchangeerror = (string) $message;
+
+        $session->executeScript('(function() {
+            document.querySelectorAll("[data-rel=fatalerror]").forEach((error) => {
+                (error.closest(".modal") || error).remove();
+            });
+            document.querySelectorAll(".modal-backdrop").forEach((backdrop) => backdrop.remove());
+            document.body.classList.remove("modal-open");
+        })();');
+    }
+
+    /**
+     * Check the held-back change failed with an error saying this.
+     *
+     * @Then /^the held-back change should have failed with "(?P<text_string>[^"]*)"$/
+     * @param string $text Text the error should contain.
+     */
+    public function the_held_back_change_should_have_failed_with(string $text): void {
+        if (self::$sectionchangeerror === null || strpos(self::$sectionchangeerror, $text) === false) {
+            throw new Exception("The change did not fail with '$text'. Its error was: "
+                . var_export(self::$sectionchangeerror, true));
+        }
+    }
 }

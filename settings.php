@@ -87,6 +87,13 @@ if ($hassiteconfig) {
             1
         ));
 
+        $settings->add(new admin_setting_configcheckbox(
+            'aiplacement_modgen/enable_structureguard',
+            new lang_string('enablestructureguard', 'aiplacement_modgen'),
+            new lang_string('enablestructureguard_desc', 'aiplacement_modgen'),
+            1
+        ));
+
         // Structure from prompt: what is sent to the AI, and limits on its use.
         $settings->add(new admin_setting_heading(
             'aiplacement_modgen/aipromptheading',

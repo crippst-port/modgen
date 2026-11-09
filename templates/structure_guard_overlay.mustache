@@ -1,0 +1,50 @@
+{{!
+    This file is part of Moodle - https://moodle.org/
+
+    Moodle is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    Moodle is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
+}}
+{{!
+    @template aiplacement_modgen/structure_guard_overlay
+
+    Covers a Flexible sections course page while a section change is saved. Once it is saved the
+    spinner gives way to a tick in a circle, drawn in, and the cover closes itself.
+
+    Context variables required for this template:
+    * title - Short heading: what is happening
+    * message - One line on what to expect or do
+
+    Example context (json):
+    {
+        "title": "Saving your changes",
+        "message": "Large sections can take a minute or two. Keep this page open, and you can carry on editing as soon as it's done."
+    }
+}}
+<div class="aiplacement-modgen-structure-guard" data-region="aiplacement-modgen-structure-guard">
+    <div class="aiplacement-modgen-structure-guard__card" role="status" aria-live="polite" aria-atomic="true"
+         aria-busy="true" tabindex="-1">
+        <div class="aiplacement-modgen-structure-guard__body">
+            <div class="aiplacement-modgen-structure-guard__icon" aria-hidden="true">
+                <div class="spinner-border text-primary aiplacement-modgen-structure-guard__spinner"></div>
+                <svg class="text-primary aiplacement-modgen-structure-guard__done" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
+                     fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+                     focusable="false">
+                    <circle cx="12" cy="12" r="9.25"/>
+                    <path class="aiplacement-modgen-structure-guard__tick" d="M7.75 12.25l2.75 2.75 5.75-6" pathLength="1"/>
+                </svg>
+            </div>
+            <p class="aiplacement-modgen-structure-guard__title" data-region="title">{{title}}</p>
+            <p class="aiplacement-modgen-structure-guard__message" data-region="message">{{message}}</p>
+        </div>
+    </div>
+</div>

@@ -96,7 +96,7 @@ Site administration > AI > AI placements > Module Assistant (Settings):
 - **Features**: New Theme(s) and New Week(s), the Assessments section, Structure from file and
   Structure from prompt can each be switched off. Building in Custom sections and Weekly sections is
   off by default and can be switched on. Automatic section renumbering is on by default and can be
-  switched off.
+  switched off. So is *Show a loader during Flexible sections changes* (below).
 - **Structure from prompt**: guidance sent to the AI, the time a request may run (default 300
   seconds) and a per-user hourly request limit (default 10).
 - **Size limits**: most themes or weeks per Quick Add (30), weeks per theme (5), themes and weeks in
@@ -104,6 +104,28 @@ Site administration > AI > AI placements > Module Assistant (Settings):
 - **CSV structure library**: the shared CSV structures teachers can pick in Structure from file.
 - **Help and Advice menu**: up to five links shown in the toolbar.
 - **Diagnostics**: a link to the site-wide structure diagnostics for Flexible sections courses.
+
+### Section changes on Flexible sections courses
+
+Flexible sections renumbers every section when one is deleted, duplicated, moved, merged or added.
+Changes that overlap (a teacher clicking Delete on several sections in quick succession, two tabs,
+two people, or a change during a Module Assistant build) can leave the course out of order.
+
+While *Show a loader during Flexible sections changes* is on, a Flexible sections course page in
+editing mode covers itself while each section change is saved, so the next cannot start until it is
+done. Before each change it asks the server whether another change to the course's sections is under
+way, and if so says so and waits (up to two minutes) for it to finish. It applies to everyone who can
+edit the course (`moodle/course:update`), whether or not they hold any Module Assistant capability.
+If that check cannot be made (the request fails, say), the change goes ahead rather than being refused.
+A change quick enough not to show the loader (under half a second) just happens. A slower one shows
+what it is doing ("Deleting the section"), then a tick ("Section deleted") and closes itself; a change
+the server refuses closes it straight away, with the error Moodle shows as usual.
+
+It works in the browser only: Flexible sections itself is not changed. Changes made where the course
+page is not open, such as through web services, are not held back. Another page's duplicate, move or
+add cannot be seen from the server, as Flexible sections takes no lock for them; a delete, a build
+and a repair can. The automatic section renumber and Check Structure remain the way to put a course
+back in order.
 
 ## Logging and background tasks
 

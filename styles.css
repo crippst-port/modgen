@@ -1557,3 +1557,169 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
 .aiplacement-modgen-reorder-panel .aiplacement-modgen-reorder-icon:focus-visible {
     outline-color: #0f6cbf;
 }
+
+/* Structure guard: covers a Flexible sections course page while a section change is saved. */
+.aiplacement-modgen-structure-guard {
+    position: fixed;
+    inset: 0;
+    z-index: 1060;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    background: transparent;
+    cursor: progress;
+    transition: background-color 0.2s ease-out;
+}
+
+/* Shown once the change has run a moment: until then the cover only stops clicks. */
+.aiplacement-modgen-structure-guard.is-visible {
+    background: rgba(15, 23, 42, 0.45);
+}
+
+.aiplacement-modgen-structure-guard__card {
+    width: 100%;
+    max-width: 26rem;
+    background: #fff;
+    border-radius: 0.75rem;
+    box-shadow: 0 1.25rem 2.5rem rgba(15, 23, 42, 0.2), 0 0.125rem 0.375rem rgba(15, 23, 42, 0.08);
+    visibility: hidden;
+    opacity: 0;
+}
+
+.aiplacement-modgen-structure-guard.is-visible .aiplacement-modgen-structure-guard__card {
+    visibility: visible;
+    opacity: 1;
+    animation: aiplacement-modgen-guard-rise 0.2s ease-out;
+}
+
+.aiplacement-modgen-structure-guard__card:focus {
+    outline: none;
+}
+
+.aiplacement-modgen-structure-guard__body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1.75rem 1.75rem;
+    text-align: center;
+}
+
+.aiplacement-modgen-structure-guard__icon {
+    position: relative;
+    width: 2.75rem;
+    height: 2.75rem;
+    margin-bottom: 1.25rem;
+}
+
+.aiplacement-modgen-structure-guard__spinner {
+    width: 100%;
+    height: 100%;
+    border-width: 0.2rem;
+}
+
+/* The tick in a circle, shown in place of the spinner once the change is saved. */
+.aiplacement-modgen-structure-guard__done {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    opacity: 0;
+    transform: scale(0.85);
+}
+
+.aiplacement-modgen-structure-guard__tick {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+}
+
+.aiplacement-modgen-structure-guard.is-done .aiplacement-modgen-structure-guard__spinner {
+    display: none;
+}
+
+.aiplacement-modgen-structure-guard.is-done .aiplacement-modgen-structure-guard__done {
+    opacity: 1;
+    transform: none;
+    transition: opacity 0.15s ease-out, transform 0.2s ease-out;
+}
+
+/* The tick draws itself in. */
+.aiplacement-modgen-structure-guard.is-done .aiplacement-modgen-structure-guard__tick {
+    animation: aiplacement-modgen-guard-tick 0.4s ease-out 0.1s forwards;
+}
+
+.aiplacement-modgen-structure-guard.is-done .aiplacement-modgen-structure-guard__message {
+    display: none;
+}
+
+.aiplacement-modgen-structure-guard.is-done .aiplacement-modgen-structure-guard__title {
+    margin-bottom: 0;
+}
+
+.aiplacement-modgen-structure-guard__title {
+    margin: 0 0 0.375rem;
+    font-size: 1.125rem;
+    font-weight: 600;
+    line-height: 1.35;
+    color: #1d2125;
+}
+
+.aiplacement-modgen-structure-guard__message {
+    margin: 0;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+    color: #5f6368;
+}
+
+@keyframes aiplacement-modgen-guard-rise {
+    from {
+        opacity: 0;
+        transform: translateY(0.5rem) scale(0.98);
+    }
+
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes aiplacement-modgen-guard-tick {
+    to {
+        stroke-dashoffset: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aiplacement-modgen-structure-guard {
+        transition: none;
+    }
+
+    .aiplacement-modgen-structure-guard.is-visible .aiplacement-modgen-structure-guard__card {
+        animation: none;
+    }
+
+    .aiplacement-modgen-structure-guard__spinner {
+        animation-duration: 3s;
+    }
+
+    .aiplacement-modgen-structure-guard.is-done .aiplacement-modgen-structure-guard__done {
+        transition: none;
+    }
+
+    .aiplacement-modgen-structure-guard.is-done .aiplacement-modgen-structure-guard__tick {
+        stroke-dashoffset: 0;
+        animation: none;
+    }
+}
+
+/* The cover fades out as it closes itself after a saved change. */
+.aiplacement-modgen-structure-guard.is-leaving {
+    opacity: 0;
+    transition: opacity 0.2s ease-in;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .aiplacement-modgen-structure-guard.is-leaving {
+        transition: none;
+    }
+}

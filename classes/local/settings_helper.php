@@ -193,6 +193,19 @@ class settings_helper {
         return $value === false || !empty($value);
     }
     /**
+     * Check if the structure guard is enabled.
+     *
+     * On unless an administrator has switched it off, counting a setting never saved as on,
+     * as is_autoreorder_enabled() does.
+     *
+     * @return bool True if section changes on Flexible sections courses wait for each other
+     */
+    public static function is_structureguard_enabled(): bool {
+        $value = get_config('aiplacement_modgen', 'enable_structureguard');
+        return $value === false || !empty($value);
+    }
+
+    /**
      * Get a boolean setting value.
      *
      * @param string $name Setting name

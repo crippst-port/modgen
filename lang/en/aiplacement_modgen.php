@@ -652,3 +652,27 @@ $string['reorderpanel_running'] = 'A renumber is running now.';
 $string['reorderpanel_renumbered'] = 'Last run {$a}: the sections were renumbered into hierarchy order.';
 $string['reorderpanel_checked'] = 'Last run {$a}: the sections were already in order, so nothing changed.';
 $string['reorderpanel_blocked'] = 'Last run {$a}: refused, because the section hierarchy is broken. Run the check to find the problem.';
+
+// Structure guard: holds back section changes on a Flexible sections course while another is under way.
+$string['enablestructureguard'] = 'Show a loader during Flexible sections changes';
+$string['enablestructureguard_desc'] = 'On Flexible sections courses, show a loading screen while a section is deleted, duplicated, moved or added. This stops quick repeated clicks from starting a second change before the first has finished, which can leave the sections out of order. If someone else is changing the course\'s sections at the same time, it waits for them to finish first.';
+$string['structureguard_working_title'] = 'Saving your changes';
+$string['structureguard_working'] = 'Large sections can take a minute or two. Keep this page open, and you can carry on editing as soon as it\'s done.';
+$string['structureguard_stillworking'] = 'Still saving. The more a section holds, the longer it takes. You can carry on editing as soon as it\'s done.';
+$string['structureguard_done_title'] = 'Changes saved';
+$string['structureguard_delete'] = 'Deleting the section';
+$string['structureguard_delete_many'] = 'Deleting {$a} sections';
+$string['structureguard_deleted'] = 'Section deleted';
+$string['structureguard_deleted_many'] = '{$a} sections deleted';
+$string['structureguard_move'] = 'Moving the section';
+$string['structureguard_move_many'] = 'Moving {$a} sections';
+$string['structureguard_moved'] = 'Section moved';
+$string['structureguard_moved_many'] = '{$a} sections moved';
+$string['structureguard_add'] = 'Adding a section';
+$string['structureguard_added'] = 'Section added';
+$string['structureguard_merge'] = 'Merging the section';
+$string['structureguard_merged'] = 'Section merged';
+$string['structureguard_duplicate'] = 'Duplicating the section';
+$string['structureguard_waiting_title'] = 'Waiting for another change to finish';
+$string['structureguard_waiting'] = 'Another change to this module is in progress. Yours will start as soon as it\'s done.';
+$string['structureguard_timedout'] = 'Your change wasn\'t made, because another change to this module is taking a long time. Try again in a few minutes.';

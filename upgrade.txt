@@ -2,6 +2,20 @@
 
 ## Upgrading to the next version
 
+### Added
+
+- "Show a loader during Flexible sections changes" (enable_structureguard, on by default). On a
+  Flexible sections course page in editing mode, amd/src/structure_guard.js covers the page while a
+  section delete, duplicate, move, merge or add is saved, and before each asks
+  ajax/structure_busy.php whether another change is under way, waiting for it if so. It wraps the
+  course editor's dispatch() for sectionDelete, sectionMove, sectionMoveAfter, addSection,
+  sectionMergeUp, addSubSection and insertSubSection, and catches clicks on section links that
+  change the structure with a page load (duplicatesection, addchildsection, mergeup, deletesection,
+  movesection). It is loaded for anyone with moodle/course:update, whether or not the assistant
+  bar is shown. If the check cannot be made, the change goes ahead rather than being refused.
+- \aiplacement_modgen\local\structure_guard: applies() and busy_reason(), which tries the Flexible
+  sections delete lock and the course edit lock without waiting.
+
 ### Fixed
 
 - A build now holds the lock format_flexsections takes around a section delete. From

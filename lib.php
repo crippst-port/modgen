@@ -53,6 +53,12 @@ function aiplacement_modgen_extend_navigation_course(
         return;
     }
 
+    // Hold back each section change while the last one is saved, for everyone who edits the
+    // course, whether or not they get the toolbar.
+    if (\aiplacement_modgen\local\structure_guard::applies((int) $course->id, $context)) {
+        $PAGE->requires->js_call_amd('aiplacement_modgen/structure_guard', 'init', [(int) $course->id]);
+    }
+
     // Get current section from URL (for context-aware creation).
     $currentsection = optional_param('section', 0, PARAM_INT);
 

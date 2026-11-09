@@ -130,8 +130,12 @@ final class section_reorder_status_test extends \advanced_testcase {
         $this->log_repair();
         $DB->set_field('logstore_standard_log', 'timecreated', time() - 20 * DAYSECS);
         section_order_checked::for_course($this->course->id)->trigger();
-        $DB->set_field('logstore_standard_log', 'timecreated', time() - 10 * DAYSECS,
-            ['eventname' => '\\aiplacement_modgen\\event\\section_order_checked']);
+        $DB->set_field(
+            'logstore_standard_log',
+            'timecreated',
+            time() - 10 * DAYSECS,
+            ['eventname' => '\\aiplacement_modgen\\event\\section_order_checked']
+        );
         $this->assertSame('checked', section_reorder_status::get_for_course($this->course->id, false)['state']);
     }
 

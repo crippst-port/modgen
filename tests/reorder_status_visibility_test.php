@@ -107,6 +107,8 @@ final class reorder_status_visibility_test extends \advanced_testcase {
     }
 
     /**
+     * A course role never sees the renumber status, nor does its toolbar show it.
+     *
      * @dataProvider course_role_provider
      * @param string $shortname Role short name
      */
@@ -132,6 +134,8 @@ final class reorder_status_visibility_test extends \advanced_testcase {
     }
 
     /**
+     * An administrator switched to a course role does not see the renumber status.
+     *
      * @dataProvider course_role_provider
      * @param string $shortname Role short name
      */

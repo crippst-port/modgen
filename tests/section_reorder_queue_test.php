@@ -138,6 +138,8 @@ final class section_reorder_queue_test extends \advanced_testcase {
     }
 
     /**
+     * A repair made from the admin tools page queues a renumber.
+     *
      * @dataProvider parent_repair_provider
      * @param string $action Repair action
      */
@@ -159,7 +161,8 @@ final class section_reorder_queue_test extends \advanced_testcase {
 
     public function test_repairs_one_at_a_time_share_one_task(): void {
         foreach ([1, 2, 3] as $ignored) {
-            \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, 'fixintegrity', 1, 'admin_tools')->trigger();
+            $event = \aiplacement_modgen\event\structure_repaired::for_course($this->course->id, 'fixintegrity', 1, 'admin_tools');
+            $event->trigger();
         }
         $this->assertCount(1, section_reorder_queue::get_task_rows($this->course->id));
     }

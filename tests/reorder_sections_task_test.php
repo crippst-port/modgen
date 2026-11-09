@@ -14,6 +14,15 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <https://www.gnu.org/licenses/>.
 
+/**
+ * Tests for the ad hoc task that renumbers a course's sections.
+ *
+ * @package    aiplacement_modgen
+ * @category   test
+ * @copyright  2026 Tom Cripps
+ * @license    https://www.gnu.org/copyleft/gpl.html GNU GPL v3 or later
+ */
+
 namespace aiplacement_modgen;
 
 use aiplacement_modgen\event\section_order_blocked;
@@ -29,22 +38,6 @@ defined('MOODLE_INTERNAL') || die();
 
 global $CFG;
 require_once($CFG->dirroot . '/course/lib.php');
-
-/**
- * Task wrapper that makes the quiet-period guard callable from a test.
- */
-class testable_reorder_sections_task extends reorder_sections_task {
-    /**
-     * Expose the guard.
-     *
-     * @param int $courseid Course ID
-     * @param int $startrev cacherev the guard compares against
-     * @return callable
-     */
-    public function guard(int $courseid, int $startrev): callable {
-        return $this->beforewrite_guard($courseid, $startrev);
-    }
-}
 
 /**
  * Tests for the ad hoc task that renumbers a course once it has been quiet.
@@ -246,7 +239,19 @@ final class reorder_sections_task_test extends \advanced_testcase {
         global $DB;
         $this->age_edits();
         $start = (int) $DB->get_field('course', 'cacherev', ['id' => $this->course->id]);
-        $guard = (new testable_reorder_sections_task())->guard($this->course->id, $start);
+        $task = new class extends reorder_sections_task {
+            /**
+             * Expose the guard.
+             *
+             * @param int $courseid Course ID
+             * @param int $startrev cacherev the guard compares against
+             * @return callable
+             */
+            public function guard(int $courseid, int $startrev): callable {
+                return $this->beforewrite_guard($courseid, $startrev);
+            }
+        };
+        $guard = $task->guard($this->course->id, $start);
         $this->assertTrue($guard());
         \rebuild_course_cache($this->course->id, true);
         $this->assertFalse($guard());
@@ -255,7 +260,13 @@ final class reorder_sections_task_test extends \advanced_testcase {
     public function test_lock_failure_requeues(): void {
         $this->age_edits();
         $task = new class extends reorder_sections_task {
-            // phpcs:ignore moodle.Commenting.MissingDocblock.Missing
+            /**
+             * Fail as the test needs.
+             *
+             * @param int $courseid Course ID
+             * @param callable $beforewrite Guard run before each write
+             * @return array
+             */
             protected function run_fix(int $courseid, callable $beforewrite): array {
                 throw new \moodle_exception('erroracquiringlock', 'aiplacement_modgen');
             }
@@ -270,7 +281,13 @@ final class reorder_sections_task_test extends \advanced_testcase {
     public function test_other_failure_is_logged_not_thrown(): void {
         $this->age_edits();
         $task = new class extends reorder_sections_task {
-            // phpcs:ignore moodle.Commenting.MissingDocblock.Missing
+            /**
+             * Fail as the test needs.
+             *
+             * @param int $courseid Course ID
+             * @param callable $beforewrite Guard run before each write
+             * @return array
+             */
             protected function run_fix(int $courseid, callable $beforewrite): array {
                 throw new \RuntimeException('boom');
             }

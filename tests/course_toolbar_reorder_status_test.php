@@ -99,7 +99,8 @@ final class course_toolbar_reorder_status_test extends \advanced_testcase {
         global $DB;
         $teacher = $this->getDataGenerator()->create_and_enrol($this->course, 'editingteacher');
         $roleid = $DB->get_field('role', 'id', ['shortname' => 'editingteacher']);
-        assign_capability('aiplacement/modgen:checkstructure', CAP_ALLOW, $roleid, \context_course::instance($this->course->id)->id);
+        $coursecontextid = \context_course::instance($this->course->id)->id;
+        assign_capability('aiplacement/modgen:checkstructure', CAP_ALLOW, $roleid, $coursecontextid);
         $this->setUser($teacher);
         $this->assertStringNotContainsString('aiplacement-modgen-reorder-status', $this->fragment());
     }

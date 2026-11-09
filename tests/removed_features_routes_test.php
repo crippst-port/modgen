@@ -180,7 +180,7 @@ final class removed_features_routes_test extends advanced_testcase {
         foreach (['aigen_list.php', 'ajax/get_aigen.php', 'ajax/toggle_visibility.php'] as $path) {
             $this->assertFileDoesNotExist($CFG->dirroot . '/ai/placement/modgen/' . $path);
         }
-        // db/events.php now exists for the section renumber; the marker observers must not be in it.
+        // The db/events.php file now exists for the section renumber; the marker observers must not be in it.
         $events = file_get_contents($CFG->dirroot . '/ai/placement/modgen/db/events.php');
         $this->assertStringNotContainsString('course_module_updated', $events);
         $this->assertStringNotContainsString('course_module_deleted', $events);

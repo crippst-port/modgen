@@ -1,6 +1,6 @@
 === Module Assistant (aiplacement_modgen) Upgrade Notes ===
 
-## Upgrading to the next version
+## Upgrading to Version 1.0.0 (2026-11-09)
 
 ### Added
 

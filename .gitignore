@@ -1,14 +1,8 @@
 # Dependencies
 node_modules/
 
-# Docs
-docs/
-
-
 # IDE
 .claude/
-.github/
-.plan/
 .vscode/
 .idea/
 *.swp

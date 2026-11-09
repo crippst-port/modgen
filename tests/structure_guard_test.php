@@ -110,18 +110,18 @@ final class structure_guard_test extends \advanced_testcase {
      */
     public function test_busy_while_a_delete_holds_the_lock(): void {
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
-        $this->assertNull(structure_guard::busy_reason($course->id));
+        $this->assertFalse(structure_guard::is_busy($course->id));
 
         $lock = $this->hold(
             course_formats::FLEXSECTIONS_DELETE_LOCK_TYPE,
             course_formats::flexsections_delete_lock_key($course->id)
         );
         try {
-            $this->assertSame(structure_guard::BUSY_SECTIONS, structure_guard::busy_reason($course->id));
+            $this->assertTrue(structure_guard::is_busy($course->id));
         } finally {
             $lock->release();
         }
-        $this->assertNull(structure_guard::busy_reason($course->id));
+        $this->assertFalse(structure_guard::is_busy($course->id));
     }
 
     /**
@@ -129,7 +129,7 @@ final class structure_guard_test extends \advanced_testcase {
      */
     public function test_asking_lets_the_lock_go(): void {
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
-        structure_guard::busy_reason($course->id);
+        structure_guard::is_busy($course->id);
         $lock = $this->hold(
             course_formats::FLEXSECTIONS_DELETE_LOCK_TYPE,
             course_formats::flexsections_delete_lock_key($course->id)
@@ -140,36 +140,27 @@ final class structure_guard_test extends \advanced_testcase {
     }
 
     /**
-     * A running Module Assistant build is reported as a build.
+     * A course is busy while a Module Assistant build holds its structure locks.
      */
     public function test_busy_while_a_build_runs(): void {
-        global $DB;
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
-        $DB->insert_record('aiplacement_modgen_jobs', [
-            'courseid' => $course->id,
-            'userid' => get_admin()->id,
-            'action' => 'create_weeks',
-            'status' => 'running',
-            'parameters' => '{}',
-            'timecreated' => time(),
-        ]);
 
         $locks = theme_builder::acquire_structure_locks($course->id, 0);
         try {
-            $this->assertSame(structure_guard::BUSY_BUILD, structure_guard::busy_reason($course->id));
+            $this->assertTrue(structure_guard::is_busy($course->id));
         } finally {
             theme_builder::release_structure_locks($locks);
         }
     }
 
     /**
-     * A repair holding only the course edit lock is reported as a build.
+     * A course is busy while a repair holds only the course edit lock.
      */
     public function test_busy_while_a_repair_holds_the_course_edit_lock(): void {
         $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
         $lock = $this->hold('core_course_edit', 'course_edit_' . $course->id);
         try {
-            $this->assertSame(structure_guard::BUSY_BUILD, structure_guard::busy_reason($course->id));
+            $this->assertTrue(structure_guard::is_busy($course->id));
         } finally {
             $lock->release();
         }
@@ -188,8 +179,8 @@ final class structure_guard_test extends \advanced_testcase {
 
         $locks = theme_builder::acquire_structure_locks($course->id, 0);
         try {
-            $this->assertNotNull(structure_guard::busy_reason($course->id));
-            $this->assertNull(structure_guard::busy_reason($other->id));
+            $this->assertTrue(structure_guard::is_busy($course->id));
+            $this->assertFalse(structure_guard::is_busy($other->id));
         } finally {
             theme_builder::release_structure_locks($locks);
         }

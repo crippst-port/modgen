@@ -27,7 +27,7 @@ Feature: Section changes on a Flexible sections course wait for each other
     Then I should see "Another change to this module is in progress"
     And the course "C1" should have "3" sections
     When the other change to the sections of "C1" finishes
-    And I wait until "Another change to this module is in progress" "text" does not exist
+    And I wait until the section change loader has gone
     Then the course "C1" should have "2" sections
 
   Scenario: A section duplicate waits while another change to the sections is under way
@@ -39,7 +39,7 @@ Feature: Section changes on a Flexible sections course wait for each other
     Then I should see "Another change to this module is in progress"
     And the course "C1" should have "3" sections
     When the other change to the sections of "C1" finishes
-    And I wait until "Another change to this module is in progress" "text" does not exist
+    And I wait until the section change loader has gone
     And I wait until the page is ready
     Then the course "C1" should have "4" sections
 
@@ -96,7 +96,7 @@ Feature: Section changes on a Flexible sections course wait for each other
     And I click on "Delete" "link" in the "li#section-3" "css_element"
     And I should see "Waiting for another change to finish"
     And the other change to the sections of "C1" finishes
-    And I wait until "Waiting for another change to finish" "text" does not exist
+    And I wait until the section change loader has gone
     Then the section change loader should have said, in order:
       | Waiting for another change to finish |
       | Deleting the section                 |
@@ -131,7 +131,7 @@ Feature: Section changes on a Flexible sections course wait for each other
     When I click on "Before 'Topic 1'" "link" in the "Move section" "dialogue"
     And I should see "Waiting for another change to finish"
     And the other change to the sections of "C1" finishes
-    And I wait until "Waiting for another change to finish" "text" does not exist
+    And I wait until the section change loader has gone
     Then the section change loader should have said, in order:
       | Moving the section |
       | Section moved      |
@@ -146,7 +146,7 @@ Feature: Section changes on a Flexible sections course wait for each other
     When I click on "Add section" "link" in the "li#section-1" "css_element"
     And I should see "Waiting for another change to finish"
     And the other change to the sections of "C1" finishes
-    And I wait until "Waiting for another change to finish" "text" does not exist
+    And I wait until the section change loader has gone
     Then the section change loader should have said, in order:
       | Adding a section |
       | Section added    |
@@ -166,7 +166,7 @@ Feature: Section changes on a Flexible sections course wait for each other
     And I click on "Merge with parent" "link" in the "li#section-2" "css_element"
     And I should see "Waiting for another change to finish"
     And the other change to the sections of "C1" finishes
-    And I wait until "Waiting for another change to finish" "text" does not exist
+    And I wait until the section change loader has gone
     Then the section change loader should have said, in order:
       | Merging the section |
       | Section merged      |
@@ -241,3 +241,76 @@ Feature: Section changes on a Flexible sections course wait for each other
     And I wait until the page is ready
     Then the section change loader should not have appeared
     And the section change loader should be gone
+
+  Scenario: A change asked for while a duplicate loads its page waits for the page to go
+    Given the sections of "C1" are being changed elsewhere
+    And I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    When I open section "2" edit menu
+    And I click on "Duplicate" "link" in the "li#section-2" "css_element"
+    And I should see "Waiting for another change to finish"
+    # Asked for behind the cover: it must not run alongside the duplicate.
+    And the course editor is asked to delete section "3"
+    And the other change to the sections of "C1" finishes
+    And I wait until the section change loader has gone
+    And I wait until the page is ready
+    Then the course "C1" should have "4" sections
+
+  Scenario: A change goes ahead when the loader cannot be drawn
+    Given I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    And the section change loader cannot be drawn
+    And the sections of "C1" are being changed elsewhere
+    When I open section "3" edit menu
+    And I click on "Delete" "link" in the "li#section-3" "css_element"
+    And I wait "2" seconds
+    Then the course "C1" should have "3" sections
+    When the other change to the sections of "C1" finishes
+    And I wait "3" seconds
+    And I wait until the page is ready
+    Then the section change loader should be gone
+    And the course "C1" should have "2" sections
+
+  Scenario: A duplicate whose page never loads uncovers the page again
+    Given I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    And a section change that loads a page is stopped, and given up on after "2" seconds
+    When I open section "2" edit menu
+    And I click on "Duplicate" "link" in the "li#section-2" "css_element"
+    And I wait "4" seconds
+    Then the section change loader should be gone
+    And the course "C1" should have "3" sections
+    # The page can be used again.
+    And I press the escape key
+    When I open section "3" edit menu
+    And I click on "Delete" "link" in the "li#section-3" "css_element"
+    And I wait until the page is ready
+    Then the course "C1" should have "2" sections
+
+  Scenario: A refused change raises no uncaught error once the guard is switched off
+    Given I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    And I start watching for uncaught errors
+    And the following config values are set as admin:
+      | enable_structureguard | 0 | aiplacement_modgen |
+    # The first change after switching off finds out, and changes from then on are not guarded.
+    And I open section "3" edit menu
+    And I click on "Delete" "link" in the "li#section-3" "css_element"
+    And I wait until the page is ready
+    And the course "C1" should have "2" sections
+    And the following "permission overrides" exist:
+      | capability                 | permission | role           | contextlevel | reference |
+      | moodle/course:movesections | Prohibit   | editingteacher | Course       | C1        |
+    When the course editor is asked to delete section "2", which fails
+    Then the held-back change should have failed with "you do not currently have permissions to do that"
+    And there should have been no uncaught errors
+    And the course "C1" should have "2" sections
+
+  Scenario: Focus goes back where it was once a change is saved
+    Given I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    When I use the "Add section" link in section "1" from the keyboard
+    And I wait until the page is ready
+    Then the course "C1" should have "4" sections
+    And the section change loader should be gone
+    And focus should be back where it was

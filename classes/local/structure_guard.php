@@ -40,12 +40,6 @@ namespace aiplacement_modgen\local;
  * seen; the page waits for its own.
  */
 class structure_guard {
-    /** @var string Busy with a section delete, or a build or repair holding the same lock. */
-    public const BUSY_SECTIONS = 'sections';
-
-    /** @var string Busy with a Module Assistant build or repair. */
-    public const BUSY_BUILD = 'build';
-
     /**
      * Whether the course page should hold section changes back for this user.
      *
@@ -65,29 +59,20 @@ class structure_guard {
     }
 
     /**
-     * Why the course is not free for a section change, or null when it is.
+     * Whether another change to the course's sections is under way.
      *
      * Each lock is tried without waiting and let go at once, so a change that starts meanwhile
      * waits a moment at most. Flexible sections 4.1.4 to 4.1.6 lock deletes for the whole site, so
      * there a delete in any Flexible sections course counts; it would hold this change up anyway.
      *
      * @param int $courseid Course ID
-     * @return string|null BUSY_SECTIONS, BUSY_BUILD or null
+     * @return bool
      */
-    public static function busy_reason(int $courseid): ?string {
-        if (
-            self::is_held(
-                course_formats::FLEXSECTIONS_DELETE_LOCK_TYPE,
-                course_formats::flexsections_delete_lock_key($courseid)
-            )
-        ) {
-            // A running build holds this lock too: say so, as it can take much longer than a delete.
-            return self::has_running_job($courseid) ? self::BUSY_BUILD : self::BUSY_SECTIONS;
-        }
-        if (self::is_held('core_course_edit', 'course_edit_' . $courseid)) {
-            return self::BUSY_BUILD;
-        }
-        return null;
+    public static function is_busy(int $courseid): bool {
+        return self::is_held(
+            course_formats::FLEXSECTIONS_DELETE_LOCK_TYPE,
+            course_formats::flexsections_delete_lock_key($courseid)
+        ) || self::is_held('core_course_edit', 'course_edit_' . $courseid);
     }
 
     /**
@@ -104,16 +89,5 @@ class structure_guard {
         }
         $lock->release();
         return false;
-    }
-
-    /**
-     * Whether a Module Assistant build is running in the course.
-     *
-     * @param int $courseid Course ID
-     * @return bool
-     */
-    private static function has_running_job(int $courseid): bool {
-        global $DB;
-        return $DB->record_exists('aiplacement_modgen_jobs', ['courseid' => $courseid, 'status' => 'running']);
     }
 }

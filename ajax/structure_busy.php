@@ -43,8 +43,7 @@ require_capability('moodle/course:update', $context);
 try {
     // Switched off since the page loaded, or no longer Flexible sections: the page stops guarding.
     $guarded = structure_guard::applies($courseid, $context);
-    $reason = $guarded ? structure_guard::busy_reason($courseid) : null;
-    ajax_response::success(['guarded' => $guarded, 'busy' => $reason !== null, 'reason' => $reason]);
+    ajax_response::success(['guarded' => $guarded, 'busy' => $guarded && structure_guard::is_busy($courseid)]);
 } catch (\Throwable $e) {
     // The page lets the change go ahead when the check fails, so this is not shown to anyone.
     ajax_response::error(get_string('error'), 'exception');

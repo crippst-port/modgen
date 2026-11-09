@@ -64,7 +64,7 @@ const GUARDED_LINK_PARAMS = {
  * several ({$a} is how many). A change that loads a new page shows no tick, so needs no done heading.
  */
 const ACTION_STRINGS = {
-    delete: {
+    'delete': {
         working: 'structureguard_delete', workingmany: 'structureguard_delete_many',
         done: 'structureguard_deleted', donemany: 'structureguard_deleted_many',
     },
@@ -102,6 +102,9 @@ const POLL_INTERVAL = 2000;
 /** @type {number} How long to wait for the course before giving up, in milliseconds. */
 const WAIT_LIMIT = 120000;
 
+/** @type {number} How long a change that loads a new page may take to leave this one before it is uncovered, in ms. */
+const NAVIGATION_LIMIT = 180000;
+
 /** @type {number} The course ID. */
 let courseId = 0;
 
@@ -111,11 +114,20 @@ let queue = Promise.resolve();
 /** @type {HTMLElement|null} The overlay covering the page while a change is made. */
 let overlay = null;
 
+/** @type {HTMLElement|null} The cover, rendered as the page loads, copied for each change. */
+let coverTemplate = null;
+
+/** @type {Element|null} What had focus when the cover went up, to go back to after. */
+let returnFocus = null;
+
 /** @type {HTMLElement[]} Elements made inert while the overlay is shown. */
 let inertElements = [];
 
 /** @type {boolean} The server said the guard is off for this course now: stop guarding. */
 let switchedOff = false;
+
+/** @type {boolean} The page is unloading for a change that loads a new one: start no other change. */
+let pageLeaving = false;
 
 /**
  * A change refused, with the string to tell the user why.
@@ -255,43 +267,62 @@ const stateText = async(state) => {
 };
 
 /**
- * Cover the page, or change what the cover says.
+ * Whether Behat has made the cover unable to render, to check a change goes ahead without it.
  *
- * The cover stops clicks at once, but only fades in once the change has taken SHOW_DELAY, so a
- * quick change does not flash it. A change still running after STILL_WORKING_DELAY says so.
- *
- * @param {string} state One of STATES
+ * @returns {boolean}
  */
-const showOverlay = async(state) => {
-    const generation = coverGeneration;
-    clearTimeout(stillWorkingTimer);
-    stillWorkingTimer = null;
-    if (state === 'working') {
-        stillWorkingTimer = setTimeout(() => showOverlay('stillworking'), STILL_WORKING_DELAY);
-    }
-    const text = await stateText(state);
-    if (generation !== coverGeneration) {
-        return;
-    }
+const coverBroken = () => !!(M.cfg.behatsiterunning && window.aiplacementModgenGuardBreakCover);
 
-    if (overlay) {
-        if (state === 'waiting') {
-            overlay.classList.add('is-visible');
-            visibleAt = visibleAt || performance.now();
-        }
-        overlay.querySelector('[data-region="title"]').textContent = text.title;
-        overlay.querySelector('[data-region="message"]').textContent = text.message;
-        return;
-    }
-
+/**
+ * Render the cover from its template.
+ *
+ * @param {{title: string, message: string}} text What it says
+ * @returns {Promise<HTMLElement>}
+ */
+const renderCover = async(text) => {
     const {html} = await Templates.renderForPromise('aiplacement_modgen/structure_guard_overlay', text);
-    if (generation !== coverGeneration || overlay || state === 'stillworking') {
-        return;
-    }
     const holder = document.createElement('div');
     // Safe: the HTML is a rendered template, its only variables language strings.
     holder.innerHTML = html;
-    overlay = holder.firstElementChild;
+    return holder.firstElementChild;
+};
+
+/**
+ * Render the cover once, as the page loads, to copy for each change.
+ *
+ * So a change never waits on rendering it. If it cannot be rendered, changes get a plain cover.
+ */
+const prepareCover = async() => {
+    try {
+        coverTemplate = await renderCover(await stateText('working'));
+    } catch (error) {
+        coverTemplate = null;
+    }
+};
+
+/**
+ * Cover the page at once.
+ *
+ * Synchronous, so nothing on the page can be clicked from the moment a change is asked for: the
+ * cover is a copy of the one rendered as the page loaded, or a plain one if that is not ready, and
+ * says nothing until setCoverText() fills it in. It stops clicks at once, but only fades in once
+ * the change has taken SHOW_DELAY, so a quick change does not flash it.
+ */
+const attachCover = () => {
+    if (overlay) {
+        return;
+    }
+    if (coverTemplate && !coverBroken()) {
+        overlay = coverTemplate.cloneNode(true);
+    } else {
+        overlay = document.createElement('div');
+        overlay.className = 'aiplacement-modgen-structure-guard';
+        overlay.dataset.region = 'aiplacement-modgen-structure-guard';
+        overlay.tabIndex = -1;
+    }
+
+    // Where the user was, to go back to once the cover closes.
+    returnFocus = document.activeElement;
 
     // Nothing behind the cover can be reached by keyboard or screen reader either.
     inertElements = [...document.body.children].filter((element) => !element.inert);
@@ -302,7 +333,7 @@ const showOverlay = async(state) => {
     overlay.addEventListener('touchmove', stopScroll, {passive: false});
     lockScroll();
     document.body.appendChild(overlay);
-    overlay.querySelector('[role="status"]').focus({preventScroll: true});
+    (overlay.querySelector('[role="status"]') || overlay).focus({preventScroll: true});
     showTimer = setTimeout(() => {
         if (overlay) {
             overlay.classList.add('is-visible');
@@ -312,7 +343,51 @@ const showOverlay = async(state) => {
 };
 
 /**
- * Uncover the page.
+ * Say on the cover what is happening.
+ *
+ * Never throws: what the cover says is no reason to hold a change back, so if its text or template
+ * cannot be had the change goes ahead behind the cover as it is. A change still running after
+ * STILL_WORKING_DELAY says so.
+ *
+ * @param {string} state One of STATES
+ * @returns {Promise<void>}
+ */
+const setCoverText = async(state) => {
+    const generation = coverGeneration;
+    clearTimeout(stillWorkingTimer);
+    stillWorkingTimer = null;
+    if (state === 'working') {
+        stillWorkingTimer = setTimeout(() => setCoverText('stillworking'), STILL_WORKING_DELAY);
+    }
+    try {
+        if (coverBroken()) {
+            throw new Error('The cover was made unable to render.');
+        }
+        const text = await stateText(state);
+        if (generation !== coverGeneration || !overlay) {
+            return;
+        }
+        if (!overlay.querySelector('[data-region="title"]')) {
+            // A plain cover, put up before the template was ready: give it the card now.
+            const rendered = await renderCover(text);
+            if (generation !== coverGeneration || !overlay) {
+                return;
+            }
+            overlay.replaceChildren(...rendered.childNodes);
+        }
+        if (state === 'waiting') {
+            overlay.classList.add('is-visible');
+            visibleAt = visibleAt || performance.now();
+        }
+        overlay.querySelector('[data-region="title"]').textContent = text.title;
+        overlay.querySelector('[data-region="message"]').textContent = text.message;
+    } catch (error) {
+        // The cover keeps what it said before, or says nothing; the change goes ahead regardless.
+    }
+};
+
+/**
+ * Uncover the page, and put the user back where they were.
  */
 const hideOverlay = () => {
     coverGeneration++;
@@ -331,6 +406,11 @@ const hideOverlay = () => {
         element.inert = false;
     });
     inertElements = [];
+    // Back to where the user was, if it is still there (a deleted section's menu is not).
+    if (returnFocus && returnFocus !== document.body && document.contains(returnFocus)) {
+        returnFocus.focus({preventScroll: true});
+    }
+    returnFocus = null;
 };
 
 /**
@@ -372,6 +452,11 @@ const showDone = async() => {
         }
     }
     const cover = overlay;
+    if (!cover.querySelector('[data-region="title"]')) {
+        // A plain cover never got its card, so has no tick to show.
+        hideOverlay();
+        return;
+    }
     cover.querySelector('[data-region="title"]').textContent = title;
     cover.querySelector('[role="status"]').setAttribute('aria-busy', 'false');
     cover.classList.add('is-visible', 'is-done');
@@ -455,7 +540,7 @@ const waitUntilFree = async(work) => {
             throw new GuardRefusal('structureguard_timedout');
         }
         if (!told) {
-            await showOverlay('waiting');
+            await setCoverText('waiting');
             work.pending.resolve();
             work.pending = null;
             told = true;
@@ -464,38 +549,119 @@ const waitUntilFree = async(work) => {
     }
     if (told) {
         work.pending = new Pending('aiplacement_modgen/structure_guard');
-        await showOverlay('working');
+        await setCoverText('working');
     }
 };
 
 /**
+ * Let a change the server refused pass quietly.
+ *
+ * The course editor has shown the error already, and its own dispatch() never rejects, so
+ * neither should this page's.
+ *
+ * @param {Error} error What the change failed with
+ * @returns {undefined}
+ * @throws {Error} Anything other than a refused change
+ */
+const absorbChangeFailed = (error) => {
+    if (error instanceof ChangeFailed) {
+        return undefined;
+    }
+    throw error;
+};
+
+/**
+ * Follow a link that makes a section change, resolving only if the page does not go after all.
+ *
+ * While the page goes the change stays under way, holding every later change back: the page is
+ * leaving, so no change from it should start. Resolves false if it stays after all (the browser
+ * reports the navigation failed, it is still here after NAVIGATION_LIMIT, as when the user stops
+ * it, or it comes back from the history), so the page is uncovered and can be used again.
+ *
+ * @param {string} href Where the link goes
+ * @returns {Promise<boolean>}
+ */
+const navigate = (href) => new Promise((resolve) => {
+    const limit = (M.cfg.behatsiterunning && window.aiplacementModgenGuardNavigationLimit) || NAVIGATION_LIMIT;
+    const stayed = () => {
+        clearTimeout(timer);
+        window.removeEventListener('pagehide', leaving);
+        window.removeEventListener('pageshow', returned);
+        window.navigation?.removeEventListener('navigateerror', stayed);
+        pageLeaving = false;
+        resolve(false);
+    };
+    // Once the page goes, it is gone: the limit no longer applies, and nothing else starts.
+    const leaving = () => {
+        clearTimeout(timer);
+        pageLeaving = true;
+    };
+    // Back from the history, the page is as it was left, covered and waiting: let it go on.
+    const returned = (event) => {
+        if (event.persisted) {
+            stayed();
+        }
+    };
+    const timer = setTimeout(stayed, limit);
+    window.addEventListener('pagehide', leaving);
+    window.addEventListener('pageshow', returned);
+    window.navigation?.addEventListener('navigateerror', stayed);
+    // Behat can make the page stay, as a navigation the user stops would.
+    if (!(M.cfg.behatsiterunning && window.aiplacementModgenGuardStayOnPage)) {
+        window.location.assign(href);
+    }
+});
+
+/**
  * Make one section change, after the one before it and once the course is free.
  *
- * @param {Function} change Makes the change; resolves when it is saved
- * @param {boolean} keepCover Leave the page covered after, as for a change that loads a new page
+ * The page is covered at once, before anything waits, so a second click cannot slip in while
+ * this one is checked. What the cover says is filled in alongside the check, not before it,
+ * and never holds the change back.
+ *
+ * @param {Function} change Makes the change; resolves when it is saved. For a change that loads
+ *     a new page, resolves whether the page left (navigate()).
+ * @param {boolean} leavesPage The change loads a new page, which shows its result
  * @param {{kind: ?string, count: number}} action What the change does (ACTION_STRINGS) and to how many sections
  * @returns {Promise<*>} What the change resolves with
  */
-const guard = (change, keepCover = false, action = {kind: null, count: 1}) => {
-    if (switchedOff) {
-        return Promise.resolve().then(change);
+const guard = (change, leavesPage = false, action = {kind: null, count: 1}) => {
+    // The page is going for an earlier change: one asked for now would run as it unloads.
+    if (pageLeaving) {
+        return Promise.resolve();
     }
+    if (switchedOff) {
+        return Promise.resolve().then(change).catch(absorbChangeFailed);
+    }
+    attachCover();
     const run = async() => {
+        if (pageLeaving) {
+            return undefined;
+        }
         currentAction = action;
+        // The change before this one took its cover down when it finished.
+        attachCover();
         const work = {pending: new Pending('aiplacement_modgen/structure_guard')};
-        let covered = keepCover;
+        let covered = false;
         try {
-            await showOverlay('working');
+            const text = setCoverText('working');
             await waitUntilFree(work);
             if (switchedOff) {
-                covered = false;
                 hideOverlay();
+                return await change();
+            }
+            if (leavesPage) {
+                const leaving = change();
+                // Behat follows the page load itself, so this page has nothing left to settle.
+                work.pending.resolve();
+                work.pending = null;
+                // Stay covered while the page goes; uncover if it does not go after all.
+                covered = await leaving;
+                return undefined;
             }
             const result = await change();
-            // A change that loads a new page shows its result there; the rest confirm it here.
-            if (!keepCover) {
-                await showDone();
-            }
+            await text;
+            await showDone();
             return result;
         } catch (error) {
             covered = false;
@@ -633,10 +799,8 @@ const guardLinks = () => {
         event.preventDefault();
         event.stopPropagation();
         const href = link.href;
-        // The page stays covered until the next one loads.
-        guard(() => {
-            window.location.assign(href);
-        }, true, {kind, count: 1});
+        // The page stays covered, and the next change held back, until the next page loads.
+        guard(() => navigate(href), true, {kind, count: 1});
     }, true);
 
     // Coming back to this page from the history shows it as it was left: covered.
@@ -659,4 +823,5 @@ export const init = (courseid) => {
     courseId = courseid;
     guardCourseEditor();
     guardLinks();
+    prepareCover();
 };

@@ -189,8 +189,7 @@ class settings_helper {
      * @return bool True if the automatic section renumber is enabled
      */
     public static function is_autoreorder_enabled(): bool {
-        $value = get_config('aiplacement_modgen', 'enable_autoreorder');
-        return $value === false || !empty($value);
+        return self::get_bool_default_on('enable_autoreorder');
     }
     /**
      * Check if the structure guard is enabled.
@@ -201,8 +200,7 @@ class settings_helper {
      * @return bool True if section changes on Flexible sections courses wait for each other
      */
     public static function is_structureguard_enabled(): bool {
-        $value = get_config('aiplacement_modgen', 'enable_structureguard');
-        return $value === false || !empty($value);
+        return self::get_bool_default_on('enable_structureguard');
     }
 
     /**
@@ -213,5 +211,19 @@ class settings_helper {
      */
     private static function get_bool(string $name): bool {
         return !empty(get_config('aiplacement_modgen', $name));
+    }
+
+    /**
+     * Get a boolean setting that is on until an administrator switches it off.
+     *
+     * A site that has never saved the setting (get_config() returns false) counts as on, so an
+     * upgrade starts the behaviour without anyone having to visit the settings page first.
+     *
+     * @param string $name Setting name
+     * @return bool Setting value
+     */
+    private static function get_bool_default_on(string $name): bool {
+        $value = get_config('aiplacement_modgen', $name);
+        return $value === false || !empty($value);
     }
 }

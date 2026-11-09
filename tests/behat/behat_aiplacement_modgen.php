@@ -805,6 +805,17 @@ class behat_aiplacement_modgen extends behat_base {
         self::$heldsectionlocks[$shortname]->release();
         unset(self::$heldsectionlocks[$shortname]);
 
+        $this->wait_for_and_close_section_change_error('The held-back change did not fail with an error.');
+    }
+
+    /**
+     * Wait for the error dialog a failed section change shows, note what it says, and close it.
+     *
+     * Closed in the step that caused it: Behat stops at any error dialog left on the page.
+     *
+     * @param string $none What to say if no error comes.
+     */
+    private function wait_for_and_close_section_change_error(string $none): void {
         $session = $this->getSession();
         $message = $this->spin(function () use ($session) {
             $text = $session->evaluateScript('return (function() {
@@ -812,7 +823,7 @@ class behat_aiplacement_modgen extends behat_base {
                 return error ? error.textContent.trim() : "";
             })();');
             return $text !== '' ? $text : false;
-        }, [], 30, new Exception('The held-back change did not fail with an error.'), true);
+        }, [], 30, new Exception($none), true);
         self::$sectionchangeerror = (string) $message;
 
         $session->executeScript('(function() {
@@ -835,5 +846,131 @@ class behat_aiplacement_modgen extends behat_base {
             throw new Exception("The change did not fail with '$text'. Its error was: "
                 . var_export(self::$sectionchangeerror, true));
         }
+    }
+
+    /**
+     * Ask the course editor to delete a section, as a click on Delete would.
+     *
+     * The page's own call, not a click: it reaches the course editor even while the loader covers
+     * the page, to check a change asked for meanwhile is held back.
+     *
+     * @When /^the course editor is asked to delete section "(?P<section_number>\d+)"$/
+     * @param int $section Section number.
+     */
+    public function the_course_editor_is_asked_to_delete_section(int $section): void {
+        $this->getSession()->executeScript("(function() {
+            const sectionid = document.getElementById('section-$section').dataset.id;
+            require(['core_courseformat/courseeditor'], (courseeditor) => {
+                courseeditor.getCurrentCourseEditor().dispatch('sectionDelete', [sectionid]);
+            });
+        })();");
+    }
+
+    /**
+     * Ask the course editor to delete a section the server will refuse, and close the error it shows.
+     *
+     * @When /^the course editor is asked to delete section "(?P<section_number>\d+)", which fails$/
+     * @param int $section Section number.
+     */
+    public function the_course_editor_is_asked_to_delete_section_which_fails(int $section): void {
+        $this->the_course_editor_is_asked_to_delete_section($section);
+        $this->wait_for_and_close_section_change_error('The delete did not fail with an error.');
+    }
+
+    /**
+     * Start noting any promise the page rejects without catching.
+     *
+     * @Given /^I start watching for uncaught errors$/
+     */
+    public function i_start_watching_for_uncaught_errors(): void {
+        $this->getSession()->executeScript('(function() {
+            window.aiplacementModgenUncaught = [];
+            window.addEventListener("unhandledrejection", (event) => {
+                window.aiplacementModgenUncaught.push(String(event.reason && (event.reason.name || event.reason)));
+            });
+        })();');
+    }
+
+    /**
+     * Check the page rejected no promise without catching it.
+     *
+     * @Then /^there should have been no uncaught errors$/
+     */
+    public function there_should_have_been_no_uncaught_errors(): void {
+        $json = $this->getSession()->evaluateScript('return JSON.stringify(window.aiplacementModgenUncaught || null);');
+        $errors = json_decode((string) $json, true);
+        if (!is_array($errors)) {
+            throw new Exception('Nothing is watching for uncaught errors: start watching first.');
+        }
+        if ($errors) {
+            throw new Exception('The page had uncaught errors: ' . implode(', ', $errors));
+        }
+    }
+
+    /**
+     * Make the section change loader unable to render, as a failed template or string load would.
+     *
+     * @Given /^the section change loader cannot be drawn$/
+     */
+    public function the_section_change_loader_cannot_be_drawn(): void {
+        $this->getSession()->executeScript('window.aiplacementModgenGuardBreakCover = true;');
+    }
+
+    /**
+     * Make a section change that follows a link stay on this page, as one the user stops would.
+     *
+     * @Given /^a section change that loads a page is stopped, and given up on after "(?P<seconds_number>\d+)" seconds$/
+     * @param int $seconds Seconds before the page is uncovered.
+     */
+    public function a_section_change_that_loads_a_page_is_stopped(int $seconds): void {
+        $this->getSession()->executeScript('window.aiplacementModgenGuardStayOnPage = true;
+            window.aiplacementModgenGuardNavigationLimit = ' . ($seconds * 1000) . ';');
+    }
+
+    /**
+     * Use a link in a section from the keyboard: focus it, then follow it, noting what had focus.
+     *
+     * @When /^I use the "(?P<text_string>[^"]*)" link in section "(?P<section_number>\d+)" from the keyboard$/
+     * @param string $text Link text.
+     * @param int $section Section number.
+     */
+    public function i_use_the_link_in_section_from_the_keyboard(string $text, int $section): void {
+        $link = $this->find('xpath', "//li[@id='section-$section']//a[normalize-space(.)="
+            . behat_context_helper::escape($text) . ']');
+        $this->getSession()->executeScript('(function() {
+            const link = document.evaluate(' . json_encode($link->getXpath()) . ', document, null,
+                XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
+            link.focus();
+            window.aiplacementModgenFocused = link;
+            link.click();
+        })();');
+    }
+
+    /**
+     * Check focus is back on what had it before the change.
+     *
+     * @Then /^focus should be back where it was$/
+     */
+    public function focus_should_be_back_where_it_was(): void {
+        $back = $this->getSession()->evaluateScript(
+            'return !!window.aiplacementModgenFocused && document.activeElement === window.aiplacementModgenFocused;'
+        );
+        if (!$back) {
+            $now = $this->getSession()->evaluateScript(
+                'return document.activeElement ? document.activeElement.outerHTML.substring(0, 120) : "nothing";'
+            );
+            throw new Exception("Focus did not go back. It is on: $now");
+        }
+    }
+
+    /**
+     * Wait for the section change loader to leave the page.
+     *
+     * Its text cannot be waited on: the page carries the loader's strings in a script.
+     *
+     * @When /^I wait until the section change loader has gone$/
+     */
+    public function i_wait_until_the_section_change_loader_has_gone(): void {
+        $this->ensure_element_does_not_exist('[data-region="aiplacement-modgen-structure-guard"]', 'css_element');
     }
 }

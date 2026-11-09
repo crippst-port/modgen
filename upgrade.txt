@@ -13,7 +13,7 @@
   change the structure with a page load (duplicatesection, addchildsection, mergeup, deletesection,
   movesection). It is loaded for anyone with moodle/course:update, whether or not the assistant
   bar is shown. If the check cannot be made, the change goes ahead rather than being refused.
-- \aiplacement_modgen\local\structure_guard: applies() and busy_reason(), which tries the Flexible
+- \aiplacement_modgen\local\structure_guard: applies() and is_busy(), which tries the Flexible
   sections delete lock and the course edit lock without waiting.
 
 ### Fixed

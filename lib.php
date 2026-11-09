@@ -56,6 +56,16 @@ function aiplacement_modgen_extend_navigation_course(
     // Hold back each section change while the last one is saved, for everyone who edits the
     // course, whether or not they get the toolbar.
     if (\aiplacement_modgen\local\structure_guard::applies((int) $course->id, $context)) {
+        // Sent with the page, so a change never waits on fetching what its cover says.
+        $PAGE->requires->strings_for_js([
+            'structureguard_working_title', 'structureguard_working', 'structureguard_stillworking',
+            'structureguard_done_title', 'structureguard_waiting_title', 'structureguard_waiting',
+            'structureguard_timedout', 'structureguard_delete', 'structureguard_delete_many',
+            'structureguard_deleted', 'structureguard_deleted_many', 'structureguard_move',
+            'structureguard_move_many', 'structureguard_moved', 'structureguard_moved_many',
+            'structureguard_add', 'structureguard_added', 'structureguard_merge', 'structureguard_merged',
+            'structureguard_duplicate',
+        ], 'aiplacement_modgen');
         $PAGE->requires->js_call_amd('aiplacement_modgen/structure_guard', 'init', [(int) $course->id]);
     }
 

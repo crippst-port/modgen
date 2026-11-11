@@ -16,9 +16,11 @@
 /**
  * Keeps the section reorder status icon on the assistant bar up to date.
  *
- * Polls the whole time the page is visible, not only after an edit made on this page: a renumber
- * can be queued from anywhere (Quick Add, an activity edit, another tab or another editor), and
- * the icon would otherwise sit on an old outcome.
+ * Polls while the page is visible, not only after an edit made on this page: a renumber can be queued
+ * from anywhere (Quick Add, an activity edit, another tab or another editor), and the icon would
+ * otherwise sit on an old outcome. To keep the requests down it times each poll from the state rather
+ * than on a fixed beat: a queued renumber is looked at when it is due, a quiet course less and less
+ * often (up to every five minutes), a hidden tab not at all, and never two requests at once.
  *
  * @module     aiplacement_modgen/reorder_status
  * @copyright  2026 Tom Cripps <tom.cripps@port.ac.uk>
@@ -28,29 +30,71 @@
 import $ from 'jquery';
 import Templates from 'core/templates';
 
-/** Milliseconds between polls while a renumber is queued or running. */
+/** Milliseconds between polls while a renumber is running, or is due and waiting for cron. */
 const ACTIVE_INTERVAL = 10000;
 
-/** Milliseconds between polls otherwise, to catch a renumber queued from elsewhere. */
-const IDLE_INTERVAL = 30000;
+/** Milliseconds after a queued renumber's run time to look, giving cron a moment to start it. */
+const DUE_MARGIN = 5000;
+
+/** Longest wait while a renumber is queued, so a run time pushed back from elsewhere is caught. */
+const QUEUED_MAX_INTERVAL = 300000;
+
+/** First wait when nothing is happening, to catch a renumber queued from elsewhere. */
+const IDLE_MIN_INTERVAL = 30000;
+
+/** Longest wait when nothing is happening: the idle wait doubles up to this. */
+const IDLE_MAX_INTERVAL = 300000;
 
 /** Milliseconds to wait after an edit control is clicked before the next poll. */
 const EDIT_DELAY = 2000;
+
+/** A tab shown again within this long of the last poll does not poll straight away. */
+const FRESH_FOR = 15000;
 
 /** Edit controls on this page whose use can queue a renumber. */
 const EDIT_SELECTOR = '[data-action-flexsections], [data-action="addSection"], [data-action="deleteSection"]';
 
 let timer = null;
 let stopped = false;
+let inflight = false;
+/** Poll again as soon as the request in flight returns: an edit happened while it was out. */
+let pollagain = false;
+let lastpoll = 0;
+let idlewait = IDLE_MIN_INTERVAL;
+/** The label last shown, to tell a change of state from a quiet poll. */
+let lastlabel = null;
 
 /**
- * Whether a status is changing soon.
+ * How long to wait before the next poll, given the status just seen.
+ *
+ * Queued: until its run time, since nothing changes before then unless someone edits, which this page
+ * sees for itself. Running, or due and waiting for cron: every ACTIVE_INTERVAL. Otherwise the idle
+ * wait, which doubles while nothing changes and starts again after a change or an edit.
  *
  * @param {Object|null} status Status from the server
- * @returns {boolean}
+ * @returns {number} Milliseconds
  */
-const isActive = (status) => !!status && (status.state === 'queued' || status.state === 'running');
+const nextDelay = (status) => {
+    const label = status ? status.label : null;
+    const changed = label !== lastlabel;
+    lastlabel = label;
 
+    if (status && status.state === 'running') {
+        idlewait = IDLE_MIN_INTERVAL;
+        return ACTIVE_INTERVAL;
+    }
+    if (status && status.state === 'queued') {
+        idlewait = IDLE_MIN_INTERVAL;
+        const untildue = status.time * 1000 - Date.now() + DUE_MARGIN;
+        return Math.min(QUEUED_MAX_INTERVAL, Math.max(ACTIVE_INTERVAL, untildue));
+    }
+    if (changed) {
+        idlewait = IDLE_MIN_INTERVAL;
+        return idlewait;
+    }
+    idlewait = Math.min(IDLE_MAX_INTERVAL, idlewait * 2);
+    return idlewait;
+};
 /**
  * Show the status in the toolbar.
  *
@@ -91,7 +135,6 @@ const schedule = (region, courseid, delay) => {
     if (timer !== null) {
         clearTimeout(timer);
     }
-    // eslint-disable-next-line no-use-before-define
     timer = setTimeout(() => poll(region, courseid), delay);
 };
 
@@ -101,30 +144,43 @@ const schedule = (region, courseid, delay) => {
  * @param {HTMLElement} region The status region
  * @param {number} courseid Course ID
  */
-const poll = (region, courseid) => {
+const poll = async(region, courseid) => {
     timer = null;
     // A hidden tab waits; it looks again as soon as it is shown.
-    if (document.hidden) {
+    if (document.hidden || stopped) {
         return;
     }
-    fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/reorder_status.php?' + new URLSearchParams({
-        courseid: courseid,
-        sesskey: M.cfg.sesskey,
-    }))
-    .then((response) => response.json())
-    .then(async(data) => {
+    // One request at a time: an edit during one is looked at once it returns.
+    if (inflight) {
+        pollagain = true;
+        return;
+    }
+    inflight = true;
+    lastpoll = Date.now();
+    let delay;
+    try {
+        const response = await fetch(M.cfg.wwwroot + '/ai/placement/modgen/ajax/reorder_status.php?' + new URLSearchParams({
+            courseid: courseid,
+            sesskey: M.cfg.sesskey,
+        }));
+        const data = await response.json();
         if (!data.success) {
             // Refused: the session ended, or the switch was turned off. Nothing more to show.
             stopped = true;
             return;
         }
         await render(region, data.status);
-        schedule(region, courseid, isActive(data.status) ? ACTIVE_INTERVAL : IDLE_INTERVAL);
-    })
-    // A dropped request is not worth a notice every half minute: try again later.
-    .catch(() => schedule(region, courseid, IDLE_INTERVAL));
+        delay = nextDelay(data.status);
+    } catch (e) {
+        // A dropped request is not worth a notice: try again later, backing off as when idle.
+        idlewait = Math.min(IDLE_MAX_INTERVAL, idlewait * 2);
+        delay = idlewait;
+    } finally {
+        inflight = false;
+    }
+    schedule(region, courseid, pollagain ? EDIT_DELAY : delay);
+    pollagain = false;
 };
-
 /**
  * Start watching the status icon.
  *
@@ -136,19 +192,39 @@ export const init = (courseid) => {
         return;
     }
 
+    // The page was rendered with the current status, so the first look can wait as long as a poll would.
+    const icon = region.querySelector('.aiplacement-modgen-reorder-icon');
+    lastlabel = icon ? icon.getAttribute('aria-label') : null;
+    lastpoll = Date.now();
     const active = region.querySelector('.aiplacement-modgen-reorder-icon--queued, .aiplacement-modgen-reorder-icon--running');
-    schedule(region, courseid, active ? ACTIVE_INTERVAL : IDLE_INTERVAL);
+    schedule(region, courseid, active ? ACTIVE_INTERVAL : IDLE_MIN_INTERVAL);
 
     // An edit on this page queues a renumber: look soon after, rather than at the next idle poll.
     document.addEventListener('click', (e) => {
         if (e.target.closest(EDIT_SELECTOR)) {
-            schedule(region, courseid, EDIT_DELAY);
+            idlewait = IDLE_MIN_INTERVAL;
+            if (inflight) {
+                pollagain = true;
+            } else {
+                schedule(region, courseid, EDIT_DELAY);
+            }
         }
     });
 
+    // Shown again: look now, unless the last look was moments ago. Hidden: stop the timer, since a
+    // hidden tab does not poll and this look replaces whatever it was waiting for.
     document.addEventListener('visibilitychange', () => {
-        if (!document.hidden) {
-            schedule(region, courseid, 0);
+        if (document.hidden) {
+            if (timer !== null) {
+                clearTimeout(timer);
+                timer = null;
+            }
+            return;
         }
+        if (inflight) {
+            return;
+        }
+        const sincelast = Date.now() - lastpoll;
+        schedule(region, courseid, sincelast >= FRESH_FOR ? 0 : FRESH_FOR - sincelast);
     });
 };

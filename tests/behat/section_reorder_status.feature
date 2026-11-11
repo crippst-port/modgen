@@ -94,7 +94,10 @@ Feature: Automatic section renumbering and its status icon
     And the modgen endpoint response should not contain "state"
 
   Scenario: Adding a section shows the renumber finishing, and adding another queues it again, without a page reload
-    Given the course "C1" has "2" themes with "1" weeks each
+    # The page next looks when the queued renumber is due, so the delay is short enough for the run below.
+    Given the following config values are set as admin:
+      | autoreorder_delay | 10 | aiplacement_modgen |
+    And the course "C1" has "2" themes with "1" weeks each
     And the section renumber queue for "C1" is empty
     And I am on the "Course 1" "course" page logged in as "admin"
     And I turn editing mode on

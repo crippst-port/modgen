@@ -1564,12 +1564,19 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
     inset: 0;
     z-index: 1060;
     display: flex;
-    align-items: center;
-    justify-content: center;
     padding: 1rem;
+    /* At high zoom the card can be taller than the window: the cover then scrolls instead of cutting it off,
+       and does not pass the scroll on to the page behind. */
+    overflow-y: auto;
+    overscroll-behavior: contain;
     background: transparent;
     cursor: progress;
     transition: background-color 0.2s ease-out;
+}
+
+/* Takes focus only so focus is not left on the inert page behind it: it is not a control. */
+.aiplacement-modgen-structure-guard:focus {
+    outline: none;
 }
 
 /* Shown once the change has run a moment: until then the cover only stops clicks. */
@@ -1578,9 +1585,14 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
 }
 
 .aiplacement-modgen-structure-guard__card {
+    flex-shrink: 0;
     width: 100%;
     max-width: 26rem;
+    /* Centres the card, and unlike align-items: center leaves its top in reach when it overflows. */
+    margin: auto;
     background: #fff;
+    /* Invisible, except in forced colours (Windows High Contrast), where the shadow is dropped and this is the edge. */
+    border: 1px solid transparent;
     border-radius: 0.75rem;
     box-shadow: 0 1.25rem 2.5rem rgba(15, 23, 42, 0.2), 0 0.125rem 0.375rem rgba(15, 23, 42, 0.08);
     visibility: hidden;
@@ -1591,10 +1603,6 @@ body.path-ai-placement-modgen #fgroup_id_buttonar button {
     visibility: visible;
     opacity: 1;
     animation: aiplacement-modgen-guard-rise 0.2s ease-out;
-}
-
-.aiplacement-modgen-structure-guard__card:focus {
-    outline: none;
 }
 
 .aiplacement-modgen-structure-guard__body {

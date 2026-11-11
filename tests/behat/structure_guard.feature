@@ -104,6 +104,27 @@ Feature: Section changes on a Flexible sections course wait for each other
     And the section change loader should be gone
     And the course "C1" should have "2" sections
 
+  @accessibility
+  Scenario: The loader takes focus and tells a screen reader what it says, and meets WCAG 2.2 AA
+    Given the sections of "C1" are being changed elsewhere
+    And I am on the "Course 1" "course" page logged in as "teacher1"
+    And I turn editing mode on
+    And I start watching the section change loader
+    When I open section "3" edit menu
+    And I click on "Delete" "link" in the "li#section-3" "css_element"
+    And I should see "Waiting for another change to finish"
+    Then the section change loader should have focus
+    And the page should meet "wcag2a, wcag2aa, wcag21aa, wcag22aa" accessibility standards
+    # 1280 by 1024 at 400% zoom is 320 by 256; shorter still, the card has to scroll.
+    And I change the viewport size to "320x200"
+    And all of the section change loader's card should be in reach
+    And the other change to the sections of "C1" finishes
+    And I wait until the section change loader has gone
+    And the section change loader should have announced, in order:
+      | Waiting for another change to finish Another change to this module is in progress |
+      | Deleting the section                                                              |
+      | Section deleted                                                                   |
+
   Scenario: A quick change shows no loader and no confirmation
     Given I am on the "Course 1" "course" page logged in as "teacher1"
     And I turn editing mode on

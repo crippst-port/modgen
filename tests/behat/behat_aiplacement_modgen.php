@@ -674,10 +674,16 @@ class behat_aiplacement_modgen extends behat_base {
      */
     public function i_start_watching_the_section_change_loader(): void {
         $this->getSession()->executeScript('(function() {
-            const log = {appeared: false, headings: []};
+            const log = {appeared: false, headings: [], announced: []};
             window.aiplacementModgenLoaderLog = log;
             const look = () => {
                 const cover = document.querySelector("[data-region=aiplacement-modgen-structure-guard]");
+                // What a screen reader is told, whether or not the card is showing yet.
+                const announcer = cover ? cover.querySelector("[data-region=announce]") : null;
+                const said = announcer ? announcer.textContent.trim() : "";
+                if (said && log.announced[log.announced.length - 1] !== said) {
+                    log.announced.push(said);
+                }
                 if (!cover || !cover.classList.contains("is-visible")) {
                     return;
                 }
@@ -737,6 +743,88 @@ class behat_aiplacement_modgen extends behat_base {
         $log = $this->section_change_loader_log();
         if (in_array($heading, $log['headings'], true)) {
             throw new Exception("The loader said \"$heading\". It said: " . json_encode($log['headings']));
+        }
+    }
+
+    /**
+     * Check the loader's live region read these out, in this order, each containing the text given.
+     *
+     * Others may come between.
+     *
+     * @Then /^the section change loader should have announced, in order:$/
+     * @param \Behat\Gherkin\Node\TableNode $table One piece of text per row.
+     */
+    public function the_section_change_loader_should_have_announced_in_order(\Behat\Gherkin\Node\TableNode $table): void {
+        $log = $this->section_change_loader_log();
+        $at = 0;
+        foreach ($table->getRows() as $row) {
+            $found = null;
+            foreach (array_slice($log['announced'], $at) as $index => $said) {
+                if (str_contains($said, $row[0])) {
+                    $found = $index;
+                    break;
+                }
+            }
+            if ($found === null) {
+                throw new Exception("The loader did not announce \"{$row[0]}\" when expected. It announced: "
+                    . json_encode($log['announced']));
+            }
+            $at += $found + 1;
+        }
+    }
+
+    /**
+     * Check the loader has focus and nothing on it is marked busy, which would hold announcements back.
+     *
+     * @Then /^the section change loader should have focus$/
+     */
+    public function the_section_change_loader_should_have_focus(): void {
+        $state = json_decode((string) $this->getSession()->evaluateScript('return JSON.stringify((function() {
+            const cover = document.querySelector("[data-region=aiplacement-modgen-structure-guard]");
+            const active = document.activeElement;
+            return {
+                cover: !!cover,
+                focused: !!cover && active === cover,
+                active: active ? active.outerHTML.substring(0, 120) : "nothing",
+                busy: !!cover && !!cover.querySelector("[aria-busy=true]"),
+            };
+        })());'), true);
+        if (!$state['cover']) {
+            throw new Exception('The section change loader is not on the page.');
+        }
+        if (!$state['focused']) {
+            throw new Exception("The section change loader does not have focus. It is on: {$state['active']}");
+        }
+        if ($state['busy']) {
+            throw new Exception('Part of the section change loader is marked aria-busy, which holds announcements back.');
+        }
+    }
+
+    /**
+     * Check the loader's card can be read in full: its top is on screen, and the cover scrolls to show the rest.
+     *
+     * @Then /^all of the section change loader's card should be in reach$/
+     */
+    public function all_of_the_section_change_loaders_card_should_be_in_reach(): void {
+        $state = json_decode((string) $this->getSession()->evaluateScript('return JSON.stringify((function() {
+            const cover = document.querySelector("[data-region=aiplacement-modgen-structure-guard]");
+            const card = cover ? cover.querySelector("[data-region=card]") : null;
+            if (!card) {
+                return null;
+            }
+            cover.scrollTop = 0;
+            const rect = card.getBoundingClientRect();
+            return {top: rect.top, bottom: rect.bottom, height: innerHeight,
+                scrolls: cover.scrollHeight > cover.clientHeight};
+        })());'), true);
+        if (!$state) {
+            throw new Exception('The section change loader has no card on the page.');
+        }
+        if ($state['top'] < 0) {
+            throw new Exception("The top of the loader's card is cut off: it is at {$state['top']}px.");
+        }
+        if ($state['bottom'] > $state['height'] && !$state['scrolls']) {
+            throw new Exception("The loader's card runs off the bottom of the window and the cover does not scroll.");
         }
     }
 

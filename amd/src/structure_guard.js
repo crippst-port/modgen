@@ -206,10 +206,21 @@ const keepScroll = () => {
  * @param {KeyboardEvent} event The key press
  */
 const stopScrollKeys = (event) => {
-    if (SCROLL_KEYS.has(event.key)) {
+    if (SCROLL_KEYS.has(event.key) && !coverScrolls()) {
         event.preventDefault();
     }
 };
+
+/**
+ * Whether the card is taller than the window, so the cover scrolls to show all of it.
+ *
+ * At high zoom on a short window (WCAG 1.4.10 Reflow) the card can overflow: the cover then
+ * scrolls, by wheel, touch or the scrolling keys, rather than cut off what it says. The page
+ * behind still cannot scroll: the cover does not pass a scroll on, and keepScroll() undoes any.
+ *
+ * @returns {boolean}
+ */
+const coverScrolls = () => !!overlay && overlay.scrollHeight > overlay.clientHeight;
 
 /**
  * Stop the page behind the cover scrolling, without touching its layout.
@@ -239,12 +250,14 @@ const unlockScroll = () => {
 };
 
 /**
- * Stop a wheel or touch scroll that starts on the cover.
+ * Stop a wheel or touch scroll that starts on the cover, unless the cover itself needs to scroll.
  *
  * @param {Event} event The wheel or touchmove event
  */
 const stopScroll = (event) => {
-    event.preventDefault();
+    if (!coverScrolls()) {
+        event.preventDefault();
+    }
 };
 
 /**
@@ -312,14 +325,7 @@ const attachCover = () => {
     if (overlay) {
         return;
     }
-    if (coverTemplate && !coverBroken()) {
-        overlay = coverTemplate.cloneNode(true);
-    } else {
-        overlay = document.createElement('div');
-        overlay.className = 'aiplacement-modgen-structure-guard';
-        overlay.dataset.region = 'aiplacement-modgen-structure-guard';
-        overlay.tabIndex = -1;
-    }
+    overlay = coverTemplate && !coverBroken() ? coverTemplate.cloneNode(true) : plainCover();
 
     // Where the user was, to go back to once the cover closes.
     returnFocus = document.activeElement;
@@ -333,13 +339,63 @@ const attachCover = () => {
     overlay.addEventListener('touchmove', stopScroll, {passive: false});
     lockScroll();
     document.body.appendChild(overlay);
-    (overlay.querySelector('[role="status"]') || overlay).focus({preventScroll: true});
-    showTimer = setTimeout(() => {
-        if (overlay) {
-            overlay.classList.add('is-visible');
-            visibleAt = performance.now();
-        }
-    }, SHOW_DELAY);
+    // The cover, not its card: the card is hidden until it fades in, and a hidden element cannot
+    // take focus, which would leave focus on the page now inert behind the cover.
+    overlay.focus({preventScroll: true});
+    showTimer = setTimeout(reveal, SHOW_DELAY);
+};
+
+/**
+ * A cover with no card, for when the template is not ready: it stops clicks and says nothing.
+ *
+ * It has the announce region from the start all the same, so that what the card says once it
+ * arrives is read out.
+ *
+ * @returns {HTMLElement}
+ */
+const plainCover = () => {
+    const cover = document.createElement('div');
+    cover.className = 'aiplacement-modgen-structure-guard';
+    cover.dataset.region = 'aiplacement-modgen-structure-guard';
+    cover.tabIndex = -1;
+    const announcer = document.createElement('div');
+    announcer.className = 'sr-only';
+    announcer.dataset.region = 'announce';
+    announcer.setAttribute('role', 'status');
+    announcer.setAttribute('aria-live', 'polite');
+    announcer.setAttribute('aria-atomic', 'true');
+    cover.appendChild(announcer);
+    return cover;
+};
+
+/**
+ * Fade the card in, and read out what it says.
+ */
+const reveal = () => {
+    if (!overlay) {
+        return;
+    }
+    overlay.classList.add('is-visible');
+    visibleAt = visibleAt || performance.now();
+    announceCard();
+};
+
+/**
+ * Read out what the card says, once it is showing (WCAG 4.1.3 Status Messages).
+ *
+ * The card's own text is not a live region: it is filled in while the card is still hidden, and
+ * hidden changes are not read out. The announce region has been on the page since the cover went
+ * up, so a change to it is. Nothing is read out for a change too quick for the card to show, as
+ * nothing is shown.
+ */
+const announceCard = () => {
+    const announcer = overlay?.querySelector('[data-region="announce"]');
+    const title = overlay?.querySelector('[data-region="title"]');
+    if (!visibleAt || !announcer || !title) {
+        return;
+    }
+    const message = overlay.classList.contains('is-done') ? '' : overlay.querySelector('[data-region="message"]').textContent;
+    announcer.textContent = message ? title.textContent + ' ' + message : title.textContent;
 };
 
 /**
@@ -373,14 +429,17 @@ const setCoverText = async(state) => {
             if (generation !== coverGeneration || !overlay) {
                 return;
             }
-            overlay.replaceChildren(...rendered.childNodes);
-        }
-        if (state === 'waiting') {
-            overlay.classList.add('is-visible');
-            visibleAt = visibleAt || performance.now();
+            // Only the card: the announce region already on the page stays, so it is still read out.
+            overlay.appendChild(rendered.querySelector('[data-region="card"]'));
         }
         overlay.querySelector('[data-region="title"]').textContent = text.title;
         overlay.querySelector('[data-region="message"]').textContent = text.message;
+        if (state === 'waiting') {
+            // Waiting on someone else may be long: show it now rather than after SHOW_DELAY.
+            reveal();
+        } else {
+            announceCard();
+        }
     } catch (error) {
         // The cover keeps what it said before, or says nothing; the change goes ahead regardless.
     }
@@ -458,8 +517,8 @@ const showDone = async() => {
         return;
     }
     cover.querySelector('[data-region="title"]').textContent = title;
-    cover.querySelector('[role="status"]').setAttribute('aria-busy', 'false');
     cover.classList.add('is-visible', 'is-done');
+    announceCard();
 
     // Wait out the hold, or less if the user clicks or presses a key: they are in control.
     await new Promise((resolve) => {

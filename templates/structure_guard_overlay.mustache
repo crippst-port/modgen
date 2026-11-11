@@ -20,6 +20,9 @@
     Covers a Flexible sections course page while a section change is saved. Once it is saved the
     spinner gives way to a tick in a circle, drawn in, and the cover closes itself.
 
+    The cover itself takes focus, at once, so focus is never left on the page made inert behind it.
+    Screen readers hear what the card says through the announce region, filled in once the card shows.
+
     Context variables required for this template:
     * title - Short heading: what is happening
     * message - One line on what to expect or do
@@ -30,9 +33,10 @@
         "message": "Large sections can take a minute or two. Keep this page open, and you can carry on editing as soon as it's done."
     }
 }}
-<div class="aiplacement-modgen-structure-guard" data-region="aiplacement-modgen-structure-guard">
-    <div class="aiplacement-modgen-structure-guard__card" role="status" aria-live="polite" aria-atomic="true"
-         aria-busy="true" tabindex="-1">
+<div class="aiplacement-modgen-structure-guard" data-region="aiplacement-modgen-structure-guard" tabindex="-1">
+    {{! Empty until the card shows: a live region is only read out reliably once it is already on the page. }}
+    <div class="sr-only" data-region="announce" role="status" aria-live="polite" aria-atomic="true"></div>
+    <div class="aiplacement-modgen-structure-guard__card" data-region="card">
         <div class="aiplacement-modgen-structure-guard__body">
             <div class="aiplacement-modgen-structure-guard__icon" aria-hidden="true">
                 <div class="spinner-border text-primary aiplacement-modgen-structure-guard__spinner"></div>

@@ -194,6 +194,23 @@ final class reorder_sections_task_test extends \advanced_testcase {
         $this->assertCount(1, section_reorder_queue::get_task_rows($this->course->id));
     }
 
+    public function test_edit_within_configured_delay_defers(): void {
+        set_config('autoreorder_delay', 600, 'aiplacement_modgen');
+        $this->make_misordered();
+        $this->age_edits(300);
+        $this->run_task();
+        $this->assertNotEmpty(integrity_checker::check_section_order($this->course->id)['misordered']);
+        $this->assertCount(1, section_reorder_queue::get_task_rows($this->course->id));
+    }
+
+    public function test_edit_older_than_configured_delay_runs(): void {
+        set_config('autoreorder_delay', 30, 'aiplacement_modgen');
+        $this->make_misordered();
+        $this->age_edits(45);
+        $this->run_task();
+        $this->assertEmpty(integrity_checker::check_section_order($this->course->id)['misordered']);
+    }
+
     public function test_cacherev_ahead_of_the_clock_does_not_hold_back_a_quiet_course(): void {
         global $DB;
         $this->make_misordered();

@@ -30,8 +30,23 @@ use aiplacement_modgen\task\reorder_sections_task;
  * Keeps at most one waiting renumber task per course and moves its run time back on each edit.
  */
 class section_reorder_queue {
-    /** @var int Seconds to wait after the last section change before renumbering. */
-    public const DELAY = 60;
+    /** @var int Default seconds to wait after the last section change before renumbering. */
+    public const DEFAULT_DELAY = 60;
+
+    /** @var int Shortest wait an administrator can set. */
+    public const MIN_DELAY = 10;
+
+    /** @var int Longest wait an administrator can set. */
+    public const MAX_DELAY = 3600;
+
+    /**
+     * Seconds to wait after the last section change before renumbering, as configured.
+     *
+     * @return int
+     */
+    public static function delay(): int {
+        return settings_helper::get_autoreorder_delay();
+    }
 
     /**
      * Queue a renumber for the course, or push back the one already waiting.
@@ -41,10 +56,12 @@ class section_reorder_queue {
      * started are moved here.
      *
      * @param int $courseid Course to renumber
-     * @param int $delay Seconds from now until the task is due
+     * @param int|null $delay Seconds from now until the task is due; the configured delay if null
      */
-    public static function schedule(int $courseid, int $delay = self::DELAY): void {
+    public static function schedule(int $courseid, ?int $delay = null): void {
         global $DB;
+
+        $delay = $delay ?? self::delay();
 
         $waiting = array_filter(self::get_task_rows($courseid), fn($row) => $row->timestarted === null);
         if ($waiting) {

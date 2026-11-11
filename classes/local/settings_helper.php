@@ -191,6 +191,23 @@ class settings_helper {
     public static function is_autoreorder_enabled(): bool {
         return self::get_bool_default_on('enable_autoreorder');
     }
+
+    /**
+     * Get how long the automatic renumber waits after the last edit to a course.
+     *
+     * A site that has never saved the setting gets section_reorder_queue::DEFAULT_DELAY, and a
+     * value outside the range the settings page allows is clamped into it.
+     *
+     * @return int Seconds
+     */
+    public static function get_autoreorder_delay(): int {
+        $value = get_config('aiplacement_modgen', 'autoreorder_delay');
+        if ($value === false || !is_numeric($value)) {
+            return section_reorder_queue::DEFAULT_DELAY;
+        }
+        return max(section_reorder_queue::MIN_DELAY, min(section_reorder_queue::MAX_DELAY, (int) $value));
+    }
+
     /**
      * Check if the structure guard is enabled.
      *

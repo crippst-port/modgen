@@ -506,7 +506,7 @@ class behat_aiplacement_modgen extends behat_base {
         if (!$rows) {
             throw new Exception("There is no section renumber queued for '$shortname'.");
         }
-        $wait = \aiplacement_modgen\local\section_reorder_queue::DELAY * 2;
+        $wait = \aiplacement_modgen\local\section_reorder_queue::delay() * 2;
         // The task reads the last edit from the standard log: write out what set-up logged, then age it.
         // cacherev is left alone: a site never moves it backwards, and Flexible sections then reads a
         // stale copy of the course on the next add from a page that is still open.

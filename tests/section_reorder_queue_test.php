@@ -117,6 +117,26 @@ final class section_reorder_queue_test extends \advanced_testcase {
         $this->assertGreaterThanOrEqual(time() + 119, (int) $rows[1]->nextruntime);
     }
 
+    public function test_schedule_uses_configured_delay(): void {
+        set_config('autoreorder_delay', 300, 'aiplacement_modgen');
+        $before = time();
+        section_reorder_queue::schedule($this->course->id);
+        $row = array_values(section_reorder_queue::get_task_rows($this->course->id))[0];
+        $this->assertGreaterThanOrEqual($before + 300, (int) $row->nextruntime);
+        $this->assertLessThanOrEqual(time() + 300, (int) $row->nextruntime);
+    }
+
+    public function test_delay_defaults_and_is_clamped(): void {
+        unset_config('autoreorder_delay', 'aiplacement_modgen');
+        $this->assertSame(section_reorder_queue::DEFAULT_DELAY, section_reorder_queue::delay());
+        set_config('autoreorder_delay', 1, 'aiplacement_modgen');
+        $this->assertSame(section_reorder_queue::MIN_DELAY, section_reorder_queue::delay());
+        set_config('autoreorder_delay', 86400, 'aiplacement_modgen');
+        $this->assertSame(section_reorder_queue::MAX_DELAY, section_reorder_queue::delay());
+        set_config('autoreorder_delay', 90, 'aiplacement_modgen');
+        $this->assertSame(90, section_reorder_queue::delay());
+    }
+
     public function test_switched_off_queues_nothing(): void {
         set_config('enable_autoreorder', 0, 'aiplacement_modgen');
         \course_create_section($this->course->id, 0);

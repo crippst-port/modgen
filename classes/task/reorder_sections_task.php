@@ -111,7 +111,7 @@ class reorder_sections_task extends \core\task\adhoc_task {
     }
 
     /**
-     * Whether someone has edited the course in the last DELAY seconds.
+     * Whether someone has edited the course within the configured renumber delay.
      *
      * Read from the standard log, which has the real time of every edit. cacherev cannot be used as a
      * clock: once it is ahead of the time, each cache purge adds a second to it, so a busy editing
@@ -125,7 +125,7 @@ class reorder_sections_task extends \core\task\adhoc_task {
     protected function edited_recently(int $courseid, int $cacherev): bool {
         global $DB;
 
-        $since = time() - section_reorder_queue::DELAY;
+        $since = time() - section_reorder_queue::delay();
         $stores = explode(',', (string) get_config('tool_log', 'enabled_stores'));
         if (!in_array('logstore_standard', $stores, true)) {
             return $cacherev > $since;

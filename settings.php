@@ -87,6 +87,18 @@ if ($hassiteconfig) {
             1
         ));
 
+        $setting = new admin_setting_configduration(
+            'aiplacement_modgen/autoreorder_delay',
+            new lang_string('autoreorderdelay', 'aiplacement_modgen'),
+            new lang_string('autoreorderdelay_desc', 'aiplacement_modgen'),
+            \aiplacement_modgen\local\section_reorder_queue::DEFAULT_DELAY,
+            1
+        );
+        $setting->set_min_duration(\aiplacement_modgen\local\section_reorder_queue::MIN_DELAY);
+        $setting->set_max_duration(\aiplacement_modgen\local\section_reorder_queue::MAX_DELAY);
+        $settings->add($setting);
+        $settings->hide_if('aiplacement_modgen/autoreorder_delay', 'aiplacement_modgen/enable_autoreorder');
+
         $settings->add(new admin_setting_configcheckbox(
             'aiplacement_modgen/enable_structureguard',
             new lang_string('enablestructureguard', 'aiplacement_modgen'),

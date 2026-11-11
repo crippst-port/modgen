@@ -143,7 +143,9 @@ class section_reorder_status {
             'time' => $time,
             'label' => get_string('reorderstatus_' . $state, 'aiplacement_modgen', $formatted),
             // A sentence with the full date, for the Check Structure page.
-            'summary' => get_string('reorderpanel_' . $state, 'aiplacement_modgen', $time === null ? '' : userdate($time)),
+            'summary' => get_string('reorderpanel_' . $state, 'aiplacement_modgen', $state === 'queued'
+                ? (object) ['time' => userdate($time), 'delay' => format_time(section_reorder_queue::delay())]
+                : ($time === null ? '' : userdate($time))),
             'url' => $url,
             'isqueued' => $state === 'queued',
             'isrunning' => $state === 'running',

@@ -674,12 +674,16 @@ class behat_aiplacement_modgen extends behat_base {
      */
     public function i_start_watching_the_section_change_loader(): void {
         $this->getSession()->executeScript('(function() {
+            const announcer = document.querySelector("[data-region=aiplacement-modgen-structure-guard-announce]");
+            // Marked now, before any change: the loader must say things in a region already on the page.
+            if (announcer) {
+                announcer.dataset.aiplacementModgenBefore = "1";
+            }
             const log = {appeared: false, headings: [], announced: []};
             window.aiplacementModgenLoaderLog = log;
             const look = () => {
                 const cover = document.querySelector("[data-region=aiplacement-modgen-structure-guard]");
                 // What a screen reader is told, whether or not the card is showing yet.
-                const announcer = cover ? cover.querySelector("[data-region=announce]") : null;
                 const said = announcer ? announcer.textContent.trim() : "";
                 if (said && log.announced[log.announced.length - 1] !== said) {
                     log.announced.push(said);
@@ -774,21 +778,50 @@ class behat_aiplacement_modgen extends behat_base {
     }
 
     /**
-     * Check the loader has focus and nothing on it is marked busy, which would hold announcements back.
+     * Check the loader has focus, and that what it says reaches a screen reader.
+     *
+     * Nothing on it may be marked busy, which holds announcements back. The live region must have
+     * been on the page before the change began (marked by "I start watching the section change
+     * loader"), and not be inert: screen readers ignore a live region added together with its text,
+     * and never read out an inert one.
      *
      * @Then /^the section change loader should have focus$/
      */
     public function the_section_change_loader_should_have_focus(): void {
         $state = json_decode((string) $this->getSession()->evaluateScript('return JSON.stringify((function() {
             const cover = document.querySelector("[data-region=aiplacement-modgen-structure-guard]");
+            const announcer = document.querySelector("[data-region=aiplacement-modgen-structure-guard-announce]");
             const active = document.activeElement;
             return {
                 cover: !!cover,
                 focused: !!cover && active === cover,
                 active: active ? active.outerHTML.substring(0, 120) : "nothing",
                 busy: !!cover && !!cover.querySelector("[aria-busy=true]"),
+                dialog: !!cover && cover.getAttribute("role") === "dialog" && cover.getAttribute("aria-modal") === "true",
+                name: (function() {
+                    const label = cover && document.getElementById(cover.getAttribute("aria-labelledby") || "");
+                    return label ? label.textContent.trim() : (cover && cover.getAttribute("aria-label")) || "";
+                })(),
+                announcer: !!announcer && announcer.getAttribute("aria-live") === "polite",
+                before: !!announcer && announcer.dataset.aiplacementModgenBefore === "1",
+                inert: !!announcer && !!announcer.closest("[inert]"),
             };
         })());'), true);
+        if (!$state['dialog'] || $state['name'] === '') {
+            // A screen reader reads out a focused element by its role and name: an unnamed one had
+            // Narrator read out the whole window instead.
+            throw new Exception('The section change loader is not a named modal dialog, so what it says is not read '
+                . 'out as it takes focus.');
+        }
+        if (!$state['announcer']) {
+            throw new Exception('There is no polite live region for the section change loader on the page.');
+        }
+        if (!$state['before']) {
+            throw new Exception('The loader\'s live region was not on the page before the change began.');
+        }
+        if ($state['inert']) {
+            throw new Exception('The loader\'s live region is inert, so a screen reader cannot read it out.');
+        }
         if (!$state['cover']) {
             throw new Exception('The section change loader is not on the page.');
         }
@@ -797,6 +830,21 @@ class behat_aiplacement_modgen extends behat_base {
         }
         if ($state['busy']) {
             throw new Exception('Part of the section change loader is marked aria-busy, which holds announcements back.');
+        }
+    }
+
+    /**
+     * Check focus is on something on the page, not left on its body, where a screen reader reads out the whole window.
+     *
+     * @Then /^focus should be on a control on the page$/
+     */
+    public function focus_should_be_on_a_control_on_the_page(): void {
+        $active = $this->getSession()->evaluateScript('return (function() {
+            const active = document.activeElement;
+            return !active || active === document.body ? "" : active.outerHTML.substring(0, 120);
+        })();');
+        if ($active === '') {
+            throw new Exception('Focus was left on the page body.');
         }
     }
 

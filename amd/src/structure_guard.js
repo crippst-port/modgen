@@ -96,6 +96,30 @@ const actionTitle = (which, fallback) => {
     return getString(strings?.[which] ?? fallback, 'aiplacement_modgen');
 };
 
+/**
+ * What the cover says as it goes up, for a change, at once rather than as a promise.
+ *
+ * The cover is named by its heading the moment it takes focus, when a screen reader reads it out,
+ * so the heading has to be right by then. The strings are sent with the page (lib.php), so are
+ * there to read straight away; any that is not is left to setCoverText(), as before.
+ *
+ * @param {{kind: ?string, count: number}} action The change (ACTION_STRINGS)
+ * @returns {{title: ?string, message: ?string}}
+ */
+const immediateText = (action) => {
+    const string = (id, a) => {
+        const value = M.util.get_string(id, 'aiplacement_modgen', a);
+        // Not sent with the page: get_string() gives "[[id,component]]" rather than the string.
+        return value.startsWith('[[') ? null : value;
+    };
+    const strings = ACTION_STRINGS[action.kind];
+    const many = action.count > 1 ? strings?.workingmany : null;
+    return {
+        title: many ? string(many, action.count) : string(strings?.working ?? STATES.working.title),
+        message: string(STATES.working.message),
+    };
+};
+
 /** @type {number} How often to ask again while the course is busy, in milliseconds. */
 const POLL_INTERVAL = 2000;
 
@@ -119,6 +143,22 @@ let coverTemplate = null;
 
 /** @type {Element|null} What had focus when the cover went up, to go back to after. */
 let returnFocus = null;
+
+/**
+ * @type {Element[]} Where else focus can go once the cover closes, nearest first, for when what
+ * had focus has gone: the page control last used (a confirmation dialogue's button is gone once
+ * it closes), then the section it was in and the sections around it (a deleted section is gone).
+ */
+let focusFallbacks = [];
+
+/** @type {Element|null} The last thing on the page itself, not in a dialogue, to have had focus. */
+let pageFocus = null;
+
+/** @type {string} The heading the screen reader was last given, so it is not read out twice. */
+let spokenTitle = '';
+
+/** @type {string} The message the screen reader was last given, so it is not read out twice. */
+let spokenMessage = '';
 
 /** @type {HTMLElement[]} Elements made inert while the overlay is shown. */
 let inertElements = [];
@@ -317,21 +357,47 @@ const prepareCover = async() => {
  * Cover the page at once.
  *
  * Synchronous, so nothing on the page can be clicked from the moment a change is asked for: the
- * cover is a copy of the one rendered as the page loaded, or a plain one if that is not ready, and
- * says nothing until setCoverText() fills it in. It stops clicks at once, but only fades in once
- * the change has taken SHOW_DELAY, so a quick change does not flash it.
+ * cover is a copy of the one rendered as the page loaded, or a plain one if that is not ready. It
+ * stops clicks at once, but only fades in once the change has taken SHOW_DELAY, so a quick change
+ * does not flash it.
+ *
+ * It is a modal dialog, and takes focus straight away with its heading already naming the change,
+ * so a screen reader says what is happening as it starts, even for a change too quick to see or
+ * one that loads a new page. Focus on an unnamed element instead had Narrator read out the whole
+ * window, and never get to what the cover said.
+ *
+ * @param {{kind: ?string, count: number}} action The change (ACTION_STRINGS)
  */
-const attachCover = () => {
+const attachCover = (action) => {
     if (overlay) {
         return;
     }
     overlay = coverTemplate && !coverBroken() ? coverTemplate.cloneNode(true) : plainCover();
+    const text = immediateText(action);
+    const title = overlay.querySelector('[data-region="title"]');
+    const message = overlay.querySelector('[data-region="message"]');
+    if (title && text.title) {
+        title.textContent = text.title;
+    }
+    if (message && text.message) {
+        message.textContent = text.message;
+    }
+    if (!title) {
+        overlay.setAttribute('aria-label', text.title || '');
+    }
+    // Read out as the cover takes focus, by its name. The message waits for the card to show.
+    spokenTitle = coverTitle();
+    spokenMessage = '';
 
-    // Where the user was, to go back to once the cover closes.
+    // Where the user was, to go back to once the cover closes, and where else to go if it is gone.
     returnFocus = document.activeElement;
+    focusFallbacks = fallbacksFor([returnFocus, pageFocus]);
 
-    // Nothing behind the cover can be reached by keyboard or screen reader either.
-    inertElements = [...document.body.children].filter((element) => !element.inert);
+    // Nothing behind the cover can be reached by keyboard or screen reader either, except the
+    // announce region: an inert live region is not read out.
+    const announcer = getAnnouncer();
+    announcer.textContent = '';
+    inertElements = [...document.body.children].filter((element) => !element.inert && element !== announcer);
     inertElements.forEach((element) => {
         element.inert = true;
     });
@@ -346,10 +412,8 @@ const attachCover = () => {
 };
 
 /**
- * A cover with no card, for when the template is not ready: it stops clicks and says nothing.
- *
- * It has the announce region from the start all the same, so that what the card says once it
- * arrives is read out.
+ * A cover with no card, for when the template is not ready: it stops clicks, and is named by
+ * attachCover() so a screen reader still hears what is happening.
  *
  * @returns {HTMLElement}
  */
@@ -358,14 +422,108 @@ const plainCover = () => {
     cover.className = 'aiplacement-modgen-structure-guard';
     cover.dataset.region = 'aiplacement-modgen-structure-guard';
     cover.tabIndex = -1;
-    const announcer = document.createElement('div');
-    announcer.className = 'sr-only';
-    announcer.dataset.region = 'announce';
-    announcer.setAttribute('role', 'status');
-    announcer.setAttribute('aria-live', 'polite');
-    announcer.setAttribute('aria-atomic', 'true');
-    cover.appendChild(announcer);
+    cover.setAttribute('role', 'dialog');
+    cover.setAttribute('aria-modal', 'true');
     return cover;
+};
+
+/**
+ * The cover's heading as it is now, which is also its name.
+ *
+ * @returns {string}
+ */
+const coverTitle = () => {
+    const title = overlay?.querySelector('[data-region="title"]');
+    return title ? title.textContent : overlay?.getAttribute('aria-label') || '';
+};
+
+/**
+ * The cover's message as it is now: none once done, when the card shows only its heading.
+ *
+ * @returns {string}
+ */
+const coverMessage = () => {
+    const message = overlay?.querySelector('[data-region="message"]');
+    return message && !overlay.classList.contains('is-done') ? message.textContent : '';
+};
+
+/** @type {string} The control in a section that focus goes to when it goes back to the section. */
+const SECTION_FOCUS = '[data-for="section_title"] a[href], [data-for="section_title"] [tabindex="0"], a[href], button';
+
+/**
+ * Where focus could go once the cover closes, nearest first.
+ *
+ * @param {Array<Element|null>} elements What had focus, nearest first
+ * @returns {Element[]}
+ */
+const fallbacksFor = (elements) => {
+    const found = [];
+    elements.forEach((element) => {
+        if (!element || element === document.body) {
+            return;
+        }
+        found.push(element);
+        const section = element.closest('[data-for="section"]');
+        if (section) {
+            found.push(
+                section,
+                section.previousElementSibling,
+                section.nextElementSibling,
+                section.parentElement?.closest('[data-for="section"]'),
+            );
+        }
+    });
+    return found.filter((element, index) => element && found.indexOf(element) === index);
+};
+
+/**
+ * Put focus back where the user was, or as near it as is still on the page.
+ *
+ * A section is focused by its heading link (or its first control). Left on the body instead,
+ * focus has Narrator read out the whole window.
+ */
+const restoreFocus = () => {
+    const candidates = [returnFocus, ...focusFallbacks];
+    returnFocus = null;
+    focusFallbacks = [];
+    for (const candidate of candidates) {
+        if (!candidate || candidate === document.body || !document.contains(candidate)) {
+            continue;
+        }
+        const target = candidate.matches('[data-for="section"]') ? candidate.querySelector(SECTION_FOCUS) : candidate;
+        if (!target) {
+            continue;
+        }
+        target.focus({preventScroll: true});
+        if (document.activeElement === target) {
+            return;
+        }
+    }
+};
+
+/**
+ * The live region that reads out what the card says, added to the page once, as it loads.
+ *
+ * Not part of the cover: a screen reader only reliably reads out a live region that was already on
+ * the page before its text changed, and the cover is added the moment a change starts, with its
+ * text often set within a few milliseconds (waiting on another change, say). Narrator in Edge read
+ * nothing out when the region came with the cover. It stays on the page between changes, so what
+ * was last said is still finished after the cover has gone.
+ *
+ * @returns {HTMLElement}
+ */
+const getAnnouncer = () => {
+    let announcer = document.querySelector('[data-region="aiplacement-modgen-structure-guard-announce"]');
+    if (!announcer) {
+        announcer = document.createElement('div');
+        announcer.className = 'sr-only';
+        announcer.dataset.region = 'aiplacement-modgen-structure-guard-announce';
+        announcer.setAttribute('role', 'status');
+        announcer.setAttribute('aria-live', 'polite');
+        announcer.setAttribute('aria-atomic', 'true');
+        document.body.appendChild(announcer);
+    }
+    return announcer;
 };
 
 /**
@@ -381,21 +539,31 @@ const reveal = () => {
 };
 
 /**
- * Read out what the card says, once it is showing (WCAG 4.1.3 Status Messages).
+ * Read out what the card says that has not been read out yet (WCAG 4.1.3 Status Messages).
  *
- * The card's own text is not a live region: it is filled in while the card is still hidden, and
- * hidden changes are not read out. The announce region has been on the page since the cover went
- * up, so a change to it is. Nothing is read out for a change too quick for the card to show, as
- * nothing is shown.
+ * The heading is read as the cover takes focus, as its name. The card's own text is not a live
+ * region, so the rest goes through the announce region (getAnnouncer()), on the page since it
+ * loaded: the message once the card shows, as it is shown, and any heading or message that changes
+ * after that (waiting on another change, saved). Only the part that changed is read out.
  */
 const announceCard = () => {
-    const announcer = overlay?.querySelector('[data-region="announce"]');
-    const title = overlay?.querySelector('[data-region="title"]');
-    if (!visibleAt || !announcer || !title) {
+    if (!overlay) {
         return;
     }
-    const message = overlay.classList.contains('is-done') ? '' : overlay.querySelector('[data-region="message"]').textContent;
-    announcer.textContent = message ? title.textContent + ' ' + message : title.textContent;
+    const title = coverTitle();
+    const message = visibleAt ? coverMessage() : '';
+    const say = [];
+    if (title && title !== spokenTitle) {
+        say.push(title);
+        spokenTitle = title;
+    }
+    if (message && message !== spokenMessage) {
+        say.push(message);
+        spokenMessage = message;
+    }
+    if (say.length) {
+        getAnnouncer().textContent = say.join(' ');
+    }
 };
 
 /**
@@ -429,8 +597,9 @@ const setCoverText = async(state) => {
             if (generation !== coverGeneration || !overlay) {
                 return;
             }
-            // Only the card: the announce region already on the page stays, so it is still read out.
             overlay.appendChild(rendered.querySelector('[data-region="card"]'));
+            overlay.removeAttribute('aria-label');
+            overlay.setAttribute('aria-labelledby', rendered.getAttribute('aria-labelledby'));
         }
         overlay.querySelector('[data-region="title"]').textContent = text.title;
         overlay.querySelector('[data-region="message"]').textContent = text.message;
@@ -465,11 +634,8 @@ const hideOverlay = () => {
         element.inert = false;
     });
     inertElements = [];
-    // Back to where the user was, if it is still there (a deleted section's menu is not).
-    if (returnFocus && returnFocus !== document.body && document.contains(returnFocus)) {
-        returnFocus.focus({preventScroll: true});
-    }
-    returnFocus = null;
+    // Back to where the user was, or the nearest place still there (a deleted section's menu is not).
+    restoreFocus();
 };
 
 /**
@@ -692,14 +858,14 @@ const guard = (change, leavesPage = false, action = {kind: null, count: 1}) => {
     if (switchedOff) {
         return Promise.resolve().then(change).catch(absorbChangeFailed);
     }
-    attachCover();
+    attachCover(action);
     const run = async() => {
         if (pageLeaving) {
             return undefined;
         }
         currentAction = action;
         // The change before this one took its cover down when it finished.
-        attachCover();
+        attachCover(action);
         const work = {pending: new Pending('aiplacement_modgen/structure_guard')};
         let covered = false;
         try {
@@ -880,6 +1046,14 @@ export const init = (courseid) => {
         return;
     }
     courseId = courseid;
+    // Now, not with the first change, so it is on the page well before anything is said in it.
+    getAnnouncer();
+    // The control on the page a change came from, which a confirmation dialogue's button is not.
+    document.addEventListener('focusin', (event) => {
+        if (!overlay && !event.target.closest('.modal, [role="dialog"], [data-region="aiplacement-modgen-structure-guard"]')) {
+            pageFocus = event.target;
+        }
+    }, true);
     guardCourseEditor();
     guardLinks();
     prepareCover();

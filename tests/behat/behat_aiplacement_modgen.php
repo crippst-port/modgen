@@ -464,6 +464,35 @@ class behat_aiplacement_modgen extends behat_base {
     }
 
     /**
+     * Check how long the status icon will wait before it next asks the server, give or take a few seconds.
+     *
+     * @Then /^the section reorder status should next be checked in "(?P<seconds_number>\d+)" seconds$/
+     * @param int $seconds Seconds
+     */
+    public function the_section_reorder_status_should_next_be_checked_in(int $seconds): void {
+        $waits = (array) $this->getSession()->evaluateScript('return window.aiplacementModgenReorderWaits || [];');
+        $last = $waits ? end($waits) / 1000 : null;
+        if ($last === null || abs($last - $seconds) > 6) {
+            throw new Exception("The status icon is to look again in " . ($last === null ? 'no time set' : "{$last}s")
+                . ", not {$seconds}s. Waits so far: " . implode(', ', array_map(fn($w) => ($w / 1000) . 's', $waits)));
+        }
+    }
+
+    /**
+     * Make the status icon's requests to the server fail, as a dropped connection would.
+     *
+     * @Given /^the section reorder status requests fail$/
+     */
+    public function the_section_reorder_status_requests_fail(): void {
+        $this->getSession()->executeScript('(() => {
+            const fetchBefore = window.fetch;
+            window.fetch = (url, ...rest) => String(url).includes("/ajax/reorder_status.php")
+                ? Promise.reject(new TypeError("Failed to fetch"))
+                : fetchBefore(url, ...rest);
+        })();');
+    }
+
+    /**
      * Queue the automatic section renumber for a course, as a section add or delete would.
      *
      * @Given /^the automatic section renumber for "(?P<course_string>[^"]*)" is queued$/
@@ -797,7 +826,10 @@ class behat_aiplacement_modgen extends behat_base {
                 focused: !!cover && active === cover,
                 active: active ? active.outerHTML.substring(0, 120) : "nothing",
                 busy: !!cover && !!cover.querySelector("[aria-busy=true]"),
-                dialog: !!cover && cover.getAttribute("role") === "dialog" && cover.getAttribute("aria-modal") === "true",
+                dialog: !!cover && cover.getAttribute("role") === "dialog",
+                // Modal by the page behind being inert, not aria-modal, which would hide the announcer too.
+                modal: !!cover && !cover.hasAttribute("aria-modal") && [...document.body.children]
+                    .every((element) => element === cover || element === announcer || element.inert),
                 name: (function() {
                     const label = cover && document.getElementById(cover.getAttribute("aria-labelledby") || "");
                     return label ? label.textContent.trim() : (cover && cover.getAttribute("aria-label")) || "";
@@ -812,6 +844,10 @@ class behat_aiplacement_modgen extends behat_base {
             // Narrator read out the whole window instead.
             throw new Exception('The section change loader is not a named modal dialog, so what it says is not read '
                 . 'out as it takes focus.');
+        }
+        if (!$state['modal']) {
+            throw new Exception('The page behind the section change loader is not all inert, or the loader is '
+                . 'aria-modal, which hides its announcements from some screen readers.');
         }
         if (!$state['announcer']) {
             throw new Exception('There is no polite live region for the section change loader on the page.');
@@ -830,6 +866,24 @@ class behat_aiplacement_modgen extends behat_base {
         }
         if ($state['busy']) {
             throw new Exception('Part of the section change loader is marked aria-busy, which holds announcements back.');
+        }
+    }
+
+    /**
+     * Check focus went to a section's heading, as it does when what had it has gone with the change.
+     *
+     * @Then /^focus should be on a section heading$/
+     */
+    public function focus_should_be_on_a_section_heading(): void {
+        $active = (string) $this->getSession()->evaluateScript('return (function() {
+            const active = document.activeElement;
+            if (active && active.matches(".sectionname") && active.closest("[data-for=section]")) {
+                return "";
+            }
+            return active ? active.outerHTML.substring(0, 160) : "nothing";
+        })();');
+        if ($active !== '') {
+            throw new Exception("Focus is not on a section heading. It is on: $active");
         }
     }
 

@@ -23,6 +23,7 @@
     * state - queued, running, renumbered, checked or blocked
     * label - Text for the tooltip and screen readers
     * url - Check Structure link, only for the blocked state
+    * wait - Seconds until a queued renumber runs, by the server's clock
     * isqueued, isrunning, isrenumbered, ischecked, isblocked - Booleans for the state
     * isdone - Whether the run finished (renumbered or checked), shown with a tick
 
@@ -30,6 +31,7 @@
     {
         "state": "queued",
         "label": "Section reorder queued · runs 14:32",
+        "wait": 45,
         "url": null,
         "isqueued": true,
         "isrunning": false,
@@ -45,7 +47,7 @@
 </a>
 {{/isblocked}}
 {{^isblocked}}
-<span class="aiplacement-modgen-reorder-icon aiplacement-modgen-reorder-icon--{{state}}" tabindex="0" role="img" aria-label="{{label}}" title="{{label}}" data-toggle="tooltip">
+<span class="aiplacement-modgen-reorder-icon aiplacement-modgen-reorder-icon--{{state}}" tabindex="0" role="img" aria-label="{{label}}" title="{{label}}" data-toggle="tooltip"{{#isqueued}} data-wait="{{wait}}"{{/isqueued}}>
     {{#isqueued}}<i class="fa fa-clock" aria-hidden="true"></i>{{/isqueued}}
     {{#isrunning}}<i class="fa fa-play-circle" aria-hidden="true"></i>{{/isrunning}}
     {{#isdone}}<i class="fa fa-check-circle" aria-hidden="true"></i>{{/isdone}}

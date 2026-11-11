@@ -126,6 +126,37 @@ final class section_reorder_queue_test extends \advanced_testcase {
         $this->assertLessThanOrEqual(time() + 300, (int) $row->nextruntime);
     }
 
+    public function test_shorter_delay_brings_waiting_renumbers_forward(): void {
+        global $DB;
+
+        set_config('autoreorder_delay', 3600, 'aiplacement_modgen');
+        section_reorder_queue::schedule($this->course->id);
+        $other = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+        section_reorder_queue::schedule($other->id, 20);
+
+        set_config('autoreorder_delay', 60, 'aiplacement_modgen');
+        $before = time();
+        section_reorder_queue::delay_changed();
+
+        // The hour-long wait is cut to the new delay.
+        $row = array_values(section_reorder_queue::get_task_rows($this->course->id))[0];
+        $this->assertGreaterThanOrEqual($before + 60, (int) $row->nextruntime);
+        $this->assertLessThanOrEqual(time() + 60, (int) $row->nextruntime);
+        // One due sooner than that is left as it is.
+        $row = array_values(section_reorder_queue::get_task_rows($other->id))[0];
+        $this->assertLessThanOrEqual($before + 20 + 1, (int) $row->nextruntime);
+
+        // A running renumber is not touched.
+        $DB->set_field('task_adhoc', 'timestarted', time(), ['id' => $row->id]);
+        $DB->set_field('task_adhoc', 'nextruntime', time() + 7200, ['id' => $row->id]);
+        section_reorder_queue::delay_changed();
+        $this->assertEqualsWithDelta(time() + 7200, (int) $DB->get_field('task_adhoc', 'nextruntime', ['id' => $row->id]), 1);
+    }
+
+    public function test_deprecated_delay_constant_still_resolves(): void {
+        $this->assertSame(section_reorder_queue::DEFAULT_DELAY, section_reorder_queue::DELAY);
+    }
+
     public function test_delay_defaults_and_is_clamped(): void {
         unset_config('autoreorder_delay', 'aiplacement_modgen');
         $this->assertSame(section_reorder_queue::DEFAULT_DELAY, section_reorder_queue::delay());

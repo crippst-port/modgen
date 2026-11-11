@@ -35,7 +35,10 @@ Feature: Automatic section renumbering and its status icon
     Then the section reorder status should show "running"
 
   Scenario: The icon follows the renumber from queued to done without a page reload
-    Given the course "C1" has "2" themes with "1" weeks each
+    # The page first looks when the queued renumber is due, so the delay is short enough for the run below.
+    Given the following config values are set as admin:
+      | autoreorder_delay | 10 | aiplacement_modgen |
+    And the course "C1" has "2" themes with "1" weeks each
     And section "Late week" was added under "Theme 1" in "C1" unnumbered
     And I am on the "Course 1" "course" page logged in as "admin"
     And I turn editing mode on
@@ -46,7 +49,10 @@ Feature: Automatic section renumbering and its status icon
     And there should be "0" section renumbers queued for "C1"
 
   Scenario: A run that finds the sections already in order still shows it finished
-    Given the course "C1" has "2" themes with "1" weeks each
+    # The page first looks when the queued renumber is due, so the delay is short enough for the run below.
+    Given the following config values are set as admin:
+      | autoreorder_delay | 10 | aiplacement_modgen |
+    And the course "C1" has "2" themes with "1" weeks each
     And I am on the "Course 1" "course" page logged in as "admin"
     And I turn editing mode on
     And the section reorder status should show "queued"
@@ -65,6 +71,39 @@ Feature: Automatic section renumbering and its status icon
 
   # The refusal itself is covered by reorder_sections_task_test. A course whose hierarchy is broken
   # enough to refuse also stops the Flexible sections course page loading, so it is logged here instead.
+  Scenario: A renumber queued for a while from now is next looked at when it is due, not every few seconds
+    Given the following config values are set as admin:
+      | autoreorder_delay | 3600 | aiplacement_modgen |
+    And the automatic section renumber for "C1" is queued
+    When I am on the "Course 1" "course" page logged in as "admin"
+    And I turn editing mode on
+    Then the section reorder status should show "queued"
+    # An hour away: the longest wait while queued, five minutes, rather than ten seconds.
+    And the section reorder status should next be checked in "300" seconds
+
+  Scenario: The status is looked at again soon after an edit control is used, even if it queues nothing yet
+    Given the course "C1" has "1" themes with "1" weeks each
+    And the section renumber queue for "C1" is empty
+    And I am on the "Course 1" "course" page logged in as "admin"
+    And I turn editing mode on
+    When I open section "1" edit menu
+    And I click on "Delete" "link" in the "li#section-1" "css_element"
+    # The confirmation is still open when the status is looked at, two seconds on: nothing queued yet.
+    And I wait "4" seconds
+    Then the section reorder status should next be checked in "30" seconds
+
+  Scenario: A request lost while a renumber runs is tried again at the running pace
+    Given the course "C1" has "1" themes with "1" weeks each
+    And the automatic section renumber for "C1" is queued
+    And the automatic section renumber for "C1" is running
+    And I am on the "Course 1" "course" page logged in as "admin"
+    And I turn editing mode on
+    And the section reorder status requests fail
+    When I open section "1" edit menu
+    And I click on "Delete" "link" in the "li#section-1" "css_element"
+    And I wait "4" seconds
+    Then the section reorder status should next be checked in "10" seconds
+
   Scenario: A refused renumber points at Check Structure
     Given the course "C1" has "2" themes with "1" weeks each
     And the section renumber queue for "C1" is empty

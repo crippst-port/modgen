@@ -81,6 +81,8 @@ final class section_reorder_status_test extends \advanced_testcase {
         $this->assertSame('queued', $status['state']);
         $this->assertEquals($row->nextruntime, $status['time']);
         $this->assertTrue($status['isqueued']);
+        // How long until it runs, by the server's clock, for the page to time its next look by.
+        $this->assertEqualsWithDelta($row->nextruntime - time(), $status['wait'], 1);
         $this->assertStringContainsString(userdate($status['time'], get_string('strftimetime', 'langconfig')), $status['label']);
     }
 

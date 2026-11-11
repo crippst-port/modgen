@@ -40,12 +40,50 @@ class section_reorder_queue {
     public const MAX_DELAY = 3600;
 
     /**
+     * @var int Seconds to wait after the last section change before renumbering.
+     * @deprecated since 2026110903, the wait is a setting: use delay().
+     */
+    public const DELAY = self::DEFAULT_DELAY;
+
+    /**
      * Seconds to wait after the last section change before renumbering, as configured.
+     *
+     * A site that has never saved the setting gets DEFAULT_DELAY, and a value outside the range the
+     * settings page allows is clamped into it.
      *
      * @return int
      */
     public static function delay(): int {
-        return settings_helper::get_autoreorder_delay();
+        $value = get_config('aiplacement_modgen', 'autoreorder_delay');
+        if ($value === false || !is_numeric($value)) {
+            return self::DEFAULT_DELAY;
+        }
+        return max(self::MIN_DELAY, min(self::MAX_DELAY, (int) $value));
+    }
+
+    /**
+     * Bring forward any renumber waiting longer than the delay now set, after the setting is changed.
+     *
+     * A renumber queued under a longer delay would otherwise wait it out, and the Check Structure page
+     * would give a run time far off next to a short delay. One queued under a shorter delay is left:
+     * when it runs it waits for the course to have been quiet for the delay now set.
+     */
+    public static function delay_changed(): void {
+        global $DB;
+
+        $latest = time() + self::delay();
+        $DB->execute(
+            'UPDATE {task_adhoc}
+                SET nextruntime = :latest
+              WHERE classname = :classname AND component = :component AND timestarted IS NULL
+                    AND nextruntime > :later',
+            [
+                'latest' => $latest,
+                'later' => $latest,
+                'classname' => '\\aiplacement_modgen\\task\\reorder_sections_task',
+                'component' => 'aiplacement_modgen',
+            ]
+        );
     }
 
     /**

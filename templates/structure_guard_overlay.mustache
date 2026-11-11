@@ -20,8 +20,10 @@
     Covers a Flexible sections course page while a section change is saved. Once it is saved the
     spinner gives way to a tick in a circle, drawn in, and the cover closes itself.
 
-    The cover is a modal dialog named by the title. It takes focus at once, so focus is never left
-    on the page made inert behind it, and a screen reader reads out the title as it does. The
+    The cover is a dialog named by the title. It takes focus at once, so focus is never left on the
+    page made inert behind it, and a screen reader reads out the title as it does. It is modal by
+    that inert page, not aria-modal: a screen reader that honours aria-modal treats all outside the
+    dialog as gone, the live region below included, and would not read out what it says. The
     message, and anything said after that (waiting on another change, saved), is read out through a
     live region kept on the page from when it loads (structure_guard.js, getAnnouncer()), once the
     card shows. It is not the dialog's description: Narrator does not read that out at its usual
@@ -39,7 +41,7 @@
     }
 }}
 <div class="aiplacement-modgen-structure-guard" data-region="aiplacement-modgen-structure-guard" tabindex="-1"
-     role="dialog" aria-modal="true" aria-labelledby="aiplacement-modgen-structure-guard-title">
+     role="dialog" aria-labelledby="aiplacement-modgen-structure-guard-title">
     <div class="aiplacement-modgen-structure-guard__card" data-region="card">
         <div class="aiplacement-modgen-structure-guard__body">
             <div class="aiplacement-modgen-structure-guard__icon" aria-hidden="true">

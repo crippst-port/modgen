@@ -6,9 +6,10 @@
 
 - "Renumber delay" (autoreorder_delay, a duration from 10 seconds to 1 hour, default 1 minute): how
   long a Flexible sections course must go without edits before the automatic renumber runs. It
-  replaces the fixed 60 seconds. section_reorder_queue::DELAY is gone: use
-  section_reorder_queue::delay() for the configured value, or DEFAULT_DELAY. schedule()'s $delay
-  now defaults to null, meaning the configured delay.
+  replaces the fixed 60 seconds. section_reorder_queue::DELAY is deprecated, and stays at the default:
+  use section_reorder_queue::delay() for the configured value, or DEFAULT_DELAY. schedule()'s $delay
+  now defaults to null, meaning the configured delay. Shortening the delay brings forward any renumber
+  already waiting longer than the new delay (section_reorder_queue::delay_changed()).
 - "Show a loader during Flexible sections changes" (enable_structureguard, on by default). On a
   Flexible sections course page in editing mode, amd/src/structure_guard.js covers the page while a
   section delete, duplicate, move, merge or add is saved, and before each asks

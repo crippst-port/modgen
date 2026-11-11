@@ -141,6 +141,8 @@ class section_reorder_status {
         return [
             'state' => $state,
             'time' => $time,
+            // Seconds until a queued renumber runs, by the server's clock: the browser's may differ.
+            'wait' => $state === 'queued' ? max(0, $time - time()) : null,
             'label' => get_string('reorderstatus_' . $state, 'aiplacement_modgen', $formatted),
             // A sentence with the full date, for the Check Structure page.
             'summary' => get_string('reorderpanel_' . $state, 'aiplacement_modgen', $state === 'queued'

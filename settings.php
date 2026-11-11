@@ -96,6 +96,7 @@ if ($hassiteconfig) {
         );
         $setting->set_min_duration(\aiplacement_modgen\local\section_reorder_queue::MIN_DELAY);
         $setting->set_max_duration(\aiplacement_modgen\local\section_reorder_queue::MAX_DELAY);
+        $setting->set_updatedcallback([\aiplacement_modgen\local\section_reorder_queue::class, 'delay_changed']);
         $settings->add($setting);
         $settings->hide_if('aiplacement_modgen/autoreorder_delay', 'aiplacement_modgen/enable_autoreorder');
 

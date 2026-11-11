@@ -63,6 +63,28 @@ let lastpoll = 0;
 let idlewait = IDLE_MIN_INTERVAL;
 /** The label last shown, to tell a change of state from a quiet poll. */
 let lastlabel = null;
+/** An edit control was used since the last poll: the idle wait starts again rather than doubling. */
+let edited = false;
+/** The last state seen was running or queued, so a lost request is tried again at the active pace. */
+let active = false;
+
+/**
+ * The idle wait, doubled up to IDLE_MAX_INTERVAL.
+ *
+ * @returns {number} Milliseconds
+ */
+const backoff = () => {
+    idlewait = Math.min(IDLE_MAX_INTERVAL, idlewait * 2);
+    return idlewait;
+};
+
+/**
+ * How long to wait for a queued renumber: until it is due, within limits.
+ *
+ * @param {number} wait Seconds until it runs, by the server's clock: the browser's may be wrong
+ * @returns {number} Milliseconds
+ */
+const queuedDelay = (wait) => Math.min(QUEUED_MAX_INTERVAL, Math.max(ACTIVE_INTERVAL, wait * 1000 + DUE_MARGIN));
 
 /**
  * How long to wait before the next poll, given the status just seen.
@@ -77,7 +99,10 @@ let lastlabel = null;
 const nextDelay = (status) => {
     const label = status ? status.label : null;
     const changed = label !== lastlabel;
+    const afteredit = edited;
     lastlabel = label;
+    edited = false;
+    active = !!status && (status.state === 'running' || status.state === 'queued');
 
     if (status && status.state === 'running') {
         idlewait = IDLE_MIN_INTERVAL;
@@ -85,15 +110,15 @@ const nextDelay = (status) => {
     }
     if (status && status.state === 'queued') {
         idlewait = IDLE_MIN_INTERVAL;
-        const untildue = status.time * 1000 - Date.now() + DUE_MARGIN;
-        return Math.min(QUEUED_MAX_INTERVAL, Math.max(ACTIVE_INTERVAL, untildue));
+        return queuedDelay(status.wait ?? 0);
     }
-    if (changed) {
+    // An edit can take a while to queue anything (a confirmation to answer, say): look again at the
+    // shortest idle wait, not a doubled one.
+    if (changed || afteredit) {
         idlewait = IDLE_MIN_INTERVAL;
         return idlewait;
     }
-    idlewait = Math.min(IDLE_MAX_INTERVAL, idlewait * 2);
-    return idlewait;
+    return backoff();
 };
 /**
  * Show the status in the toolbar.
@@ -135,6 +160,10 @@ const schedule = (region, courseid, delay) => {
     if (timer !== null) {
         clearTimeout(timer);
     }
+    if (M.cfg.behatsiterunning) {
+        // For Behat to check when the next look is, without waiting for it.
+        window.aiplacementModgenReorderWaits = [...(window.aiplacementModgenReorderWaits || []), delay];
+    }
     timer = setTimeout(() => poll(region, courseid), delay);
 };
 
@@ -172,9 +201,9 @@ const poll = async(region, courseid) => {
         await render(region, data.status);
         delay = nextDelay(data.status);
     } catch (e) {
-        // A dropped request is not worth a notice: try again later, backing off as when idle.
-        idlewait = Math.min(IDLE_MAX_INTERVAL, idlewait * 2);
-        delay = idlewait;
+        // A dropped request is not worth a notice: try again later, at the active pace while a
+        // renumber is under way, or else backing off as when idle.
+        delay = active ? ACTIVE_INTERVAL : backoff();
     } finally {
         inflight = false;
     }
@@ -196,13 +225,23 @@ export const init = (courseid) => {
     const icon = region.querySelector('.aiplacement-modgen-reorder-icon');
     lastlabel = icon ? icon.getAttribute('aria-label') : null;
     lastpoll = Date.now();
-    const active = region.querySelector('.aiplacement-modgen-reorder-icon--queued, .aiplacement-modgen-reorder-icon--running');
-    schedule(region, courseid, active ? ACTIVE_INTERVAL : IDLE_MIN_INTERVAL);
+    const queued = region.querySelector('.aiplacement-modgen-reorder-icon--queued[data-wait]');
+    const running = region.querySelector('.aiplacement-modgen-reorder-icon--running');
+    active = !!(queued || running);
+    let first = IDLE_MIN_INTERVAL;
+    if (queued) {
+        // Due in a while: look when it is, rather than every ACTIVE_INTERVAL until then.
+        first = queuedDelay(Number(queued.dataset.wait) || 0);
+    } else if (running) {
+        first = ACTIVE_INTERVAL;
+    }
+    schedule(region, courseid, first);
 
     // An edit on this page queues a renumber: look soon after, rather than at the next idle poll.
     document.addEventListener('click', (e) => {
         if (e.target.closest(EDIT_SELECTOR)) {
             idlewait = IDLE_MIN_INTERVAL;
+            edited = true;
             if (inflight) {
                 pollagain = true;
             } else {

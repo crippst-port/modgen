@@ -81,7 +81,7 @@ Feature: Section changes on a Flexible sections course wait for each other
     Then the section change loader should be gone
     And the course "C1" should have "2" sections
     # Neither the confirmation's button nor the deleted section is there to go back to.
-    And focus should be on a control on the page
+    And focus should be on a section heading
     When I open section "2" edit menu
     And I click on "Delete" "link" in the "li#section-2" "css_element"
     And I click on "Yes" "button" in the ".modal-dialog" "css_element"
@@ -127,7 +127,7 @@ Feature: Section changes on a Flexible sections course wait for each other
       | Deleting the section Large sections can take a minute or two                      |
       | Section deleted                                                                   |
     # The menu it came from went with the section: focus goes to a section nearby, not the page body.
-    And focus should be on a control on the page
+    And focus should be on a section heading
 
   Scenario: A quick change shows no loader and no confirmation
     Given I am on the "Course 1" "course" page logged in as "teacher1"

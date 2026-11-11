@@ -88,12 +88,25 @@ let currentAction = {kind: null, count: 1};
  * @returns {Promise<string>}
  */
 const actionTitle = (which, fallback) => {
-    const strings = ACTION_STRINGS[currentAction.kind];
-    const many = currentAction.count > 1 ? strings?.[which + 'many'] : null;
-    if (many) {
-        return getString(many, 'aiplacement_modgen', currentAction.count);
-    }
-    return getString(strings?.[which] ?? fallback, 'aiplacement_modgen');
+    const {id, a} = titleString(currentAction, which, fallback);
+    return getString(id, 'aiplacement_modgen', a);
+};
+
+/**
+ * Which string is the cover's heading for a change, and what goes in it.
+ *
+ * One place for this, so the heading read out as the cover takes focus (immediateText()) is the one
+ * written a moment later (actionTitle()), and is not read out a second time.
+ *
+ * @param {{kind: ?string, count: number}} action The change (ACTION_STRINGS)
+ * @param {string} which 'working' or 'done'
+ * @param {string} fallback String identifier to use when the change is not one this knows
+ * @returns {{id: string, a: (number|undefined)}}
+ */
+const titleString = (action, which, fallback) => {
+    const strings = ACTION_STRINGS[action.kind];
+    const many = action.count > 1 ? strings?.[which + 'many'] : null;
+    return many ? {id: many, a: action.count} : {id: strings?.[which] ?? fallback, a: undefined};
 };
 
 /**
@@ -112,10 +125,9 @@ const immediateText = (action) => {
         // Not sent with the page: get_string() gives "[[id,component]]" rather than the string.
         return value.startsWith('[[') ? null : value;
     };
-    const strings = ACTION_STRINGS[action.kind];
-    const many = action.count > 1 ? strings?.workingmany : null;
+    const {id, a} = titleString(action, 'working', STATES.working.title);
     return {
-        title: many ? string(many, action.count) : string(strings?.working ?? STATES.working.title),
+        title: string(id, a),
         message: string(STATES.working.message),
     };
 };
@@ -423,7 +435,6 @@ const plainCover = () => {
     cover.dataset.region = 'aiplacement-modgen-structure-guard';
     cover.tabIndex = -1;
     cover.setAttribute('role', 'dialog');
-    cover.setAttribute('aria-modal', 'true');
     return cover;
 };
 
@@ -447,8 +458,47 @@ const coverMessage = () => {
     return message && !overlay.classList.contains('is-done') ? message.textContent : '';
 };
 
-/** @type {string} The control in a section that focus goes to when it goes back to the section. */
-const SECTION_FOCUS = '[data-for="section_title"] a[href], [data-for="section_title"] [tabindex="0"], a[href], button';
+/**
+ * @type {string[]} Where in a section focus goes when it goes back to the section, best first.
+ *
+ * The heading, which a screen reader reads out as the section's name, and where Enter does nothing:
+ * the first control in a Flexible sections header collapses the section, and the next renames it.
+ * A section with no heading gets its first control.
+ */
+const SECTION_FOCUS = ['.sectionname', 'a[href]', 'button'];
+
+/**
+ * The element in a section that focus goes to when it goes back to the section.
+ *
+ * Each of SECTION_FOCUS in turn: querySelector() given them all at once would take whichever comes
+ * first on the page, which is the collapse control.
+ *
+ * @param {Element} section A section
+ * @returns {HTMLElement|null}
+ */
+const sectionFocusTarget = (section) => {
+    for (const selector of SECTION_FOCUS) {
+        const found = section.querySelector(selector);
+        if (found) {
+            return found;
+        }
+    }
+    return null;
+};
+
+/**
+ * Focus an element, which a heading cannot take until it is made focusable, by script only.
+ *
+ * @param {HTMLElement} element Where focus goes
+ */
+const focusElement = (element) => {
+    if (element.tabIndex < 0 && !element.hasAttribute('tabindex')) {
+        element.setAttribute('tabindex', '-1');
+        // Once focus moves on, the heading is as it was: out of the tab order, and not focusable.
+        element.addEventListener('blur', () => element.removeAttribute('tabindex'), {once: true});
+    }
+    element.focus({preventScroll: true});
+};
 
 /**
  * Where focus could go once the cover closes, nearest first.
@@ -479,7 +529,7 @@ const fallbacksFor = (elements) => {
 /**
  * Put focus back where the user was, or as near it as is still on the page.
  *
- * A section is focused by its heading link (or its first control). Left on the body instead,
+ * A section is focused by its heading (or its first control). Left on the body instead,
  * focus has Narrator read out the whole window.
  */
 const restoreFocus = () => {
@@ -490,11 +540,11 @@ const restoreFocus = () => {
         if (!candidate || candidate === document.body || !document.contains(candidate)) {
             continue;
         }
-        const target = candidate.matches('[data-for="section"]') ? candidate.querySelector(SECTION_FOCUS) : candidate;
+        const target = candidate.matches('[data-for="section"]') ? sectionFocusTarget(candidate) : candidate;
         if (!target) {
             continue;
         }
-        target.focus({preventScroll: true});
+        focusElement(target);
         if (document.activeElement === target) {
             return;
         }

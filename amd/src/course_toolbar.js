@@ -104,6 +104,7 @@ const checkCompletedJobs = (courseid) => {
             // Note: Auto-reload removed - user can manually refresh to see new sections.
             // Notification will remain visible and user-dismissable.
         }
+        return data;
     })
     .catch(() => {
         // Silently fail - this is just a check

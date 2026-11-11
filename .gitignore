@@ -1,19 +1,23 @@
-# Dependencies
+# Local and build tooling. amd/build is committed: Moodle serves it, and does not build it.
 node_modules/
+vendor/
+npm-debug.log*
+.eslintcache
+.stylelintcache
 
-# IDE
+# Test output
+.phpunit.result.cache
+.phpunit.cache/
+coverage/
+*.log
+
+# Editors and assistants
 .claude/
 .vscode/
 .idea/
 *.swp
 *.swo
 *~
-.DS_Store
-
-# Moodle
-moodledata/
-/var/
-/.git/
 
 # Environment
 .env
@@ -21,6 +25,9 @@ moodledata/
 .env.*.local
 
 # OS
-Thumbs.db
 .DS_Store
+Thumbs.db
 ehthumbs.db
+
+# Moodle data, if a site is set up inside the plugin by mistake
+moodledata/

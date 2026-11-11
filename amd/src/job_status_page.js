@@ -79,6 +79,123 @@ const redirectToCourse = (haswarnings) => {
 };
 
 /**
+ * The status for a job that has finished: what it did, any problems, and the way back to the course.
+ *
+ * @param {Object} job Job data from server
+ * @param {HTMLElement} container The status container
+ * @param {HTMLElement|null} returnButtonContainer The return to course button's container, if on the page
+ * @returns {string} The status HTML
+ */
+const completedHtml = (job, container, returnButtonContainer) => {
+    let html = '';
+    const result = job.result || {};
+    const messages = result.messages || [];
+    const warnings = result.warnings || [];
+
+    let messagesList = '';
+    messages.forEach(msg => {
+        messagesList += `<p class="mb-1"><i class="fa fa-check text-success" aria-hidden="true"></i> ${escapeHtml(msg)}</p>`;
+    });
+
+    if (warnings.length > 0) {
+        // Some items failed: keep the page open so the problems can be read.
+        let warningsList = '';
+        warnings.forEach(warning => {
+            warningsList += '<p class="mb-1"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> ' +
+                `${escapeHtml(warning)}</p>`;
+        });
+        html = `
+            <div class="alert alert-warning">
+                <h4 class="alert-heading">
+                    <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+                    ${escapeHtml(config.strings.completedwarnings)}
+                </h4>
+                ${warningsList}
+                ${messagesList}
+            </div>
+        `;
+    } else {
+        html = `
+            <div class="alert alert-success">
+                <h4 class="alert-heading">
+                    <i class="fa fa-check-circle" aria-hidden="true"></i>
+                    ${escapeHtml(config.strings.completed)}
+                </h4>
+                ${messagesList}
+            </div>
+        `;
+    }
+
+    // Show return button if it exists, otherwise create it
+    if (returnButtonContainer) {
+        returnButtonContainer.style.display = 'block';
+    } else {
+        // Create button dynamically if not in template
+        const buttonHtml = `
+            <div class="mt-4" id="return-button-container">
+                <a href="${config.courseurl}" class="btn btn-primary">
+                    <i class="fa fa-arrow-left" aria-hidden="true"></i>
+                    ${escapeHtml(config.strings.returncourse)}
+                </a>
+            </div>
+        `;
+        container.insertAdjacentHTML('afterend', buttonHtml);
+    }
+
+    // Stop polling
+    stopPolling();
+
+    redirectToCourse(warnings.length > 0);
+
+    return html;
+};
+
+/**
+ * The status for a job that has failed, and whether it will be tried again.
+ *
+ * @param {Object} job Job data from server
+ * @param {HTMLElement|null} returnButtonContainer The return to course button's container, if on the page
+ * @returns {string} The status HTML
+ */
+const failedHtml = (job, returnButtonContainer) => {
+    const result = job.result || {};
+    const error = result.error || config.strings.unknownerror;
+    const willRetry = result.will_retry || false;
+
+    let retryHtml = '';
+    if (willRetry) {
+        retryHtml = `
+            <hr>
+            <p class="mb-0">
+                <i class="fa fa-refresh" aria-hidden="true"></i>
+                ${escapeHtml(config.strings.willretry)}
+            </p>
+        `;
+        // Keep polling for retry
+    } else {
+        stopPolling();
+    }
+
+    const html = `
+        <div class="alert alert-danger">
+            <h4 class="alert-heading">
+                <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
+                ${escapeHtml(config.strings.failed)}
+            </h4>
+            <p><strong>${escapeHtml(config.strings.error)}:</strong> ${escapeHtml(error)}</p>
+            ${retryHtml}
+        </div>
+    `;
+
+    // Hide return button on failure
+    if (returnButtonContainer) {
+        returnButtonContainer.style.display = 'none';
+    }
+
+    return html;
+};
+
+/**
  * Update the status display based on job data.
  *
  * @param {Object} job Job data from server
@@ -142,99 +259,9 @@ const updateStatusDisplay = (job) => {
             returnButtonContainer.style.display = 'none';
         }
     } else if (job.status === 'completed') {
-        const result = job.result || {};
-        const messages = result.messages || [];
-        const warnings = result.warnings || [];
-
-        let messagesList = '';
-        messages.forEach(msg => {
-            messagesList += `<p class="mb-1"><i class="fa fa-check text-success" aria-hidden="true"></i> ${escapeHtml(msg)}</p>`;
-        });
-
-        if (warnings.length > 0) {
-            // Some items failed: keep the page open so the problems can be read.
-            let warningsList = '';
-            warnings.forEach(warning => {
-                warningsList += '<p class="mb-1"><i class="fa fa-exclamation-circle" aria-hidden="true"></i> ' +
-                    `${escapeHtml(warning)}</p>`;
-            });
-            html = `
-                <div class="alert alert-warning">
-                    <h4 class="alert-heading">
-                        <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
-                        ${escapeHtml(config.strings.completedwarnings)}
-                    </h4>
-                    ${warningsList}
-                    ${messagesList}
-                </div>
-            `;
-        } else {
-            html = `
-                <div class="alert alert-success">
-                    <h4 class="alert-heading">
-                        <i class="fa fa-check-circle" aria-hidden="true"></i>
-                        ${escapeHtml(config.strings.completed)}
-                    </h4>
-                    ${messagesList}
-                </div>
-            `;
-        }
-
-        // Show return button if it exists, otherwise create it
-        if (returnButtonContainer) {
-            returnButtonContainer.style.display = 'block';
-        } else {
-            // Create button dynamically if not in template
-            const buttonHtml = `
-                <div class="mt-4" id="return-button-container">
-                    <a href="${config.courseurl}" class="btn btn-primary">
-                        <i class="fa fa-arrow-left" aria-hidden="true"></i>
-                        ${escapeHtml(config.strings.returncourse)}
-                    </a>
-                </div>
-            `;
-            container.insertAdjacentHTML('afterend', buttonHtml);
-        }
-
-        // Stop polling
-        stopPolling();
-
-        redirectToCourse(warnings.length > 0);
-
+        html = completedHtml(job, container, returnButtonContainer);
     } else if (job.status === 'failed') {
-        const result = job.result || {};
-        const error = result.error || config.strings.unknownerror;
-        const willRetry = result.will_retry || false;
-
-        let retryHtml = '';
-        if (willRetry) {
-            retryHtml = `
-                <hr>
-                <p class="mb-0">
-                    <i class="fa fa-refresh" aria-hidden="true"></i>
-                    ${escapeHtml(config.strings.willretry)}
-                </p>
-            `;
-            // Keep polling for retry
-        } else {
-            stopPolling();
-        }
-
-        html = `
-            <div class="alert alert-danger">
-                <h4 class="alert-heading">
-                    <i class="fa fa-exclamation-triangle" aria-hidden="true"></i>
-                    ${escapeHtml(config.strings.failed)}
-                </h4>
-                <p><strong>${escapeHtml(config.strings.error)}:</strong> ${escapeHtml(error)}</p>
-                ${retryHtml}
-            </div>
-        `;
-
-        // Hide return button on failure
-        if (returnButtonContainer) {
-            returnButtonContainer.style.display = 'none';
-        }
+        html = failedHtml(job, returnButtonContainer);
     }
 
     container.innerHTML = html;
@@ -284,6 +311,7 @@ const pollJobStatus = () => {
                     stopPolling();
                 }
             }
+            return data;
         })
         .catch(error => {
             window.console.error('[Job Status Page] Fetch error:', error);

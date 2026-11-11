@@ -333,6 +333,7 @@ class ModalGeneratorComponent extends BaseComponent {
                 e.returnValue = warningMsg;
                 return warningMsg;
             }
+            return undefined;
         });
     }
 
@@ -679,14 +680,14 @@ class ModalGeneratorComponent extends BaseComponent {
             .then(async data => {
                 if (data.policyaccepted && this.pendingFormData) {
                     await this.handlePromptSubmission(modal, this.pendingFormData);
-                    return;
+                    return data;
                 }
 
                 // Check if job was queued for background processing (approval step)
                 if (data.queued && data.jobid) {
                     // Redirect to job status page to watch progress
                     await this.showQueuedSuccess(modal, data.message, data.jobid);
-                    return;
+                    return data;
                 }
 
                 if (data.body) {
@@ -742,19 +743,19 @@ class ModalGeneratorComponent extends BaseComponent {
                     alert.textContent = data.error;
                     modal.setBody(alert.outerHTML);
                 }
+                return data;
             })
-            .catch(error => {
+            .catch(async(error) => {
                 // Reload form to restore modal state
-                this.reloadPromptForm(modal).then(() => {
-                    Notification.exception(error);
-                    return null;
-                }).catch(async(fragmentError) => {
+                try {
+                    await this.reloadPromptForm(modal);
+                } catch (fragmentError) {
                     // If fragment reload fails, show basic error
                     modal.setBody('<div class="alert alert-danger">' +
                         await getString('erroroccurred', 'aiplacement_modgen') + '</div>');
                     window.console.error('Fragment reload failed:', fragmentError);
-                    Notification.exception(error);
-                });
+                }
+                Notification.exception(error);
             })
             .finally(() => pendingPromise.resolve());
     }
@@ -1172,7 +1173,7 @@ class ModalGeneratorComponent extends BaseComponent {
                 return;
             }
             // Determine action based on form name
-            const actions = {add_theme: 'create_themes', add_assessments: 'create_assessments'};
+            const actions = {'add_theme': 'create_themes', 'add_assessments': 'create_assessments'};
             const action = actions[formName] || 'create_weeks';
 
             // Build params object - start with required params
@@ -1227,55 +1228,55 @@ class ModalGeneratorComponent extends BaseComponent {
                         }
                     } else {
                         // Validation failed - reload the form with error message
-                        Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
-                            courseid: this.courseid,
-                            contextid: this.contextid,
-                        })
-                            .then(async(html) => {
-                                modal.setBody(html);
+                        try {
+                            const html = await Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
+                                courseid: this.courseid,
+                                contextid: this.contextid,
+                            });
+                            modal.setBody(html);
 
-                                // Insert error at the top of the form
-                                const newBody = modal.getBody();
-                                const newBodyNode = newBody && newBody.length ? newBody.get(0) : null;
-                                if (newBodyNode) {
-                                    const errorDiv = document.createElement('div');
-                                    errorDiv.className = 'alert alert-danger form-error-message';
-                                    const genericError = await getString('genericerror', 'aiplacement_modgen');
-                                    errorDiv.textContent = data.error || genericError;
-                                    newBodyNode.insertBefore(errorDiv, newBodyNode.firstChild);
+                            // Insert error at the top of the form
+                            const newBody = modal.getBody();
+                            const newBodyNode = newBody && newBody.length ? newBody.get(0) : null;
+                            if (newBodyNode) {
+                                const errorDiv = document.createElement('div');
+                                errorDiv.className = 'alert alert-danger form-error-message';
+                                const genericError = await getString('genericerror', 'aiplacement_modgen');
+                                errorDiv.textContent = data.error || genericError;
+                                newBodyNode.insertBefore(errorDiv, newBodyNode.firstChild);
 
-                                    // Scroll to top so error is visible
-                                    newBodyNode.scrollTop = 0;
-                                }
+                                // Scroll to top so error is visible
+                                newBodyNode.scrollTop = 0;
+                            }
 
-                                // Re-setup form submission and footer
-                                this.setupFormSubmission(modal, formName);
-                                this.enhanceQuickAddForm(modal);
-                                this.updateFooterFromForm(modal);
-                                return html;
-                            })
-                            .catch(Notification.exception);
+                            // Re-setup form submission and footer
+                            this.setupFormSubmission(modal, formName);
+                            this.enhanceQuickAddForm(modal);
+                            this.updateFooterFromForm(modal);
+                        } catch (fragmentError) {
+                            Notification.exception(fragmentError);
+                        }
                     }
                     return data;
                 })
-                .catch(error => {
+                .catch(async(error) => {
                     // Clear navigation warning flag on error
                     window.modgenCreationInProgress = false;
 
                     // On exception, reload the form
-                    Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
-                        courseid: this.courseid,
-                        contextid: this.contextid,
-                    })
-                        .then((html) => {
-                            modal.setBody(html);
-                            this.setupFormSubmission(modal, formName);
-                            this.enhanceQuickAddForm(modal);
-                            this.updateFooterFromForm(modal);
-                            Notification.exception(error);
-                            return html;
-                        })
-                        .catch(Notification.exception);
+                    try {
+                        const html = await Fragment.loadFragment('aiplacement_modgen', `form_${formName}`, this.contextid, {
+                            courseid: this.courseid,
+                            contextid: this.contextid,
+                        });
+                        modal.setBody(html);
+                        this.setupFormSubmission(modal, formName);
+                        this.enhanceQuickAddForm(modal);
+                        this.updateFooterFromForm(modal);
+                        Notification.exception(error);
+                    } catch (fragmentError) {
+                        Notification.exception(fragmentError);
+                    }
                 })
                 .finally(() => pendingPromise.resolve());
         });

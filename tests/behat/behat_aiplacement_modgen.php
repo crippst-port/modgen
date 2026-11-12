@@ -438,6 +438,37 @@ class behat_aiplacement_modgen extends behat_base {
     }
 
     /**
+     * Ask for a library structure's file from the current page, as the download button does or as a
+     * crafted request would. The body is kept for the "modgen endpoint response" steps.
+     *
+     * @When /^I request the file of the structure template "(?P<name_string>[^"]*)"(?: for "(?P<course_string>[^"]*)")?$/
+     * @param string $name Template name, or "a missing template" for an id that does not exist.
+     * @param string $shortname Course short name, or '' to ask from the library page.
+     */
+    public function i_request_the_file_of_the_structure_template(string $name, string $shortname = ''): void {
+        global $DB;
+
+        $params = ['id' => $name === 'a missing template' ? 999999 :
+            (int) $DB->get_field('aiplacement_modgen_templates', 'id', ['name' => $name], MUST_EXIST)];
+        if ($shortname !== '') {
+            $params['courseid'] = $this->course_id($shortname);
+        }
+        $session = $this->getSession();
+        $session->executeScript('window.modgenPostResponse = null;
+            fetch(M.cfg.wwwroot + "/ai/placement/modgen/download_template.php?" + new URLSearchParams(' .
+                json_encode($params) . '))
+                .then(r => r.text().then(t => {
+                    window.modgenPostResponse = "Content-Disposition: " + r.headers.get("Content-Disposition") + "\n" + t;
+                }))
+                .catch(e => { window.modgenPostResponse = "FETCH FAILED: " + e; });');
+        $this->spin(
+            fn() => $session->evaluateScript('return window.modgenPostResponse !== null;'),
+            [],
+            behat_base::get_extended_timeout()
+        );
+    }
+
+    /**
      * Check the body returned by the last "I post ... to the modgen endpoint" step.
      *
      * @Then /^the modgen endpoint response should contain "(?P<text_string>[^"]*)"$/

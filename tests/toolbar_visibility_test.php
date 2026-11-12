@@ -221,4 +221,39 @@ final class toolbar_visibility_test extends \advanced_testcase {
         }
         return array_keys(array_filter(self::MARKERS, fn($marker) => str_contains($html, $marker)));
     }
+
+    /**
+     * In a course the plugin cannot build in, the toolbar says why in place of the build menu, and
+     * keeps Check Structure, which builds nothing.
+     */
+    public function test_a_course_that_cannot_be_built_in_shows_the_reason_instead_of_the_menu(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('enabled', 1, 'aiplacement_modgen');
+        set_config('enable_coreformats', 0, 'aiplacement_modgen');
+        $course = $this->getDataGenerator()->create_course(['format' => 'topics', 'numsections' => 1]);
+
+        $html = aiplacement_modgen_output_fragment_course_toolbar(['courseid' => $course->id, 'currentsection' => 0]);
+
+        $this->assertStringContainsString('aiplacement-modgen-navbar__unavailable', $html);
+        $this->assertStringContainsString(s(get_string('errorformatflexsectionsonly', 'aiplacement_modgen')), $html);
+        foreach (['newtheme', 'newweek', 'assessments', 'fromfile', 'fromprompt'] as $entry) {
+            $this->assertStringNotContainsString(self::MARKERS[$entry], $html, "$entry is replaced by the reason.");
+        }
+    }
+
+    /**
+     * A course the plugin can build in shows no reason.
+     */
+    public function test_a_course_that_can_be_built_in_shows_no_reason(): void {
+        $this->resetAfterTest();
+        $this->setAdminUser();
+        set_config('enabled', 1, 'aiplacement_modgen');
+        $course = $this->getDataGenerator()->create_course(['format' => 'flexsections']);
+
+        $html = aiplacement_modgen_output_fragment_course_toolbar(['courseid' => $course->id, 'currentsection' => 0]);
+
+        $this->assertStringNotContainsString('aiplacement-modgen-navbar__unavailable', $html);
+        $this->assertStringContainsString(self::MARKERS['newtheme'], $html);
+    }
 }

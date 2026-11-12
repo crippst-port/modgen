@@ -28,6 +28,11 @@
  *
  *   Given the following "aiplacement_modgen > jobs" exist:
  *     | course | user | action | status | result |
+ *
+ * and library structures (content is the CSV text, with \n for new lines):
+ *
+ *   Given the following "aiplacement_modgen > templates" exist:
+ *     | name | description | filename | content |
  */
 class behat_aiplacement_modgen_generator extends behat_generator_base {
     /**
@@ -43,8 +48,25 @@ class behat_aiplacement_modgen_generator extends behat_generator_base {
                 'required' => ['course', 'user'],
                 'switchids' => ['course' => 'courseid', 'user' => 'userid'],
             ],
-
+            'templates' => [
+                'singular' => 'template',
+                'datagenerator' => 'template',
+                'required' => ['name'],
+            ],
         ];
+    }
+
+    /**
+     * Turn the \n written in a feature's content column into new lines.
+     *
+     * @param array $data Template fields.
+     * @return array
+     */
+    protected function preprocess_template(array $data): array {
+        if (isset($data['content'])) {
+            $data['content'] = str_replace('\n', "\n", $data['content']);
+        }
+        return $data;
     }
 
     /**

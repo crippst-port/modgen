@@ -71,4 +71,31 @@ class aiplacement_modgen_generator extends component_generator_base {
         $job->id = $DB->insert_record('aiplacement_modgen_jobs', $job);
         return $job;
     }
+
+    /**
+     * Add a CSV structure to the template library.
+     *
+     * @param array|stdClass $record name (required), description, filename and content (the CSV text).
+     * @return stdClass The template record.
+     */
+    public function create_template($record): stdClass {
+        global $DB;
+
+        $record = (array) $record;
+        if (empty($record['name'])) {
+            throw new coding_exception("The template 'name' is required.");
+        }
+        $file = get_file_storage()->create_file_from_string([
+            'contextid' => context_system::instance()->id,
+            'component' => 'aiplacement_modgen',
+            'filearea' => 'generator_upload',
+            'itemid' => file_get_unused_draft_itemid(),
+            'filepath' => '/',
+            'filename' => $record['filename'] ?? 'structure.csv',
+        ], $record['content'] ?? "Theme 1,Foundations\nWeek 1,Introduction\n");
+
+        $id = \aiplacement_modgen\local\template_manager::create($record['name'], $record['description'] ?? '', $file);
+        $file->delete();
+        return $DB->get_record('aiplacement_modgen_templates', ['id' => $id], '*', MUST_EXIST);
+    }
 }

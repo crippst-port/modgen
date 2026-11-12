@@ -29,7 +29,8 @@
     * placeholder - What it is called when it has no title
     * summary - Its description
     * hassessions, sessions - Its sessions, each with label and activities (name and type)
-    * hasactivities, activities - Its activities when it has no sessions
+    * hasoutline, outline - The outline lines a weekly section adds to its summary when built (each with text)
+    * hasactivities, activities - Whether there is anything to list; activities when it has no sessions
 
     Example context (json):
     {
@@ -74,6 +75,16 @@
         {{#hasactivities}}
         <details class="aiplacement-modgen-preview__contents">
             <summary>{{#str}}previewcontents, aiplacement_modgen{{/str}}</summary>
+            {{#hasoutline}}
+            <div class="aiplacement-modgen-preview__outline">
+                <span class="aiplacement-modgen-preview__session-label">{{#str}}previewoutline, aiplacement_modgen{{/str}}</span>
+                <ul class="aiplacement-modgen-preview__activities">
+                    {{#outline}}
+                    <li>{{text}}</li>
+                    {{/outline}}
+                </ul>
+            </div>
+            {{/hasoutline}}
             {{#hassessions}}
             <div class="aiplacement-modgen-preview__sessions">
                 {{#sessions}}

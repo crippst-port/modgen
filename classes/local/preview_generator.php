@@ -135,7 +135,7 @@ class preview_generator {
                 continue;
             }
 
-            $preview['weeks'][] = self::build_week_item($section, (string) $sectionkey, count($preview['weeks']) + 1);
+            $preview['weeks'][] = self::build_week_item($section, (string) $sectionkey, count($preview['weeks']) + 1, true);
         }
 
         return $preview;
@@ -144,14 +144,16 @@ class preview_generator {
     /**
      * Build a standardized week item from a week/section object.
      *
-     * Handles both session-based and outline-based structures.
+     * Every week is built with its three sessions, so they are always listed. A weekly section's
+     * outline is added to its summary as a list when it is built, so it is shown as well.
      *
      * @param array $weekdata The week or section data.
      * @param string $key Where it sits in the structure: its section key, or theme key and week key joined by _
      * @param int $number Its place among all the weeks, from 1
+     * @param bool $withoutline Whether the build shows this week's outline (weekly sections only)
      * @return array Structured week item with activities.
      */
-    private static function build_week_item(array $weekdata, string $key = '', int $number = 0): array {
+    private static function build_week_item(array $weekdata, string $key = '', int $number = 0, bool $withoutline = false): array {
         $fallback = get_string('weekfallback', 'aiplacement_modgen');
         $weekitem = [
             'key' => $key,
@@ -164,26 +166,25 @@ class preview_generator {
             'hasactivities' => false,
             'sessions' => [],
             'hassessions' => false,
+            'outline' => [],
+            'hasoutline' => false,
         ];
 
-        // Try to build sessions (for connected_theme/connected_weekly).
-        $hassessions = self::build_sessions($weekdata, $weekitem);
+        self::build_sessions($weekdata, $weekitem);
 
-        // If no sessions, try to use outline format.
-        if (!$hassessions && !empty($weekdata['outline']) && is_array($weekdata['outline'])) {
-            foreach ($weekdata['outline'] as $activity) {
-                if (is_string($activity) && trim($activity) !== '') {
-                    $weekitem['activities'][] = [
-                        'name' => self::text($activity),
-                        'type' => '',
-                        'session' => 'outline',
-                    ];
+        // The outline entries the build lists: text, or {text: ...}.
+        if ($withoutline && !empty($weekdata['outline']) && is_array($weekdata['outline'])) {
+            foreach ($weekdata['outline'] as $entry) {
+                $line = trim(self::text(is_array($entry) ? ($entry['text'] ?? '') : $entry));
+                if ($line !== '') {
+                    $weekitem['outline'][] = ['text' => $line];
                 }
             }
         }
 
-        // Mark if we have any activities or sessions.
-        if (!empty($weekitem['activities'])) {
+        // Mark if we have anything to list.
+        if (!empty($weekitem['outline'])) {
+            $weekitem['hasoutline'] = true;
             $weekitem['hasactivities'] = true;
         }
 

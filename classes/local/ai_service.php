@@ -120,10 +120,10 @@ class ai_service {
      * This walks arrays/objects and attempts to json_decode string values that look like JSON.
      *
      * SPECIAL CASES:
-     * 1. If the structure is wrapped (first item in themes/sections array contains
-     *    the actual structure in its summary field), this function unwraps it automatically.
+     * 1. If the structure is wrapped in a single key (e.g. {module: {sections: [...]}}), it is unwrapped.
      * 2. Handles JSON strings with escaped newlines and quotes within field values.
-     * 3. When the entire module structure is nested in a field as a JSON string, extracts it.
+     * 3. A structure stringified in a field is decoded in place; when that field is a theme or
+     *    section summary, extract_misplaced_content_from_summaries() then lifts it out.
      *
      * @param mixed $value
      * @param bool $istoplevel Whether this is the top-level call (used for structure extraction)
@@ -148,39 +148,8 @@ class ai_service {
                         }
                     }
                 }
-
-                // Pattern 2: themes/sections array where first item's summary contains actual structure.
-                if ((isset($out['themes']) || isset($out['sections'])) && is_array($out['themes'] ?? $out['sections'])) {
-                    $itemsarray = $out['themes'] ?? $out['sections'];
-                    $firstitem = $itemsarray[0] ?? null;
-
-                    if ($firstitem && is_array($firstitem) && isset($firstitem['summary']) && is_string($firstitem['summary'])) {
-                        $summary = trim($firstitem['summary']);
-                        // Check if the summary contains the full structure (may have escaped newlines/quotes).
-                        if (strlen($summary) > 0 && ($summary[0] === '{' || $summary[0] === '[')) {
-                            // Try direct decode first.
-                            $decoded = json_decode($summary, true);
-                            if (
-                                json_last_error() === JSON_ERROR_NONE &&
-                                (isset($decoded['themes']) || isset($decoded['sections']))
-                            ) {
-                                return self::normalize_ai_response($decoded, false);
-                            }
-
-                            // Try with common escape patterns: literal \n, \t, \\", etc.
-                            $unescaped = self::unescape_json_string($summary);
-                            if ($unescaped !== $summary) {
-                                $decoded = json_decode($unescaped, true);
-                                if (
-                                    json_last_error() === JSON_ERROR_NONE &&
-                                    (isset($decoded['themes']) || isset($decoded['sections']))
-                                ) {
-                                    return self::normalize_ai_response($decoded, false);
-                                }
-                            }
-                        }
-                    }
-                }
+                // A structure stringified in the first item's summary has already been decoded by the walk
+                // above; extract_misplaced_content_from_summaries() lifts it out.
             }
 
             return $out;
@@ -240,8 +209,8 @@ class ai_service {
 
     /**
      * Extract full module structure that was misplaced in a summary field.
-     * If AI put the entire themes/sections JSON in a theme summary instead of as the main themes array,
-     * detect it, extract it, and use it as the actual content.
+     * If AI put the entire themes/sections JSON in a theme or section summary instead of as the main
+     * list, detect it, extract it, and use it as the actual content.
      *
      * @param array $data The parsed response data
      * @return array The corrected data
@@ -251,13 +220,14 @@ class ai_service {
             return $data;
         }
 
-        // Check if we have themes array.
-        if (empty($data['themes']) || !is_array($data['themes'])) {
+        // The structure can be misplaced in a theme's summary or, for a weekly structure, a section's.
+        $listkey = !empty($data['themes']) ? 'themes' : 'sections';
+        if (empty($data[$listkey]) || !is_array($data[$listkey])) {
             return $data;
         }
 
-        // Look through themes for misplaced content.
-        foreach ($data['themes'] as $idx => $theme) {
+        // Look through the themes or sections for misplaced content.
+        foreach ($data[$listkey] as $idx => $theme) {
             if (!is_array($theme) || empty($theme['summary'])) {
                 continue;
             }

@@ -24,6 +24,14 @@
 
 ### Fixed
 
+- A generated weekly structure that the AI returned as text inside a section's summary is now used,
+  as it already was for themes. Before, it was built as a single section whose summary was the whole
+  structure.
+- The preview shows a weekly section's outline, which the build adds to the section's summary as a
+  list (new string previewoutline).
+- section_order_blocked, section_order_checked, section_renumber_failed and structure_repaired
+  declare their restore mappings, so restoring a course backup with its logs no longer raises
+  debugging for them.
 - A build now holds the lock format_flexsections takes around a section delete. From
   format_flexsections 4.1.7 that lock is per course ('course_modification_lock_' and the course id),
   and builds took the 4.1.4-4.1.6 key, so on 4.1.7 a teacher's section delete could run in the middle

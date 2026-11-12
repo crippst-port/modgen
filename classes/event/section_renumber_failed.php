@@ -129,4 +129,22 @@ class section_renumber_failed extends \core\event\base {
             throw new \coding_exception('The \'reason\' value must be set in other.');
         }
     }
+
+    /**
+     * The object is the course, which is mapped on restore.
+     *
+     * @return array
+     */
+    public static function get_objectid_mapping() {
+        return ['db' => 'course', 'restore' => 'course'];
+    }
+
+    /**
+     * Other data holds no ids.
+     *
+     * @return bool
+     */
+    public static function get_other_mapping() {
+        return false;
+    }
 }

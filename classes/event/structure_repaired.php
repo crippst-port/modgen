@@ -102,4 +102,13 @@ class structure_repaired extends \core\event\base {
     public static function get_other_mapping() {
         return false;
     }
+
+    /**
+     * The event has no object, so there is nothing to map on restore.
+     *
+     * @return bool
+     */
+    public static function get_objectid_mapping() {
+        return false;
+    }
 }

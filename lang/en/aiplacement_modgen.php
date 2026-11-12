@@ -237,6 +237,7 @@ $string['previewheading'] = 'Check your module structure';
 $string['previewintro'] = 'This is what will be created. Change any title or add a description now, before anything is built.';
 $string['previewnoactivities'] = 'No activities';
 $string['previewnostructure'] = 'No module structure was found in the response. It may be incomplete.';
+$string['previewoutline'] = 'Outline';
 $string['previewsummarylabeltheme'] = 'Description of theme {$a}';
 $string['previewsummarylabelweek'] = 'Description of week {$a}';
 $string['previewsummaryplaceholder'] = 'Add a description (optional)';

@@ -90,4 +90,22 @@ class section_order_checked extends \core\event\base {
             throw new \coding_exception('The \'objectid\' must be set to the course id.');
         }
     }
+
+    /**
+     * The object is the course, which is mapped on restore.
+     *
+     * @return array
+     */
+    public static function get_objectid_mapping() {
+        return ['db' => 'course', 'restore' => 'course'];
+    }
+
+    /**
+     * Other data holds no ids.
+     *
+     * @return bool
+     */
+    public static function get_other_mapping() {
+        return false;
+    }
 }

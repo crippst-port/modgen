@@ -151,49 +151,24 @@ class preview_generator {
      * @param string $key Where it sits in the structure: its section key, or theme key and week key joined by _
      * @param int $number Its place among all the weeks, from 1
      * @param bool $withoutline Whether the build shows this week's outline (weekly sections only)
-     * @return array Structured week item with activities.
+     * @return array Structured week item.
      */
     private static function build_week_item(array $weekdata, string $key = '', int $number = 0, bool $withoutline = false): array {
         $fallback = get_string('weekfallback', 'aiplacement_modgen');
-        $weekitem = [
+        $outline = $withoutline ? section_creation_service::outline_lines($weekdata['outline'] ?? []) : [];
+
+        return [
             'key' => $key,
             'number' => $number,
             'title' => !empty($weekdata['title']) ? self::text($weekdata['title']) : $fallback,
             'rawtitle' => self::text($weekdata['title'] ?? ''),
             'placeholder' => $fallback,
             'summary' => !empty($weekdata['summary']) ? self::text($weekdata['summary']) : '',
-            'activities' => [],
-            'hasactivities' => false,
-            'sessions' => [],
-            'hassessions' => false,
-            'outline' => [],
-            'hasoutline' => false,
+            'sessions' => self::build_sessions($weekdata),
+            'hassessions' => true,
+            'outline' => array_map(fn($line) => ['text' => $line], $outline),
+            'hasoutline' => !empty($outline),
         ];
-
-        self::build_sessions($weekdata, $weekitem);
-
-        // The outline entries the build lists: text, or {text: ...}.
-        if ($withoutline && !empty($weekdata['outline']) && is_array($weekdata['outline'])) {
-            foreach ($weekdata['outline'] as $entry) {
-                $line = trim(self::text(is_array($entry) ? ($entry['text'] ?? '') : $entry));
-                if ($line !== '') {
-                    $weekitem['outline'][] = ['text' => $line];
-                }
-            }
-        }
-
-        // Mark if we have anything to list.
-        if (!empty($weekitem['outline'])) {
-            $weekitem['hasoutline'] = true;
-            $weekitem['hasactivities'] = true;
-        }
-
-        if (!empty($weekitem['sessions'])) {
-            $weekitem['hasactivities'] = true;
-            $weekitem['hassessions'] = true;
-        }
-
-        return $weekitem;
     }
 
     /**
@@ -207,56 +182,28 @@ class preview_generator {
     }
 
     /**
-     * Build sessions structure for a week.
+     * The three sessions of a week, with any activities given for them.
      *
-     * Handles both nested formats:
+     * Every week is built with a Pre-session, Session and Post-session (session_creator), whatever the
+     * structure gives, so all three are always listed. Their activities are read from either:
      * - {sessions: {presession: {activities: [...]}, ...}}
      * - {presession: {...}, session: {...}, postsession: {...}}
      *
-     * @param array $weekdata The week data containing sessions.
-     * @param array &$weekitem The week item to populate with sessions.
-     * @return bool True if sessions were found and built, false otherwise.
+     * @param array $weekdata The week data.
+     * @return array Sessions, each with type, label and activities.
      */
-    private static function build_sessions(array $weekdata, array &$weekitem): bool {
-        // Check for sessions structure.
-        $sessionsdata = $weekdata['sessions'] ?? [
-            'presession' => $weekdata['presession'] ?? [],
-            'session' => $weekdata['session'] ?? [],
-            'postsession' => $weekdata['postsession'] ?? [],
-        ];
+    private static function build_sessions(array $weekdata): array {
+        $sessionsdata = isset($weekdata['sessions']) && is_array($weekdata['sessions']) ? $weekdata['sessions'] : $weekdata;
 
-        // Don't filter out empty sessions yet - we want to show them even if they have no activities
-        // Just check if we have the sessions object at all.
-        if (empty($sessionsdata) && !isset($weekdata['sessions'])) {
-            return false;
-        }
-
-        $sessionlabels = [
-            'presession' => get_string('presession', 'aiplacement_modgen'),
-            'session' => get_string('session', 'aiplacement_modgen'),
-            'postsession' => get_string('postsession', 'aiplacement_modgen'),
-        ];
-        $orderedsessiontypes = ['presession', 'session', 'postsession'];
-
-        foreach ($orderedsessiontypes as $sessiontype) {
-            if (!isset($sessionsdata[$sessiontype])) {
-                continue;
-            }
-
-            $sessiondata = $sessionsdata[$sessiontype];
-
-            // Extract activities from this session.
-            $activities = self::extract_activities_from_session($sessiondata);
-
-            // Add session even if it has no activities (it might have a description or be a placeholder).
-            $weekitem['sessions'][] = [
+        $sessions = [];
+        foreach (['presession', 'session', 'postsession'] as $sessiontype) {
+            $sessions[] = [
                 'type' => $sessiontype,
-                'label' => $sessionlabels[$sessiontype] ?? $sessiontype,
-                'activities' => $activities,
+                'label' => get_string($sessiontype, 'aiplacement_modgen'),
+                'activities' => self::extract_activities_from_session($sessionsdata[$sessiontype] ?? []),
             ];
         }
-
-        return !empty($weekitem['sessions']);
+        return $sessions;
     }
 
     /**

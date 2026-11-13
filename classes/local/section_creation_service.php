@@ -167,6 +167,26 @@ class section_creation_service {
     }
 
     /**
+     * The lines of a section's outline, as the build lists them in the section summary.
+     *
+     * The one place outline entries are read, so the preview, the build and the theme conversion
+     * agree: an entry is text, or {text: ...}; anything else, and blank lines, are left out.
+     *
+     * @param mixed $outline The 'outline' value from the structure.
+     * @return string[] Trimmed lines, in order.
+     */
+    public static function outline_lines($outline): array {
+        $lines = [];
+        foreach (is_array($outline) ? $outline : [] as $entry) {
+            $line = is_array($entry) ? ($entry['text'] ?? '') : $entry;
+            if (is_scalar($line) && trim((string) $line) !== '') {
+                $lines[] = trim((string) $line);
+            }
+        }
+        return $lines;
+    }
+
+    /**
      * Re-throw anything that must not be turned into a warning.
      *
      * Creation runs inside one delegated transaction. A failed database query leaves that
@@ -330,23 +350,14 @@ class section_creation_service {
 
             $title = $sectiondata['title'] ?? get_string('aigensummary', 'aiplacement_modgen');
             $summary = $sectiondata['summary'] ?? '';
-            $outline = !empty($sectiondata['outline']) && is_array($sectiondata['outline']) ? $sectiondata['outline'] : [];
+            $outline = self::outline_lines($sectiondata['outline'] ?? []);
 
             // Cleaned for storage, not formatted for display: filters run when the summary is shown, and
             // applying them here would store their output (losing, say, the other languages in multilang text).
-            $summaryhtml = trim(clean_text((string) $summary, FORMAT_HTML));
-            if (!empty($outline)) {
-                $items = '';
-                foreach ($outline as $entry) {
-                    if (is_array($entry) && isset($entry['text'])) {
-                        $items .= '<li>' . s($entry['text']) . '</li>';
-                    } else if (is_string($entry)) {
-                        $items .= '<li>' . s($entry) . '</li>';
-                    }
-                }
-                if ($items !== '') {
-                    $summaryhtml .= '<ul class="course-outline">' . $items . '</ul>';
-                }
+            $summaryhtml = trim(clean_text(is_scalar($summary) ? (string) $summary : '', FORMAT_HTML));
+            if ($outline) {
+                $items = implode('', array_map(fn($line) => '<li>' . s($line) . '</li>', $outline));
+                $summaryhtml .= '<ul class="course-outline">' . $items . '</ul>';
             }
 
             $hassessions = !empty($sectiondata['sessions']) && is_array($sectiondata['sessions']);

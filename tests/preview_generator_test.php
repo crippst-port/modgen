@@ -106,7 +106,6 @@ final class preview_generator_test extends \advanced_testcase {
 
         $week = $preview['weeks'][0];
         $this->assertTrue($week['hassessions']);
-        $this->assertTrue($week['hasactivities']);
         $this->assertSame(['presession', 'session', 'postsession'], array_column($week['sessions'], 'type'));
         $this->assertSame(get_string('presession', 'aiplacement_modgen'), $week['sessions'][0]['label']);
         $this->assertSame(
@@ -133,8 +132,40 @@ final class preview_generator_test extends \advanced_testcase {
             'sessions' => ['session' => 'Just text'],
         ]]], 'weekly');
 
-        $expected = [['type' => 'session', 'label' => get_string('session', 'aiplacement_modgen'), 'activities' => []]];
-        $this->assertSame($expected, $preview['weeks'][0]['sessions']);
+        $this->assertSame([[], [], []], array_column($preview['weeks'][0]['sessions'], 'activities'));
+    }
+
+    /**
+     * Data provider: session data that names fewer than the three sessions, or none.
+     *
+     * @return array
+     */
+    public static function partial_sessions_provider(): array {
+        return [
+            'none given' => [['title' => 'Rivers']],
+            'empty' => [['title' => 'Rivers', 'sessions' => []]],
+            'only one' => [['title' => 'Rivers', 'sessions' => ['session' => ['description' => 'Lecture']]]],
+            'a list of phases' => [['title' => 'Rivers', 'sessions' => [['phase' => 'pre'], ['phase' => 'session']]]],
+            'not a list' => [['title' => 'Rivers', 'sessions' => 'Three sessions']],
+        ];
+    }
+
+    /**
+     * Every week is built with its three sessions whatever the structure gives, so all three are shown.
+     *
+     * @dataProvider partial_sessions_provider
+     * @param array $section Section data.
+     */
+    public function test_all_three_sessions_are_shown_as_they_are_all_built(array $section): void {
+        $preview = preview_generator::generate(['sections' => [$section]], 'connected_weekly');
+
+        $week = $preview['weeks'][0];
+        $this->assertTrue($week['hassessions']);
+        $this->assertSame(
+            [get_string('presession', 'aiplacement_modgen'), get_string('session', 'aiplacement_modgen'),
+                get_string('postsession', 'aiplacement_modgen')],
+            array_column($week['sessions'], 'label')
+        );
     }
 
     public function test_a_weekly_sections_outline_is_shown_with_its_sessions(): void {
@@ -146,7 +177,6 @@ final class preview_generator_test extends \advanced_testcase {
         $week = $preview['weeks'][0];
         $this->assertTrue($week['hasoutline']);
         $this->assertSame([['text' => 'Read chapter 1'], ['text' => 'Field trip']], $week['outline']);
-        $this->assertTrue($week['hasactivities']);
         $this->assertSame(
             ['presession', 'session', 'postsession'],
             array_column($week['sessions'], 'type'),
@@ -179,6 +209,25 @@ final class preview_generator_test extends \advanced_testcase {
 
         $this->assertStringContainsString(get_string('previewoutline', 'aiplacement_modgen'), $html);
         $this->assertStringContainsString('Read &lt;b&gt;chapter&lt;/b&gt; 1', $html, 'Outline text is escaped.');
+        $this->assertSame(3, substr_count($html, 'aiplacement-modgen-preview__session"'), 'The three sessions.');
+        $this->assertDoesNotMatchRegularExpression(
+            '~<ul class="aiplacement-modgen-preview__activities">\s*</ul>~',
+            $html,
+            'No empty list for a screen reader to announce.'
+        );
+    }
+
+    public function test_the_blank_week_has_no_contents_fold(): void {
+        global $PAGE;
+        $this->resetAfterTest();
+        $PAGE->set_url('/');
+
+        $html = $PAGE->get_renderer('core')->render_from_template('aiplacement_modgen/prompt_preview_week', [
+            'key' => '__KEY__', 'isnew' => true, 'rawtitle' => '', 'summary' => '', 'hassessions' => false,
+            'placeholder' => get_string('weekfallback', 'aiplacement_modgen'),
+        ]);
+
+        $this->assertStringNotContainsString('aiplacement-modgen-preview__contents', $html);
     }
 
     public function test_a_structure_of_the_other_shape_shows_nothing(): void {

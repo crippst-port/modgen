@@ -632,7 +632,7 @@ if ($pdata = $promptform->get_data()) {
         ],
         'newweek' => [
             'key' => '__KEY__', 'isnew' => true, 'rawtitle' => '', 'summary' => '',
-            'hassessions' => false, 'hasactivities' => false,
+            'hassessions' => false,
             'placeholder' => get_string('weekfallback', 'aiplacement_modgen'),
         ],
     ];

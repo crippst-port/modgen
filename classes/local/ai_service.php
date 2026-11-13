@@ -191,10 +191,11 @@ class ai_service {
                 }
             }
 
-            // As a last resort, try to extract a JSON blob from within larger text.
+            // As a last resort, take a module structure out of larger text. Only a structure: ordinary text
+            // is full of brackets that are valid JSON on their own, such as a citation "[1]".
             if (preg_match('/(\{.*\}|\[.*\])/s', $trim, $m)) {
                 $decoded = json_decode($m[1], true);
-                if (json_last_error() === JSON_ERROR_NONE) {
+                if (is_array($decoded) && (isset($decoded['themes']) || isset($decoded['sections']))) {
                     return self::normalize_ai_response($decoded, false);
                 }
             }
@@ -209,8 +210,13 @@ class ai_service {
 
     /**
      * Extract full module structure that was misplaced in a summary field.
-     * If AI put the entire themes/sections JSON in a theme or section summary instead of as the main
-     * list, detect it, extract it, and use it as the actual content.
+     *
+     * If the AI put the entire themes/sections JSON in the summary of a single wrapper theme or section
+     * instead of as the main list, use it as the content. Only a lone wrapper: when there are other
+     * themes or sections, a structure in one summary (an example, say) must not replace them all.
+     *
+     * Summaries holding JSON have already been decoded by normalize_ai_response(), so only decoded
+     * summaries are looked at.
      *
      * @param array $data The parsed response data
      * @return array The corrected data
@@ -220,57 +226,20 @@ class ai_service {
             return $data;
         }
 
-        // The structure can be misplaced in a theme's summary or, for a weekly structure, a section's.
         $listkey = !empty($data['themes']) ? 'themes' : 'sections';
-        if (empty($data[$listkey]) || !is_array($data[$listkey])) {
+        if (empty($data[$listkey]) || !is_array($data[$listkey]) || count($data[$listkey]) !== 1) {
             return $data;
         }
 
-        // Look through the themes or sections for misplaced content.
-        foreach ($data[$listkey] as $idx => $theme) {
-            if (!is_array($theme) || empty($theme['summary'])) {
-                continue;
-            }
-
-            $summary = $theme['summary'];
-
-            // Check if summary is already decoded to an array (from deep_unescape_stringified_json).
-            if (is_array($summary) && (isset($summary['themes']) || isset($summary['sections']))) {
-                // This is misplaced content already decoded!
-                // Use the extracted content as the main data, preserving template field.
-                $templatevalue = $data['template'] ?? get_string('aigeneratedvia', 'aiplacement_modgen');
-                $data = $summary;
-                $data['template'] = $templatevalue;
-
-                return $data;
-            }
-
-            // Also check if it's a string containing JSON.
-            if (is_string($summary)) {
-                $summary = trim($summary);
-
-                // Check if summary is a stringified JSON object containing full structure.
-                if (
-                    strlen($summary) > 100 &&
-                    (strpos($summary, '{"themes"') === 0 || strpos($summary, '{"sections"') === 0) &&
-                    (substr($summary, -1) === '}' || substr($summary, -1) === ']')
-                ) {
-                    // Try to parse it.
-                    $parsed = json_decode($summary, true);
-                    if (is_array($parsed) && (isset($parsed['themes']) || isset($parsed['sections']))) {
-                        // This is misplaced content!
-                        // Use the extracted content as the main data, preserving template field.
-                        $templatevalue = $data['template'] ?? get_string('aigeneratedvia', 'aiplacement_modgen');
-                        $data = $parsed;
-                        $data['template'] = $templatevalue;
-
-                        return $data;
-                    }
-                }
-            }
+        $wrapper = reset($data[$listkey]);
+        $summary = is_array($wrapper) ? ($wrapper['summary'] ?? null) : null;
+        if (!is_array($summary) || !(isset($summary['themes']) || isset($summary['sections']))) {
+            return $data;
         }
 
-        return $data;
+        // Use the extracted content as the main data, preserving the template field.
+        $summary['template'] = $data['template'] ?? get_string('aigeneratedvia', 'aiplacement_modgen');
+        return $summary;
     }
 
     /**
@@ -421,13 +390,7 @@ class ai_service {
             } else {
                 // No sessions of its own: an outline (lines as strings or {text: ...}) becomes the
                 // session's description, which is the field the build reads.
-                $outline = [];
-                foreach ((isset($section['outline']) && is_array($section['outline'])) ? $section['outline'] : [] as $entry) {
-                    $line = is_array($entry) ? ($entry['text'] ?? '') : $entry;
-                    if (is_scalar($line) && trim((string) $line) !== '') {
-                        $outline[] = trim((string) $line);
-                    }
-                }
+                $outline = section_creation_service::outline_lines($section['outline'] ?? []);
                 $activities = (isset($section['activities']) && is_array($section['activities'])) ? $section['activities'] : [];
                 if ($outline || $activities) {
                     $week['sessions'] = [

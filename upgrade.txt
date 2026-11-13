@@ -1,5 +1,29 @@
 === Module Assistant (aiplacement_modgen) Upgrade Notes ===
 
+## Upgrading to Version 1.1.1 (2026-11-13)
+
+### Fixed
+
+- Text the AI wrote with brackets that are valid JSON on their own, such as a citation "[1]" or
+  "Part [2]", is kept as text. Before, the field became the bracketed part: a summary was saved as
+  "Array", a title made the whole generation fail, and an outline line made the build fail. Only a
+  module structure is now taken out of larger text.
+- A structure in one section's or theme's summary replaces the reply only when that section or theme
+  is the only one. Before, a structure in any one summary (an example, say) replaced all the others.
+- An outline entry the build cannot use (a number, a list, an object without text) no longer fails the
+  whole build; it is left out. The preview, the build and the theme conversion read outlines the same
+  way: section_creation_service::outline_lines().
+- The preview always shows a week's three sessions, as all three are always built, even when the
+  structure gives fewer or none.
+- structure_job_queued, structure_job_failed and structure_job_completed record their job as not
+  mapped when a course's logs are restored, instead of keeping an id that is another job's, or none,
+  on the site restored to.
+
+### Changed
+
+- prompt_preview_week.mustache: the activities and hasactivities context variables are gone (a week
+  always has its sessions); the Contents fold shows when hassessions is set.
+
 ## Upgrading to Version 1.1.0 (2026-11-12)
 
 ### Added

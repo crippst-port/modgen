@@ -155,8 +155,15 @@ final class event_contract_test extends \advanced_testcase {
         $this->assertFalse($class::get_other_mapping(), 'Other data holds no ids.');
         if ($event->objecttable === 'course') {
             $this->assertSame(['db' => 'course', 'restore' => 'course'], $class::get_objectid_mapping());
+        } else if ($event->objecttable === 'aiplacement_modgen_jobs') {
+            // Jobs are not backed up: a restored log must not keep an id that is another job's there.
+            $this->assertSame(
+                ['db' => 'aiplacement_modgen_jobs', 'restore' => \core\event\base::NOT_MAPPED],
+                $class::get_objectid_mapping()
+            );
         } else {
-            $this->assertFalse($class::get_objectid_mapping(), 'Plugin tables are not backed up.');
+            // Template events are logged in the system context, so they are never in a course backup.
+            $this->assertFalse($class::get_objectid_mapping());
         }
 
         if ($required !== null) {

@@ -94,12 +94,13 @@ class structure_job_completed extends \core\event\base {
     }
 
     /**
-     * The job table is not backed up, so the object id cannot be mapped on restore.
+     * The job table is not backed up, so a restored log records the job as not mapped rather than
+     * keeping an id that belongs to another job, or none, on the site it is restored to.
      *
-     * @return bool
+     * @return array
      */
     public static function get_objectid_mapping() {
-        return false;
+        return ['db' => 'aiplacement_modgen_jobs', 'restore' => \core\event\base::NOT_MAPPED];
     }
 
     /**

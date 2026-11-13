@@ -206,13 +206,61 @@ final class ai_response_parsing_test extends advanced_testcase {
         $this->assertArrayNotHasKey('error', $result);
     }
 
-    public function test_weekly_structure_escaped_in_a_later_section_summary_is_used(): void {
+    public function test_weekly_structure_escaped_in_a_lone_section_summary_is_used(): void {
         $this->ai_says(json_encode(['sections' => [
-            ['title' => 'Intro', 'summary' => 'Plain text'],
             ['title' => 'Wrapper', 'summary' => addslashes(json_encode($this->weekly()))],
         ]]));
 
         $this->assertSame($this->weekly()['sections'], ai_service::generate_module('Rivers', 'weekly')['sections']);
+    }
+
+    /**
+     * A structure in one summary among other sections (an example, say) does not replace them all.
+     */
+    public function test_a_structure_in_one_of_several_summaries_does_not_replace_the_others(): void {
+        $sections = [
+            ['title' => 'Week 1', 'summary' => 'Plain text'],
+            ['title' => 'Week 2', 'summary' => json_encode(['sections' => [['title' => 'Example']]])],
+            ['title' => 'Week 3', 'summary' => 'More text'],
+        ];
+        $this->ai_says(json_encode(['sections' => $sections]));
+
+        $result = ai_service::generate_module('Rivers', 'weekly');
+
+        $this->assertSame(['Week 1', 'Week 2', 'Week 3'], array_column($result['sections'], 'title'));
+    }
+
+    /**
+     * Ordinary text with brackets that are valid JSON on their own, such as citations, is kept as text
+     * everywhere the build reads it.
+     */
+    public function test_citations_and_brackets_in_text_are_kept_as_text(): void {
+        $this->ai_says(json_encode(['sections' => [[
+            'title' => 'Part [2]: Deltas',
+            'summary' => 'As Smith argues [1], rivers flood. See pages [10, 12] and {braces}.',
+            'outline' => ['Read [3]', ['text' => 'Discuss [4]']],
+        ]]]));
+
+        $result = ai_service::generate_module('Rivers', 'weekly');
+
+        $section = $result['sections'][0];
+        $this->assertSame('Part [2]: Deltas', $section['title']);
+        $this->assertSame('As Smith argues [1], rivers flood. See pages [10, 12] and {braces}.', $section['summary']);
+        $this->assertSame(['Read [3]', ['text' => 'Discuss [4]']], $section['outline']);
+        $this->assertArrayNotHasKey('error', $result);
+    }
+
+    public function test_a_theme_title_with_a_citation_does_not_fail_the_generation(): void {
+        $themed = $this->themed();
+        $themed['themes'][0]['title'] = 'Water [1]';
+        $themed['themes'][0]['weeks'][0]['title'] = 'Oct 1 - 7: Rivers [2]';
+        $this->ai_says(json_encode($themed));
+
+        $result = ai_service::generate_module('Rivers', 'theme');
+
+        $this->assertArrayNotHasKey('error', $result);
+        $this->assertSame('Water [1]', $result['themes'][0]['title']);
+        $this->assertSame('Oct 1 - 7: Rivers [2]', $result['themes'][0]['weeks'][0]['title']);
     }
 
     // Theme requests.
@@ -481,7 +529,16 @@ final class ai_response_parsing_test extends advanced_testcase {
     public function test_normalising_decodes_json_in_strings(): void {
         $this->assertSame(['a' => 1], $this->call('normalize_ai_response', '{"a": 1}'));
         $this->assertSame(['a' => 1], $this->call('normalize_ai_response', '{\\"a\\": 1}'), 'Escaped quotes.');
-        $this->assertSame(['a' => 1], $this->call('normalize_ai_response', 'Result: {"a": 1} done'), 'Inside text.');
+    }
+
+    public function test_only_a_structure_is_taken_out_of_larger_text(): void {
+        $this->assertSame(
+            $this->weekly(),
+            $this->call('normalize_ai_response', 'Here it is: ' . json_encode($this->weekly()) . ' Enjoy.')
+        );
+        foreach (['Result: {"a": 1} done', 'As Smith argues [1], rivers flood.', 'Pages [10, 12]'] as $text) {
+            $this->assertSame($text, $this->call('normalize_ai_response', $text), $text);
+        }
     }
 
     public function test_deep_unescaping_stops_at_its_depth_limit(): void {
@@ -497,19 +554,37 @@ final class ai_response_parsing_test extends advanced_testcase {
         $this->assertSame(['x' => ['y' => [1]], 'z' => ['w' => [2]]], $result);
     }
 
-    public function test_a_long_stringified_structure_in_a_summary_replaces_the_data(): void {
-        $inner = $this->themed();
-        $inner['themes'][0]['summary'] = str_repeat('Long text. ', 10);
-        $data = ['template' => 'Kept', 'themes' => [
-            'not a theme',
-            ['title' => 'Empty summary', 'summary' => ''],
-            ['title' => 'Wrapper', 'summary' => json_encode($inner)],
-        ]];
+    public function test_a_structure_in_a_lone_wrappers_summary_replaces_the_data(): void {
+        $data = ['template' => 'Kept', 'themes' => [['title' => 'Wrapper', 'summary' => $this->themed()]]];
 
         $result = $this->call('extract_misplaced_content_from_summaries', $data);
 
         $this->assertSame(['Water', 'Land'], array_column($result['themes'], 'title'));
         $this->assertSame('Kept', $result['template']);
+
+        $default = $this->call('extract_misplaced_content_from_summaries', ['sections' => [['summary' => $this->weekly()]]]);
+        $this->assertSame(get_string('aigeneratedvia', 'aiplacement_modgen'), $default['template']);
+    }
+
+    public function test_a_structure_beside_other_themes_is_left_where_it_is(): void {
+        $data = ['themes' => [
+            ['title' => 'Real', 'summary' => 'Text'],
+            ['title' => 'Wrapper', 'summary' => $this->themed()],
+        ]];
+
+        $this->assertSame($data, $this->call('extract_misplaced_content_from_summaries', $data));
+    }
+
+    public function test_a_lone_wrapper_without_a_structure_is_left_alone(): void {
+        foreach (
+            [
+            ['sections' => ['not a section']],
+            ['sections' => [['title' => 'One', 'summary' => ['other' => 1]]]],
+            ['sections' => [['title' => 'One', 'summary' => '{"sections": []}']]],
+            ] as $data
+        ) {
+            $this->assertSame($data, $this->call('extract_misplaced_content_from_summaries', $data));
+        }
     }
 
     public function test_ordinary_summaries_are_not_mistaken_for_misplaced_content(): void {

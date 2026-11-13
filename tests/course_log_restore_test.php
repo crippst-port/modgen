@@ -112,5 +112,13 @@ final class course_log_restore_test extends \advanced_testcase {
             $this->assertEquals($newcourseid, $byevent[$class]->objectid, "$class points at the restored course.");
         }
         $this->assertArrayHasKey(event\structure_repaired::class, $byevent);
+
+        // Jobs are not backed up, so a restored job event records its job as not mapped, rather than
+        // linking to whatever job has the original id on this site.
+        $jobevents = [event\structure_job_queued::class, event\structure_job_failed::class, event\structure_job_completed::class];
+        foreach ($jobevents as $class) {
+            $this->assertArrayHasKey($class, $byevent, "$class is restored.");
+            $this->assertEquals(\core\event\base::NOT_MAPPED, $byevent[$class]->objectid, "$class does not keep the job id.");
+        }
     }
 }
